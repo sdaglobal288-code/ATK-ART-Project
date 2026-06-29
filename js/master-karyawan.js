@@ -1,12 +1,16 @@
-const user = JSON.parse(localStorage.getItem("user"));
+// =====================================
+// MASTER KARYAWAN
+// =====================================
+
+const user = JSON.parse(sessionStorage.getItem("user"));
 
 if (!user) {
     window.location.href = "login.html";
 }
 
-// =========================
+// =====================================
 // LOAD DATA
-// =========================
+// =====================================
 
 async function loadKaryawan() {
 
@@ -14,7 +18,7 @@ async function loadKaryawan() {
         .from("master_karyawan")
         .select("*")
         .eq("gudang", user.gudang)
-        .order("nama");
+        .order("nama", { ascending: true });
 
     if (error) {
         console.error(error);
@@ -41,7 +45,9 @@ async function loadKaryawan() {
             <td>${item.gudang}</td>
 
             <td>
-                <span class="${item.status === 'Aktif' ? 'badge-success' : 'badge-danger'}">
+                <span class="${item.status === "Aktif"
+                    ? "badge-success"
+                    : "badge-danger"}">
                     ${item.status}
                 </span>
             </td>
@@ -73,37 +79,69 @@ async function loadKaryawan() {
 
 }
 
-// =========================
+// =====================================
 // SIMPAN
-// =========================
+// =====================================
 
 document
 .getElementById("formKaryawan")
-.addEventListener("submit", async function(e){
+.addEventListener("submit", async function (e) {
 
     e.preventDefault();
 
+    const nik = document
+        .getElementById("nik")
+        .value
+        .trim();
+
+    // ==========================
+    // VALIDASI NIK
+    // ==========================
+
+    const { data: cekNik } = await supabaseClient
+        .from("master_karyawan")
+        .select("id")
+        .eq("nik", nik)
+        .eq("gudang", user.gudang);
+
+    if (cekNik.length > 0) {
+
+        alert("NIK sudah terdaftar.");
+
+        return;
+
+    }
+
+    // ==========================
+
     const karyawan = {
 
-        nik : document.getElementById("nik").value.trim(),
+        nik: nik,
 
-        nama : document.getElementById("nama").value.trim(),
+        nama: document
+            .getElementById("nama")
+            .value
+            .trim(),
 
-        departemen : document.getElementById("departemen").value,
+        departemen:
+            document.getElementById("departemen").value,
 
-        jabatan : document.getElementById("jabatan").value,
+        jabatan:
+            document.getElementById("jabatan").value,
 
-        status : document.getElementById("status").value,
+        status:
+            document.getElementById("status").value,
 
-        gudang : user.gudang
+        gudang:
+            user.gudang
 
     };
 
     const { error } = await supabaseClient
         .from("master_karyawan")
-        .insert(karyawan);
+        .insert([karyawan]);
 
-    if(error){
+    if (error) {
 
         alert(error.message);
 
@@ -111,7 +149,7 @@ document
 
     }
 
-    alert("Data berhasil disimpan.");
+    alert("Data Karyawan berhasil disimpan.");
 
     document.getElementById("formKaryawan").reset();
 
@@ -119,20 +157,21 @@ document
 
 });
 
-// =========================
+// =====================================
 // HAPUS
-// =========================
+// =====================================
 
-async function hapusKaryawan(id){
+async function hapusKaryawan(id) {
 
-    if(!confirm("Hapus data karyawan?")) return;
+    if (!confirm("Hapus data karyawan ini?"))
+        return;
 
     const { error } = await supabaseClient
         .from("master_karyawan")
         .delete()
         .eq("id", id);
 
-    if(error){
+    if (error) {
 
         alert(error.message);
 
@@ -144,40 +183,44 @@ async function hapusKaryawan(id){
 
 }
 
-// =========================
+// =====================================
 // EDIT
-// =========================
+// =====================================
 
-function editKaryawan(id){
+function editKaryawan(id) {
 
     alert("Fitur Edit Karyawan akan dibuat pada tahap berikutnya.");
 
 }
 
-// =========================
+// =====================================
 // EXPORT
-// =========================
+// =====================================
 
-function exportExcel(){
+function exportExcel() {
 
     alert("Fitur Export Excel akan dibuat pada tahap berikutnya.");
 
 }
 
-// =========================
+// =====================================
 // IMPORT
-// =========================
+// =====================================
 
 document
 .getElementById("fileImport")
-.addEventListener("change", function(){
+.addEventListener("change", function () {
 
     alert("Fitur Import Excel akan dibuat pada tahap berikutnya.");
 
 });
 
-// =========================
-// LOAD PERTAMA
-// =========================
+// =====================================
+// LOAD
+// =====================================
 
-loadKaryawan();
+document.addEventListener("DOMContentLoaded", function () {
+
+    loadKaryawan();
+
+});
