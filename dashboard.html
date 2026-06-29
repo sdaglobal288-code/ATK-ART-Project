@@ -3,17 +3,26 @@
 <head>
 
 <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-<title>Dashboard</title>
+<title>ATK Dashboard</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+
+<link rel="stylesheet" href="css/dashboard.css">
 
 <script>
 
-const user=JSON.parse(localStorage.getItem("user"));
+const user = JSON.parse(localStorage.getItem("user"));
 
 if(!user){
+    location.href="login.html";
+}
 
-location.href="login.html";
-
+function logout(){
+    localStorage.removeItem("user");
+    location.href="login.html";
 }
 
 </script>
@@ -22,35 +31,170 @@ location.href="login.html";
 
 <body>
 
-<h1>
+<div class="container">
 
-Selamat Datang
+    <!-- SIDEBAR -->
+    <div class="sidebar">
 
-</h1>
+        <div class="logo">
 
-<h2 id="nama"></h2>
+            <h1>📦</h1>
 
-<h3 id="gudang"></h3>
+            <h2>ATK Dashboard</h2>
 
-<button onclick="logout()">
+            <p id="gudang"></p>
 
-Logout
+        </div>
 
-</button>
+        <div class="menu">
+
+            <button>🏠 Dashboard</button>
+
+            <div class="menu-title">UTAMA</div>
+
+            <button>📥 Input Stok</button>
+
+            <button>📦 Database Barang</button>
+
+            <div class="menu-title">MASTER DATA</div>
+
+            <button>📋 Master Barang</button>
+
+            <button>👥 Master Karyawan</button>
+
+            <button>🏢 Master Departemen</button>
+
+            <button>🚚 Master Supplier</button>
+
+            <div class="menu-title">HISTORI</div>
+
+            <button>📥 Barang Masuk</button>
+
+            <button>📤 Barang Keluar</button>
+
+            <div class="menu-title">TRANSFER</div>
+
+            <button>🔄 Transfer Barang</button>
+
+            <div class="menu-title">LAPORAN</div>
+
+            <button>📊 Laporan</button>
+
+            <hr style="margin:20px 0;border-color:#334155;">
+
+            <button onclick="logout()">🚪 Logout</button>
+
+        </div>
+
+    </div>
+
+    <!-- MAIN -->
+
+    <div class="main">
+
+        <div class="topbar">
+
+            <div>
+
+                <h2>Dashboard</h2>
+
+                <small>Selamat Datang di Sistem ATK & ART</small>
+
+            </div>
+
+            <div class="user">
+
+                👤 <span id="nama"></span>
+
+            </div>
+
+        </div>
+
+        <div class="content">
+
+            <div class="cards">
+
+                <div class="card">
+
+                    <h4>Total Barang</h4>
+
+                    <h2>0</h2>
+
+                </div>
+
+                <div class="card">
+
+                    <h4>Barang Masuk</h4>
+
+                    <h2>0</h2>
+
+                </div>
+
+                <div class="card">
+
+                    <h4>Barang Keluar</h4>
+
+                    <h2>0</h2>
+
+                </div>
+
+                <div class="card">
+
+                    <h4>Transfer</h4>
+
+                    <h2>0</h2>
+
+                </div>
+
+            </div>
+
+            <div class="panel">
+
+                <h2>Selamat Datang</h2>
+
+                <br>
+
+                <p>
+
+                    Halo <b id="nama2"></b>, Anda login sebagai admin Gudang
+
+                    <b id="gudang2"></b>.
+
+                </p>
+
+                <br>
+
+                <p>
+
+                    Tahap berikutnya kita akan membuat Master Barang,
+
+                    Database Barang,
+
+                    Barang Masuk,
+
+                    Barang Keluar,
+
+                    Transfer,
+
+                    dan Laporan.
+
+                </p>
+
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
 
 <script>
 
 document.getElementById("nama").innerHTML=user.nama;
+document.getElementById("nama2").innerHTML=user.nama;
 
 document.getElementById("gudang").innerHTML=user.gudang;
-
-function logout(){
-
-localStorage.removeItem("user");
-
-location.href="login.html";
-
-}
+document.getElementById("gudang2").innerHTML=user.gudang;
 
 </script>
 
