@@ -1,8 +1,16 @@
+// =====================================
+// MASTER BARANG
+// =====================================
+
 const user = JSON.parse(localStorage.getItem("user"));
 
 if (!user) {
     window.location.href = "login.html";
 }
+
+// =====================================
+// LOAD KATEGORI
+// =====================================
 
 async function loadKategori() {
 
@@ -32,6 +40,10 @@ async function loadKategori() {
 
 }
 
+// =====================================
+// LOAD SATUAN
+// =====================================
+
 async function loadSatuan() {
 
     const { data, error } = await supabaseClient
@@ -60,12 +72,15 @@ async function loadSatuan() {
 
 }
 
+// =====================================
+// LOAD BARANG
+// =====================================
+
 async function loadBarang() {
 
     const { data, error } = await supabaseClient
         .from("master_barang")
         .select("*")
-        .eq("gudang", user.gudang)
         .order("kode_barang");
 
     if (error) {
@@ -94,12 +109,20 @@ async function loadBarang() {
 
             <td>
 
-                <button onclick="editBarang(${item.id})">
+                <button
+                    class="btn-edit"
+                    onclick="editBarang(${item.id})">
+
                     ✏ Edit
+
                 </button>
 
-                <button onclick="hapusBarang(${item.id})">
+                <button
+                    class="btn-delete"
+                    onclick="hapusBarang(${item.id})">
+
                     🗑 Hapus
+
                 </button>
 
             </td>
@@ -111,25 +134,50 @@ async function loadBarang() {
 
 }
 
-document.getElementById("formBarang").addEventListener("submit", async function (e) {
+// =====================================
+// SIMPAN
+// =====================================
+
+document
+.getElementById("formBarang")
+.addEventListener("submit", async function (e) {
 
     e.preventDefault();
 
+    const kode = document.getElementById("kode_barang").value.trim();
+
+    // Cek kode barang
+    const { data: cekKode } = await supabaseClient
+        .from("master_barang")
+        .select("id")
+        .eq("kode_barang", kode);
+
+    if (cekKode.length > 0) {
+
+        alert("Kode Barang sudah digunakan.");
+
+        return;
+
+    }
+
     const barang = {
 
-        kode_barang: document.getElementById("kode_barang").value.trim(),
+        kode_barang: kode,
 
-        nama_barang: document.getElementById("nama_barang").value.trim(),
+        nama_barang:
+            document.getElementById("nama_barang").value.trim(),
 
-        kategori: document.getElementById("kategori").value,
+        kategori:
+            document.getElementById("kategori").value,
 
-        satuan: document.getElementById("satuan").value,
+        satuan:
+            document.getElementById("satuan").value,
 
-        stok: parseInt(document.getElementById("stok").value) || 0,
+        stok:
+            parseInt(document.getElementById("stok").value) || 0,
 
-        stok_minimum: parseInt(document.getElementById("stok_minimum").value) || 0,
-
-        gudang: user.gudang
+        stok_minimum:
+            parseInt(document.getElementById("stok_minimum").value) || 0
 
     };
 
@@ -145,13 +193,17 @@ document.getElementById("formBarang").addEventListener("submit", async function 
 
     }
 
-    alert("Barang berhasil disimpan");
+    alert("Barang berhasil disimpan.");
 
     document.getElementById("formBarang").reset();
 
     loadBarang();
 
 });
+
+// =====================================
+// HAPUS
+// =====================================
 
 async function hapusBarang(id) {
 
@@ -174,11 +226,41 @@ async function hapusBarang(id) {
 
 }
 
+// =====================================
+// EDIT
+// =====================================
+
 function editBarang(id) {
 
-    alert("Fitur Edit Barang akan kita buat pada tahap berikutnya.");
+    alert("Fitur Edit Barang akan dibuat pada tahap berikutnya.");
 
 }
+
+// =====================================
+// EXPORT
+// =====================================
+
+function exportExcel() {
+
+    alert("Fitur Export Excel akan dibuat pada tahap berikutnya.");
+
+}
+
+// =====================================
+// IMPORT
+// =====================================
+
+document
+.getElementById("fileImport")
+.addEventListener("change", function () {
+
+    alert("Fitur Import Excel akan dibuat pada tahap berikutnya.");
+
+});
+
+// =====================================
+// LOAD AWAL
+// =====================================
 
 document.addEventListener("DOMContentLoaded", () => {
 
