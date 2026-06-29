@@ -63,6 +63,8 @@
 
     </div>
 
+    <br>
+
     <!-- FORM -->
 
     <div class="panel">
@@ -85,7 +87,9 @@
                 placeholder="Nama Barang"
                 required>
 
-            <select id="kategori" required>
+            <select
+                id="kategori"
+                required>
 
                 <option value="">
                     -- Pilih Kategori --
@@ -93,7 +97,9 @@
 
             </select>
 
-            <select id="satuan" required>
+            <select
+                id="satuan"
+                required>
 
                 <option value="">
                     -- Pilih Satuan --
@@ -101,13 +107,8 @@
 
             </select>
 
-            <input
-                type="number"
-                id="stok_minimum"
-                placeholder="Stok Minimum"
-                value="0">
-
-            <button type="submit">
+            <button
+                type="submit">
 
                 💾 Simpan Barang
 
@@ -117,7 +118,9 @@
 
     </div>
 
-    <!-- TABEL -->
+    <br>
+
+    <!-- DAFTAR BARANG -->
 
     <div class="panel">
 
@@ -131,15 +134,13 @@
 
                 <tr>
 
-                    <th width="140">Kode</th>
+                    <th width="150">Kode</th>
 
                     <th>Nama Barang</th>
 
-                    <th width="170">Kategori</th>
+                    <th width="180">Kategori</th>
 
-                    <th width="120">Satuan</th>
-
-                    <th width="130">Stok Minimum</th>
+                    <th width="140">Satuan</th>
 
                     <th width="180">Aksi</th>
 
@@ -160,5 +161,4 @@
 <script src="js/master-barang.js"></script>
 
 </body>
-
 </html>
