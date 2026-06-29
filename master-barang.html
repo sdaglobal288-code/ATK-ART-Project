@@ -1,1 +1,128 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
 
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>Master Barang</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+<link rel="stylesheet" href="css/dashboard.css">
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
+
+<script src="supabase/config.js"></script>
+
+</head>
+
+<body>
+
+<div class="content">
+
+    <h2>📦 Master Barang</h2>
+
+    <br>
+
+    <div class="panel">
+
+        <h3>Tambah Barang</h3>
+
+        <br>
+
+        <form id="formBarang">
+
+            <input
+                type="text"
+                id="kode_barang"
+                placeholder="Kode Barang"
+                required>
+
+            <br><br>
+
+            <input
+                type="text"
+                id="nama_barang"
+                placeholder="Nama Barang"
+                required>
+
+            <br><br>
+
+            <select id="kategori"></select>
+
+            <br><br>
+
+            <select id="satuan"></select>
+
+            <br><br>
+
+            <input
+                type="number"
+                id="stok"
+                placeholder="Stok Awal"
+                value="0">
+
+            <br><br>
+
+            <input
+                type="number"
+                id="stok_minimum"
+                placeholder="Stok Minimum"
+                value="0">
+
+            <br><br>
+
+            <button type="submit">
+
+                Simpan Barang
+
+            </button>
+
+        </form>
+
+    </div>
+
+    <br>
+
+    <div class="panel">
+
+        <h3>Daftar Barang</h3>
+
+        <br>
+
+        <table border="1" width="100%" id="tableBarang">
+
+            <thead>
+
+                <tr>
+
+                    <th>Kode</th>
+
+                    <th>Nama Barang</th>
+
+                    <th>Kategori</th>
+
+                    <th>Satuan</th>
+
+                    <th>Stok</th>
+
+                </tr>
+
+            </thead>
+
+            <tbody>
+
+            </tbody>
+
+        </table>
+
+    </div>
+
+</div>
+
+<script src="js/master-barang.js"></script>
+
+</body>
+</html>
