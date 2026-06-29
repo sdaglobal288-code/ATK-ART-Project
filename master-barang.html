@@ -8,11 +8,13 @@
 <title>Master Barang</title>
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
+
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 
 <link rel="stylesheet" href="css/dashboard.css">
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
+
 <script src="supabase/config.js"></script>
 
 </head>
@@ -26,16 +28,23 @@
     <br>
 
     <!-- Toolbar -->
+
     <div class="toolbar">
 
-        <button class="btn-dashboard"
+        <button
+            class="btn-dashboard"
             onclick="location.href='dashboard.html'">
+
             🏠 Dashboard
+
         </button>
 
-        <button class="btn-import"
+        <button
+            class="btn-import"
             onclick="document.getElementById('fileImport').click()">
+
             📥 Import Excel
+
         </button>
 
         <input
@@ -44,16 +53,18 @@
             accept=".xlsx,.xls"
             hidden>
 
-        <button class="btn-export"
+        <button
+            class="btn-export"
             onclick="exportExcel()">
+
             📤 Export Excel
+
         </button>
 
     </div>
 
-    <br>
+    <!-- FORM -->
 
-    <!-- Form -->
     <div class="panel">
 
         <h3>Tambah Barang</h3>
@@ -68,31 +79,27 @@
                 placeholder="Kode Barang"
                 required>
 
-            <br><br>
-
             <input
                 type="text"
                 id="nama_barang"
                 placeholder="Nama Barang"
                 required>
 
-            <br><br>
+            <select id="kategori" required>
 
-            <select id="kategori"></select>
+                <option value="">
+                    -- Pilih Kategori --
+                </option>
 
-            <br><br>
+            </select>
 
-            <select id="satuan"></select>
+            <select id="satuan" required>
 
-            <br><br>
+                <option value="">
+                    -- Pilih Satuan --
+                </option>
 
-            <input
-                type="number"
-                id="stok"
-                placeholder="Stok Awal"
-                value="0">
-
-            <br><br>
+            </select>
 
             <input
                 type="number"
@@ -100,19 +107,17 @@
                 placeholder="Stok Minimum"
                 value="0">
 
-            <br><br>
-
             <button type="submit">
+
                 💾 Simpan Barang
+
             </button>
 
         </form>
 
     </div>
 
-    <br>
-
-    <!-- Daftar Barang -->
+    <!-- TABEL -->
 
     <div class="panel">
 
@@ -120,21 +125,21 @@
 
         <br>
 
-        <table width="100%" id="tableBarang">
+        <table id="tableBarang">
 
             <thead>
 
                 <tr>
 
-                    <th width="120">Kode</th>
+                    <th width="140">Kode</th>
 
                     <th>Nama Barang</th>
 
-                    <th width="140">Kategori</th>
+                    <th width="170">Kategori</th>
 
                     <th width="120">Satuan</th>
 
-                    <th width="90">Stok</th>
+                    <th width="130">Stok Minimum</th>
 
                     <th width="180">Aksi</th>
 
@@ -155,4 +160,5 @@
 <script src="js/master-barang.js"></script>
 
 </body>
+
 </html>
