@@ -2,7 +2,7 @@
 // MASTER BARANG
 // =====================================
 
-const user = JSON.parse(localStorage.getItem("user"));
+const user = JSON.parse(sessionStorage.getItem("user"));
 
 if (!user) {
     window.location.href = "login.html";
@@ -20,13 +20,14 @@ async function loadKategori() {
         .order("nama_kategori");
 
     if (error) {
-        console.error("Load Kategori :", error);
+        console.error(error);
         return;
     }
 
     const kategori = document.getElementById("kategori");
 
-    kategori.innerHTML = '<option value="">-- Pilih Kategori --</option>';
+    kategori.innerHTML =
+        '<option value="">-- Pilih Kategori --</option>';
 
     data.forEach(item => {
 
@@ -52,13 +53,14 @@ async function loadSatuan() {
         .order("nama_satuan");
 
     if (error) {
-        console.error("Load Satuan :", error);
+        console.error(error);
         return;
     }
 
     const satuan = document.getElementById("satuan");
 
-    satuan.innerHTML = '<option value="">-- Pilih Satuan --</option>';
+    satuan.innerHTML =
+        '<option value="">-- Pilih Satuan --</option>';
 
     data.forEach(item => {
 
@@ -84,7 +86,7 @@ async function loadBarang() {
         .order("kode_barang");
 
     if (error) {
-        console.error("Load Barang :", error);
+        console.error(error);
         return;
     }
 
@@ -105,7 +107,7 @@ async function loadBarang() {
 
             <td>${item.satuan}</td>
 
-            <td>${item.stok}</td>
+            <td>${item.stok_minimum}</td>
 
             <td>
 
@@ -135,18 +137,39 @@ async function loadBarang() {
 }
 
 // =====================================
-// SIMPAN
+// SIMPAN BARANG
 // =====================================
 
 document
 .getElementById("formBarang")
-.addEventListener("submit", async function (e) {
+.addEventListener("submit", async function(e){
 
     e.preventDefault();
 
-    const kode = document.getElementById("kode_barang").value.trim();
+    const kode = document
+        .getElementById("kode_barang")
+        .value
+        .trim()
+        .toUpperCase();
 
-    // Cek kode barang
+    const nama = document
+        .getElementById("nama_barang")
+        .value
+        .trim();
+
+    const kategori =
+        document.getElementById("kategori").value;
+
+    const satuan =
+        document.getElementById("satuan").value;
+
+    const stokMinimum =
+        parseInt(document.getElementById("stok_minimum").value) || 0;
+
+    // ============================
+    // VALIDASI KODE
+    // ============================
+
     const { data: cekKode } = await supabaseClient
         .from("master_barang")
         .select("id")
@@ -164,20 +187,13 @@ document
 
         kode_barang: kode,
 
-        nama_barang:
-            document.getElementById("nama_barang").value.trim(),
+        nama_barang: nama,
 
-        kategori:
-            document.getElementById("kategori").value,
+        kategori: kategori,
 
-        satuan:
-            document.getElementById("satuan").value,
+        satuan: satuan,
 
-        stok:
-            parseInt(document.getElementById("stok").value) || 0,
-
-        stok_minimum:
-            parseInt(document.getElementById("stok_minimum").value) || 0
+        stok_minimum: stokMinimum
 
     };
 
@@ -193,7 +209,7 @@ document
 
     }
 
-    alert("Barang berhasil disimpan.");
+    alert("Master Barang berhasil disimpan.");
 
     document.getElementById("formBarang").reset();
 
@@ -205,16 +221,17 @@ document
 // HAPUS
 // =====================================
 
-async function hapusBarang(id) {
+async function hapusBarang(id){
 
-    if (!confirm("Hapus barang ini?")) return;
+    if(!confirm("Hapus Master Barang ini?"))
+        return;
 
     const { error } = await supabaseClient
         .from("master_barang")
         .delete()
         .eq("id", id);
 
-    if (error) {
+    if(error){
 
         alert(error.message);
 
@@ -230,7 +247,7 @@ async function hapusBarang(id) {
 // EDIT
 // =====================================
 
-function editBarang(id) {
+function editBarang(id){
 
     alert("Fitur Edit Barang akan dibuat pada tahap berikutnya.");
 
@@ -240,7 +257,7 @@ function editBarang(id) {
 // EXPORT
 // =====================================
 
-function exportExcel() {
+function exportExcel(){
 
     alert("Fitur Export Excel akan dibuat pada tahap berikutnya.");
 
@@ -252,17 +269,17 @@ function exportExcel() {
 
 document
 .getElementById("fileImport")
-.addEventListener("change", function () {
+.addEventListener("change", function(){
 
     alert("Fitur Import Excel akan dibuat pada tahap berikutnya.");
 
 });
 
 // =====================================
-// LOAD AWAL
+// LOAD
 // =====================================
 
-document.addEventListener("DOMContentLoaded", () => {
+document.addEventListener("DOMContentLoaded", function(){
 
     loadKategori();
 
