@@ -1,13 +1,16 @@
 <!DOCTYPE html>
 <html lang="id">
+
 <head>
 
 <meta charset="UTF-8">
+
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
 <title>ATK & ART Management</title>
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
+
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
 
 <script src="https://cdn.tailwindcss.com"></script>
@@ -22,33 +25,31 @@
 
 <div class="login-card">
 
-<div class="logo">
+    <div class="logo">
+        📦
+    </div>
 
-📦
+    <h1>ATK & ART</h1>
 
-</div>
+    <p>Inventory Management System</p>
 
-<h1>ATK & ART</h1>
+    <input
+        id="username"
+        type="text"
+        placeholder="Username"
+        autocomplete="username">
 
-<p>Inventory Management System</p>
+    <input
+        id="password"
+        type="password"
+        placeholder="Password"
+        autocomplete="current-password">
 
-<input
-id="username"
-type="text"
-placeholder="Username">
+    <button id="btnLogin" onclick="login()">
+        LOGIN
+    </button>
 
-<input
-id="password"
-type="password"
-placeholder="Password">
-
-<button onclick="login()">
-
-LOGIN
-
-</button>
-
-<p id="status"></p>
+    <p id="status"></p>
 
 </div>
 
@@ -56,5 +57,24 @@ LOGIN
 
 <script src="js/auth.js"></script>
 
+<script>
+
+// Tekan Enter untuk login
+document.addEventListener("keydown", function(e){
+
+    if(e.key === "Enter"){
+
+        login();
+
+    }
+
+});
+
+// Jika sebelumnya ada session lama, hapus
+sessionStorage.removeItem("user");
+
+</script>
+
 </body>
+
 </html>
