@@ -66,20 +66,36 @@ async function loadBarang() {
     data.forEach(item => {
 
         tbody.innerHTML += `
-        <tr>
+<tr>
 
-            <td>${item.kode_barang}</td>
+<td>${item.kode_barang}</td>
 
-            <td>${item.nama_barang}</td>
+<td>${item.nama_barang}</td>
 
-            <td>${item.kategori}</td>
+<td>${item.kategori}</td>
 
-            <td>${item.satuan}</td>
+<td>${item.satuan}</td>
 
-            <td>${item.stok}</td>
+<td>${item.stok}</td>
 
-        </tr>
-        `;
+<td>
+
+<button onclick="editBarang(${item.id})">
+
+✏ Edit
+
+</button>
+
+<button onclick="hapusBarang(${item.id})">
+
+🗑 Hapus
+
+</button>
+
+</td>
+
+</tr>
+`;
 
     });
 
@@ -132,3 +148,30 @@ loadKategori();
 loadSatuan();
 
 loadBarang();
+
+async function hapusBarang(id){
+
+    if(!confirm("Hapus barang ini?")) return;
+
+    const {error}=await supabase
+    .from("master_barang")
+    .delete()
+    .eq("id",id);
+
+    if(error){
+
+        alert(error.message);
+
+        return;
+
+    }
+
+    loadBarang();
+
+}
+
+function editBarang(id){
+
+    alert("Fitur edit akan kita buat berikutnya.");
+
+}
