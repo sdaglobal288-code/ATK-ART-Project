@@ -17,7 +17,6 @@ async function loadDepartemen() {
     const { data, error } = await supabaseClient
         .from("master_departemen")
         .select("*")
-        .eq("gudang", user.gudang)
         .order("kode_departemen");
 
     if (error) {
@@ -38,8 +37,6 @@ async function loadDepartemen() {
             <td>${item.kode_departemen}</td>
 
             <td>${item.nama_departemen}</td>
-
-            <td>${item.gudang}</td>
 
             <td>
 
@@ -84,10 +81,7 @@ document
             document.getElementById("kode_departemen").value.trim(),
 
         nama_departemen:
-            document.getElementById("nama_departemen").value.trim(),
-
-        gudang:
-            user.gudang
+            document.getElementById("nama_departemen").value.trim()
 
     };
 
