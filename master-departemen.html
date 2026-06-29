@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="id">
+
+<head>
+
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>Master Departemen</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+<link rel="stylesheet" href="css/dashboard.css">
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
+
+<script src="supabase/config.js"></script>
+
+</head>
+
+<body>
+
+<div class="content">
+
+<h2>🏢 Master Departemen</h2>
+
+<br>
+
+<div class="toolbar">
+
+<button class="btn-dashboard"
+onclick="location.href='dashboard.html'">
+
+🏠 Dashboard
+
+</button>
+
+<button class="btn-import"
+onclick="document.getElementById('fileImport').click()">
+
+📥 Import Excel
+
+</button>
+
+<input
+type="file"
+id="fileImport"
+accept=".xlsx,.xls"
+hidden>
+
+<button
+class="btn-export"
+onclick="exportExcel()">
+
+📤 Export Excel
+
+</button>
+
+</div>
+
+<div class="panel">
+
+<h3>Tambah Departemen</h3>
+
+<br>
+
+<form id="formDepartemen">
+
+<input
+type="text"
+id="kode_departemen"
+placeholder="Kode Departemen"
+required>
+
+<input
+type="text"
+id="nama_departemen"
+placeholder="Nama Departemen"
+required>
+
+<button type="submit">
+
+💾 Simpan Departemen
+
+</button>
+
+</form>
+
+</div>
+
+<div class="panel">
+
+<h3>Daftar Departemen</h3>
+
+<br>
+
+<table id="tableDepartemen">
+
+<thead>
+
+<tr>
+
+<th width="150">Kode</th>
+
+<th>Nama Departemen</th>
+
+<th width="180">Gudang</th>
+
+<th width="180">Aksi</th>
+
+</tr>
+
+</thead>
+
+<tbody>
+
+</tbody>
+
+</table>
+
+</div>
+
+</div>
+
+<script src="js/master-departemen.js"></script>
+
+</body>
+
+</html>
