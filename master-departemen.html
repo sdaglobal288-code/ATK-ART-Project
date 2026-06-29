@@ -9,13 +9,11 @@
 <title>Master Departemen</title>
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
-
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 
 <link rel="stylesheet" href="css/dashboard.css">
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
-
 <script src="supabase/config.js"></script>
 
 </head>
@@ -24,103 +22,110 @@
 
 <div class="content">
 
-<h2>🏢 Master Departemen</h2>
+    <h2>🏢 Master Departemen</h2>
 
-<br>
+    <br>
 
-<div class="toolbar">
+    <!-- Toolbar -->
 
-<button class="btn-dashboard"
-onclick="location.href='dashboard.html'">
+    <div class="toolbar">
 
-🏠 Dashboard
+        <button
+            class="btn-dashboard"
+            onclick="location.href='dashboard.html'">
 
-</button>
+            🏠 Dashboard
 
-<button class="btn-import"
-onclick="document.getElementById('fileImport').click()">
+        </button>
 
-📥 Import Excel
+        <button
+            class="btn-import"
+            onclick="document.getElementById('fileImport').click()">
 
-</button>
+            📥 Import Excel
 
-<input
-type="file"
-id="fileImport"
-accept=".xlsx,.xls"
-hidden>
+        </button>
 
-<button
-class="btn-export"
-onclick="exportExcel()">
+        <input
+            type="file"
+            id="fileImport"
+            accept=".xlsx,.xls"
+            hidden>
 
-📤 Export Excel
+        <button
+            class="btn-export"
+            onclick="exportExcel()">
 
-</button>
+            📤 Export Excel
 
-</div>
+        </button>
 
-<div class="panel">
+    </div>
 
-<h3>Tambah Departemen</h3>
+    <!-- Form -->
 
-<br>
+    <div class="panel">
 
-<form id="formDepartemen">
+        <h3>Tambah Departemen</h3>
 
-<input
-type="text"
-id="kode_departemen"
-placeholder="Kode Departemen"
-required>
+        <br>
 
-<input
-type="text"
-id="nama_departemen"
-placeholder="Nama Departemen"
-required>
+        <form id="formDepartemen">
 
-<button type="submit">
+            <input
+                type="text"
+                id="kode_departemen"
+                placeholder="Kode Departemen"
+                required>
 
-💾 Simpan Departemen
+            <input
+                type="text"
+                id="nama_departemen"
+                placeholder="Nama Departemen"
+                required>
 
-</button>
+            <button
+                type="submit">
 
-</form>
+                💾 Simpan Departemen
 
-</div>
+            </button>
 
-<div class="panel">
+        </form>
 
-<h3>Daftar Departemen</h3>
+    </div>
 
-<br>
+    <!-- Daftar -->
 
-<table id="tableDepartemen">
+    <div class="panel">
 
-<thead>
+        <h3>Daftar Departemen</h3>
 
-<tr>
+        <br>
 
-<th width="150">Kode</th>
+        <table id="tableDepartemen">
 
-<th>Nama Departemen</th>
+            <thead>
 
-<th width="180">Gudang</th>
+                <tr>
 
-<th width="180">Aksi</th>
+                    <th width="180">Kode</th>
 
-</tr>
+                    <th>Nama Departemen</th>
 
-</thead>
+                    <th width="200">Aksi</th>
 
-<tbody>
+                </tr>
 
-</tbody>
+            </thead>
 
-</table>
+            <tbody>
 
-</div>
+            </tbody>
+
+        </table>
+
+    </div>
 
 </div>
 
