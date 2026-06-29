@@ -9,13 +9,11 @@
 <title>Master Karyawan</title>
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
-
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 
 <link rel="stylesheet" href="css/dashboard.css">
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
-
 <script src="supabase/config.js"></script>
 
 </head>
@@ -107,7 +105,6 @@ required>
 <input
 type="text"
 id="gudang"
-placeholder="Gudang"
 readonly>
 
 <select id="status">
@@ -177,10 +174,8 @@ type="submit">
 
 const user = JSON.parse(sessionStorage.getItem("user"));
 
-if(!user){
-
-location.href="login.html";
-
+if (!user) {
+    location.href = "login.html";
 }
 
 document.getElementById("gudang").value = user.gudang;
