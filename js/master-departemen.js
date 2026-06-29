@@ -2,7 +2,7 @@
 // MASTER DEPARTEMEN
 // =====================================
 
-const user = JSON.parse(localStorage.getItem("user"));
+const user = JSON.parse(sessionStorage.getItem("user"));
 
 if (!user) {
     location.href = "login.html";
@@ -17,7 +17,7 @@ async function loadDepartemen() {
     const { data, error } = await supabaseClient
         .from("master_departemen")
         .select("*")
-        .order("kode_departemen");
+        .order("kode_departemen", { ascending: true });
 
     if (error) {
         console.error(error);
@@ -71,25 +71,68 @@ async function loadDepartemen() {
 
 document
 .getElementById("formDepartemen")
-.addEventListener("submit", async function(e){
+.addEventListener("submit", async function (e) {
 
     e.preventDefault();
 
-    const departemen = {
+    const kode = document
+        .getElementById("kode_departemen")
+        .value
+        .trim()
+        .toUpperCase();
 
-        kode_departemen:
-            document.getElementById("kode_departemen").value.trim(),
+    const nama = document
+        .getElementById("nama_departemen")
+        .value
+        .trim();
 
-        nama_departemen:
-            document.getElementById("nama_departemen").value.trim()
+    // =============================
+    // VALIDASI KODE
+    // =============================
 
-    };
+    const { data: cekKode } = await supabaseClient
+        .from("master_departemen")
+        .select("id")
+        .eq("kode_departemen", kode);
+
+    if (cekKode.length > 0) {
+
+        alert("Kode Departemen sudah digunakan.");
+
+        return;
+
+    }
+
+    // =============================
+    // VALIDASI NAMA
+    // =============================
+
+    const { data: cekNama } = await supabaseClient
+        .from("master_departemen")
+        .select("id")
+        .ilike("nama_departemen", nama);
+
+    if (cekNama.length > 0) {
+
+        alert("Nama Departemen sudah ada.");
+
+        return;
+
+    }
+
+    // =============================
 
     const { error } = await supabaseClient
         .from("master_departemen")
-        .insert(departemen);
+        .insert([{
 
-    if(error){
+            kode_departemen: kode,
+
+            nama_departemen: nama
+
+        }]);
+
+    if (error) {
 
         alert(error.message);
 
@@ -109,9 +152,9 @@ document
 // HAPUS
 // =====================================
 
-async function hapusDepartemen(id){
+async function hapusDepartemen(id) {
 
-    if(!confirm("Yakin ingin menghapus departemen ini?"))
+    if (!confirm("Yakin ingin menghapus Departemen ini?"))
         return;
 
     const { error } = await supabaseClient
@@ -119,7 +162,7 @@ async function hapusDepartemen(id){
         .delete()
         .eq("id", id);
 
-    if(error){
+    if (error) {
 
         alert(error.message);
 
@@ -135,7 +178,7 @@ async function hapusDepartemen(id){
 // EDIT
 // =====================================
 
-function editDepartemen(id){
+function editDepartemen(id) {
 
     alert("Fitur Edit Departemen akan dibuat pada tahap berikutnya.");
 
@@ -145,7 +188,7 @@ function editDepartemen(id){
 // EXPORT
 // =====================================
 
-function exportExcel(){
+function exportExcel() {
 
     alert("Fitur Export Excel akan dibuat pada tahap berikutnya.");
 
@@ -157,14 +200,18 @@ function exportExcel(){
 
 document
 .getElementById("fileImport")
-.addEventListener("change", function(){
+.addEventListener("change", function () {
 
     alert("Fitur Import Excel akan dibuat pada tahap berikutnya.");
 
 });
 
 // =====================================
-// LOAD PERTAMA
+// LOAD AWAL
 // =====================================
 
-loadDepartemen();
+document.addEventListener("DOMContentLoaded", function () {
+
+    loadDepartemen();
+
+});
