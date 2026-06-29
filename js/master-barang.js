@@ -107,8 +107,6 @@ async function loadBarang() {
 
             <td>${item.satuan}</td>
 
-            <td>${item.stok_minimum}</td>
-
             <td>
 
                 <button
@@ -163,17 +161,23 @@ document
     const satuan =
         document.getElementById("satuan").value;
 
-    const stokMinimum =
-        parseInt(document.getElementById("stok_minimum").value) || 0;
-
     // ============================
-    // VALIDASI KODE
+    // VALIDASI KODE BARANG
     // ============================
 
-    const { data: cekKode } = await supabaseClient
+    const { data: cekKode, error: errorCek } =
+        await supabaseClient
         .from("master_barang")
         .select("id")
         .eq("kode_barang", kode);
+
+    if (errorCek) {
+
+        alert(errorCek.message);
+
+        return;
+
+    }
 
     if (cekKode.length > 0) {
 
@@ -191,9 +195,7 @@ document
 
         kategori: kategori,
 
-        satuan: satuan,
-
-        stok_minimum: stokMinimum
+        satuan: satuan
 
     };
 
@@ -212,6 +214,10 @@ document
     alert("Master Barang berhasil disimpan.");
 
     document.getElementById("formBarang").reset();
+
+    loadKategori();
+
+    loadSatuan();
 
     loadBarang();
 
@@ -276,7 +282,7 @@ document
 });
 
 // =====================================
-// LOAD
+// LOAD PERTAMA
 // =====================================
 
 document.addEventListener("DOMContentLoaded", function(){
