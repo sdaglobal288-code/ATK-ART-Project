@@ -9,7 +9,81 @@ if (!user) {
 }
 
 // =====================================
-// LOAD DATA
+// TAMPILKAN GUDANG
+// =====================================
+
+document.getElementById("gudang").value = user.gudang;
+
+// =====================================
+// LOAD DEPARTEMEN (SHARED)
+// =====================================
+
+async function loadDepartemen() {
+
+    const { data, error } = await supabaseClient
+        .from("master_departemen")
+        .select("*")
+        .order("nama_departemen");
+
+    if (error) {
+        console.error(error);
+        return;
+    }
+
+    const select = document.getElementById("departemen");
+
+    select.innerHTML = `
+        <option value="">-- Pilih Departemen --</option>
+    `;
+
+    data.forEach(item => {
+
+        select.innerHTML += `
+            <option value="${item.nama_departemen}">
+                ${item.nama_departemen}
+            </option>
+        `;
+
+    });
+
+}
+
+// =====================================
+// LOAD JABATAN (SHARED)
+// =====================================
+
+async function loadJabatan() {
+
+    const { data, error } = await supabaseClient
+        .from("master_jabatan")
+        .select("*")
+        .order("nama_jabatan");
+
+    if (error) {
+        console.error(error);
+        return;
+    }
+
+    const select = document.getElementById("jabatan");
+
+    select.innerHTML = `
+        <option value="">-- Pilih Jabatan --</option>
+    `;
+
+    data.forEach(item => {
+
+        select.innerHTML += `
+            <option value="${item.nama_jabatan}">
+                ${item.nama_jabatan}
+            </option>
+        `;
+
+    });
+
+}
+
+// =====================================
+// LOAD KARYAWAN
 // =====================================
 
 async function loadKaryawan() {
@@ -18,7 +92,7 @@ async function loadKaryawan() {
         .from("master_karyawan")
         .select("*")
         .eq("gudang", user.gudang)
-        .order("nama", { ascending: true });
+        .order("nama");
 
     if (error) {
         console.error(error);
@@ -45,11 +119,15 @@ async function loadKaryawan() {
             <td>${item.gudang}</td>
 
             <td>
+
                 <span class="${item.status === "Aktif"
                     ? "badge-success"
                     : "badge-danger"}">
+
                     ${item.status}
+
                 </span>
+
             </td>
 
             <td>
@@ -85,7 +163,7 @@ async function loadKaryawan() {
 
 document
 .getElementById("formKaryawan")
-.addEventListener("submit", async function (e) {
+.addEventListener("submit", async function(e){
 
     e.preventDefault();
 
@@ -94,9 +172,9 @@ document
         .value
         .trim();
 
-    // ==========================
+    // =====================
     // VALIDASI NIK
-    // ==========================
+    // =====================
 
     const { data: cekNik } = await supabaseClient
         .from("master_karyawan")
@@ -106,22 +184,20 @@ document
 
     if (cekNik.length > 0) {
 
-        alert("NIK sudah terdaftar.");
+        alert("NIK sudah digunakan.");
 
         return;
 
     }
 
-    // ==========================
+    // =====================
 
     const karyawan = {
 
         nik: nik,
 
-        nama: document
-            .getElementById("nama")
-            .value
-            .trim(),
+        nama:
+            document.getElementById("nama").value.trim(),
 
         departemen:
             document.getElementById("departemen").value,
@@ -129,11 +205,11 @@ document
         jabatan:
             document.getElementById("jabatan").value,
 
-        status:
-            document.getElementById("status").value,
-
         gudang:
-            user.gudang
+            user.gudang,
+
+        status:
+            document.getElementById("status").value
 
     };
 
@@ -149,9 +225,15 @@ document
 
     }
 
-    alert("Data Karyawan berhasil disimpan.");
+    alert("Karyawan berhasil disimpan.");
 
     document.getElementById("formKaryawan").reset();
+
+    document.getElementById("gudang").value = user.gudang;
+
+    loadDepartemen();
+
+    loadJabatan();
 
     loadKaryawan();
 
@@ -161,9 +243,9 @@ document
 // HAPUS
 // =====================================
 
-async function hapusKaryawan(id) {
+async function hapusKaryawan(id){
 
-    if (!confirm("Hapus data karyawan ini?"))
+    if(!confirm("Hapus data karyawan?"))
         return;
 
     const { error } = await supabaseClient
@@ -171,7 +253,7 @@ async function hapusKaryawan(id) {
         .delete()
         .eq("id", id);
 
-    if (error) {
+    if(error){
 
         alert(error.message);
 
@@ -187,7 +269,7 @@ async function hapusKaryawan(id) {
 // EDIT
 // =====================================
 
-function editKaryawan(id) {
+function editKaryawan(id){
 
     alert("Fitur Edit Karyawan akan dibuat pada tahap berikutnya.");
 
@@ -197,7 +279,7 @@ function editKaryawan(id) {
 // EXPORT
 // =====================================
 
-function exportExcel() {
+function exportExcel(){
 
     alert("Fitur Export Excel akan dibuat pada tahap berikutnya.");
 
@@ -209,17 +291,21 @@ function exportExcel() {
 
 document
 .getElementById("fileImport")
-.addEventListener("change", function () {
+.addEventListener("change", function(){
 
     alert("Fitur Import Excel akan dibuat pada tahap berikutnya.");
 
 });
 
 // =====================================
-// LOAD
+// LOAD AWAL
 // =====================================
 
-document.addEventListener("DOMContentLoaded", function () {
+document.addEventListener("DOMContentLoaded", function(){
+
+    loadDepartemen();
+
+    loadJabatan();
 
     loadKaryawan();
 
