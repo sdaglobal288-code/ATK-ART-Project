@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+
+<meta charset="UTF-8">
+
+<title>Dashboard</title>
+
+<script>
+
+const user=JSON.parse(localStorage.getItem("user"));
+
+if(!user){
+
+location.href="login.html";
+
+}
+
+</script>
+
+</head>
+
+<body>
+
+<h1>
+
+Selamat Datang
+
+</h1>
+
+<h2 id="nama"></h2>
+
+<h3 id="gudang"></h3>
+
+<button onclick="logout()">
+
+Logout
+
+</button>
+
+<script>
+
+document.getElementById("nama").innerHTML=user.nama;
+
+document.getElementById("gudang").innerHTML=user.gudang;
+
+function logout(){
+
+localStorage.removeItem("user");
+
+location.href="login.html";
+
+}
+
+</script>
+
+</body>
+</html>
