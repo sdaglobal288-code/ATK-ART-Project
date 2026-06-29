@@ -1,23 +1,27 @@
-const user = JSON.parse(localStorage.getItem("user"));
+// =====================================
+// MASTER JABATAN
+// =====================================
+
+const user = JSON.parse(sessionStorage.getItem("user"));
 
 if (!user) {
     window.location.href = "login.html";
 }
 
-// ===============================
+// =====================================
 // LOAD DATA
-// ===============================
+// =====================================
 
 async function loadJabatan() {
 
     const { data, error } = await supabaseClient
         .from("master_jabatan")
         .select("*")
-        .eq("gudang", user.gudang)
-        .order("nama_jabatan");
+        .order("kode_jabatan", { ascending: true });
 
     if (error) {
         console.error(error);
+        alert(error.message);
         return;
     }
 
@@ -33,8 +37,6 @@ async function loadJabatan() {
             <td>${item.kode_jabatan}</td>
 
             <td>${item.nama_jabatan}</td>
-
-            <td>${item.gudang}</td>
 
             <td>
 
@@ -63,31 +65,74 @@ async function loadJabatan() {
 
 }
 
-// ===============================
+// =====================================
 // SIMPAN
-// ===============================
+// =====================================
 
 document
 .getElementById("formJabatan")
-.addEventListener("submit", async function(e){
+.addEventListener("submit", async function (e) {
 
     e.preventDefault();
 
-    const jabatan = {
+    const kode = document
+        .getElementById("kode_jabatan")
+        .value
+        .trim()
+        .toUpperCase();
 
-        kode_jabatan : document.getElementById("kode_jabatan").value.trim(),
+    const nama = document
+        .getElementById("nama_jabatan")
+        .value
+        .trim();
 
-        nama_jabatan : document.getElementById("nama_jabatan").value.trim(),
+    // ============================
+    // VALIDASI KODE
+    // ============================
 
-        gudang : user.gudang
+    const { data: cekKode } = await supabaseClient
+        .from("master_jabatan")
+        .select("id")
+        .eq("kode_jabatan", kode);
 
-    };
+    if (cekKode.length > 0) {
+
+        alert("Kode Jabatan sudah digunakan.");
+
+        return;
+
+    }
+
+    // ============================
+    // VALIDASI NAMA
+    // ============================
+
+    const { data: cekNama } = await supabaseClient
+        .from("master_jabatan")
+        .select("id")
+        .ilike("nama_jabatan", nama);
+
+    if (cekNama.length > 0) {
+
+        alert("Nama Jabatan sudah ada.");
+
+        return;
+
+    }
+
+    // ============================
 
     const { error } = await supabaseClient
         .from("master_jabatan")
-        .insert(jabatan);
+        .insert([{
 
-    if(error){
+            kode_jabatan: kode,
+
+            nama_jabatan: nama
+
+        }]);
+
+    if (error) {
 
         alert(error.message);
 
@@ -103,20 +148,21 @@ document
 
 });
 
-// ===============================
+// =====================================
 // HAPUS
-// ===============================
+// =====================================
 
-async function hapusJabatan(id){
+async function hapusJabatan(id) {
 
-    if(!confirm("Hapus data jabatan ini?")) return;
+    if (!confirm("Hapus data jabatan ini?"))
+        return;
 
     const { error } = await supabaseClient
         .from("master_jabatan")
         .delete()
         .eq("id", id);
 
-    if(error){
+    if (error) {
 
         alert(error.message);
 
@@ -128,38 +174,44 @@ async function hapusJabatan(id){
 
 }
 
-// ===============================
+// =====================================
 // EDIT
-// ===============================
+// =====================================
 
-function editJabatan(id){
+function editJabatan(id) {
 
     alert("Fitur Edit Jabatan akan dibuat pada tahap berikutnya.");
 
 }
 
-// ===============================
+// =====================================
 // EXPORT
-// ===============================
+// =====================================
 
-function exportExcel(){
+function exportExcel() {
 
     alert("Fitur Export Excel akan dibuat pada tahap berikutnya.");
 
 }
 
-// ===============================
+// =====================================
 // IMPORT
-// ===============================
+// =====================================
 
 document
 .getElementById("fileImport")
-.addEventListener("change", function(){
+.addEventListener("change", function () {
 
     alert("Fitur Import Excel akan dibuat pada tahap berikutnya.");
 
 });
 
-// ===============================
+// =====================================
+// LOAD AWAL
+// =====================================
 
-loadJabatan();
+document.addEventListener("DOMContentLoaded", function () {
+
+    loadJabatan();
+
+});
