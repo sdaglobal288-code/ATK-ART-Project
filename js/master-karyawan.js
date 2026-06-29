@@ -38,7 +38,13 @@ async function loadKaryawan() {
 
             <td>${item.jabatan}</td>
 
-            <td>${item.status}</td>
+            <td>${item.gudang}</td>
+
+            <td>
+                <span class="${item.status === 'Aktif' ? 'badge-success' : 'badge-danger'}">
+                    ${item.status}
+                </span>
+            </td>
 
             <td>
 
@@ -79,9 +85,9 @@ document
 
     const karyawan = {
 
-        nik : document.getElementById("nik").value,
+        nik : document.getElementById("nik").value.trim(),
 
-        nama : document.getElementById("nama").value,
+        nama : document.getElementById("nama").value.trim(),
 
         departemen : document.getElementById("departemen").value,
 
@@ -154,7 +160,7 @@ function editKaryawan(id){
 
 function exportExcel(){
 
-    alert("Fitur Export Excel akan dibuat.");
+    alert("Fitur Export Excel akan dibuat pada tahap berikutnya.");
 
 }
 
@@ -166,10 +172,12 @@ document
 .getElementById("fileImport")
 .addEventListener("change", function(){
 
-    alert("Fitur Import Excel akan dibuat.");
+    alert("Fitur Import Excel akan dibuat pada tahap berikutnya.");
 
 });
 
+// =========================
+// LOAD PERTAMA
 // =========================
 
 loadKaryawan();
