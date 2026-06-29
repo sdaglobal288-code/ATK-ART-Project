@@ -1,61 +1,75 @@
 const user = JSON.parse(localStorage.getItem("user"));
 
+if (!user) {
+    window.location.href = "login.html";
+}
+
 async function loadKategori() {
-    const { data, error } = await supabase
+
+    const { data, error } = await supabaseClient
         .from("kategori_barang")
         .select("*")
         .order("nama_kategori");
 
     if (error) {
-        console.error(error);
+        console.error("Load Kategori :", error);
         return;
     }
 
     const kategori = document.getElementById("kategori");
+
     kategori.innerHTML = '<option value="">-- Pilih Kategori --</option>';
 
     data.forEach(item => {
+
         kategori.innerHTML += `
             <option value="${item.nama_kategori}">
                 ${item.nama_kategori}
             </option>
         `;
+
     });
+
 }
 
 async function loadSatuan() {
-    const { data, error } = await supabase
+
+    const { data, error } = await supabaseClient
         .from("satuan")
         .select("*")
         .order("nama_satuan");
 
     if (error) {
-        console.error(error);
+        console.error("Load Satuan :", error);
         return;
     }
 
     const satuan = document.getElementById("satuan");
+
     satuan.innerHTML = '<option value="">-- Pilih Satuan --</option>';
 
     data.forEach(item => {
+
         satuan.innerHTML += `
             <option value="${item.nama_satuan}">
                 ${item.nama_satuan}
             </option>
         `;
+
     });
+
 }
 
 async function loadBarang() {
 
-    const { data, error } = await supabase
+    const { data, error } = await supabaseClient
         .from("master_barang")
         .select("*")
         .eq("gudang", user.gudang)
         .order("kode_barang");
 
     if (error) {
-        console.error(error);
+        console.error("Load Barang :", error);
         return;
     }
 
@@ -66,68 +80,64 @@ async function loadBarang() {
     data.forEach(item => {
 
         tbody.innerHTML += `
-<tr>
+        <tr>
 
-<td>${item.kode_barang}</td>
+            <td>${item.kode_barang}</td>
 
-<td>${item.nama_barang}</td>
+            <td>${item.nama_barang}</td>
 
-<td>${item.kategori}</td>
+            <td>${item.kategori}</td>
 
-<td>${item.satuan}</td>
+            <td>${item.satuan}</td>
 
-<td>${item.stok}</td>
+            <td>${item.stok}</td>
 
-<td>
+            <td>
 
-<button onclick="editBarang(${item.id})">
+                <button onclick="editBarang(${item.id})">
+                    ✏ Edit
+                </button>
 
-✏ Edit
+                <button onclick="hapusBarang(${item.id})">
+                    🗑 Hapus
+                </button>
 
-</button>
+            </td>
 
-<button onclick="hapusBarang(${item.id})">
-
-🗑 Hapus
-
-</button>
-
-</td>
-
-</tr>
-`;
+        </tr>
+        `;
 
     });
 
 }
 
-document.getElementById("formBarang").addEventListener("submit", async function(e){
+document.getElementById("formBarang").addEventListener("submit", async function (e) {
 
     e.preventDefault();
 
     const barang = {
 
-        kode_barang: document.getElementById("kode_barang").value,
+        kode_barang: document.getElementById("kode_barang").value.trim(),
 
-        nama_barang: document.getElementById("nama_barang").value,
+        nama_barang: document.getElementById("nama_barang").value.trim(),
 
         kategori: document.getElementById("kategori").value,
 
         satuan: document.getElementById("satuan").value,
 
-        stok: parseInt(document.getElementById("stok").value),
+        stok: parseInt(document.getElementById("stok").value) || 0,
 
-        stok_minimum: parseInt(document.getElementById("stok_minimum").value),
+        stok_minimum: parseInt(document.getElementById("stok_minimum").value) || 0,
 
         gudang: user.gudang
 
     };
 
-    const { error } = await supabase
+    const { error } = await supabaseClient
         .from("master_barang")
-        .insert(barang);
+        .insert([barang]);
 
-    if(error){
+    if (error) {
 
         alert(error.message);
 
@@ -143,22 +153,16 @@ document.getElementById("formBarang").addEventListener("submit", async function(
 
 });
 
-loadKategori();
+async function hapusBarang(id) {
 
-loadSatuan();
+    if (!confirm("Hapus barang ini?")) return;
 
-loadBarang();
+    const { error } = await supabaseClient
+        .from("master_barang")
+        .delete()
+        .eq("id", id);
 
-async function hapusBarang(id){
-
-    if(!confirm("Hapus barang ini?")) return;
-
-    const {error}=await supabase
-    .from("master_barang")
-    .delete()
-    .eq("id",id);
-
-    if(error){
+    if (error) {
 
         alert(error.message);
 
@@ -170,8 +174,18 @@ async function hapusBarang(id){
 
 }
 
-function editBarang(id){
+function editBarang(id) {
 
-    alert("Fitur edit akan kita buat berikutnya.");
+    alert("Fitur Edit Barang akan kita buat pada tahap berikutnya.");
 
 }
+
+document.addEventListener("DOMContentLoaded", () => {
+
+    loadKategori();
+
+    loadSatuan();
+
+    loadBarang();
+
+});
