@@ -1,41 +1,93 @@
+// =====================================
+// DASHBOARD
+// =====================================
+
 async function loadDashboard() {
 
     try {
 
-        const user = JSON.parse(localStorage.getItem("user"));
+        // Ambil user dari session
+        const user = JSON.parse(sessionStorage.getItem("user"));
 
         if (!user) {
+
             window.location.href = "login.html";
+
             return;
+
         }
 
-        const { count, error } = await supabaseClient
+        // =============================
+        // TOTAL MASTER BARANG
+        // =============================
+
+        const {
+
+            count: totalBarang,
+
+            error
+
+        } = await supabaseClient
             .from("master_barang")
             .select("*", {
+
                 count: "exact",
+
                 head: true
-            })
-            .eq("gudang", user.gudang);
+
+            });
 
         if (error) {
-            console.error("Dashboard Error :", error);
+
+            console.error(error);
+
             return;
+
         }
 
-        const totalBarang = document.getElementById("totalBarang");
+        document.getElementById("totalBarang").innerHTML =
+            totalBarang || 0;
 
-        if (totalBarang) {
-            totalBarang.innerHTML = count ?? 0;
-        }
+        // =============================
+        // USER LOGIN
+        // =============================
+
+        document.getElementById("nama").innerHTML =
+            user.nama;
+
+        document.getElementById("nama2").innerHTML =
+            user.nama;
+
+        document.getElementById("gudang").innerHTML =
+            user.gudang;
+
+        document.getElementById("gudang2").innerHTML =
+            user.gudang;
 
     } catch (err) {
 
-        console.error("Load Dashboard :", err);
+        console.error("Dashboard :", err);
 
     }
 
 }
 
+// =====================================
+// LOGOUT
+// =====================================
+
+function logout() {
+
+    sessionStorage.removeItem("user");
+
+    location.href = "login.html";
+
+}
+
+// =====================================
+
 document.addEventListener("DOMContentLoaded", () => {
+
     loadDashboard();
+
 });
