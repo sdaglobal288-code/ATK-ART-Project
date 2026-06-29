@@ -6,7 +6,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-<title>ATK Dashboard</title>
+<title>ATK & ART Management</title>
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
 
@@ -16,19 +16,17 @@
 
 <script>
 
-const user = JSON.parse(localStorage.getItem("user"));
+const user = JSON.parse(sessionStorage.getItem("user"));
 
 if (!user) {
-
     location.href = "login.html";
-
 }
 
 function logout(){
 
-    localStorage.removeItem("user");
+    sessionStorage.removeItem("user");
 
-    location.href="login.html";
+    location.href = "login.html";
 
 }
 
@@ -54,7 +52,7 @@ function goPage(page){
 
 <h1>📦</h1>
 
-<h2>ATK Dashboard</h2>
+<h2>ATK & ART</h2>
 
 <p id="gudang"></p>
 
@@ -220,36 +218,10 @@ Anda login sebagai Admin Gudang
 
 <p>
 
-Menu yang tersedia saat ini:
+Gunakan menu di sebelah kiri untuk mengelola data Master, Transaksi, Transfer, dan Laporan Inventory.
 
 </p>
 
-<br>
-
-<ul style="line-height:32px;padding-left:25px;">
-
-<li>Master Barang</li>
-
-<li>Master Karyawan</li>
-
-<li>Master Departemen</li>
-
-<li>Master Jabatan</li>
-
-<li>Master Supplier</li>
-
-<li>Database Barang</li>
-
-<li>Barang Masuk</li>
-
-<li>Barang Keluar</li>
-
-<li>Transfer Barang</li>
-
-<li>Laporan</li>
-
-</ul>
-
 </div>
 
 </div>
@@ -257,16 +229,6 @@ Menu yang tersedia saat ini:
 </div>
 
 </div>
-
-<script>
-
-document.getElementById("nama").innerHTML = user.nama;
-document.getElementById("nama2").innerHTML = user.nama;
-
-document.getElementById("gudang").innerHTML = user.gudang;
-document.getElementById("gudang2").innerHTML = user.gudang;
-
-</script>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
 
