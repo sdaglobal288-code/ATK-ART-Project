@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="id">
+
+<head>
+
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>Master Jabatan</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+<link rel="stylesheet" href="css/dashboard.css">
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
+
+<script src="supabase/config.js"></script>
+
+</head>
+
+<body>
+
+<div class="content">
+
+    <h2>💼 Master Jabatan</h2>
+
+    <br>
+
+    <!-- ===========================
+         TOOLBAR
+    ============================ -->
+
+    <div class="toolbar">
+
+        <button
+            class="btn-dashboard"
+            onclick="location.href='dashboard.html'">
+
+            🏠 Dashboard
+
+        </button>
+
+        <button
+            class="btn-import"
+            onclick="document.getElementById('fileImport').click()">
+
+            📥 Import Excel
+
+        </button>
+
+        <input
+            type="file"
+            id="fileImport"
+            accept=".xlsx,.xls"
+            hidden>
+
+        <button
+            class="btn-export"
+            onclick="exportExcel()">
+
+            📤 Export Excel
+
+        </button>
+
+    </div>
+
+    <!-- ===========================
+         FORM
+    ============================ -->
+
+    <div class="panel">
+
+        <h3>Tambah Jabatan</h3>
+
+        <br>
+
+        <form id="formJabatan">
+
+            <input
+                type="text"
+                id="kode_jabatan"
+                placeholder="Kode Jabatan"
+                required>
+
+            <input
+                type="text"
+                id="nama_jabatan"
+                placeholder="Nama Jabatan"
+                required>
+
+            <button type="submit">
+
+                💾 Simpan Jabatan
+
+            </button>
+
+        </form>
+
+    </div>
+
+    <!-- ===========================
+         TABLE
+    ============================ -->
+
+    <div class="panel">
+
+        <h3>Daftar Jabatan</h3>
+
+        <br>
+
+        <table id="tableJabatan">
+
+            <thead>
+
+                <tr>
+
+                    <th width="180">Kode</th>
+
+                    <th>Nama Jabatan</th>
+
+                    <th width="180">Gudang</th>
+
+                    <th width="180">Aksi</th>
+
+                </tr>
+
+            </thead>
+
+            <tbody>
+
+            </tbody>
+
+        </table>
+
+    </div>
+
+</div>
+
+<script src="js/master-jabatan.js"></script>
+
+</body>
+
+</html>
