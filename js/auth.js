@@ -1,35 +1,35 @@
-async function login(){
+async function login() {
 
-const username=document.getElementById("username").value;
+    const username = document.getElementById("username").value.trim();
+    const password = document.getElementById("password").value.trim();
+    const status = document.getElementById("status");
 
-const password=document.getElementById("password").value;
+    status.innerHTML = "";
 
-const status=document.getElementById("status");
+    try {
 
-status.innerHTML="";
+        const { data, error } = await supabaseClient
+            .from("users")
+            .select("*")
+            .eq("username", username)
+            .eq("password", password)
+            .single();
 
-const {data,error}=await supabase
+        if (error || !data) {
+            status.innerHTML = "Username atau Password salah";
+            return;
+        }
 
-.from("users")
+        localStorage.setItem("user", JSON.stringify(data));
 
-.select("*")
+        window.location.href = "dashboard.html";
 
-.eq("username",username)
+    } catch (err) {
 
-.eq("password",password)
+        console.error(err);
 
-.single();
+        status.innerHTML = "Tidak dapat terhubung ke database.";
 
-if(error){
-
-status.innerHTML="Username atau Password salah";
-
-return;
-
-}
-
-localStorage.setItem("user",JSON.stringify(data));
-
-location.href="dashboard.html";
+    }
 
 }
