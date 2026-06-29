@@ -29,20 +29,14 @@
 
     <div class="toolbar">
 
-        <button
-            class="btn-dashboard"
+        <button class="btn-dashboard"
             onclick="location.href='dashboard.html'">
-
             🏠 Dashboard
-
         </button>
 
-        <button
-            class="btn-import"
+        <button class="btn-import"
             onclick="document.getElementById('fileImport').click()">
-
             📥 Import Excel
-
         </button>
 
         <input
@@ -51,12 +45,9 @@
             accept=".xlsx,.xls"
             hidden>
 
-        <button
-            class="btn-export"
+        <button class="btn-export"
             onclick="exportExcel()">
-
             📤 Export Excel
-
         </button>
 
     </div>
@@ -71,7 +62,7 @@
 
         <br>
 
-        <form id="formKaryawan">
+        <form id="formKaryawan" class="form-grid">
 
             <input
                 type="text"
@@ -85,31 +76,37 @@
                 placeholder="Nama Karyawan"
                 required>
 
-            <input
-                type="text"
-                id="departemen"
-                placeholder="Departemen"
-                required>
+            <select id="departemen" required>
+                <option value="">-- Pilih Departemen --</option>
+            </select>
+
+            <select id="jabatan" required>
+                <option value="">-- Pilih Jabatan --</option>
+            </select>
 
             <input
                 type="text"
-                id="jabatan"
-                placeholder="Jabatan"
-                required>
+                id="gudang"
+                readonly>
 
             <select id="status">
 
                 <option value="Aktif">Aktif</option>
-
                 <option value="Non Aktif">Non Aktif</option>
 
             </select>
 
-            <button type="submit">
+            <div style="grid-column:1/3">
 
-                💾 Simpan Karyawan
+                <button
+                    type="submit"
+                    class="btn-dashboard">
 
-            </button>
+                    💾 Simpan Karyawan
+
+                </button>
+
+            </div>
 
         </form>
 
@@ -131,16 +128,12 @@
 
                 <tr>
 
-                    <th width="120">NIK</th>
-
+                    <th width="100">NIK</th>
                     <th>Nama</th>
-
                     <th width="180">Departemen</th>
-
                     <th width="180">Jabatan</th>
-
+                    <th width="150">Gudang</th>
                     <th width="120">Status</th>
-
                     <th width="180">Aksi</th>
 
                 </tr>
