@@ -13,7 +13,6 @@
 <link rel="stylesheet" href="css/dashboard.css">
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
-
 <script src="supabase/config.js"></script>
 
 </head>
@@ -26,6 +25,35 @@
 
     <br>
 
+    <!-- Toolbar -->
+    <div class="toolbar">
+
+        <button class="btn-dashboard"
+            onclick="location.href='dashboard.html'">
+            🏠 Dashboard
+        </button>
+
+        <button class="btn-import"
+            onclick="document.getElementById('fileImport').click()">
+            📥 Import Excel
+        </button>
+
+        <input
+            type="file"
+            id="fileImport"
+            accept=".xlsx,.xls"
+            hidden>
+
+        <button class="btn-export"
+            onclick="exportExcel()">
+            📤 Export Excel
+        </button>
+
+    </div>
+
+    <br>
+
+    <!-- Form -->
     <div class="panel">
 
         <h3>Tambah Barang</h3>
@@ -75,9 +103,7 @@
             <br><br>
 
             <button type="submit">
-
-                Simpan Barang
-
+                💾 Simpan Barang
             </button>
 
         </form>
@@ -86,33 +112,35 @@
 
     <br>
 
+    <!-- Daftar Barang -->
+
     <div class="panel">
 
         <h3>Daftar Barang</h3>
 
         <br>
 
-        <table border="1" width="100%" id="tableBarang">
+        <table width="100%" id="tableBarang">
 
             <thead>
 
-<tr>
+                <tr>
 
-<th>Kode</th>
+                    <th width="120">Kode</th>
 
-<th>Nama Barang</th>
+                    <th>Nama Barang</th>
 
-<th>Kategori</th>
+                    <th width="140">Kategori</th>
 
-<th>Satuan</th>
+                    <th width="120">Satuan</th>
 
-<th>Stok</th>
+                    <th width="90">Stok</th>
 
-<th>Aksi</th>
+                    <th width="180">Aksi</th>
 
-</tr>
+                </tr>
 
-</thead>
+            </thead>
 
             <tbody>
 
