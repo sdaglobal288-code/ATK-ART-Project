@@ -12,6 +12,49 @@ let editId = null;
 let allBarang = [];   // cache untuk search lokal
 
 // =====================================
+// MODAL HELPERS
+// =====================================
+
+function bukaModalTambah() {
+
+    editId = null;
+    form.reset();
+
+    document.getElementById("kode_barang").readOnly = false;
+    document.getElementById("judulForm").innerHTML = "➕ Tambah Barang";
+    document.getElementById("btnSimpan").innerHTML = "💾 Simpan Barang";
+
+    document.getElementById("modalBarang").classList.add("active");
+
+}
+
+function tutupModal() {
+
+    document.getElementById("modalBarang").classList.remove("active");
+    editId = null;
+    form.reset();
+    document.getElementById("kode_barang").readOnly = false;
+
+}
+
+const modalBarangEl = document.getElementById("modalBarang");
+if (modalBarangEl) {
+
+    // tutup modal jika klik di area gelap luar kotak dialog
+    modalBarangEl.addEventListener("click", function (e) {
+        if (e.target === modalBarangEl) tutupModal();
+    });
+
+    // tutup modal dengan tombol Esc
+    document.addEventListener("keydown", function (e) {
+        if (e.key === "Escape" && modalBarangEl.classList.contains("active")) {
+            tutupModal();
+        }
+    });
+
+}
+
+// =====================================
 // LOAD KATEGORI
 // =====================================
 
@@ -245,7 +288,7 @@ if (form) {
                 if (error) throw error;
 
                 alert("Master Barang berhasil diupdate.");
-                batalEdit();
+                tutupModal();
                 await loadBarang();
                 return;
 
@@ -272,7 +315,7 @@ if (form) {
             if (error) throw error;
 
             alert("Master Barang berhasil disimpan.");
-            form.reset();
+            tutupModal();
             await loadBarang();
 
         } catch (err) {
@@ -315,36 +358,14 @@ async function editBarang(id) {
 
         document.getElementById("judulForm").innerHTML = "✏ Edit Barang";
         document.getElementById("btnSimpan").innerHTML = "💾 Update Barang";
-        document.getElementById("btnBatal").style.display = "inline-flex";
 
-        window.scrollTo({ top: 0, behavior: "smooth" });
+        document.getElementById("modalBarang").classList.add("active");
 
     } catch (err) {
         console.error(err);
         alert(err.message);
     }
 
-}
-
-// =====================================
-// BATAL EDIT
-// =====================================
-
-function batalEdit() {
-
-    editId = null;
-    form.reset();
-
-    document.getElementById("kode_barang").readOnly = false;
-    document.getElementById("judulForm").innerHTML = "➕ Tambah Barang";
-    document.getElementById("btnSimpan").innerHTML = "💾 Simpan Barang";
-    document.getElementById("btnBatal").style.display = "none";
-
-}
-
-const btnBatalEl = document.getElementById("btnBatal");
-if (btnBatalEl) {
-    btnBatalEl.addEventListener("click", batalEdit);
 }
 
 // =====================================
