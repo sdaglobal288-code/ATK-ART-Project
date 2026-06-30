@@ -9,6 +9,7 @@
 <title>Master Karyawan</title>
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
+
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 
 <link rel="stylesheet" href="css/dashboard.css">
@@ -22,155 +23,152 @@
 
 <div class="content">
 
-    <h2>👥 Master Karyawan</h2>
+<h2>👥 Master Karyawan</h2>
 
-    <br>
+<br>
 
-    <!-- ================= TOOLBAR ================= -->
+<!-- ================= TOOLBAR ================= -->
 
-    <div class="toolbar">
+<div class="toolbar">
 
-        <button
-            class="btn-dashboard"
-            onclick="location.href='dashboard.html'">
+<button
+class="btn-dashboard"
+onclick="location.href='dashboard.html'">
 
-            🏠 Dashboard
+🏠 Dashboard
 
-        </button>
+</button>
 
-        <button
-            class="btn-import"
-            onclick="document.getElementById('fileImport').click()">
+<button
+class="btn-import"
+onclick="document.getElementById('fileImport').click()">
 
-            📥 Import Excel
+📥 Import Excel
 
-        </button>
+</button>
 
-        <input
-            type="file"
-            id="fileImport"
-            accept=".xlsx,.xls"
-            hidden>
+<input
+type="file"
+id="fileImport"
+accept=".xlsx,.xls"
+hidden>
 
-        <button
-            class="btn-export"
-            onclick="exportExcel()">
+<button
+class="btn-export"
+onclick="exportExcel()">
 
-            📤 Export Excel
+📤 Export Excel
 
-        </button>
+</button>
 
-    </div>
+</div>
 
-    <br>
+<br>
 
-    <!-- ================= FORM ================= -->
+<!-- ================= FORM ================= -->
 
-    <div class="panel">
+<div class="panel">
 
-        <h3>Tambah Karyawan</h3>
+<h3>Tambah Karyawan</h3>
 
-        <br>
+<br>
 
-        <form id="formKaryawan">
+<form id="formKaryawan">
 
-            <input
-                type="text"
-                id="nik"
-                placeholder="NIK"
-                required>
+<input
+type="text"
+id="nik"
+placeholder="NIK"
+required>
 
-            <input
-                type="text"
-                id="nama"
-                placeholder="Nama Karyawan"
-                required>
+<input
+type="text"
+id="nama"
+placeholder="Nama Karyawan"
+required>
 
-            <select id="departemen" required>
+<select id="departemen" required>
 
-                <option value="">
-                    -- Pilih Departemen --
-                </option>
+<option value="">
+-- Pilih Departemen --
+</option>
 
-            </select>
+</select>
 
-            <select id="jabatan" required>
+<select id="jabatan" required>
 
-                <option value="">
-                    -- Pilih Jabatan --
-                </option>
+<option value="">
+-- Pilih Jabatan --
+</option>
 
-            </select>
+</select>
 
-            <input
-                type="text"
-                id="gudang"
-                readonly>
+<select id="status">
 
-            <select id="status">
+<option value="Aktif">
+Aktif
+</option>
 
-                <option value="Aktif">
-                    Aktif
-                </option>
+<option value="Non Aktif">
+Non Aktif
+</option>
 
-                <option value="Non Aktif">
-                    Non Aktif
-                </option>
+</select>
 
-            </select>
+<button
+type="submit">
 
-            <button
-                type="submit">
+💾 Simpan Karyawan
 
-                💾 Simpan Karyawan
+</button>
 
-            </button>
+</form>
 
-        </form>
+</div>
 
-    </div>
+<br>
 
-    <br>
+<!-- ================= TABEL ================= -->
 
-    <!-- ================= TABEL ================= -->
+<div class="panel">
 
-    <div class="panel">
+<h3>Daftar Karyawan</h3>
 
-        <h3>Daftar Karyawan</h3>
+<br>
 
-        <br>
+<table id="tableKaryawan">
 
-        <table id="tableKaryawan">
+<thead>
 
-            <thead>
+<tr>
 
-                <tr>
+<th width="110">NIK</th>
 
-                    <th width="120">NIK</th>
+<th>Nama</th>
 
-                    <th>Nama</th>
+<th width="160">Gudang</th>
 
-                    <th width="180">Departemen</th>
+<th width="180">Departemen</th>
 
-                    <th width="180">Jabatan</th>
+<th width="180">Jabatan</th>
 
-                    <th width="150">Gudang</th>
+<th width="110">Status</th>
 
-                    <th width="120">Status</th>
+<th width="180">Created By</th>
 
-                    <th width="180">Aksi</th>
+<th width="170">Aksi</th>
 
-                </tr>
+</tr>
 
-            </thead>
+</thead>
 
-            <tbody>
+<tbody>
 
-            </tbody>
+</tbody>
 
-        </table>
+</table>
 
-    </div>
+</div>
 
 </div>
 
