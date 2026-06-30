@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="id">
+
+<head>
+
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>Histori Mutasi Karyawan</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+<link rel="stylesheet" href="css/dashboard.css">
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
+
+<script src="supabase/config.js"></script>
+
+</head>
+
+<body>
+
+<div class="content">
+
+<h2>📋 Histori Mutasi Karyawan</h2>
+
+<br>
+
+<div class="toolbar">
+
+<button
+class="btn-dashboard"
+onclick="location.href='dashboard.html'">
+
+🏠 Dashboard
+
+</button>
+
+<button
+class="btn-export"
+onclick="exportExcel()">
+
+📤 Export Excel
+
+</button>
+
+</div>
+
+<br>
+
+<div class="panel">
+
+<h3>Filter</h3>
+
+<br>
+
+<form id="filterForm">
+
+<input
+type="date"
+id="tglAwal">
+
+<input
+type="date"
+id="tglAkhir">
+
+<input
+type="text"
+id="keyword"
+placeholder="Cari NIK / Nama">
+
+<button
+type="button"
+onclick="loadHistori()">
+
+🔍 Cari
+
+</button>
+
+</form>
+
+</div>
+
+<br>
+
+<div class="panel">
+
+<h3>Data Histori Mutasi</h3>
+
+<br>
+
+<table id="tableHistori">
+
+<thead>
+
+<tr>
+
+<th width="170">Tanggal</th>
+
+<th width="120">NIK</th>
+
+<th>Nama</th>
+
+<th>Dari Gudang</th>
+
+<th>Ke Gudang</th>
+
+<th>Dari Dept</th>
+
+<th>Ke Dept</th>
+
+<th>Dari Jabatan</th>
+
+<th>Ke Jabatan</th>
+
+<th>Keterangan</th>
+
+<th>Mutasi Oleh</th>
+
+</tr>
+
+</thead>
+
+<tbody>
+
+</tbody>
+
+</table>
+
+</div>
+
+</div>
+
+<script src="js/histori-mutasi.js"></script>
+
+</body>
+
+</html>
