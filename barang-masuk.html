@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="id">
+
+<head>
+
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>Barang Masuk</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+<link rel="stylesheet" href="css/dashboard.css">
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
+<script src="supabase/config.js"></script>
+
+</head>
+
+<body>
+
+<div class="content">
+
+<h2>📥 Barang Masuk</h2>
+
+<br>
+
+<!-- ================= TOOLBAR ================= -->
+
+<div class="toolbar">
+
+<button
+class="btn-dashboard"
+onclick="location.href='dashboard.html'">
+
+🏠 Dashboard
+
+</button>
+
+<button
+class="btn-import"
+onclick="document.getElementById('fileImport').click()">
+
+📥 Import Excel
+
+</button>
+
+<input
+type="file"
+id="fileImport"
+accept=".xlsx,.xls"
+hidden>
+
+<button
+class="btn-export"
+onclick="exportExcel()">
+
+📤 Export Excel
+
+</button>
+
+</div>
+
+<br>
+
+<!-- ================= FORM ================= -->
+
+<div class="panel">
+
+<h3 id="judulForm">
+
+➕ Input Barang Masuk
+
+</h3>
+
+<br>
+
+<form id="formMasuk">
+
+<select
+id="supplier"
+required>
+
+<option value="">
+-- Pilih Supplier --
+</option>
+
+</select>
+
+<select
+id="barang"
+required>
+
+<option value="">
+-- Pilih Barang --
+</option>
+
+</select>
+
+<input
+type="text"
+id="kode_barang"
+placeholder="Kode Barang"
+readonly>
+
+<input
+type="text"
+id="kategori"
+placeholder="Kategori"
+readonly>
+
+<input
+type="text"
+id="satuan"
+placeholder="Satuan"
+readonly>
+
+<input
+type="number"
+id="qty"
+placeholder="Qty Masuk"
+required>
+
+<input
+type="date"
+id="tanggal"
+required>
+
+<input
+type="text"
+id="keterangan"
+placeholder="Keterangan">
+
+<div style="grid-column:1/3;display:flex;gap:10px;">
+
+<button
+type="submit"
+id="btnSimpan">
+
+💾 Simpan Barang Masuk
+
+</button>
+
+<button
+type="button"
+id="btnBatal"
+style="display:none;">
+
+❌ Batal
+
+</button>
+
+</div>
+
+</form>
+
+</div>
+
+<br>
+
+<!-- ================= TABEL ================= -->
+
+<div class="panel">
+
+<h3>Histori Barang Masuk</h3>
+
+<br>
+
+<table id="tableMasuk">
+
+<thead>
+
+<tr>
+
+<th width="70">No</th>
+
+<th width="120">Tanggal</th>
+
+<th>Supplier</th>
+
+<th width="120">Kode</th>
+
+<th>Nama Barang</th>
+
+<th width="120">Qty</th>
+
+<th width="120">Satuan</th>
+
+<th width="180">Gudang</th>
+
+<th width="180">Created By</th>
+
+<th width="180">Aksi</th>
+
+</tr>
+
+</thead>
+
+<tbody>
+
+</tbody>
+
+</table>
+
+</div>
+
+</div>
+
+  <script src="js/barang-masuk.js"></script>
+
+</body>
+
+</html>
