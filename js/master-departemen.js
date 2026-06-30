@@ -8,179 +8,355 @@ if (!user) {
     location.href = "login.html";
 }
 
+let editId = null;
+
 // =====================================
-// LOAD DATA
+// LOAD DEPARTEMEN
 // =====================================
 
 async function loadDepartemen() {
 
-    const { data, error } = await supabaseClient
-        .from("master_departemen")
-        .select("*")
-        .order("kode_departemen", { ascending: true });
+    try {
 
-    if (error) {
-        console.error(error);
-        alert(error.message);
-        return;
-    }
+        const { data, error } = await supabaseClient
+            .from("master_departemen")
+            .select("*")
+            .order("kode_departemen", { ascending: true });
 
-    const tbody = document.querySelector("#tableDepartemen tbody");
+        if (error) throw error;
 
-    tbody.innerHTML = "";
+        const tbody =
+            document.querySelector("#tableDepartemen tbody");
 
-    data.forEach(item => {
+        tbody.innerHTML = "";
 
-        tbody.innerHTML += `
-        <tr>
+        data.forEach(item => {
 
-            <td>${item.kode_departemen}</td>
+            tbody.innerHTML += `
 
-            <td>${item.nama_departemen}</td>
+            <tr>
 
-            <td>
+                <td>${item.kode_departemen}</td>
 
-                <button
+                <td>${item.nama_departemen}</td>
+
+                <td>${item.created_by ?? "-"}</td>
+
+                <td>
+
+                    <button
                     class="btn-edit"
                     onclick="editDepartemen(${item.id})">
 
                     ✏ Edit
 
-                </button>
+                    </button>
 
-                <button
+                    <button
                     class="btn-delete"
                     onclick="hapusDepartemen(${item.id})">
 
                     🗑 Hapus
 
-                </button>
+                    </button>
 
-            </td>
+                </td>
 
-        </tr>
-        `;
+            </tr>
 
-    });
+            `;
+
+        });
+
+    }
+
+    catch(err){
+
+        console.error(err);
+
+        alert(err.message);
+
+    }
 
 }
 
 // =====================================
-// SIMPAN
+// SIMPAN / UPDATE DEPARTEMEN
 // =====================================
 
-document
-.getElementById("formDepartemen")
-.addEventListener("submit", async function (e) {
+const form = document.getElementById("formDepartemen");
+
+if(form){
+
+form.addEventListener("submit", async function(e){
 
     e.preventDefault();
 
-    const kode = document
-        .getElementById("kode_departemen")
-        .value
-        .trim()
-        .toUpperCase();
+    try{
 
-    const nama = document
-        .getElementById("nama_departemen")
-        .value
-        .trim();
+        const kode = document
+            .getElementById("kode_departemen")
+            .value
+            .trim()
+            .toUpperCase();
 
-    // =============================
-    // VALIDASI KODE
-    // =============================
+        const nama = document
+            .getElementById("nama_departemen")
+            .value
+            .trim();
 
-    const { data: cekKode } = await supabaseClient
-        .from("master_departemen")
-        .select("id")
-        .eq("kode_departemen", kode);
+        // =====================================
+        // UPDATE
+        // =====================================
 
-    if (cekKode.length > 0) {
+        if(editId !== null){
 
-        alert("Kode Departemen sudah digunakan.");
+            // Validasi nama saat update
+            const { data: cekNamaUpdate } = await supabaseClient
 
-        return;
+                .from("master_departemen")
+
+                .select("id")
+
+                .ilike("nama_departemen", nama)
+
+                .neq("id", editId);
+
+            if(cekNamaUpdate.length > 0){
+
+                alert("Nama Departemen sudah digunakan.");
+
+                return;
+
+            }
+
+            const { error } = await supabaseClient
+
+                .from("master_departemen")
+
+                .update({
+
+                    nama_departemen : nama
+
+                })
+
+                .eq("id", editId);
+
+            if(error) throw error;
+
+            alert("Departemen berhasil diupdate.");
+
+            batalEdit();
+
+            loadDepartemen();
+
+            return;
+
+        }
+
+        // =====================================
+        // VALIDASI KODE
+        // =====================================
+
+        const { data: cekKode } = await supabaseClient
+
+            .from("master_departemen")
+
+            .select("id")
+
+            .eq("kode_departemen", kode);
+
+        if(cekKode.length > 0){
+
+            alert("Kode Departemen sudah digunakan.");
+
+            return;
+
+        }
+
+        // =====================================
+        // VALIDASI NAMA
+        // =====================================
+
+        const { data: cekNama } = await supabaseClient
+
+            .from("master_departemen")
+
+            .select("id")
+
+            .ilike("nama_departemen", nama);
+
+        if(cekNama.length > 0){
+
+            alert("Nama Departemen sudah digunakan.");
+
+            return;
+
+        }
+
+        // =====================================
+        // INSERT
+        // =====================================
+
+        const { error } = await supabaseClient
+
+            .from("master_departemen")
+
+            .insert([{
+
+                kode_departemen : kode,
+
+                nama_departemen : nama,
+
+                created_by : user.nama
+
+            }]);
+
+        if(error) throw error;
+
+        alert("Departemen berhasil disimpan.");
+
+        form.reset();
+
+        loadDepartemen();
 
     }
 
-    // =============================
-    // VALIDASI NAMA
-    // =============================
+    catch(err){
 
-    const { data: cekNama } = await supabaseClient
-        .from("master_departemen")
-        .select("id")
-        .ilike("nama_departemen", nama);
+        console.error(err);
 
-    if (cekNama.length > 0) {
-
-        alert("Nama Departemen sudah ada.");
-
-        return;
+        alert(err.message);
 
     }
-
-    // =============================
-
-    const { error } = await supabaseClient
-        .from("master_departemen")
-        .insert([{
-
-            kode_departemen: kode,
-
-            nama_departemen: nama
-
-        }]);
-
-    if (error) {
-
-        alert(error.message);
-
-        return;
-
-    }
-
-    alert("Departemen berhasil disimpan.");
-
-    document.getElementById("formDepartemen").reset();
-
-    loadDepartemen();
 
 });
-
-// =====================================
-// HAPUS
-// =====================================
-
-async function hapusDepartemen(id) {
-
-    if (!confirm("Yakin ingin menghapus Departemen ini?"))
-        return;
-
-    const { error } = await supabaseClient
-        .from("master_departemen")
-        .delete()
-        .eq("id", id);
-
-    if (error) {
-
-        alert(error.message);
-
-        return;
-
-    }
-
-    loadDepartemen();
 
 }
 
 // =====================================
-// EDIT
+// EDIT DEPARTEMEN
 // =====================================
 
-function editDepartemen(id) {
+async function editDepartemen(id){
 
-    alert("Fitur Edit Departemen akan dibuat pada tahap berikutnya.");
+    try{
+
+        const { data, error } = await supabaseClient
+
+            .from("master_departemen")
+
+            .select("*")
+
+            .eq("id", id)
+
+            .single();
+
+        if(error) throw error;
+
+        editId = id;
+
+        document.getElementById("kode_departemen").value =
+            data.kode_departemen;
+
+        document.getElementById("nama_departemen").value =
+            data.nama_departemen;
+
+        // Kode tidak boleh diubah saat edit
+        document.getElementById("kode_departemen").readOnly = true;
+
+        document.getElementById("judulForm").innerHTML =
+            "✏ Edit Departemen";
+
+        document.getElementById("btnSimpan").innerHTML =
+            "💾 Update Departemen";
+
+        document.getElementById("btnBatal").style.display =
+            "inline-block";
+
+        window.scrollTo({
+
+            top:0,
+
+            behavior:"smooth"
+
+        });
+
+    }
+
+    catch(err){
+
+        console.error(err);
+
+        alert(err.message);
+
+    }
+
+}
+
+// =====================================
+// BATAL EDIT
+// =====================================
+
+function batalEdit(){
+
+    editId = null;
+
+    form.reset();
+
+    document.getElementById("kode_departemen").readOnly = false;
+
+    document.getElementById("judulForm").innerHTML =
+        "➕ Tambah Departemen";
+
+    document.getElementById("btnSimpan").innerHTML =
+        "💾 Simpan Departemen";
+
+    document.getElementById("btnBatal").style.display =
+        "none";
+
+}
+
+document
+
+.getElementById("btnBatal")
+
+.addEventListener("click", batalEdit);
+
+// =====================================
+// HAPUS DEPARTEMEN
+// =====================================
+
+async function hapusDepartemen(id){
+
+    if(!confirm("Yakin ingin menghapus Departemen ini?"))
+        return;
+
+    try{
+
+        const { error } = await supabaseClient
+
+            .from("master_departemen")
+
+            .delete()
+
+            .eq("id", id);
+
+        if(error) throw error;
+
+        alert("Departemen berhasil dihapus.");
+
+        loadDepartemen();
+
+    }
+
+    catch(err){
+
+        console.error(err);
+
+        alert(err.message);
+
+    }
 
 }
 
@@ -188,7 +364,7 @@ function editDepartemen(id) {
 // EXPORT
 // =====================================
 
-function exportExcel() {
+function exportExcel(){
 
     alert("Fitur Export Excel akan dibuat pada tahap berikutnya.");
 
@@ -198,20 +374,25 @@ function exportExcel() {
 // IMPORT
 // =====================================
 
-document
-.getElementById("fileImport")
-.addEventListener("change", function () {
+const fileImport =
+document.getElementById("fileImport");
+
+if(fileImport){
+
+fileImport.addEventListener("change",function(){
 
     alert("Fitur Import Excel akan dibuat pada tahap berikutnya.");
 
 });
 
+}
+
 // =====================================
 // LOAD AWAL
 // =====================================
 
-document.addEventListener("DOMContentLoaded", function () {
+document.addEventListener("DOMContentLoaded", async ()=>{
 
-    loadDepartemen();
+    await loadDepartemen();
 
 });
