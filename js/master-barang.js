@@ -5,8 +5,10 @@
 const user = JSON.parse(sessionStorage.getItem("user"));
 
 if (!user) {
-    window.location.href = "login.html";
+    location.href = "login.html";
 }
+
+let editId = null;
 
 // =====================================
 // LOAD KATEGORI
@@ -14,30 +16,40 @@ if (!user) {
 
 async function loadKategori() {
 
-    const { data, error } = await supabaseClient
-        .from("kategori_barang")
-        .select("*")
-        .order("nama_kategori");
+    try {
 
-    if (error) {
-        console.error(error);
-        return;
-    }
+        const { data, error } = await supabaseClient
+            .from("kategori_barang")
+            .select("*")
+            .order("nama_kategori");
 
-    const kategori = document.getElementById("kategori");
+        if (error) throw error;
 
-    kategori.innerHTML =
-        '<option value="">-- Pilih Kategori --</option>';
+        const kategori = document.getElementById("kategori");
 
-    data.forEach(item => {
-
-        kategori.innerHTML += `
-            <option value="${item.nama_kategori}">
-                ${item.nama_kategori}
+        kategori.innerHTML = `
+            <option value="">
+                -- Pilih Kategori --
             </option>
         `;
 
-    });
+        data.forEach(item => {
+
+            kategori.innerHTML += `
+                <option value="${item.nama_kategori}">
+                    ${item.nama_kategori}
+                </option>
+            `;
+
+        });
+
+    } catch (err) {
+
+        console.error(err);
+
+        alert(err.message);
+
+    }
 
 }
 
@@ -47,184 +59,335 @@ async function loadKategori() {
 
 async function loadSatuan() {
 
-    const { data, error } = await supabaseClient
-        .from("satuan")
-        .select("*")
-        .order("nama_satuan");
+    try {
 
-    if (error) {
-        console.error(error);
-        return;
-    }
+        const { data, error } = await supabaseClient
+            .from("satuan")
+            .select("*")
+            .order("nama_satuan");
 
-    const satuan = document.getElementById("satuan");
+        if (error) throw error;
 
-    satuan.innerHTML =
-        '<option value="">-- Pilih Satuan --</option>';
+        const satuan = document.getElementById("satuan");
 
-    data.forEach(item => {
-
-        satuan.innerHTML += `
-            <option value="${item.nama_satuan}">
-                ${item.nama_satuan}
+        satuan.innerHTML = `
+            <option value="">
+                -- Pilih Satuan --
             </option>
         `;
 
-    });
+        data.forEach(item => {
+
+            satuan.innerHTML += `
+                <option value="${item.nama_satuan}">
+                    ${item.nama_satuan}
+                </option>
+            `;
+
+        });
+
+    } catch (err) {
+
+        console.error(err);
+
+        alert(err.message);
+
+    }
 
 }
 
 // =====================================
-// LOAD BARANG
+// LOAD MASTER BARANG
 // =====================================
 
 async function loadBarang() {
 
-    const { data, error } = await supabaseClient
-        .from("master_barang")
-        .select("*")
-        .order("kode_barang");
+    try {
 
-    if (error) {
-        console.error(error);
-        return;
-    }
+        const { data, error } = await supabaseClient
+            .from("master_barang")
+            .select("*")
+            .order("kode_barang");
 
-    const tbody = document.querySelector("#tableBarang tbody");
+        if (error) throw error;
 
-    tbody.innerHTML = "";
+        const tbody =
+            document.querySelector("#tableBarang tbody");
 
-    data.forEach(item => {
+        tbody.innerHTML = "";
 
-        tbody.innerHTML += `
-        <tr>
+        data.forEach(item => {
 
-            <td>${item.kode_barang}</td>
+            tbody.innerHTML += `
 
-            <td>${item.nama_barang}</td>
+            <tr>
 
-            <td>${item.kategori}</td>
+                <td>${item.kode_barang}</td>
 
-            <td>${item.satuan}</td>
+                <td>${item.nama_barang}</td>
 
-            <td>
+                <td>${item.kategori}</td>
 
-                <button
+                <td>${item.satuan}</td>
+
+                <td>${item.created_by ?? "-"}</td>
+
+                <td>
+
+                    <button
                     class="btn-edit"
                     onclick="editBarang(${item.id})">
 
                     ✏ Edit
 
-                </button>
+                    </button>
 
-                <button
+                    <button
                     class="btn-delete"
                     onclick="hapusBarang(${item.id})">
 
                     🗑 Hapus
 
-                </button>
+                    </button>
 
-            </td>
+                </td>
 
-        </tr>
-        `;
+            </tr>
 
-    });
+            `;
+
+        });
+
+    }
+
+    catch(err){
+
+        console.error(err);
+
+        alert(err.message);
+
+    }
 
 }
 
 // =====================================
-// SIMPAN BARANG
+// SIMPAN / UPDATE BARANG
 // =====================================
 
-document
-.getElementById("formBarang")
-.addEventListener("submit", async function(e){
+const form = document.getElementById("formBarang");
+
+if(form){
+
+form.addEventListener("submit", async function(e){
 
     e.preventDefault();
 
-    const kode = document
-        .getElementById("kode_barang")
-        .value
-        .trim()
-        .toUpperCase();
+    try{
 
-    const nama = document
-        .getElementById("nama_barang")
-        .value
-        .trim();
+        const kode = document
+            .getElementById("kode_barang")
+            .value
+            .trim()
+            .toUpperCase();
 
-    const kategori =
-        document.getElementById("kategori").value;
+        const barang = {
 
-    const satuan =
-        document.getElementById("satuan").value;
+            kode_barang : kode,
 
-    // ============================
-    // VALIDASI KODE BARANG
-    // ============================
+            nama_barang :
+                document.getElementById("nama_barang").value.trim(),
 
-    const { data: cekKode, error: errorCek } =
-        await supabaseClient
-        .from("master_barang")
-        .select("id")
-        .eq("kode_barang", kode);
+            kategori :
+                document.getElementById("kategori").value,
 
-    if (errorCek) {
+            satuan :
+                document.getElementById("satuan").value,
 
-        alert(errorCek.message);
+            created_by : user.nama
 
-        return;
+        };
+
+        // =====================================
+        // UPDATE
+        // =====================================
+
+        if(editId !== null){
+
+            const { error } = await supabaseClient
+
+                .from("master_barang")
+
+                .update({
+
+                    nama_barang : barang.nama_barang,
+
+                    kategori : barang.kategori,
+
+                    satuan : barang.satuan
+
+                })
+
+                .eq("id", editId);
+
+            if(error) throw error;
+
+            alert("Master Barang berhasil diupdate.");
+
+            batalEdit();
+
+            loadBarang();
+
+            return;
+
+        }
+
+        // =====================================
+        // VALIDASI KODE
+        // =====================================
+
+        const { data: cek } = await supabaseClient
+
+            .from("master_barang")
+
+            .select("id")
+
+            .eq("kode_barang", kode);
+
+        if(cek.length > 0){
+
+            alert("Kode Barang sudah digunakan.");
+
+            return;
+
+        }
+
+        // =====================================
+        // INSERT
+        // =====================================
+
+        const { error } = await supabaseClient
+
+            .from("master_barang")
+
+            .insert([barang]);
+
+        if(error) throw error;
+
+        alert("Master Barang berhasil disimpan.");
+
+        form.reset();
+
+        loadBarang();
 
     }
 
-    if (cekKode.length > 0) {
+    catch(err){
 
-        alert("Kode Barang sudah digunakan.");
+        console.error(err);
 
-        return;
-
-    }
-
-    const barang = {
-
-        kode_barang: kode,
-
-        nama_barang: nama,
-
-        kategori: kategori,
-
-        satuan: satuan
-
-    };
-
-    const { error } = await supabaseClient
-        .from("master_barang")
-        .insert([barang]);
-
-    if (error) {
-
-        alert(error.message);
-
-        return;
+        alert(err.message);
 
     }
-
-    alert("Master Barang berhasil disimpan.");
-
-    document.getElementById("formBarang").reset();
-
-    loadKategori();
-
-    loadSatuan();
-
-    loadBarang();
 
 });
 
+}
+
 // =====================================
-// HAPUS
+// EDIT BARANG
+// =====================================
+
+async function editBarang(id){
+
+    try{
+
+        const { data, error } = await supabaseClient
+
+            .from("master_barang")
+
+            .select("*")
+
+            .eq("id", id)
+
+            .single();
+
+        if(error) throw error;
+
+        editId = id;
+
+        document.getElementById("kode_barang").value =
+            data.kode_barang;
+
+        document.getElementById("nama_barang").value =
+            data.nama_barang;
+
+        document.getElementById("kategori").value =
+            data.kategori;
+
+        document.getElementById("satuan").value =
+            data.satuan;
+
+        // Kode barang tidak boleh diubah
+        document.getElementById("kode_barang").readOnly = true;
+
+        document.getElementById("judulForm").innerHTML =
+            "✏ Edit Barang";
+
+        document.getElementById("btnSimpan").innerHTML =
+            "💾 Update Barang";
+
+        document.getElementById("btnBatal").style.display =
+            "inline-block";
+
+        window.scrollTo({
+
+            top:0,
+
+            behavior:"smooth"
+
+        });
+
+    }
+
+    catch(err){
+
+        console.error(err);
+
+        alert(err.message);
+
+    }
+
+}
+
+// =====================================
+// BATAL EDIT
+// =====================================
+
+function batalEdit(){
+
+    editId = null;
+
+    form.reset();
+
+    document.getElementById("kode_barang").readOnly = false;
+
+    document.getElementById("judulForm").innerHTML =
+        "➕ Tambah Barang";
+
+    document.getElementById("btnSimpan").innerHTML =
+        "💾 Simpan Barang";
+
+    document.getElementById("btnBatal").style.display =
+        "none";
+
+}
+
+document
+.getElementById("btnBatal")
+.addEventListener("click", batalEdit);
+
+// =====================================
+// HAPUS BARANG
 // =====================================
 
 async function hapusBarang(id){
@@ -232,35 +395,36 @@ async function hapusBarang(id){
     if(!confirm("Hapus Master Barang ini?"))
         return;
 
-    const { error } = await supabaseClient
-        .from("master_barang")
-        .delete()
-        .eq("id", id);
+    try{
 
-    if(error){
+        const { error } = await supabaseClient
 
-        alert(error.message);
+            .from("master_barang")
 
-        return;
+            .delete()
+
+            .eq("id", id);
+
+        if(error) throw error;
+
+        alert("Master Barang berhasil dihapus.");
+
+        loadBarang();
 
     }
 
-    loadBarang();
+    catch(err){
+
+        console.error(err);
+
+        alert(err.message);
+
+    }
 
 }
 
 // =====================================
-// EDIT
-// =====================================
-
-function editBarang(id){
-
-    alert("Fitur Edit Barang akan dibuat pada tahap berikutnya.");
-
-}
-
-// =====================================
-// EXPORT
+// EXPORT EXCEL
 // =====================================
 
 function exportExcel(){
@@ -270,27 +434,32 @@ function exportExcel(){
 }
 
 // =====================================
-// IMPORT
+// IMPORT EXCEL
 // =====================================
 
-document
-.getElementById("fileImport")
-.addEventListener("change", function(){
+const fileImport =
+document.getElementById("fileImport");
+
+if(fileImport){
+
+fileImport.addEventListener("change",function(){
 
     alert("Fitur Import Excel akan dibuat pada tahap berikutnya.");
 
 });
 
+}
+
 // =====================================
-// LOAD PERTAMA
+// LOAD AWAL
 // =====================================
 
-document.addEventListener("DOMContentLoaded", function(){
+document.addEventListener("DOMContentLoaded", async ()=>{
 
-    loadKategori();
+    await loadKategori();
 
-    loadSatuan();
+    await loadSatuan();
 
-    loadBarang();
+    await loadBarang();
 
 });
