@@ -24,7 +24,7 @@ async function loadSupplier(){
         const { data, error } = await supabaseClient
             .from("master_supplier")
             .select("*")
-            .order("nama_supplier");
+            .order("nama_toko");
 
         if(error) throw error;
 
@@ -34,7 +34,7 @@ async function loadSupplier(){
 
         data.forEach(item=>{
 
-            list.innerHTML += `<option value="${item.nama_supplier}"></option>`;
+            list.innerHTML += `<option value="${item.nama_toko}"></option>`;
 
         });
 
