@@ -1,185 +1,447 @@
 <!DOCTYPE html>
 <html lang="id">
-
 <head>
-
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
 <title>Master Barang</title>
-
 <link rel="preconnect" href="https://fonts.googleapis.com">
-
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-
 <link rel="stylesheet" href="css/dashboard.css">
-
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
 <script src="supabase/config.js"></script>
+<style>
+  :root{
+    --mb-bg:#0f1018;
+    --mb-surface:#171926;
+    --mb-surface-2:#1e2130;
+    --mb-border:#2a2d3d;
+    --mb-text:#e9eaf2;
+    --mb-muted:#9498ab;
+    --mb-purple:#6c5dd3;
+    --mb-purple-dark:#5a4cc0;
+    --mb-purple-soft:rgba(108,93,211,.15);
+    --mb-danger:#ef5675;
+    --mb-danger-soft:rgba(239,84,117,.12);
+    --mb-success:#3ecf8e;
+  }
 
+  body{
+    font-family:'Inter', sans-serif;
+    background:var(--mb-bg);
+    color:var(--mb-text);
+  }
+
+  .content{
+    max-width:1180px;
+    margin:0 auto;
+    padding:28px 24px 60px;
+  }
+
+  .content h2{
+    font-size:23px;
+    font-weight:700;
+    color:var(--mb-text);
+    display:flex;
+    align-items:center;
+    gap:10px;
+    margin:0;
+  }
+
+  .page-subtitle{
+    color:var(--mb-muted);
+    font-size:13.5px;
+    margin-top:4px;
+  }
+
+  /* ===== Toolbar ===== */
+  .toolbar{
+    display:flex;
+    gap:12px;
+    flex-wrap:wrap;
+  }
+
+  .toolbar button{
+    display:inline-flex;
+    align-items:center;
+    gap:8px;
+    border:none;
+    border-radius:10px;
+    padding:10px 18px;
+    font-size:14px;
+    font-weight:600;
+    cursor:pointer;
+    transition:transform .12s ease, box-shadow .12s ease, opacity .15s ease;
+  }
+
+  .toolbar button:active{ transform: translateY(1px); }
+
+  .btn-dashboard{
+    background:var(--mb-surface-2);
+    color:var(--mb-text);
+    border:1px solid var(--mb-border);
+  }
+  .btn-dashboard:hover{ background:#262a3c; }
+
+  .btn-export{
+    background:linear-gradient(135deg, var(--mb-purple), var(--mb-purple-dark));
+    color:#fff;
+    box-shadow:0 4px 12px rgba(108,93,211,.35);
+  }
+  .btn-export:hover{ opacity:.92; }
+
+  .btn-import{
+    background:var(--mb-surface-2);
+    color:var(--mb-text);
+    border:1px solid var(--mb-border);
+  }
+  .btn-import:hover{ background:#262a3c; }
+
+  /* ===== Panel ===== */
+  .panel{
+    background:var(--mb-surface);
+    border:1px solid var(--mb-border);
+    border-radius:14px;
+    padding:22px 24px;
+    box-shadow:0 4px 16px rgba(0,0,0,.18);
+  }
+
+  .panel h3{
+    margin:0 0 16px;
+    font-size:16px;
+    font-weight:600;
+    color:var(--mb-text);
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+  }
+
+  .total-badge{
+    font-size:12.5px;
+    font-weight:600;
+    color:var(--mb-purple);
+    background:var(--mb-purple-soft);
+    padding:4px 10px;
+    border-radius:999px;
+  }
+
+  /* ===== Form ===== */
+  .form-grid{
+    display:grid;
+    grid-template-columns: 1fr 1fr;
+    gap:16px;
+  }
+
+  @media (max-width:680px){
+    .form-grid{ grid-template-columns: 1fr; }
+  }
+
+  .field{
+    display:flex;
+    flex-direction:column;
+    gap:6px;
+  }
+
+  .field label{
+    font-size:12.5px;
+    font-weight:600;
+    color:var(--mb-muted);
+    text-transform:uppercase;
+    letter-spacing:.03em;
+  }
+
+  .field input,
+  .field select{
+    width:100%;
+    box-sizing:border-box;
+    padding:11px 14px;
+    border:1px solid var(--mb-border);
+    border-radius:10px;
+    font-size:14px;
+    font-family:inherit;
+    color:var(--mb-text);
+    background:var(--mb-surface-2);
+    transition:border-color .15s ease, box-shadow .15s ease;
+  }
+
+  .field input::placeholder{ color:#5d6175; }
+
+  .field input:focus,
+  .field select:focus{
+    outline:none;
+    border-color:var(--mb-purple);
+    box-shadow:0 0 0 3px var(--mb-purple-soft);
+  }
+
+  .field input[readonly]{
+    opacity:.65;
+    cursor:not-allowed;
+  }
+
+  .form-actions{
+    display:flex;
+    gap:12px;
+    margin-top:18px;
+  }
+
+  .btn-simpan{
+    background:linear-gradient(135deg, var(--mb-purple), var(--mb-purple-dark));
+    color:#fff;
+    border:none;
+    border-radius:10px;
+    padding:11px 22px;
+    font-size:14px;
+    font-weight:600;
+    cursor:pointer;
+    box-shadow:0 4px 12px rgba(108,93,211,.35);
+    transition:opacity .15s ease, transform .12s ease;
+  }
+  .btn-simpan:hover{ opacity:.92; }
+  .btn-simpan:active{ transform: translateY(1px); }
+  .btn-simpan:disabled{ opacity:.55; cursor:not-allowed; }
+
+  .btn-batal{
+    display:none;
+    background:transparent;
+    color:var(--mb-danger);
+    border:1px solid var(--mb-danger);
+    border-radius:10px;
+    padding:11px 22px;
+    font-size:14px;
+    font-weight:600;
+    cursor:pointer;
+    transition:background .15s ease;
+  }
+  .btn-batal:hover{ background:var(--mb-danger-soft); }
+
+  /* ===== Search row above table ===== */
+  .table-toolbar{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    gap:14px;
+    flex-wrap:wrap;
+    margin-bottom:16px;
+  }
+
+  .search-box{
+    flex:1;
+    min-width:220px;
+    max-width:340px;
+    padding:10px 14px;
+    border:1px solid var(--mb-border);
+    border-radius:10px;
+    font-size:13.5px;
+    font-family:inherit;
+    color:var(--mb-text);
+    background:var(--mb-surface-2);
+  }
+  .search-box:focus{
+    outline:none;
+    border-color:var(--mb-purple);
+    box-shadow:0 0 0 3px var(--mb-purple-soft);
+  }
+
+  /* ===== Table ===== */
+  .table-wrap{
+    overflow-x:auto;
+    border-radius:10px;
+    border:1px solid var(--mb-border);
+  }
+
+  table{
+    width:100%;
+    border-collapse:collapse;
+    font-size:13.5px;
+    min-width:760px;
+  }
+
+  thead th{
+    background:var(--mb-surface-2);
+    color:var(--mb-muted);
+    text-transform:uppercase;
+    font-size:11.5px;
+    letter-spacing:.04em;
+    font-weight:700;
+    text-align:left;
+    padding:12px 14px;
+    border-bottom:1px solid var(--mb-border);
+    white-space:nowrap;
+  }
+
+  tbody td{
+    padding:11px 14px;
+    border-bottom:1px solid var(--mb-border);
+    color:var(--mb-text);
+    vertical-align:middle;
+  }
+
+  tbody tr:last-child td{ border-bottom:none; }
+  tbody tr:hover{ background:var(--mb-surface-2); }
+
+  .kode-pill{
+    display:inline-block;
+    font-weight:600;
+    color:#bcb2f5;
+    background:var(--mb-purple-soft);
+    padding:3px 9px;
+    border-radius:6px;
+    font-size:12.5px;
+    letter-spacing:.02em;
+  }
+
+  .actions-cell{
+    display:flex;
+    gap:8px;
+  }
+
+  .btn-edit, .btn-delete{
+    border:none;
+    border-radius:8px;
+    padding:7px 12px;
+    font-size:12.5px;
+    font-weight:600;
+    cursor:pointer;
+    transition:opacity .15s ease;
+  }
+
+  .btn-edit{
+    background:var(--mb-purple-soft);
+    color:#bcb2f5;
+  }
+  .btn-edit:hover{ opacity:.8; }
+
+  .btn-delete{
+    background:var(--mb-danger-soft);
+    color:var(--mb-danger);
+  }
+  .btn-delete:hover{ opacity:.8; }
+
+  .empty-state, .loading-state{
+    text-align:center;
+    padding:36px 10px;
+    color:var(--mb-muted);
+    font-size:14px;
+  }
+
+  .loading-state .spinner{
+    display:inline-block;
+    width:16px; height:16px;
+    border:2px solid var(--mb-border);
+    border-top-color:var(--mb-purple);
+    border-radius:50%;
+    animation:spin .7s linear infinite;
+    margin-right:8px;
+    vertical-align:middle;
+  }
+
+  @keyframes spin{ to{ transform:rotate(360deg); } }
+
+  #fileImport{ display:none; }
+</style>
 </head>
-
 <body>
-
 <div class="content">
 
-<h2>📦 Master Barang</h2>
+  <h2 id="judulHalaman">📋 Master Barang</h2>
+  <p class="page-subtitle">Kelola data master barang: kode, nama, kategori, dan satuan.</p>
+  <br>
 
-<br>
+  <!-- ================= TOOLBAR ================= -->
+  <div class="toolbar">
+    <button class="btn-dashboard" onclick="location.href='dashboard.html'">
+      🏠 Dashboard
+    </button>
+    <button class="btn-export" onclick="exportExcel()">
+      📤 Export Excel
+    </button>
+    <button class="btn-import" onclick="document.getElementById('fileImport').click()">
+      📥 Import Excel
+    </button>
+    <input type="file" id="fileImport" accept=".xlsx,.xls,.csv">
+  </div>
+  <br>
 
-<!-- ================= TOOLBAR ================= -->
+  <!-- ================= FORM ================= -->
+  <div class="panel">
+    <h3 id="judulForm">➕ Tambah Barang</h3>
 
-<div class="toolbar">
+    <form id="formBarang">
+      <div class="form-grid">
 
-<button
-class="btn-dashboard"
-onclick="location.href='dashboard.html'">
+        <div class="field">
+          <label for="kode_barang">Kode Barang</label>
+          <input type="text" id="kode_barang" placeholder="Contoh: BRG001" required>
+        </div>
 
-🏠 Dashboard
+        <div class="field">
+          <label for="nama_barang">Nama Barang</label>
+          <input type="text" id="nama_barang" placeholder="Nama barang" required>
+        </div>
 
-</button>
+        <div class="field">
+          <label for="kategori">Kategori</label>
+          <select id="kategori" required>
+            <option value="">-- Pilih Kategori --</option>
+          </select>
+        </div>
 
-<button
-class="btn-import"
-onclick="document.getElementById('fileImport').click()">
+        <div class="field">
+          <label for="satuan">Satuan</label>
+          <select id="satuan" required>
+            <option value="">-- Pilih Satuan --</option>
+          </select>
+        </div>
 
-📥 Import Excel
+      </div>
 
-</button>
+      <div class="form-actions">
+        <button type="submit" class="btn-simpan" id="btnSimpan">
+          💾 Simpan Barang
+        </button>
+        <button type="button" class="btn-batal" id="btnBatal">
+          ✖ Batal
+        </button>
+      </div>
+    </form>
+  </div>
+  <br>
 
-<input
-type="file"
-id="fileImport"
-accept=".xlsx,.xls"
-hidden>
+  <!-- ================= TABLE ================= -->
+  <div class="panel">
+    <h3>
+      Daftar Master Barang
+      <span class="total-badge" id="totalBadge">0 item</span>
+    </h3>
 
-<button
-class="btn-export"
-onclick="exportExcel()">
+    <div class="table-toolbar">
+      <input type="text" id="searchBarang" class="search-box" placeholder="🔍 Cari kode atau nama barang...">
+    </div>
 
-📤 Export Excel
-
-</button>
-
-</div>
-
-<br>
-
-<!-- ================= FORM ================= -->
-
-<div class="panel">
-
-<h3 id="judulForm">
-
-➕ Tambah Barang
-
-</h3>
-
-<br>
-
-<form id="formBarang">
-
-<input
-type="text"
-id="kode_barang"
-placeholder="Kode Barang"
-required>
-
-<input
-type="text"
-id="nama_barang"
-placeholder="Nama Barang"
-required>
-
-<select
-id="kategori"
-required>
-
-<option value="">
--- Pilih Kategori --
-</option>
-
-</select>
-
-<select
-id="satuan"
-required>
-
-<option value="">
--- Pilih Satuan --
-</option>
-
-</select>
-
-<div style="grid-column:1/3;display:flex;gap:10px;">
-
-<button
-type="submit"
-id="btnSimpan">
-
-💾 Simpan Barang
-
-</button>
-
-<button
-type="button"
-id="btnBatal"
-style="display:none;">
-
-❌ Batal
-
-</button>
-
-</div>
-
-</form>
-
-</div>
-
-<br>
-
-<!-- ================= DAFTAR BARANG ================= -->
-
-<div class="panel">
-
-<h3>Daftar Barang</h3>
-
-<br>
-
-<table id="tableBarang">
-
-<thead>
-
-<tr>
-
-<th width="130">Kode</th>
-
-<th>Nama Barang</th>
-
-<th width="170">Kategori</th>
-
-<th width="120">Satuan</th>
-
-<th width="180">Created By</th>
-
-<th width="170">Aksi</th>
-
-</tr>
-
-</thead>
-
-<tbody>
-
-</tbody>
-
-</table>
-
-</div>
+    <div class="table-wrap">
+      <table id="tableBarang">
+        <thead>
+          <tr>
+            <th width="120">KODE</th>
+            <th>NAMA BARANG</th>
+            <th width="140">KATEGORI</th>
+            <th width="100">SATUAN</th>
+            <th width="130">DIBUAT OLEH</th>
+            <th width="160">AKSI</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td colspan="6" class="loading-state">
+              <span class="spinner"></span> Memuat data...
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
 
 </div>
 
 <script src="js/master-barang.js"></script>
-
 </body>
-
 </html>
