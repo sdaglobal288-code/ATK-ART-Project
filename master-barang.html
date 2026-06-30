@@ -125,9 +125,14 @@
   }
 
   /* ===== Form ===== */
+  /* Dikunci ke block agar tidak ikut ter-grid oleh aturan global di dashboard.css */
+  #formBarang{
+    display:block !important;
+  }
+
   .form-grid{
-    display:grid;
-    grid-template-columns: 1fr 1fr;
+    display:grid !important;
+    grid-template-columns: 1fr 1fr !important;
     gap:16px;
   }
 
@@ -178,40 +183,53 @@
   }
 
   .form-actions{
-    display:flex;
+    display:flex !important;
+    align-items:center !important;
     gap:12px;
-    margin-top:18px;
+    margin-top:22px;
+    height:auto !important;
   }
 
   .btn-simpan{
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    gap:8px;
+    height:44px !important;
     background:linear-gradient(135deg, var(--mb-purple), var(--mb-purple-dark));
     color:#fff;
     border:none;
     border-radius:10px;
-    padding:11px 22px;
+    padding:0 24px;
     font-size:14px;
     font-weight:600;
+    font-family:inherit;
     cursor:pointer;
-    box-shadow:0 4px 12px rgba(108,93,211,.35);
-    transition:opacity .15s ease, transform .12s ease;
+    box-shadow:0 4px 12px rgba(108,93,211,.3);
+    transition:filter .15s ease, transform .12s ease, box-shadow .15s ease;
   }
-  .btn-simpan:hover{ opacity:.92; }
+  .btn-simpan:hover{ filter:brightness(1.08); box-shadow:0 6px 16px rgba(108,93,211,.4); }
   .btn-simpan:active{ transform: translateY(1px); }
-  .btn-simpan:disabled{ opacity:.55; cursor:not-allowed; }
+  .btn-simpan:disabled{ opacity:.55; cursor:not-allowed; filter:none; box-shadow:none; }
 
   .btn-batal{
     display:none;
+    align-items:center;
+    justify-content:center;
+    gap:8px;
+    height:44px !important;
     background:transparent;
     color:var(--mb-danger);
-    border:1px solid var(--mb-danger);
+    border:1px solid #5a2a36;
     border-radius:10px;
-    padding:11px 22px;
+    padding:0 20px;
     font-size:14px;
     font-weight:600;
+    font-family:inherit;
     cursor:pointer;
-    transition:background .15s ease;
+    transition:background .15s ease, border-color .15s ease;
   }
-  .btn-batal:hover{ background:var(--mb-danger-soft); }
+  .btn-batal:hover{ background:var(--mb-danger-soft); border-color:var(--mb-danger); }
 
   /* ===== Search row above table ===== */
   .table-toolbar{
