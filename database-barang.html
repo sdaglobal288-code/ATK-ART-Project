@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="id">
+
+<head>
+
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>Database Barang</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+<link rel="stylesheet" href="css/dashboard.css">
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
+
+<script src="supabase/config.js"></script>
+
+</head>
+
+<body>
+
+<div class="content">
+
+<h2>📦 Database Barang</h2>
+
+<br>
+
+<!-- ================= TOOLBAR ================= -->
+
+<div class="toolbar">
+
+<button
+class="btn-dashboard"
+onclick="location.href='dashboard.html'">
+
+🏠 Dashboard
+
+</button>
+
+<button
+class="btn-export"
+onclick="exportExcel()">
+
+📤 Export Excel
+
+</button>
+
+</div>
+
+<br>
+
+<!-- ================= FILTER ================= -->
+
+<div class="panel">
+
+<div class="form-grid">
+
+<input
+type="text"
+id="search"
+placeholder="🔍 Cari kode atau nama barang...">
+
+<select id="filterKategori">
+
+<option value="">
+Semua Kategori
+</option>
+
+</select>
+
+</div>
+
+</div>
+
+<br>
+
+<!-- ================= TABLE ================= -->
+
+<div class="panel">
+
+<h3>Database Barang</h3>
+
+<br>
+
+<table id="tableBarang">
+
+<thead>
+
+<tr>
+
+<th width="60">NO</th>
+
+<th width="120">KODE</th>
+
+<th>NAMA BARANG</th>
+
+<th width="140">KATEGORI</th>
+
+<th width="120">SATUAN</th>
+
+<th width="120">STOK AWAL</th>
+
+<th width="100">MASUK</th>
+
+<th width="100">KELUAR</th>
+
+<th width="150">SISA STOK</th>
+
+</tr>
+
+</thead>
+
+<tbody>
+
+</tbody>
+
+</table>
+
+</div>
+
+</div>
+
+<script src="js/database-barang.js"></script>
+
+</body>
+
+</html>
