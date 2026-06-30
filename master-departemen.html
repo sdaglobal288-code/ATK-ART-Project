@@ -1,161 +1,425 @@
 <!DOCTYPE html>
 <html lang="id">
-
 <head>
-
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
 <title>Master Departemen</title>
-
 <link rel="preconnect" href="https://fonts.googleapis.com">
-
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-
 <link rel="stylesheet" href="css/dashboard.css">
-
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
 <script src="supabase/config.js"></script>
+<style>
+  :root{
+    --md-bg:#0f1018;
+    --md-surface:#171926;
+    --md-surface-2:#1e2130;
+    --md-border:#2a2d3d;
+    --md-text:#e9eaf2;
+    --md-muted:#9498ab;
+    --md-purple:#6c5dd3;
+    --md-purple-dark:#5a4cc0;
+    --md-purple-soft:rgba(108,93,211,.15);
+    --md-danger:#ef5675;
+    --md-danger-soft:rgba(239,84,117,.12);
+  }
 
+  body{
+    font-family:'Inter', sans-serif;
+    background:var(--md-bg);
+    color:var(--md-text);
+  }
+
+  .content{
+    max-width:1100px;
+    margin:0 auto;
+    padding:28px 24px 60px;
+  }
+
+  .content h2{
+    font-size:23px;
+    font-weight:700;
+    color:var(--md-text);
+    display:flex;
+    align-items:center;
+    gap:10px;
+    margin:0;
+  }
+
+  .page-subtitle{
+    color:var(--md-muted);
+    font-size:13.5px;
+    margin-top:4px;
+  }
+
+  /* ===== Toolbar ===== */
+  .toolbar{
+    display:flex;
+    gap:12px;
+    flex-wrap:wrap;
+  }
+
+  .toolbar button{
+    display:inline-flex;
+    align-items:center;
+    gap:8px;
+    border:none;
+    border-radius:10px;
+    padding:10px 18px;
+    font-size:14px;
+    font-weight:600;
+    cursor:pointer;
+    transition:transform .12s ease, box-shadow .12s ease, opacity .15s ease;
+  }
+
+  .toolbar button:active{ transform: translateY(1px); }
+
+  .btn-dashboard{
+    background:var(--md-surface-2);
+    color:var(--md-text);
+    border:1px solid var(--md-border);
+  }
+  .btn-dashboard:hover{ background:#262a3c; }
+
+  .btn-import{
+    background:var(--md-surface-2);
+    color:var(--md-text);
+    border:1px solid var(--md-border);
+  }
+  .btn-import:hover{ background:#262a3c; }
+
+  .btn-export{
+    background:linear-gradient(135deg, var(--md-purple), var(--md-purple-dark));
+    color:#fff;
+    box-shadow:0 4px 12px rgba(108,93,211,.35);
+  }
+  .btn-export:hover{ opacity:.92; }
+
+  /* ===== Panel ===== */
+  .panel{
+    background:var(--md-surface);
+    border:1px solid var(--md-border);
+    border-radius:14px;
+    padding:22px 24px;
+    box-shadow:0 4px 16px rgba(0,0,0,.18);
+  }
+
+  .panel h3{
+    margin:0 0 16px;
+    font-size:16px;
+    font-weight:600;
+    color:var(--md-text);
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+  }
+
+  .total-badge{
+    font-size:12.5px;
+    font-weight:600;
+    color:var(--md-purple);
+    background:var(--md-purple-soft);
+    padding:4px 10px;
+    border-radius:999px;
+  }
+
+  /* ===== Form ===== */
+  #formDepartemen{
+    display:grid;
+    grid-template-columns: 1fr 1fr;
+    gap:16px;
+  }
+
+  @media (max-width:680px){
+    #formDepartemen{ grid-template-columns: 1fr; }
+  }
+
+  .field{
+    display:flex;
+    flex-direction:column;
+    gap:6px;
+  }
+
+  .field label{
+    font-size:12.5px;
+    font-weight:600;
+    color:var(--md-muted);
+    text-transform:uppercase;
+    letter-spacing:.03em;
+  }
+
+  #formDepartemen input{
+    width:100%;
+    box-sizing:border-box;
+    padding:11px 14px;
+    border:1px solid var(--md-border);
+    border-radius:10px;
+    font-size:14px;
+    font-family:inherit;
+    color:var(--md-text);
+    background:var(--md-surface-2);
+    transition:border-color .15s ease, box-shadow .15s ease;
+  }
+
+  #formDepartemen input::placeholder{ color:#5d6175; }
+
+  #formDepartemen input:focus{
+    outline:none;
+    border-color:var(--md-purple);
+    box-shadow:0 0 0 3px var(--md-purple-soft);
+  }
+
+  #formDepartemen input[readonly]{
+    opacity:.65;
+    cursor:not-allowed;
+  }
+
+  .form-actions{
+    grid-column: 1 / -1;
+    display:flex;
+    gap:12px;
+    margin-top:4px;
+  }
+
+  #btnSimpan{
+    background:linear-gradient(135deg, var(--md-purple), var(--md-purple-dark));
+    color:#fff;
+    border:none;
+    border-radius:10px;
+    padding:11px 22px;
+    font-size:14px;
+    font-weight:600;
+    cursor:pointer;
+    box-shadow:0 4px 12px rgba(108,93,211,.35);
+    transition:opacity .15s ease, transform .12s ease;
+  }
+  #btnSimpan:hover{ opacity:.92; }
+  #btnSimpan:active{ transform: translateY(1px); }
+  #btnSimpan:disabled{ opacity:.55; cursor:not-allowed; }
+
+  #btnBatal{
+    background:transparent;
+    color:var(--md-danger);
+    border:1px solid var(--md-danger);
+    border-radius:10px;
+    padding:11px 22px;
+    font-size:14px;
+    font-weight:600;
+    cursor:pointer;
+    transition:background .15s ease;
+  }
+  #btnBatal:hover{ background:var(--md-danger-soft); }
+
+  /* ===== Search row above table ===== */
+  .table-toolbar{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    gap:14px;
+    flex-wrap:wrap;
+    margin-bottom:16px;
+  }
+
+  .search-box{
+    flex:1;
+    min-width:220px;
+    max-width:340px;
+    padding:10px 14px;
+    border:1px solid var(--md-border);
+    border-radius:10px;
+    font-size:13.5px;
+    font-family:inherit;
+    color:var(--md-text);
+    background:var(--md-surface-2);
+  }
+  .search-box:focus{
+    outline:none;
+    border-color:var(--md-purple);
+    box-shadow:0 0 0 3px var(--md-purple-soft);
+  }
+
+  /* ===== Table ===== */
+  .table-wrap{
+    overflow-x:auto;
+    border-radius:10px;
+    border:1px solid var(--md-border);
+  }
+
+  table{
+    width:100%;
+    border-collapse:collapse;
+    font-size:13.5px;
+    min-width:560px;
+  }
+
+  thead th{
+    background:var(--md-surface-2);
+    color:var(--md-muted);
+    text-transform:uppercase;
+    font-size:11.5px;
+    letter-spacing:.04em;
+    font-weight:700;
+    text-align:left;
+    padding:12px 14px;
+    border-bottom:1px solid var(--md-border);
+    white-space:nowrap;
+  }
+
+  tbody td{
+    padding:11px 14px;
+    border-bottom:1px solid var(--md-border);
+    color:var(--md-text);
+    vertical-align:middle;
+  }
+
+  tbody tr:last-child td{ border-bottom:none; }
+  tbody tr:hover{ background:var(--md-surface-2); }
+
+  .kode-pill{
+    display:inline-block;
+    font-weight:600;
+    color:#bcb2f5;
+    background:var(--md-purple-soft);
+    padding:3px 9px;
+    border-radius:6px;
+    font-size:12.5px;
+    letter-spacing:.02em;
+  }
+
+  .actions-cell{
+    display:flex;
+    gap:8px;
+  }
+
+  .btn-edit, .btn-delete{
+    border:none;
+    border-radius:8px;
+    padding:7px 12px;
+    font-size:12.5px;
+    font-weight:600;
+    cursor:pointer;
+    transition:opacity .15s ease;
+  }
+
+  .btn-edit{
+    background:var(--md-purple-soft);
+    color:#bcb2f5;
+  }
+  .btn-edit:hover{ opacity:.8; }
+
+  .btn-delete{
+    background:var(--md-danger-soft);
+    color:var(--md-danger);
+  }
+  .btn-delete:hover{ opacity:.8; }
+
+  .empty-state, .loading-state{
+    text-align:center;
+    padding:36px 10px;
+    color:var(--md-muted);
+    font-size:14px;
+  }
+
+  .loading-state .spinner{
+    display:inline-block;
+    width:16px; height:16px;
+    border:2px solid var(--md-border);
+    border-top-color:var(--md-purple);
+    border-radius:50%;
+    animation:spin .7s linear infinite;
+    margin-right:8px;
+    vertical-align:middle;
+  }
+
+  @keyframes spin{ to{ transform:rotate(360deg); } }
+</style>
 </head>
-
 <body>
-
 <div class="content">
 
-<h2>🏢 Master Departemen</h2>
+  <h2>🏢 Master Departemen</h2>
+  <p class="page-subtitle">Kelola data master departemen perusahaan.</p>
+  <br>
 
-<br>
+  <!-- ================= TOOLBAR ================= -->
+  <div class="toolbar">
+    <button class="btn-dashboard" onclick="location.href='dashboard.html'">
+      🏠 Dashboard
+    </button>
+    <button class="btn-import" onclick="document.getElementById('fileImport').click()">
+      📥 Import Excel
+    </button>
+    <input type="file" id="fileImport" accept=".xlsx,.xls,.csv" hidden>
+    <button class="btn-export" onclick="exportExcel()">
+      📤 Export Excel
+    </button>
+  </div>
+  <br>
 
-<!-- ================= TOOLBAR ================= -->
+  <!-- ================= FORM ================= -->
+  <div class="panel">
+    <h3 id="judulForm">➕ Tambah Departemen</h3>
 
-<div class="toolbar">
+    <form id="formDepartemen">
 
-<button
-class="btn-dashboard"
-onclick="location.href='dashboard.html'">
+      <div class="field">
+        <label for="kode_departemen">Kode Departemen</label>
+        <input type="text" id="kode_departemen" placeholder="Contoh: DEPT01" required>
+      </div>
 
-🏠 Dashboard
+      <div class="field">
+        <label for="nama_departemen">Nama Departemen</label>
+        <input type="text" id="nama_departemen" placeholder="Nama departemen" required>
+      </div>
 
-</button>
+      <div class="form-actions">
+        <button type="submit" id="btnSimpan">
+          💾 Simpan Departemen
+        </button>
+        <button type="button" id="btnBatal" style="display:none;">
+          ✖ Batal
+        </button>
+      </div>
 
-<button
-class="btn-import"
-onclick="document.getElementById('fileImport').click()">
+    </form>
+  </div>
+  <br>
 
-📥 Import Excel
+  <!-- ================= TABEL ================= -->
+  <div class="panel">
+    <h3>
+      Daftar Departemen
+      <span class="total-badge" id="totalBadge">0 item</span>
+    </h3>
 
-</button>
+    <div class="table-toolbar">
+      <input type="text" id="searchDepartemen" class="search-box" placeholder="🔍 Cari kode atau nama departemen...">
+    </div>
 
-<input
-type="file"
-id="fileImport"
-accept=".xlsx,.xls"
-hidden>
-
-<button
-class="btn-export"
-onclick="exportExcel()">
-
-📤 Export Excel
-
-</button>
-
-</div>
-
-<br>
-
-<!-- ================= FORM ================= -->
-
-<div class="panel">
-
-<h3 id="judulForm">
-
-➕ Tambah Departemen
-
-</h3>
-
-<br>
-
-<form id="formDepartemen">
-
-<input
-type="text"
-id="kode_departemen"
-placeholder="Kode Departemen"
-required>
-
-<input
-type="text"
-id="nama_departemen"
-placeholder="Nama Departemen"
-required>
-
-<div style="grid-column:1/3;display:flex;gap:10px;">
-
-<button
-type="submit"
-id="btnSimpan">
-
-💾 Simpan Departemen
-
-</button>
-
-<button
-type="button"
-id="btnBatal"
-style="display:none;">
-
-❌ Batal
-
-</button>
-
-</div>
-
-</form>
-
-</div>
-
-<br>
-
-<!-- ================= TABEL ================= -->
-
-<div class="panel">
-
-<h3>Daftar Departemen</h3>
-
-<br>
-
-<table id="tableDepartemen">
-
-<thead>
-
-<tr>
-
-<th width="150">Kode</th>
-
-<th>Nama Departemen</th>
-
-<th width="180">Created By</th>
-
-<th width="180">Aksi</th>
-
-</tr>
-
-</thead>
-
-<tbody>
-
-</tbody>
-
-</table>
-
-</div>
+    <div class="table-wrap">
+      <table id="tableDepartemen">
+        <thead>
+          <tr>
+            <th width="150">Kode</th>
+            <th>Nama Departemen</th>
+            <th width="160">Dibuat Oleh</th>
+            <th width="170">Aksi</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td colspan="4" class="loading-state">
+              <span class="spinner"></span> Memuat data...
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
 
 </div>
 
 <script src="js/master-departemen.js"></script>
-
 </body>
-
 </html>
