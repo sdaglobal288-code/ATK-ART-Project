@@ -18,8 +18,10 @@
 
 const user = JSON.parse(sessionStorage.getItem("user"));
 
-if (!user) {
-    location.href = "login.html";
+if(!user){
+
+    location.href="login.html";
+
 }
 
 function logout(){
@@ -32,7 +34,7 @@ function logout(){
 
 function goPage(page){
 
-    location.href = page;
+    location.href=page;
 
 }
 
@@ -60,22 +62,37 @@ function goPage(page){
 
 <div class="menu">
 
-<button class="active"
+<button
+class="active"
 onclick="goPage('dashboard.html')">
 
 🏠 Dashboard
 
 </button>
 
+<!-- ================= TRANSAKSI ================= -->
+
 <div class="menu-title">
 
-UTAMA
+TRANSAKSI
 
 </div>
 
 <button onclick="goPage('barang-masuk.html')">
 
-📥 Input Stok
+📥 Barang Masuk
+
+</button>
+
+<button onclick="goPage('barang-keluar.html')">
+
+📤 Barang Keluar
+
+</button>
+
+<button onclick="goPage('transfer.html')">
+
+🔄 Transfer Barang
 
 </button>
 
@@ -84,6 +101,8 @@ UTAMA
 📦 Database Barang
 
 </button>
+
+<!-- ================= MASTER ================= -->
 
 <div class="menu-title">
 
@@ -127,6 +146,8 @@ MASTER DATA
 
 </button>
 
+<!-- ================= HISTORI ================= -->
+
 <div class="menu-title">
 
 HISTORI
@@ -145,23 +166,19 @@ HISTORI
 
 </button>
 
+<button onclick="goPage('histori-transfer.html')">
+
+🔄 Histori Transfer
+
+</button>
+
 <button onclick="goPage('histori-mutasi.html')">
 
-📋 Histori Mutasi Karyawan
+👥 Histori Mutasi Karyawan
 
 </button>
 
-<div class="menu-title">
-
-TRANSFER
-
-</div>
-
-<button onclick="goPage('transfer.html')">
-
-🔄 Transfer Barang
-
-</button>
+<!-- ================= LAPORAN ================= -->
 
 <div class="menu-title">
 
@@ -188,145 +205,3 @@ LAPORAN
 </div>
 
 <!-- ================= MAIN ================= -->
-
-<div class="main">
-
-<div class="topbar">
-
-<div>
-
-<h2>Dashboard</h2>
-
-<small>Selamat Datang di Sistem Inventory ATK & ART</small>
-
-</div>
-
-<div class="user">
-
-👤 <span id="nama"></span>
-
-</div>
-
-</div>
-
-<div class="content">
-
-<div class="cards">
-
-<div class="card">
-
-<h4>Total Barang</h4>
-
-<h2 id="totalBarang">0</h2>
-
-</div>
-
-<div class="card">
-
-<h4>Barang Masuk</h4>
-
-<h2 id="barangMasuk">0</h2>
-
-</div>
-
-<div class="card">
-
-<h4>Barang Keluar</h4>
-
-<h2 id="barangKeluar">0</h2>
-
-</div>
-
-<div class="card">
-
-<h4>Transfer Barang</h4>
-
-<h2 id="transferBarang">0</h2>
-
-</div>
-
-</div>
-
-<div class="panel">
-
-<h2>Selamat Datang</h2>
-
-<br>
-
-<p>
-
-Halo <b id="nama2"></b>,
-
-Anda login sebagai Admin Gudang
-
-<b id="gudang2"></b>.
-
-</p>
-
-<br>
-
-<p>
-
-Gunakan menu di sebelah kiri untuk mengelola seluruh proses Inventory ATK & ART, mulai dari Master Data, Mutasi Karyawan, Transaksi Barang, Transfer Antar Gudang, hingga Laporan.
-
-</p>
-
-<br>
-
-<h3>Modul yang tersedia</h3>
-
-<br>
-
-<ul style="line-height:32px;padding-left:25px;">
-
-<li>📋 Master Barang</li>
-
-<li>👥 Master Karyawan</li>
-
-<li>🔄 Mutasi Karyawan</li>
-
-<li>🏢 Master Departemen</li>
-
-<li>💼 Master Jabatan</li>
-
-<li>🚚 Master Supplier</li>
-
-<li>📥 Barang Masuk</li>
-
-<li>📤 Barang Keluar</li>
-
-<li>🔄 Transfer Barang</li>
-
-<li>📋 Histori Mutasi Karyawan</li>
-
-<li>📊 Laporan</li>
-
-</ul>
-
-</div>
-
-</div>
-
-</div>
-
-</div>
-
-<script>
-
-document.getElementById("nama").innerHTML=user.nama;
-document.getElementById("nama2").innerHTML=user.nama;
-
-document.getElementById("gudang").innerHTML=user.gudang;
-document.getElementById("gudang2").innerHTML=user.gudang;
-
-</script>
-
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
-
-<script src="supabase/config.js"></script>
-
-<script src="js/dashboard.js"></script>
-
-</body>
-
-</html>
