@@ -15,7 +15,6 @@
 <link rel="stylesheet" href="css/dashboard.css">
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
-
 <script src="supabase/config.js"></script>
 
 </head>
@@ -24,119 +23,134 @@
 
 <div class="content">
 
-    <h2>💼 Master Jabatan</h2>
+<h2>💼 Master Jabatan</h2>
 
-    <br>
+<br>
 
-    <!-- =========================
-         TOOLBAR
-    ========================== -->
+<!-- ================= TOOLBAR ================= -->
 
-    <div class="toolbar">
+<div class="toolbar">
 
-        <button
-            class="btn-dashboard"
-            onclick="location.href='dashboard.html'">
+<button
+class="btn-dashboard"
+onclick="location.href='dashboard.html'">
 
-            🏠 Dashboard
+🏠 Dashboard
 
-        </button>
+</button>
 
-        <button
-            class="btn-import"
-            onclick="document.getElementById('fileImport').click()">
+<button
+class="btn-import"
+onclick="document.getElementById('fileImport').click()">
 
-            📥 Import Excel
+📥 Import Excel
 
-        </button>
+</button>
 
-        <input
-            type="file"
-            id="fileImport"
-            accept=".xlsx,.xls"
-            hidden>
+<input
+type="file"
+id="fileImport"
+accept=".xlsx,.xls"
+hidden>
 
-        <button
-            class="btn-export"
-            onclick="exportExcel()">
+<button
+class="btn-export"
+onclick="exportExcel()">
 
-            📤 Export Excel
+📤 Export Excel
 
-        </button>
+</button>
 
-    </div>
+</div>
 
-    <br>
+<br>
 
-    <!-- =========================
-         FORM
-    ========================== -->
+<!-- ================= FORM ================= -->
 
-    <div class="panel">
+<div class="panel">
 
-        <h3>Tambah Jabatan</h3>
+<h3 id="judulForm">
 
-        <br>
+➕ Tambah Jabatan
 
-        <form id="formJabatan">
+</h3>
 
-            <input
-                type="text"
-                id="kode_jabatan"
-                placeholder="Kode Jabatan"
-                required>
+<br>
 
-            <input
-                type="text"
-                id="nama_jabatan"
-                placeholder="Nama Jabatan"
-                required>
+<form id="formJabatan">
 
-            <button type="submit">
+<input
+type="text"
+id="kode_jabatan"
+placeholder="Kode Jabatan"
+required>
 
-                💾 Simpan Jabatan
+<input
+type="text"
+id="nama_jabatan"
+placeholder="Nama Jabatan"
+required>
 
-            </button>
+<div style="grid-column:1/3;display:flex;gap:10px;">
 
-        </form>
+<button
+type="submit"
+id="btnSimpan">
 
-    </div>
+💾 Simpan Jabatan
 
-    <br>
+</button>
 
-    <!-- =========================
-         TABLE
-    ========================== -->
+<button
+type="button"
+id="btnBatal"
+style="display:none;">
 
-    <div class="panel">
+❌ Batal
 
-        <h3>Daftar Jabatan</h3>
+</button>
 
-        <br>
+</div>
 
-        <table id="tableJabatan">
+</form>
 
-            <thead>
+</div>
 
-                <tr>
+<br>
 
-                    <th width="180">Kode Jabatan</th>
+<!-- ================= TABEL ================= -->
 
-                    <th>Nama Jabatan</th>
+<div class="panel">
 
-                    <th width="180">Aksi</th>
+<h3>Daftar Jabatan</h3>
 
-                </tr>
+<br>
 
-            </thead>
+<table id="tableJabatan">
 
-            <tbody>
+<thead>
 
-            </tbody>
+<tr>
 
-        </table>
+<th width="160">Kode Jabatan</th>
 
-    </div>
+<th>Nama Jabatan</th>
+
+<th width="180">Created By</th>
+
+<th width="180">Aksi</th>
+
+</tr>
+
+</thead>
+
+<tbody>
+
+</tbody>
+
+</table>
+
+</div>
 
 </div>
 
