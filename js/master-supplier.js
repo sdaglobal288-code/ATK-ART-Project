@@ -21,7 +21,7 @@ async function loadSupplier() {
         const { data, error } = await supabaseClient
             .from("master_supplier")
             .select("*")
-            .order("nama_supplier", { ascending: true });
+            .order("nama_toko");
 
         if (error) throw error;
 
@@ -36,17 +36,9 @@ async function loadSupplier() {
 
                 <td>${item.kode_supplier}</td>
 
-                <td>${item.nama_supplier}</td>
+                <td>${item.nama_toko}</td>
 
-                <td>${item.alamat || "-"}</td>
-
-                <td>${item.telepon || "-"}</td>
-
-                <td>${item.email || "-"}</td>
-
-                <td>${item.contact_person || "-"}</td>
-
-                <td>${item.created_by || "-"}</td>
+                <td>${item.created_by ?? "-"}</td>
 
                 <td>
 
@@ -95,8 +87,8 @@ form.addEventListener("submit", async function(e){
 
     try{
 
-        const kode =
-            document.getElementById("kode_supplier")
+        const kode = document
+            .getElementById("kode_supplier")
             .value
             .trim()
             .toUpperCase();
@@ -105,50 +97,32 @@ form.addEventListener("submit", async function(e){
 
             kode_supplier : kode,
 
-            nama_supplier :
-                document.getElementById("nama_supplier").value.trim(),
-
-            alamat :
-                document.getElementById("alamat").value.trim(),
-
-            telepon :
-                document.getElementById("telepon").value.trim(),
-
-            email :
-                document.getElementById("email").value.trim(),
-
-            contact_person :
-                document.getElementById("contact_person").value.trim(),
+            nama_toko : document
+                .getElementById("nama_toko")
+                .value
+                .trim(),
 
             created_by : user.nama
 
         };
 
-        // ===========================
+        // =====================================
         // UPDATE
-        // ===========================
+        // =====================================
 
-        if(editId!==null){
+        if(editId !== null){
 
             const { error } = await supabaseClient
 
-            .from("master_supplier")
+                .from("master_supplier")
 
-            .update({
+                .update({
 
-                nama_supplier : supplier.nama_supplier,
+                    nama_toko : supplier.nama_toko
 
-                alamat : supplier.alamat,
+                })
 
-                telepon : supplier.telepon,
-
-                email : supplier.email,
-
-                contact_person : supplier.contact_person
-
-            })
-
-            .eq("id",editId);
+                .eq("id", editId);
 
             if(error) throw error;
 
@@ -162,19 +136,19 @@ form.addEventListener("submit", async function(e){
 
         }
 
-        // ===========================
+        // =====================================
         // VALIDASI KODE
-        // ===========================
+        // =====================================
 
-        const { data:cek } = await supabaseClient
+        const { data: cek } = await supabaseClient
 
-        .from("master_supplier")
+            .from("master_supplier")
 
-        .select("id")
+            .select("id")
 
-        .eq("kode_supplier",kode);
+            .eq("kode_supplier", kode);
 
-        if(cek.length>0){
+        if(cek.length > 0){
 
             alert("Kode Supplier sudah digunakan.");
 
@@ -182,15 +156,15 @@ form.addEventListener("submit", async function(e){
 
         }
 
-        // ===========================
+        // =====================================
         // INSERT
-        // ===========================
+        // =====================================
 
         const { error } = await supabaseClient
 
-        .from("master_supplier")
+            .from("master_supplier")
 
-        .insert([supplier]);
+            .insert([supplier]);
 
         if(error) throw error;
 
@@ -200,7 +174,9 @@ form.addEventListener("submit", async function(e){
 
         loadSupplier();
 
-    }catch(err){
+    }
+
+    catch(err){
 
         console.error(err);
 
@@ -218,47 +194,35 @@ async function editSupplier(id){
 
     try{
 
-        const { data,error } = await supabaseClient
+        const { data, error } = await supabaseClient
 
-        .from("master_supplier")
+            .from("master_supplier")
 
-        .select("*")
+            .select("*")
 
-        .eq("id",id)
+            .eq("id", id)
 
-        .single();
+            .single();
 
         if(error) throw error;
 
-        editId=id;
+        editId = id;
 
         document.getElementById("kode_supplier").value =
             data.kode_supplier;
 
-        document.getElementById("nama_supplier").value =
-            data.nama_supplier;
+        document.getElementById("nama_toko").value =
+            data.nama_toko;
 
-        document.getElementById("alamat").value =
-            data.alamat || "";
+        document.getElementById("kode_supplier").readOnly = true;
 
-        document.getElementById("telepon").value =
-            data.telepon || "";
-
-        document.getElementById("email").value =
-            data.email || "";
-
-        document.getElementById("contact_person").value =
-            data.contact_person || "";
-
-        document.getElementById("kode_supplier").readOnly=true;
-
-        document.getElementById("judulForm").innerHTML=
+        document.getElementById("judulForm").innerHTML =
             "✏ Edit Supplier";
 
-        document.getElementById("btnSimpan").innerHTML=
+        document.getElementById("btnSimpan").innerHTML =
             "💾 Update Supplier";
 
-        document.getElementById("btnBatal").style.display=
+        document.getElementById("btnBatal").style.display =
             "inline-block";
 
         window.scrollTo({
@@ -269,7 +233,9 @@ async function editSupplier(id){
 
         });
 
-    }catch(err){
+    }
+
+    catch(err){
 
         alert(err.message);
 
@@ -283,26 +249,26 @@ async function editSupplier(id){
 
 function batalEdit(){
 
-    editId=null;
+    editId = null;
 
     form.reset();
 
-    document.getElementById("kode_supplier").readOnly=false;
+    document.getElementById("kode_supplier").readOnly = false;
 
-    document.getElementById("judulForm").innerHTML=
+    document.getElementById("judulForm").innerHTML =
         "➕ Tambah Supplier";
 
-    document.getElementById("btnSimpan").innerHTML=
+    document.getElementById("btnSimpan").innerHTML =
         "💾 Simpan Supplier";
 
-    document.getElementById("btnBatal").style.display=
+    document.getElementById("btnBatal").style.display =
         "none";
 
 }
 
 document
 .getElementById("btnBatal")
-.addEventListener("click",batalEdit);
+.addEventListener("click", batalEdit);
 
 // =====================================
 // HAPUS
@@ -317,11 +283,11 @@ async function hapusSupplier(id){
 
         const { error } = await supabaseClient
 
-        .from("master_supplier")
+            .from("master_supplier")
 
-        .delete()
+            .delete()
 
-        .eq("id",id);
+            .eq("id", id);
 
         if(error) throw error;
 
@@ -329,7 +295,9 @@ async function hapusSupplier(id){
 
         loadSupplier();
 
-    }catch(err){
+    }
+
+    catch(err){
 
         alert(err.message);
 
@@ -353,7 +321,7 @@ function exportExcel(){
 
 document
 .getElementById("fileImport")
-.addEventListener("change",function(){
+.addEventListener("change", function(){
 
     alert("Fitur Import Excel akan dibuat pada tahap berikutnya.");
 
@@ -363,7 +331,7 @@ document
 // LOAD AWAL
 // =====================================
 
-document.addEventListener("DOMContentLoaded",function(){
+document.addEventListener("DOMContentLoaded", function(){
 
     loadSupplier();
 
