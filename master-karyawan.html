@@ -69,7 +69,11 @@ onclick="exportExcel()">
 
 <div class="panel">
 
-<h3>Tambah Karyawan</h3>
+<h3 id="judulForm">
+
+➕ Tambah Karyawan
+
+</h3>
 
 <br>
 
@@ -87,7 +91,9 @@ id="nama"
 placeholder="Nama Karyawan"
 required>
 
-<select id="departemen" required>
+<select
+id="departemen"
+required>
 
 <option value="">
 -- Pilih Departemen --
@@ -95,7 +101,9 @@ required>
 
 </select>
 
-<select id="jabatan" required>
+<select
+id="jabatan"
+required>
 
 <option value="">
 -- Pilih Jabatan --
@@ -103,24 +111,49 @@ required>
 
 </select>
 
-<select id="status">
+<select
+id="status">
 
 <option value="Aktif">
+
 Aktif
+
 </option>
 
 <option value="Non Aktif">
+
 Non Aktif
+
 </option>
 
 </select>
 
+<div
+style="
+display:flex;
+gap:10px;
+grid-column:1/-1;
+">
+
 <button
-type="submit">
+type="submit"
+id="btnSimpan">
 
 💾 Simpan Karyawan
 
 </button>
+
+<button
+type="button"
+id="btnBatal"
+class="btn-delete"
+style="display:none;">
+
+❌ Batal
+
+</button>
+
+</div>
 
 </form>
 
@@ -132,7 +165,11 @@ type="submit">
 
 <div class="panel">
 
-<h3>Daftar Karyawan</h3>
+<h3>
+
+Daftar Karyawan
+
+</h3>
 
 <br>
 
@@ -146,17 +183,17 @@ type="submit">
 
 <th>Nama</th>
 
-<th width="160">Gudang</th>
+<th width="150">Gudang</th>
 
-<th width="180">Departemen</th>
+<th width="170">Departemen</th>
 
-<th width="180">Jabatan</th>
+<th width="170">Jabatan</th>
 
-<th width="110">Status</th>
+<th width="120">Status</th>
 
-<th width="180">Created By</th>
+<th width="170">Created By</th>
 
-<th width="170">Aksi</th>
+<th width="180">Aksi</th>
 
 </tr>
 
