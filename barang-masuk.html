@@ -5,17 +5,13 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Barang Masuk - ATK ART Project</title>
 
-<!-- Font (sama seperti di Master Barang) -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 
-<!-- CSS utama -->
-<link rel="stylesheet" href="dashboard.css">
+<link rel="stylesheet" href="css/dashboard.css">
 
-<!-- Supabase SDK (sesuaikan kalau kalian sudah punya file config sendiri) -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
-  // GANTI dengan URL & ANON KEY project supabase kalian (sama seperti di master-barang.html)
   const SUPABASE_URL = 'https://xxxxxxxxxxxx.supabase.co';
   const SUPABASE_ANON_KEY = 'xxxxxxxxxxxxxxxxxxxxxxxxxxxx';
   const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
@@ -45,8 +41,7 @@
 <div class="panel">
 
     <h3>
-        <span class="panel-icon">📥</span>
-        Input Barang Masuk (BTB)
+        <span><span class="panel-icon">📥</span> Input Barang Masuk (BTB)</span>
     </h3>
     <p class="panel-sub">Catat penerimaan barang baru dari supplier</p>
 
@@ -185,8 +180,7 @@
 <div class="panel">
 
     <h3>
-        <span class="panel-icon">📋</span>
-        Histori Barang Masuk
+        <span><span class="panel-icon">📋</span> Histori Barang Masuk</span>
     </h3>
 
     <div class="search-box">
@@ -220,8 +214,7 @@
 
 </div>
 
-<!-- Logic Barang Masuk -->
-<script src="barang-masuk.js"></script>
+<script src="js/barang-masuk.js"></script>
 
 </body>
 </html>
