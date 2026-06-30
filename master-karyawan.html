@@ -22,165 +22,157 @@
 
 <div class="content">
 
-<h2>👥 Master Karyawan</h2>
+    <h2>👥 Master Karyawan</h2>
 
-<br>
+    <br>
 
-<!-- ================= TOOLBAR ================= -->
+    <!-- ================= TOOLBAR ================= -->
 
-<div class="toolbar">
+    <div class="toolbar">
 
-<button
-class="btn-dashboard"
-onclick="location.href='dashboard.html'">
+        <button
+            class="btn-dashboard"
+            onclick="location.href='dashboard.html'">
 
-🏠 Dashboard
+            🏠 Dashboard
 
-</button>
+        </button>
 
-<button
-class="btn-import"
-onclick="document.getElementById('fileImport').click()">
+        <button
+            class="btn-import"
+            onclick="document.getElementById('fileImport').click()">
 
-📥 Import Excel
+            📥 Import Excel
 
-</button>
+        </button>
 
-<input
-type="file"
-id="fileImport"
-accept=".xlsx,.xls"
-hidden>
+        <input
+            type="file"
+            id="fileImport"
+            accept=".xlsx,.xls"
+            hidden>
 
-<button
-class="btn-export"
-onclick="exportExcel()">
+        <button
+            class="btn-export"
+            onclick="exportExcel()">
 
-📤 Export Excel
+            📤 Export Excel
 
-</button>
+        </button>
+
+    </div>
+
+    <br>
+
+    <!-- ================= FORM ================= -->
+
+    <div class="panel">
+
+        <h3>Tambah Karyawan</h3>
+
+        <br>
+
+        <form id="formKaryawan">
+
+            <input
+                type="text"
+                id="nik"
+                placeholder="NIK"
+                required>
+
+            <input
+                type="text"
+                id="nama"
+                placeholder="Nama Karyawan"
+                required>
+
+            <select id="departemen" required>
+
+                <option value="">
+                    -- Pilih Departemen --
+                </option>
+
+            </select>
+
+            <select id="jabatan" required>
+
+                <option value="">
+                    -- Pilih Jabatan --
+                </option>
+
+            </select>
+
+            <input
+                type="text"
+                id="gudang"
+                readonly>
+
+            <select id="status">
+
+                <option value="Aktif">
+                    Aktif
+                </option>
+
+                <option value="Non Aktif">
+                    Non Aktif
+                </option>
+
+            </select>
+
+            <button
+                type="submit">
+
+                💾 Simpan Karyawan
+
+            </button>
+
+        </form>
+
+    </div>
+
+    <br>
+
+    <!-- ================= TABEL ================= -->
+
+    <div class="panel">
+
+        <h3>Daftar Karyawan</h3>
+
+        <br>
+
+        <table id="tableKaryawan">
+
+            <thead>
+
+                <tr>
+
+                    <th width="120">NIK</th>
+
+                    <th>Nama</th>
+
+                    <th width="180">Departemen</th>
+
+                    <th width="180">Jabatan</th>
+
+                    <th width="150">Gudang</th>
+
+                    <th width="120">Status</th>
+
+                    <th width="180">Aksi</th>
+
+                </tr>
+
+            </thead>
+
+            <tbody>
+
+            </tbody>
+
+        </table>
+
+    </div>
 
 </div>
-
-<br>
-
-<!-- ================= FORM ================= -->
-
-<div class="panel">
-
-<h3>Tambah Karyawan</h3>
-
-<br>
-
-<form id="formKaryawan">
-
-<input
-type="text"
-id="nik"
-placeholder="NIK"
-required>
-
-<input
-type="text"
-id="nama"
-placeholder="Nama Karyawan"
-required>
-
-<select id="departemen" required>
-
-<option value="">
--- Pilih Departemen --
-</option>
-
-</select>
-
-<select id="jabatan" required>
-
-<option value="">
--- Pilih Jabatan --
-</option>
-
-</select>
-
-<input
-type="text"
-id="gudang"
-readonly>
-
-<select id="status">
-
-<option value="Aktif">Aktif</option>
-
-<option value="Non Aktif">Non Aktif</option>
-
-</select>
-
-<button
-type="submit">
-
-💾 Simpan Karyawan
-
-</button>
-
-</form>
-
-</div>
-
-<br>
-
-<!-- ================= TABEL ================= -->
-
-<div class="panel">
-
-<h3>Daftar Karyawan</h3>
-
-<br>
-
-<table id="tableKaryawan">
-
-<thead>
-
-<tr>
-
-<th width="120">NIK</th>
-
-<th>Nama</th>
-
-<th width="180">Departemen</th>
-
-<th width="180">Jabatan</th>
-
-<th width="150">Gudang</th>
-
-<th width="120">Status</th>
-
-<th width="180">Aksi</th>
-
-</tr>
-
-</thead>
-
-<tbody>
-
-</tbody>
-
-</table>
-
-</div>
-
-</div>
-
-<script>
-
-const user = JSON.parse(sessionStorage.getItem("user"));
-
-if (!user) {
-    location.href = "login.html";
-}
-
-document.getElementById("gudang").value = user.gudang;
-
-</script>
 
 <script src="js/master-karyawan.js"></script>
 
