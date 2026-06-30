@@ -5,182 +5,357 @@
 const user = JSON.parse(sessionStorage.getItem("user"));
 
 if (!user) {
-    window.location.href = "login.html";
+    location.href = "login.html";
 }
 
+let editId = null;
+
 // =====================================
-// LOAD DATA
+// LOAD JABATAN
 // =====================================
 
 async function loadJabatan() {
 
-    const { data, error } = await supabaseClient
-        .from("master_jabatan")
-        .select("*")
-        .order("kode_jabatan", { ascending: true });
+    try {
 
-    if (error) {
-        console.error(error);
-        alert(error.message);
-        return;
+        const { data, error } = await supabaseClient
+            .from("master_jabatan")
+            .select("*")
+            .order("kode_jabatan", { ascending: true });
+
+        if (error) throw error;
+
+        const tbody =
+            document.querySelector("#tableJabatan tbody");
+
+        tbody.innerHTML = "";
+
+        data.forEach(item => {
+
+            tbody.innerHTML += `
+
+            <tr>
+
+                <td>${item.kode_jabatan}</td>
+
+                <td>${item.nama_jabatan}</td>
+
+                <td>${item.created_by ?? "-"}</td>
+
+                <td>
+
+                    <button
+                        class="btn-edit"
+                        onclick="editJabatan(${item.id})">
+
+                        ✏ Edit
+
+                    </button>
+
+                    <button
+                        class="btn-delete"
+                        onclick="hapusJabatan(${item.id})">
+
+                        🗑 Hapus
+
+                    </button>
+
+                </td>
+
+            </tr>
+
+            `;
+
+        });
+
     }
 
-    const tbody = document.querySelector("#tableJabatan tbody");
+    catch(err){
 
-    tbody.innerHTML = "";
+        console.error(err);
 
-    data.forEach(item => {
+        alert(err.message);
 
-        tbody.innerHTML += `
-        <tr>
-
-            <td>${item.kode_jabatan}</td>
-
-            <td>${item.nama_jabatan}</td>
-
-            <td>
-
-                <button
-                    class="btn-edit"
-                    onclick="editJabatan(${item.id})">
-
-                    ✏ Edit
-
-                </button>
-
-                <button
-                    class="btn-delete"
-                    onclick="hapusJabatan(${item.id})">
-
-                    🗑 Hapus
-
-                </button>
-
-            </td>
-
-        </tr>
-        `;
-
-    });
+    }
 
 }
 
 // =====================================
-// SIMPAN
+// SIMPAN / UPDATE JABATAN
 // =====================================
 
-document
-.getElementById("formJabatan")
-.addEventListener("submit", async function (e) {
+const form = document.getElementById("formJabatan");
+
+if(form){
+
+form.addEventListener("submit", async function(e){
 
     e.preventDefault();
 
-    const kode = document
-        .getElementById("kode_jabatan")
-        .value
-        .trim()
-        .toUpperCase();
+    try{
 
-    const nama = document
-        .getElementById("nama_jabatan")
-        .value
-        .trim();
+        const kode = document
+            .getElementById("kode_jabatan")
+            .value
+            .trim()
+            .toUpperCase();
 
-    // ============================
-    // VALIDASI KODE
-    // ============================
+        const nama = document
+            .getElementById("nama_jabatan")
+            .value
+            .trim();
 
-    const { data: cekKode } = await supabaseClient
-        .from("master_jabatan")
-        .select("id")
-        .eq("kode_jabatan", kode);
+        // =====================================
+        // UPDATE
+        // =====================================
 
-    if (cekKode.length > 0) {
+        if(editId !== null){
 
-        alert("Kode Jabatan sudah digunakan.");
+            const { data: cekNamaUpdate } = await supabaseClient
 
-        return;
+                .from("master_jabatan")
+
+                .select("id")
+
+                .ilike("nama_jabatan", nama)
+
+                .neq("id", editId);
+
+            if(cekNamaUpdate.length > 0){
+
+                alert("Nama Jabatan sudah digunakan.");
+
+                return;
+
+            }
+
+            const { error } = await supabaseClient
+
+                .from("master_jabatan")
+
+                .update({
+
+                    nama_jabatan : nama
+
+                })
+
+                .eq("id", editId);
+
+            if(error) throw error;
+
+            alert("Jabatan berhasil diupdate.");
+
+            batalEdit();
+
+            loadJabatan();
+
+            return;
+
+        }
+
+        // =====================================
+        // VALIDASI KODE
+        // =====================================
+
+        const { data: cekKode } = await supabaseClient
+
+            .from("master_jabatan")
+
+            .select("id")
+
+            .eq("kode_jabatan", kode);
+
+        if(cekKode.length > 0){
+
+            alert("Kode Jabatan sudah digunakan.");
+
+            return;
+
+        }
+
+        // =====================================
+        // VALIDASI NAMA
+        // =====================================
+
+        const { data: cekNama } = await supabaseClient
+
+            .from("master_jabatan")
+
+            .select("id")
+
+            .ilike("nama_jabatan", nama);
+
+        if(cekNama.length > 0){
+
+            alert("Nama Jabatan sudah digunakan.");
+
+            return;
+
+        }
+
+        // =====================================
+        // INSERT
+        // =====================================
+
+        const { error } = await supabaseClient
+
+            .from("master_jabatan")
+
+            .insert([{
+
+                kode_jabatan : kode,
+
+                nama_jabatan : nama,
+
+                created_by : user.nama
+
+            }]);
+
+        if(error) throw error;
+
+        alert("Jabatan berhasil disimpan.");
+
+        form.reset();
+
+        loadJabatan();
 
     }
 
-    // ============================
-    // VALIDASI NAMA
-    // ============================
+    catch(err){
 
-    const { data: cekNama } = await supabaseClient
-        .from("master_jabatan")
-        .select("id")
-        .ilike("nama_jabatan", nama);
+        console.error(err);
 
-    if (cekNama.length > 0) {
-
-        alert("Nama Jabatan sudah ada.");
-
-        return;
+        alert(err.message);
 
     }
-
-    // ============================
-
-    const { error } = await supabaseClient
-        .from("master_jabatan")
-        .insert([{
-
-            kode_jabatan: kode,
-
-            nama_jabatan: nama
-
-        }]);
-
-    if (error) {
-
-        alert(error.message);
-
-        return;
-
-    }
-
-    alert("Jabatan berhasil disimpan.");
-
-    document.getElementById("formJabatan").reset();
-
-    loadJabatan();
 
 });
-
-// =====================================
-// HAPUS
-// =====================================
-
-async function hapusJabatan(id) {
-
-    if (!confirm("Hapus data jabatan ini?"))
-        return;
-
-    const { error } = await supabaseClient
-        .from("master_jabatan")
-        .delete()
-        .eq("id", id);
-
-    if (error) {
-
-        alert(error.message);
-
-        return;
-
-    }
-
-    loadJabatan();
 
 }
 
 // =====================================
-// EDIT
+// EDIT JABATAN
 // =====================================
 
-function editJabatan(id) {
+async function editJabatan(id){
 
-    alert("Fitur Edit Jabatan akan dibuat pada tahap berikutnya.");
+    try{
+
+        const { data, error } = await supabaseClient
+
+            .from("master_jabatan")
+
+            .select("*")
+
+            .eq("id", id)
+
+            .single();
+
+        if(error) throw error;
+
+        editId = id;
+
+        document.getElementById("kode_jabatan").value =
+            data.kode_jabatan;
+
+        document.getElementById("nama_jabatan").value =
+            data.nama_jabatan;
+
+        // Kode Jabatan tidak boleh diubah saat edit
+        document.getElementById("kode_jabatan").readOnly = true;
+
+        document.getElementById("judulForm").innerHTML =
+            "✏ Edit Jabatan";
+
+        document.getElementById("btnSimpan").innerHTML =
+            "💾 Update Jabatan";
+
+        document.getElementById("btnBatal").style.display =
+            "inline-block";
+
+        window.scrollTo({
+
+            top:0,
+
+            behavior:"smooth"
+
+        });
+
+    }
+
+    catch(err){
+
+        console.error(err);
+
+        alert(err.message);
+
+    }
+
+}
+
+// =====================================
+// BATAL EDIT
+// =====================================
+
+function batalEdit(){
+
+    editId = null;
+
+    form.reset();
+
+    document.getElementById("kode_jabatan").readOnly = false;
+
+    document.getElementById("judulForm").innerHTML =
+        "➕ Tambah Jabatan";
+
+    document.getElementById("btnSimpan").innerHTML =
+        "💾 Simpan Jabatan";
+
+    document.getElementById("btnBatal").style.display =
+        "none";
+
+}
+
+document
+
+.getElementById("btnBatal")
+
+.addEventListener("click", batalEdit);
+
+// =====================================
+// HAPUS JABATAN
+// =====================================
+
+async function hapusJabatan(id){
+
+    if(!confirm("Yakin ingin menghapus Jabatan ini?"))
+        return;
+
+    try{
+
+        const { error } = await supabaseClient
+
+            .from("master_jabatan")
+
+            .delete()
+
+            .eq("id", id);
+
+        if(error) throw error;
+
+        alert("Jabatan berhasil dihapus.");
+
+        loadJabatan();
+
+    }
+
+    catch(err){
+
+        console.error(err);
+
+        alert(err.message);
+
+    }
 
 }
 
@@ -188,7 +363,7 @@ function editJabatan(id) {
 // EXPORT
 // =====================================
 
-function exportExcel() {
+function exportExcel(){
 
     alert("Fitur Export Excel akan dibuat pada tahap berikutnya.");
 
@@ -198,20 +373,25 @@ function exportExcel() {
 // IMPORT
 // =====================================
 
-document
-.getElementById("fileImport")
-.addEventListener("change", function () {
+const fileImport =
+document.getElementById("fileImport");
 
-    alert("Fitur Import Excel akan dibuat pada tahap berikutnya.");
+if(fileImport){
 
-});
+    fileImport.addEventListener("change",function(){
+
+        alert("Fitur Import Excel akan dibuat pada tahap berikutnya.");
+
+    });
+
+}
 
 // =====================================
 // LOAD AWAL
 // =====================================
 
-document.addEventListener("DOMContentLoaded", function () {
+document.addEventListener("DOMContentLoaded", async ()=>{
 
-    loadJabatan();
+    await loadJabatan();
 
 });
