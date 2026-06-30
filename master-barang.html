@@ -276,7 +276,11 @@
   }
 
   tbody tr:last-child td{ border-bottom:none; }
-  tbody tr:hover{ background:var(--mb-surface-2); }
+  tbody tr:hover td{
+    background:var(--mb-surface-2) !important;
+    color:var(--mb-text) !important;
+  }
+  tbody tr:hover .kode-pill{ color:#bcb2f5 !important; }
 
   .kode-pill{
     display:inline-block;
@@ -295,26 +299,40 @@
   }
 
   .btn-edit, .btn-delete{
-    border:none;
+    display:inline-flex;
+    align-items:center;
+    gap:5px;
     border-radius:8px;
-    padding:7px 12px;
+    padding:7px 13px;
     font-size:12.5px;
     font-weight:600;
+    font-family:inherit;
     cursor:pointer;
-    transition:opacity .15s ease;
+    transition:background .15s ease, color .15s ease, border-color .15s ease, transform .12s ease;
   }
+  .btn-edit:active, .btn-delete:active{ transform:translateY(1px); }
 
   .btn-edit{
-    background:var(--mb-purple-soft);
-    color:#bcb2f5;
+    background:transparent;
+    color:#bcb2f5 !important;
+    border:1px solid #4d4499;
   }
-  .btn-edit:hover{ opacity:.8; }
+  .btn-edit:hover{
+    background:var(--mb-purple) !important;
+    color:#fff !important;
+    border-color:var(--mb-purple);
+  }
 
   .btn-delete{
-    background:var(--mb-danger-soft);
-    color:var(--mb-danger);
+    background:transparent;
+    color:var(--mb-danger) !important;
+    border:1px solid #8a3548;
   }
-  .btn-delete:hover{ opacity:.8; }
+  .btn-delete:hover{
+    background:var(--mb-danger) !important;
+    color:#fff !important;
+    border-color:var(--mb-danger);
+  }
 
   .empty-state, .loading-state{
     text-align:center;
