@@ -9,6 +9,12 @@ if (!user) {
 }
 
 // =====================================
+// MODE EDIT
+// =====================================
+
+let editId = null;
+
+// =====================================
 // LOAD DEPARTEMEN
 // =====================================
 
@@ -27,9 +33,8 @@ async function loadDepartemen() {
 
         if (!select) return;
 
-        select.innerHTML = `
-            <option value="">-- Pilih Departemen --</option>
-        `;
+        select.innerHTML =
+            `<option value="">-- Pilih Departemen --</option>`;
 
         data.forEach(item => {
 
@@ -68,9 +73,8 @@ async function loadJabatan() {
 
         if (!select) return;
 
-        select.innerHTML = `
-            <option value="">-- Pilih Jabatan --</option>
-        `;
+        select.innerHTML =
+            `<option value="">-- Pilih Jabatan --</option>`;
 
         data.forEach(item => {
 
@@ -91,7 +95,7 @@ async function loadJabatan() {
 }
 
 // =====================================
-// LOAD KARYAWAN (GLOBAL)
+// LOAD KARYAWAN
 // =====================================
 
 async function loadKaryawan() {
@@ -101,11 +105,14 @@ async function loadKaryawan() {
         const { data, error } = await supabaseClient
             .from("master_karyawan")
             .select("*")
-            .order("nama", { ascending: true });
+            .order("nama", {
+                ascending: true
+            });
 
         if (error) throw error;
 
-        const tbody = document.querySelector("#tableKaryawan tbody");
+        const tbody =
+            document.querySelector("#tableKaryawan tbody");
 
         if (!tbody) return;
 
@@ -129,9 +136,11 @@ async function loadKaryawan() {
 
                 <td>
 
-                    <span class="${item.status === "Aktif"
+                    <span class="${
+                        item.status === "Aktif"
                         ? "badge-success"
-                        : "badge-danger"}">
+                        : "badge-danger"
+                    }">
 
                         ${item.status}
 
@@ -176,7 +185,7 @@ async function loadKaryawan() {
 }
 
 // =====================================
-// SIMPAN
+// SIMPAN / UPDATE
 // =====================================
 
 const form = document.getElementById("formKaryawan");
@@ -187,18 +196,63 @@ form.addEventListener("submit", async function(e){
 
     e.preventDefault();
 
-    try {
+    try{
 
         const nik = document.getElementById("nik").value.trim();
 
-        const { data: cek, error: cekError } = await supabaseClient
+        const nama = document.getElementById("nama").value.trim();
+
+        const departemen =
+            document.getElementById("departemen").value;
+
+        const jabatan =
+            document.getElementById("jabatan").value;
+
+        const status =
+            document.getElementById("status").value;
+
+        // ===============================
+        // UPDATE
+        // ===============================
+
+        if(editId!==null){
+
+            const { error } = await supabaseClient
             .from("master_karyawan")
-            .select("id")
-            .eq("nik", nik);
+            .update({
 
-        if (cekError) throw cekError;
+                nama:nama,
 
-        if (cek.length > 0) {
+                status:status
+
+            })
+            .eq("id",editId);
+
+            if(error) throw error;
+
+            alert("Data berhasil diupdate.");
+
+            batalEdit();
+
+            await loadKaryawan();
+
+            return;
+
+        }
+
+        // ===============================
+        // VALIDASI NIK
+        // ===============================
+
+        const { data:cek,error:cekError } =
+        await supabaseClient
+        .from("master_karyawan")
+        .select("id")
+        .eq("nik",nik);
+
+        if(cekError) throw cekError;
+
+        if(cek.length>0){
 
             alert("NIK sudah digunakan.");
 
@@ -206,41 +260,39 @@ form.addEventListener("submit", async function(e){
 
         }
 
-        const karyawan = {
-
-            nik: nik,
-
-            nama: document.getElementById("nama").value.trim(),
-
-            gudang: user.gudang,
-
-            departemen: document.getElementById("departemen").value,
-
-            jabatan: document.getElementById("jabatan").value,
-
-            status: document.getElementById("status").value,
-
-            created_by: user.nama
-
-        };
+        // ===============================
+        // INSERT
+        // ===============================
 
         const { error } = await supabaseClient
-            .from("master_karyawan")
-            .insert([karyawan]);
+        .from("master_karyawan")
+        .insert([{
 
-        if (error) throw error;
+            nik:nik,
+
+            nama:nama,
+
+            gudang:user.gudang,
+
+            departemen:departemen,
+
+            jabatan:jabatan,
+
+            status:status,
+
+            created_by:user.nama
+
+        }]);
+
+        if(error) throw error;
 
         alert("Karyawan berhasil disimpan.");
 
         form.reset();
 
-        await loadDepartemen();
-
-        await loadJabatan();
-
         await loadKaryawan();
 
-    } catch (err) {
+    }catch(err){
 
         console.error(err);
 
@@ -253,23 +305,54 @@ form.addEventListener("submit", async function(e){
 }
 
 // =====================================
-// HAPUS
+// EDIT
 // =====================================
 
-async function hapusKaryawan(id){
-
-    if(!confirm("Hapus data karyawan?")) return;
+async function editKaryawan(id){
 
     try{
 
-        const { error } = await supabaseClient
-            .from("master_karyawan")
-            .delete()
-            .eq("id",id);
+        const { data,error } = await supabaseClient
+
+        .from("master_karyawan")
+
+        .select("*")
+
+        .eq("id",id)
+
+        .single();
 
         if(error) throw error;
 
-        loadKaryawan();
+        editId=id;
+
+        document.getElementById("nik").value=data.nik;
+        document.getElementById("nama").value=data.nama;
+        document.getElementById("departemen").value=data.departemen;
+        document.getElementById("jabatan").value=data.jabatan;
+        document.getElementById("status").value=data.status;
+
+        document.getElementById("nik").readOnly=true;
+
+        document.getElementById("departemen").disabled=true;
+        document.getElementById("jabatan").disabled=true;
+
+        document.getElementById("judulForm").innerHTML=
+        "✏ Edit Karyawan";
+
+        document.getElementById("btnSimpan").innerHTML=
+        "💾 Update Karyawan";
+
+        document.getElementById("btnBatal").style.display=
+        "inline-block";
+
+        window.scrollTo({
+
+            top:0,
+
+            behavior:"smooth"
+
+        });
 
     }catch(err){
 
@@ -280,38 +363,133 @@ async function hapusKaryawan(id){
 }
 
 // =====================================
-// EDIT
+// BATAL EDIT
 // =====================================
 
-function editKaryawan(id){
+function batalEdit(){
 
-    alert("Fitur Edit Karyawan akan dibuat pada tahap berikutnya.");
+    editId=null;
+
+    form.reset();
+
+    document.getElementById("nik").readOnly=false;
+
+    document.getElementById("departemen").disabled=false;
+
+    document.getElementById("jabatan").disabled=false;
+
+    document.getElementById("judulForm").innerHTML=
+    "➕ Tambah Karyawan";
+
+    document.getElementById("btnSimpan").innerHTML=
+    "💾 Simpan Karyawan";
+
+    document.getElementById("btnBatal").style.display=
+    "none";
+
+}
+
+document
+.getElementById("btnBatal")
+.addEventListener("click",batalEdit);
+
+// =====================================
+// HAPUS
+// =====================================
+
+async function hapusKaryawan(id){
+
+    if(!confirm("Yakin ingin menghapus karyawan ini?"))
+        return;
+
+    try{
+
+        const { error } = await supabaseClient
+            .from("master_karyawan")
+            .delete()
+            .eq("id",id);
+
+        if(error) throw error;
+
+        alert("Data berhasil dihapus.");
+
+        await loadKaryawan();
+
+    }catch(err){
+
+        console.error(err);
+
+        alert(err.message);
+
+    }
 
 }
 
 // =====================================
-// EXPORT
+// EXPORT EXCEL
 // =====================================
 
 function exportExcel(){
 
-    alert("Fitur Export Excel akan dibuat.");
+    alert("Fitur Export Excel akan dibuat pada tahap berikutnya.");
 
 }
 
 // =====================================
-// IMPORT
+// IMPORT EXCEL
 // =====================================
 
-const fileImport = document.getElementById("fileImport");
+const fileImport =
+document.getElementById("fileImport");
 
 if(fileImport){
 
-fileImport.addEventListener("change",function(){
+    fileImport.addEventListener("change",function(){
 
-    alert("Fitur Import Excel akan dibuat.");
+        alert("Fitur Import Excel akan dibuat pada tahap berikutnya.");
 
-});
+    });
+
+}
+
+// =====================================
+// REFRESH FORM
+// =====================================
+
+function resetForm(){
+
+    editId = null;
+
+    form.reset();
+
+    document.getElementById("nik").readOnly = false;
+
+    document.getElementById("departemen").disabled = false;
+
+    document.getElementById("jabatan").disabled = false;
+
+    document.getElementById("judulForm").innerHTML =
+        "➕ Tambah Karyawan";
+
+    document.getElementById("btnSimpan").innerHTML =
+        "💾 Simpan Karyawan";
+
+    document.getElementById("btnBatal").style.display =
+        "none";
+
+}
+
+// =====================================
+// RELOAD MASTER
+// =====================================
+
+async function reloadMaster(){
+
+    await loadDepartemen();
+
+    await loadJabatan();
+
+    await loadKaryawan();
 
 }
 
@@ -321,10 +499,18 @@ fileImport.addEventListener("change",function(){
 
 document.addEventListener("DOMContentLoaded",async()=>{
 
-    await loadDepartemen();
+    try{
 
-    await loadJabatan();
+        await reloadMaster();
 
-    await loadKaryawan();
+    }catch(err){
+
+        console.error(err);
+
+    }
 
 });
+
+// =====================================
+// SELESAI
+// =====================================
