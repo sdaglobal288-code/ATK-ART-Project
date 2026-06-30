@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="id">
+
+<head>
+
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>Mutasi Karyawan</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+<link rel="stylesheet" href="css/dashboard.css">
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
+<script src="supabase/config.js"></script>
+
+</head>
+
+<body>
+
+<div class="content">
+
+<h2>🔄 Mutasi Karyawan</h2>
+
+<br>
+
+<div class="toolbar">
+
+<button
+class="btn-dashboard"
+onclick="location.href='dashboard.html'">
+
+🏠 Dashboard
+
+</button>
+
+</div>
+
+<br>
+
+<div class="panel">
+
+<h3>Form Mutasi</h3>
+
+<br>
+
+<form id="formMutasi">
+
+<input
+type="text"
+id="nik"
+placeholder="Masukkan NIK"
+required>
+
+<input
+type="text"
+id="nama"
+placeholder="Nama Karyawan"
+readonly>
+
+<input
+type="text"
+id="gudang_lama"
+placeholder="Gudang Lama"
+readonly>
+
+<input
+type="text"
+id="departemen_lama"
+placeholder="Departemen Lama"
+readonly>
+
+<input
+type="text"
+id="jabatan_lama"
+placeholder="Jabatan Lama"
+readonly>
+
+<select
+id="gudang_baru"
+required>
+
+<option value="">-- Pilih Gudang Baru --</option>
+
+<option value="Margomulyo">Margomulyo</option>
+
+<option value="Raden Saleh">Raden Saleh</option>
+
+</select>
+
+<select
+id="departemen_baru"
+required>
+
+<option value="">
+-- Pilih Departemen Baru --
+</option>
+
+</select>
+
+<select
+id="jabatan_baru"
+required>
+
+<option value="">
+-- Pilih Jabatan Baru --
+</option>
+
+</select>
+
+<textarea
+id="keterangan"
+rows="4"
+placeholder="Keterangan Mutasi"></textarea>
+
+<button type="submit">
+
+💾 Simpan Mutasi
+
+</button>
+
+</form>
+
+</div>
+
+<br>
+
+<div class="panel">
+
+<h3>Petunjuk</h3>
+
+<br>
+
+<ul style="line-height:32px;padding-left:25px;">
+
+<li>Masukkan NIK karyawan.</li>
+
+<li>Data lama akan muncul otomatis.</li>
+
+<li>Pilih gudang tujuan.</li>
+
+<li>Pilih departemen tujuan.</li>
+
+<li>Pilih jabatan tujuan.</li>
+
+<li>Klik Simpan Mutasi.</li>
+
+</ul>
+
+</div>
+
+</div>
+
+<script src="js/mutasi-karyawan.js"></script>
+
+</body>
+
+</html>
