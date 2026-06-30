@@ -12,6 +12,47 @@ let editId = null;
 let allDepartemen = [];   // cache untuk search lokal
 
 // =====================================
+// MODAL HELPERS
+// =====================================
+
+function bukaModalTambah() {
+
+    editId = null;
+    form.reset();
+
+    document.getElementById("kode_departemen").readOnly = false;
+    document.getElementById("judulForm").innerHTML = "➕ Tambah Departemen";
+    document.getElementById("btnSimpan").innerHTML = "💾 Simpan Departemen";
+
+    document.getElementById("modalDepartemen").classList.add("active");
+
+}
+
+function tutupModal() {
+
+    document.getElementById("modalDepartemen").classList.remove("active");
+    editId = null;
+    form.reset();
+    document.getElementById("kode_departemen").readOnly = false;
+
+}
+
+const modalDepartemenEl = document.getElementById("modalDepartemen");
+if (modalDepartemenEl) {
+
+    modalDepartemenEl.addEventListener("click", function (e) {
+        if (e.target === modalDepartemenEl) tutupModal();
+    });
+
+    document.addEventListener("keydown", function (e) {
+        if (e.key === "Escape" && modalDepartemenEl.classList.contains("active")) {
+            tutupModal();
+        }
+    });
+
+}
+
+// =====================================
 // LOAD DEPARTEMEN
 // =====================================
 
@@ -173,7 +214,7 @@ if (form) {
                 if (error) throw error;
 
                 alert("Departemen berhasil diupdate.");
-                batalEdit();
+                tutupModal();
                 await loadDepartemen();
                 return;
 
@@ -217,7 +258,7 @@ if (form) {
             if (error) throw error;
 
             alert("Departemen berhasil disimpan.");
-            form.reset();
+            tutupModal();
             await loadDepartemen();
 
         } catch (err) {
@@ -258,36 +299,14 @@ async function editDepartemen(id) {
 
         document.getElementById("judulForm").innerHTML = "✏ Edit Departemen";
         document.getElementById("btnSimpan").innerHTML = "💾 Update Departemen";
-        document.getElementById("btnBatal").style.display = "inline-block";
 
-        window.scrollTo({ top: 0, behavior: "smooth" });
+        document.getElementById("modalDepartemen").classList.add("active");
 
     } catch (err) {
         console.error(err);
         alert(err.message);
     }
 
-}
-
-// =====================================
-// BATAL EDIT
-// =====================================
-
-function batalEdit() {
-
-    editId = null;
-    form.reset();
-
-    document.getElementById("kode_departemen").readOnly = false;
-    document.getElementById("judulForm").innerHTML = "➕ Tambah Departemen";
-    document.getElementById("btnSimpan").innerHTML = "💾 Simpan Departemen";
-    document.getElementById("btnBatal").style.display = "none";
-
-}
-
-const btnBatalEl = document.getElementById("btnBatal");
-if (btnBatalEl) {
-    btnBatalEl.addEventListener("click", batalEdit);
 }
 
 // =====================================
