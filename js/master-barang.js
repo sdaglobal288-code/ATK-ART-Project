@@ -315,7 +315,7 @@ async function editBarang(id) {
 
         document.getElementById("judulForm").innerHTML = "✏ Edit Barang";
         document.getElementById("btnSimpan").innerHTML = "💾 Update Barang";
-        document.getElementById("btnBatal").style.display = "inline-block";
+        document.getElementById("btnBatal").style.display = "inline-flex";
 
         window.scrollTo({ top: 0, behavior: "smooth" });
 
