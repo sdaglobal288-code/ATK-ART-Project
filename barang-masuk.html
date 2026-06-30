@@ -1,12 +1,24 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Barang Masuk</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/dashboard.css">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
+<script src="supabase/config.js"></script>
+</head>
+<body>
+
+<div class="content">
+
 <!-- ================= FORM HEADER ================= -->
 <div class="panel">
-
 <h3 id="judulForm"><span>📥 Input Barang Masuk (BTB)</span></h3>
-
 <br>
-
 <form id="formMasukHeader">
-
 <div>
 <label><b>No. BTB</b></label>
 <input
@@ -18,7 +30,6 @@ required>
 Format : XXXX/BTB-U-GI-R/VI/2026
 </small>
 </div>
-
 <div>
 <label><b>Tanggal</b></label>
 <input
@@ -26,7 +37,6 @@ type="date"
 id="tanggal"
 required>
 </div>
-
 <div>
 <label><b>Supplier</b></label>
 <input
@@ -38,7 +48,6 @@ autocomplete="off"
 required>
 <datalist id="listSupplier"></datalist>
 </div>
-
 <div>
 <label><b>Keterangan</b></label>
 <input
@@ -46,18 +55,13 @@ type="text"
 id="keterangan"
 placeholder="Keterangan BTB">
 </div>
-
 </form>
-
 </div>
 
 <!-- ================= DETAIL BARANG ================= -->
 <div class="panel">
-
 <h3><span>📦 Detail Barang</span></h3>
-
 <br>
-
 <div class="table-responsive">
 <table id="tableDetailBarang">
 <thead>
@@ -101,57 +105,45 @@ autocomplete="off">
 </tbody>
 </table>
 </div>
-
 <br>
-
 <button
 type="button"
 class="btn-import"
 onclick="tambahBarisBarang()">
 ➕ Tambah Barang
 </button>
-
 <datalist id="listBarang"></datalist>
-
 </div>
 
 <!-- ================= AKSI ================= -->
 <div class="panel">
 <div style="display:flex;gap:10px;justify-content:flex-end;">
-
 <button
 type="button"
 class="btn-import"
 onclick="tambahBarisBarang()">
 ➕ Tambah Barang
 </button>
-
 <button
 type="button"
 class="btn-dashboard"
 id="btnSimpanBTB">
 💾 Simpan BTB
 </button>
-
 </div>
 </div>
 
 <!-- ================= HISTORI ================= -->
 <div class="panel">
-
 <h3><span>📋 Histori Barang Masuk</span></h3>
-
 <br>
-
 <div class="search-box">
 <input
 type="text"
 id="search"
 placeholder="Cari No BTB / Supplier">
 </div>
-
 <br>
-
 <div class="table-responsive">
 <table id="tableMasuk">
 <thead>
@@ -169,5 +161,12 @@ placeholder="Cari No BTB / Supplier">
 <tbody></tbody>
 </table>
 </div>
+</div>
 
 </div>
+
+<!-- Logic Barang Masuk -->
+<script src="js/barang-masuk.js"></script>
+
+</body>
+</html>
