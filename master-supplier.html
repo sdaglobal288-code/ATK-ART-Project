@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="id">
+
+<head>
+
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>Master Supplier</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+<link rel="stylesheet" href="css/dashboard.css">
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
+
+<script src="supabase/config.js"></script>
+
+</head>
+
+<body>
+
+<div class="content">
+
+<h2>🚚 Master Supplier</h2>
+
+<br>
+
+<!-- ================= TOOLBAR ================= -->
+
+<div class="toolbar">
+
+<button
+class="btn-dashboard"
+onclick="location.href='dashboard.html'">
+
+🏠 Dashboard
+
+</button>
+
+<button
+class="btn-import"
+onclick="document.getElementById('fileImport').click()">
+
+📥 Import Excel
+
+</button>
+
+<input
+type="file"
+id="fileImport"
+accept=".xlsx,.xls"
+hidden>
+
+<button
+class="btn-export"
+onclick="exportExcel()">
+
+📤 Export Excel
+
+</button>
+
+</div>
+
+<br>
+
+<!-- ================= FORM ================= -->
+
+<div class="panel">
+
+<h3 id="judulForm">
+
+➕ Tambah Supplier
+
+</h3>
+
+<br>
+
+<form id="formSupplier">
+
+<input
+type="text"
+id="kode_supplier"
+placeholder="Kode Supplier"
+required>
+
+<input
+type="text"
+id="nama_supplier"
+placeholder="Nama Supplier"
+required>
+
+<input
+type="text"
+id="alamat"
+placeholder="Alamat Supplier">
+
+<input
+type="text"
+id="telepon"
+placeholder="No. Telepon">
+
+<input
+type="email"
+id="email"
+placeholder="Email">
+
+<input
+type="text"
+id="contact_person"
+placeholder="Contact Person">
+
+<div style="display:flex;gap:10px;">
+
+<button
+type="submit"
+id="btnSimpan">
+
+💾 Simpan Supplier
+
+</button>
+
+<button
+type="button"
+id="btnBatal"
+style="display:none;">
+
+❌ Batal
+
+</button>
+
+</div>
+
+</form>
+
+</div>
+
+<br>
+
+<!-- ================= TABEL ================= -->
+
+<div class="panel">
+
+<h3>Daftar Supplier</h3>
+
+<br>
+
+<table id="tableSupplier">
+
+<thead>
+
+<tr>
+
+<th width="120">Kode</th>
+
+<th>Nama Supplier</th>
+
+<th width="250">Alamat</th>
+
+<th width="150">Telepon</th>
+
+<th width="200">Email</th>
+
+<th width="170">Contact Person</th>
+
+<th width="170">Created By</th>
+
+<th width="170">Aksi</th>
+
+</tr>
+
+</thead>
+
+<tbody>
+
+</tbody>
+
+</table>
+
+</div>
+
+</div>
+
+<script src="js/master-supplier.js"></script>
+
+</body>
+
+</html>
