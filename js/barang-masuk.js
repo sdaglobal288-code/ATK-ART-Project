@@ -1,5 +1,5 @@
 // =====================================
-// BARANG MASUK
+// BARANG MASUK (BTB)
 // =====================================
 
 const user = JSON.parse(sessionStorage.getItem("user"));
@@ -10,40 +10,48 @@ if (!user) {
 
 let editId = null;
 
+// Menyimpan master barang di memory
+let masterBarang = [];
+
 // =====================================
 // LOAD SUPPLIER
 // =====================================
 
-async function loadSupplier() {
+async function loadSupplier(){
 
-    try {
+    try{
 
         const { data, error } = await supabaseClient
+
             .from("master_supplier")
+
             .select("*")
+
             .order("nama_supplier");
 
-        if (error) throw error;
+        if(error) throw error;
 
-        const supplier = document.getElementById("supplier");
+        const list =
+            document.getElementById("listSupplier");
 
-        supplier.innerHTML = `
-            <option value="">-- Pilih Supplier --</option>
-        `;
+        list.innerHTML = "";
 
-        data.forEach(item => {
+        data.forEach(item=>{
 
-            supplier.innerHTML += `
-                <option value="${item.nama_supplier}">
-                    ${item.nama_supplier}
-                </option>
+            list.innerHTML += `
+
+            <option value="${item.nama_supplier}"></option>
+
             `;
 
         });
 
-    } catch (err) {
+    }
+
+    catch(err){
 
         console.error(err);
+
         alert(err.message);
 
     }
@@ -51,39 +59,46 @@ async function loadSupplier() {
 }
 
 // =====================================
-// LOAD BARANG
+// LOAD MASTER BARANG
 // =====================================
 
-async function loadBarang() {
+async function loadBarang(){
 
-    try {
+    try{
 
         const { data, error } = await supabaseClient
+
             .from("master_barang")
+
             .select("*")
+
             .order("nama_barang");
 
-        if (error) throw error;
+        if(error) throw error;
 
-        const barang = document.getElementById("barang");
+        masterBarang = data;
 
-        barang.innerHTML = `
-            <option value="">-- Pilih Barang --</option>
-        `;
+        const list =
+            document.getElementById("listBarang");
 
-        data.forEach(item => {
+        list.innerHTML = "";
 
-            barang.innerHTML += `
-                <option value="${item.id}">
-                    ${item.nama_barang}
-                </option>
+        data.forEach(item=>{
+
+            list.innerHTML += `
+
+            <option value="${item.nama_barang}"></option>
+
             `;
 
         });
 
-    } catch (err) {
+    }
+
+    catch(err){
 
         console.error(err);
+
         alert(err.message);
 
     }
@@ -91,72 +106,450 @@ async function loadBarang() {
 }
 
 // =====================================
-// AUTO ISI BARANG
+// CARI BARANG
 // =====================================
 
-document
-.getElementById("barang")
-.addEventListener("change", async function () {
+function cariBarang(namaBarang){
 
-    const id = this.value;
+    return masterBarang.find(item=>
 
-    if (id === "") {
+        item.nama_barang.toLowerCase()===
 
-        document.getElementById("kode_barang").value = "";
-        document.getElementById("kategori").value = "";
-        document.getElementById("satuan").value = "";
+        namaBarang.toLowerCase()
+
+    );
+
+}
+
+// =====================================
+// TAMBAH BARIS BARANG
+// =====================================
+
+function tambahBarisBarang(){
+
+    const tbody =
+        document.getElementById("detailBarangBody");
+
+    const no = tbody.rows.length + 1;
+
+    const tr = document.createElement("tr");
+
+    tr.innerHTML = `
+
+    <td>${no}</td>
+
+    <td>
+
+        <input
+        type="text"
+        class="barang-search"
+        list="listBarang"
+        placeholder="Cari Barang..."
+        autocomplete="off"
+        oninput="pilihBarang(this)">
+
+    </td>
+
+    <td>
+
+        <input
+        type="text"
+        class="kode_barang"
+        readonly>
+
+    </td>
+
+    <td>
+
+        <input
+        type="text"
+        class="kategori"
+        readonly>
+
+    </td>
+
+    <td>
+
+        <input
+        type="text"
+        class="satuan"
+        readonly>
+
+    </td>
+
+    <td>
+
+        <input
+        type="number"
+        class="qty"
+        min="1"
+        value="1">
+
+    </td>
+
+    <td>
+
+        <button
+        type="button"
+        class="btn-delete"
+        onclick="hapusBaris(this)">
+
+        🗑
+
+        </button>
+
+    </td>
+
+    `;
+
+    tbody.appendChild(tr);
+
+}
+
+// =====================================
+// HAPUS BARIS
+// =====================================
+
+function hapusBaris(btn){
+
+    const tbody =
+        document.getElementById("detailBarangBody");
+
+    if(tbody.rows.length==1){
+
+        alert("Minimal harus ada satu barang.");
 
         return;
 
     }
 
-    try {
+    btn.closest("tr").remove();
 
-        const { data, error } = await supabaseClient
-            .from("master_barang")
-            .select("*")
-            .eq("id", id)
-            .single();
+    nomorUlang();
 
-        if (error) throw error;
+}
 
-        document.getElementById("kode_barang").value =
-            data.kode_barang;
+// =====================================
+// NOMOR ULANG
+// =====================================
 
-        document.getElementById("kategori").value =
-            data.kategori;
+function nomorUlang(){
 
-        document.getElementById("satuan").value =
-            data.satuan;
+    const rows =
+        document.querySelectorAll("#detailBarangBody tr");
 
-    } catch (err) {
+    rows.forEach((row,index)=>{
 
-        console.error(err);
-        alert(err.message);
+        row.cells[0].innerHTML = index+1;
+
+    });
+
+}
+
+// =====================================
+// PILIH BARANG
+// =====================================
+
+function pilihBarang(input){
+
+    const barang =
+        cariBarang(input.value);
+
+    if(!barang) return;
+
+    const row =
+        input.closest("tr");
+
+    row.querySelector(".kode_barang").value =
+        barang.kode_barang;
+
+    row.querySelector(".kategori").value =
+        barang.kategori;
+
+    row.querySelector(".satuan").value =
+        barang.satuan;
+
+}
+
+document.addEventListener("input",function(e){
+
+    if(e.target.classList.contains("barang-search")){
+
+        pilihBarang(e.target);
 
     }
 
 });
 
 // =====================================
-// LOAD HISTORI BARANG MASUK
+// SIMPAN BTB
 // =====================================
 
-async function loadBarangMasuk() {
+document
+.getElementById("btnSimpanBTB")
+.addEventListener("click", simpanBTB);
 
-    try {
+async function simpanBTB(){
 
-        const { data, error } = await supabaseClient
-            .from("barang_masuk")
-            .select("*")
-            .order("tanggal", { ascending: false })
-            .order("id", { ascending: false });
+    try{
 
-        if (error) throw error;
+        //---------------------------------
+        // VALIDASI HEADER
+        //---------------------------------
+
+        const noBTB =
+            document.getElementById("no_btb")
+            .value
+            .trim();
+
+        const tanggal =
+            document.getElementById("tanggal")
+            .value;
+
+        const supplier =
+            document.getElementById("supplier")
+            .value
+            .trim();
+
+        const keterangan =
+            document.getElementById("keterangan")
+            .value
+            .trim();
+
+        if(noBTB==""){
+
+            alert("Nomor BTB wajib diisi.");
+
+            return;
+
+        }
+
+        if(tanggal==""){
+
+            alert("Tanggal wajib diisi.");
+
+            return;
+
+        }
+
+        if(supplier==""){
+
+            alert("Supplier wajib dipilih.");
+
+            return;
+
+        }
+
+        //---------------------------------
+        // VALIDASI NOMOR BTB
+        //---------------------------------
+
+        const { data:cekBTB } =
+        await supabaseClient
+
+        .from("barang_masuk")
+
+        .select("id")
+
+        .eq("no_btb", noBTB);
+
+        if(cekBTB.length>0){
+
+            alert("Nomor BTB sudah digunakan.");
+
+            return;
+
+        }
+
+        //---------------------------------
+        // SIMPAN HEADER
+        //---------------------------------
+
+        const { data:header,error:headerError }
+
+        = await supabaseClient
+
+        .from("barang_masuk")
+
+        .insert([{
+
+            no_btb : noBTB,
+
+            tanggal,
+
+            supplier,
+
+            keterangan,
+
+            gudang : user.gudang,
+
+            created_by : user.nama
+
+        }])
+
+        .select()
+
+        .single();
+
+        if(headerError) throw headerError;
+
+            //---------------------------------
+        // SIMPAN DETAIL
+        //---------------------------------
+
+        const rows =
+            document.querySelectorAll("#detailBarangBody tr");
+
+        for(const row of rows){
+
+            const namaBarang =
+                row.querySelector(".barang-search")
+                .value
+                .trim();
+
+            const kode =
+                row.querySelector(".kode_barang")
+                .value;
+
+            const kategori =
+                row.querySelector(".kategori")
+                .value;
+
+            const satuan =
+                row.querySelector(".satuan")
+                .value;
+
+            const qty =
+                parseInt(
+
+                    row.querySelector(".qty").value
+
+                );
+
+            if(namaBarang==""){
+
+                alert("Masih ada barang yang belum dipilih.");
+
+                return;
+
+            }
+
+            if(qty<=0){
+
+                alert("Qty harus lebih dari 0.");
+
+                return;
+
+            }
+
+            // =====================================
+// SIMPAN DETAIL
+// =====================================
+
+const { error:detailError } =
+await supabaseClient
+
+.from("barang_masuk_detail")
+
+.insert([{
+
+    barang_masuk_id : header.id,
+
+    kode_barang : kode,
+
+    nama_barang : namaBarang,
+
+    kategori,
+
+    satuan,
+
+    qty
+
+}]);
+
+if(detailError) throw detailError;
+
+// =====================================
+// UPDATE STOK
+// =====================================
+
+const barang =
+masterBarang.find(item=>item.kode_barang===kode);
+
+if(barang){
+
+    await supabaseClient
+
+    .from("master_barang")
+
+    .update({
+
+        stok:(barang.stok || 0) + qty
+
+    })
+
+    .eq("id",barang.id);
+
+}
+        }
+
+            //---------------------------------
+        // SELESAI
+        //---------------------------------
+
+        alert("BTB berhasil disimpan.");
+
+        document
+        .getElementById("formMasukHeader")
+        .reset();
+
+        const tbody =
+            document.getElementById("detailBarangBody");
+
+        tbody.innerHTML="";
+
+        tambahBarisBarang();
+
+        loadBarangMasuk();
+
+    }
+
+    catch(err){
+
+        console.error(err);
+
+        alert(err.message);
+
+    }
+
+}
+
+
+// =====================================
+// LOAD HISTORI BTB
+// =====================================
+
+async function loadBarangMasuk(){
+
+    try{
+
+        const { data,error } = await supabaseClient
+
+        .from("barang_masuk")
+
+        .select("*")
+
+        .order("tanggal",{ascending:false})
+
+        .order("id",{ascending:false});
+
+        if(error) throw error;
 
         tampilBarangMasuk(data);
 
-    } catch (err) {
+    }
+
+    catch(err){
 
         console.error(err);
 
@@ -167,13 +560,13 @@ async function loadBarangMasuk() {
 }
 
 // =====================================
-// TAMPILKAN DATA
+// TAMPILKAN HISTORI
 // =====================================
 
 function tampilBarangMasuk(data){
 
     const tbody =
-        document.querySelector("#tableMasuk tbody");
+    document.querySelector("#tableMasuk tbody");
 
     tbody.innerHTML="";
 
@@ -187,75 +580,45 @@ function tampilBarangMasuk(data){
 
             <td>${no++}</td>
 
+            <td>
+
+                <b>${item.no_btb}</b>
+
+            </td>
+
             <td>${item.tanggal}</td>
 
             <td>${item.supplier}</td>
 
             <td>
 
-                <span class="kode-badge">
+                <button
+                class="btn-edit"
+                onclick="lihatDetail(${item.id})">
 
-                    ${item.kode_barang}
+                📦 Detail
 
-                </span>
-
-            </td>
-
-            <td>
-
-                <b>${item.nama_barang}</b>
+                </button>
 
             </td>
 
-            <td>
+            <td>${item.gudang}</td>
 
-                <span class="text-success">
-
-                    +${item.qty}
-
-                </span>
-
-            </td>
-
-            <td>
-
-                <span class="satuan-badge">
-
-                    ${item.satuan}
-
-                </span>
-
-            </td>
-
-            <td>
-
-                ${item.gudang}
-
-            </td>
-
-            <td>
-
-                ${item.created_by}
-
-            </td>
+            <td>${item.created_by}</td>
 
             <td>
 
                 <button
-
                 class="btn-edit"
-
-                onclick="editBarangMasuk(${item.id})">
+                onclick="editBTB(${item.id})">
 
                 ✏ Edit
 
                 </button>
 
                 <button
-
                 class="btn-delete"
-
-                onclick="hapusBarangMasuk(${item.id})">
+                onclick="hapusBTB(${item.id})">
 
                 🗑 Hapus
 
@@ -272,39 +635,31 @@ function tampilBarangMasuk(data){
 }
 
 // =====================================
-// SEARCH HISTORI
+// SEARCH
 // =====================================
 
 function cariBarangMasuk(){
 
     const keyword =
-        document
-        .getElementById("search")
-        .value
-        .toLowerCase();
+    document
+    .getElementById("search")
+    .value
+    .toLowerCase();
 
     const rows =
-        document.querySelectorAll("#tableMasuk tbody tr");
+    document.querySelectorAll("#tableMasuk tbody tr");
 
     rows.forEach(row=>{
 
-        if(
+        row.style.display=
 
-            row.innerText
-            .toLowerCase()
-            .includes(keyword)
+        row.innerText
+        .toLowerCase()
+        .includes(keyword)
 
-        ){
+        ? ""
 
-            row.style.display="";
-
-        }
-
-        else{
-
-            row.style.display="none";
-
-        }
+        : "none";
 
     });
 
@@ -317,161 +672,47 @@ document
 .addEventListener("keyup",cariBarangMasuk);
 
 // =====================================
-// SIMPAN BARANG MASUK
+// DETAIL BTB
 // =====================================
 
-const form = document.getElementById("formMasuk");
+function lihatDetail(id){
 
-if(form){
-
-form.addEventListener("submit",async function(e){
-
-    e.preventDefault();
-
-    try{
-
-        const barangId =
-            document.getElementById("barang").value;
-
-        if(barangId==""){
-
-            alert("Pilih barang terlebih dahulu.");
-
-            return;
-
-        }
-
-        const qty =
-            parseInt(document.getElementById("qty").value);
-
-        if(qty<=0){
-
-            alert("Qty harus lebih dari 0.");
-
-            return;
-
-        }
-
-        //-------------------------------------------------
-        // Ambil data master barang
-        //-------------------------------------------------
-
-        const { data:barang,error:errorBarang }
-
-        = await supabaseClient
-
-        .from("master_barang")
-
-        .select("*")
-
-        .eq("id",barangId)
-
-        .single();
-
-        if(errorBarang) throw errorBarang;
-
-        //-------------------------------------------------
-        // DATA BARANG MASUK
-        //-------------------------------------------------
-
-        const dataMasuk={
-
-            tanggal:
-
-                document.getElementById("tanggal").value,
-
-            supplier:
-
-                document.getElementById("supplier").value,
-
-            kode_barang:
-
-                barang.kode_barang,
-
-            nama_barang:
-
-                barang.nama_barang,
-
-            kategori:
-
-                barang.kategori,
-
-            satuan:
-
-                barang.satuan,
-
-            qty:qty,
-
-            keterangan:
-
-                document.getElementById("keterangan").value,
-
-            gudang:user.gudang,
-
-            created_by:user.nama
-
-        };
-
-        //-------------------------------------------------
-        // INSERT BARANG MASUK
-        //-------------------------------------------------
-
-        const { error } = await supabaseClient
-
-        .from("barang_masuk")
-
-        .insert([dataMasuk]);
-
-        if(error) throw error;
-
-        //-------------------------------------------------
-        // UPDATE STOK
-        //-------------------------------------------------
-
-        const stokBaru =
-
-            (barang.stok || 0) + qty;
-
-        const { error:updateError }
-
-        = await supabaseClient
-
-        .from("master_barang")
-
-        .update({
-
-            stok:stokBaru
-
-        })
-
-        .eq("id",barangId);
-
-        if(updateError) throw updateError;
-
-        //-------------------------------------------------
-
-        alert("Barang Masuk berhasil disimpan.");
-
-        form.reset();
-
-        document.getElementById("kode_barang").value="";
-
-        document.getElementById("kategori").value="";
-
-        document.getElementById("satuan").value="";
-
-        await loadBarangMasuk();
-
-    }
-
-    catch(err){
-
-        console.error(err);
-
-        alert(err.message);
-
-    }
-
-});
+    alert("Fitur Detail BTB akan dibuat pada tahap berikutnya.");
 
 }
+
+// =====================================
+// EDIT BTB
+// =====================================
+
+function editBTB(id){
+
+    alert("Fitur Edit BTB akan dibuat pada tahap berikutnya.");
+
+}
+
+// =====================================
+// HAPUS BTB
+// =====================================
+
+function hapusBTB(id){
+
+    alert("Fitur Hapus BTB akan dibuat pada tahap berikutnya.");
+
+}
+
+// =====================================
+// LOAD AWAL
+// =====================================
+
+document.addEventListener("DOMContentLoaded",async()=>{
+
+    await loadSupplier();
+
+    await loadBarang();
+
+    await loadBarangMasuk();
+
+    tambahBarisBarang();
+
+});
