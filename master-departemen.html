@@ -293,11 +293,11 @@
   }
 
   tbody tr:last-child td{ border-bottom:none; }
-  tbody tr:hover td{
-    background:var(--md-surface-2) !important;
+  /* Menetralkan kemungkinan aturan hover bawaan dashboard.css agar tidak memutihkan baris */
+  #tableDepartemen tbody tr:hover td{
+    background:transparent !important;
     color:var(--md-text) !important;
   }
-  tbody tr:hover .kode-pill{ color:#bcb2f5 !important; }
 
   .kode-pill{
     display:inline-block;
