@@ -26,7 +26,7 @@ function logout(){
 
     sessionStorage.removeItem("user");
 
-    location.href = "login.html";
+    location.href="login.html";
 
 }
 
@@ -60,78 +60,127 @@ function goPage(page){
 
 <div class="menu">
 
-<button class="active" onclick="goPage('dashboard.html')">
+<button class="active"
+onclick="goPage('dashboard.html')">
+
 🏠 Dashboard
+
 </button>
 
 <div class="menu-title">
+
 UTAMA
+
 </div>
 
 <button onclick="goPage('barang-masuk.html')">
+
 📥 Input Stok
+
 </button>
 
 <button onclick="goPage('database-barang.html')">
+
 📦 Database Barang
+
 </button>
 
 <div class="menu-title">
+
 MASTER DATA
+
 </div>
 
 <button onclick="goPage('master-barang.html')">
+
 📋 Master Barang
+
 </button>
 
 <button onclick="goPage('master-karyawan.html')">
+
 👥 Master Karyawan
+
+</button>
+
+<button onclick="goPage('mutasi-karyawan.html')">
+
+🔄 Mutasi Karyawan
+
 </button>
 
 <button onclick="goPage('master-departemen.html')">
+
 🏢 Master Departemen
+
 </button>
 
 <button onclick="goPage('master-jabatan.html')">
+
 💼 Master Jabatan
+
 </button>
 
 <button onclick="goPage('master-supplier.html')">
+
 🚚 Master Supplier
+
 </button>
 
 <div class="menu-title">
+
 HISTORI
+
 </div>
 
 <button onclick="goPage('histori-masuk.html')">
-📥 Histori Masuk
+
+📥 Histori Barang Masuk
+
 </button>
 
 <button onclick="goPage('histori-keluar.html')">
-📤 Histori Keluar
+
+📤 Histori Barang Keluar
+
+</button>
+
+<button onclick="goPage('histori-mutasi.html')">
+
+📋 Histori Mutasi Karyawan
+
 </button>
 
 <div class="menu-title">
+
 TRANSFER
+
 </div>
 
 <button onclick="goPage('transfer.html')">
+
 🔄 Transfer Barang
+
 </button>
 
 <div class="menu-title">
+
 LAPORAN
+
 </div>
 
 <button onclick="goPage('laporan.html')">
+
 📊 Laporan
+
 </button>
 
 <hr style="margin:20px 0;border-color:#334155;">
 
 <button onclick="logout()">
+
 🚪 Logout
+
 </button>
 
 </div>
@@ -218,17 +267,59 @@ Anda login sebagai Admin Gudang
 
 <p>
 
-Gunakan menu di sebelah kiri untuk mengelola data Master, Transaksi, Transfer, dan Laporan Inventory.
+Gunakan menu di sebelah kiri untuk mengelola seluruh proses Inventory ATK & ART, mulai dari Master Data, Mutasi Karyawan, Transaksi Barang, Transfer Antar Gudang, hingga Laporan.
 
 </p>
 
-</div>
+<br>
+
+<h3>Modul yang tersedia</h3>
+
+<br>
+
+<ul style="line-height:32px;padding-left:25px;">
+
+<li>📋 Master Barang</li>
+
+<li>👥 Master Karyawan</li>
+
+<li>🔄 Mutasi Karyawan</li>
+
+<li>🏢 Master Departemen</li>
+
+<li>💼 Master Jabatan</li>
+
+<li>🚚 Master Supplier</li>
+
+<li>📥 Barang Masuk</li>
+
+<li>📤 Barang Keluar</li>
+
+<li>🔄 Transfer Barang</li>
+
+<li>📋 Histori Mutasi Karyawan</li>
+
+<li>📊 Laporan</li>
+
+</ul>
 
 </div>
 
 </div>
 
 </div>
+
+</div>
+
+<script>
+
+document.getElementById("nama").innerHTML=user.nama;
+document.getElementById("nama2").innerHTML=user.nama;
+
+document.getElementById("gudang").innerHTML=user.gudang;
+document.getElementById("gudang2").innerHTML=user.gudang;
+
+</script>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
 
