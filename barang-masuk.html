@@ -1,279 +1,191 @@
-<!-- ================= FORM HEADER ================= -->
+<!-- ================= PAGE HEADER ================= -->
+<div class="page-header">
+    <h1><span class="panel-icon">📥</span> Barang Masuk</h1>
+    <p>Input penerimaan barang (BTB) dari supplier dan lihat histori penerimaan.</p>
+</div>
 
+<div class="toolbar">
+    <button type="button" class="btn-dashboard" onclick="location.href='dashboard.html'">
+        🏠 Dashboard
+    </button>
+    <button type="button" class="btn-add" onclick="tambahBarisBarang()">
+        ➕ Tambah Barang
+    </button>
+</div>
+
+<!-- ================= FORM HEADER ================= -->
 <div class="panel">
 
-<h3 id="judulForm">
+    <h3>
+        <span class="panel-icon">📥</span>
+        Input Barang Masuk (BTB)
+    </h3>
+    <p class="panel-sub">Catat penerimaan barang baru dari supplier</p>
 
-📥 Input Barang Masuk (BTB)
+    <form id="formMasukHeader" class="header-grid">
 
-</h3>
+        <div class="field">
+            <label><b>No. BTB</b></label>
+            <input
+                type="text"
+                id="no_btb"
+                placeholder="0064/BTB-U-GI-R/VI/2026"
+                required>
+            <small class="field-hint">
+                Format : XXXX/BTB-U-GI-R/VI/2026
+            </small>
+        </div>
 
-<br>
+        <div class="field">
+            <label><b>Tanggal</b></label>
+            <input
+                type="date"
+                id="tanggal"
+                required>
+        </div>
 
-<form id="formMasukHeader">
+        <div class="field">
+            <label><b>Supplier</b></label>
+            <input
+                type="text"
+                id="supplier"
+                list="listSupplier"
+                placeholder="Cari Supplier..."
+                autocomplete="off"
+                required>
+            <datalist id="listSupplier"></datalist>
+        </div>
 
-<div>
+        <div class="field">
+            <label><b>Keterangan</b></label>
+            <input
+                type="text"
+                id="keterangan"
+                placeholder="Keterangan BTB (opsional)">
+        </div>
 
-<label><b>No. BTB</b></label>
-
-<input
-type="text"
-id="no_btb"
-placeholder="Contoh : 0064/BTB-U-GI-R/VI/2026"
-required>
-
-<small style="color:#64748B;">
-
-Format :
-XXXX/BTB-U-GI-R/VI/2026
-
-</small>
-
-</div>
-
-<div>
-
-<label><b>Tanggal</b></label>
-
-<input
-type="date"
-id="tanggal"
-required>
-
-</div>
-
-<div>
-
-<label><b>Supplier</b></label>
-
-<input
-type="text"
-id="supplier"
-list="listSupplier"
-placeholder="Cari Supplier..."
-autocomplete="off"
-required>
-
-<datalist id="listSupplier">
-
-</datalist>
-
-</div>
-
-<div>
-
-<label><b>Keterangan</b></label>
-
-<input
-type="text"
-id="keterangan"
-placeholder="Keterangan BTB">
-
-</div>
-
-</form>
-
+    </form>
 </div>
 
 <!-- ================= DETAIL BARANG ================= -->
-
 <div class="panel">
 
-<h3>📦 Detail Barang</h3>
+    <h3>
+        <span><span class="panel-icon">📦</span> Detail Barang</span>
+        <button
+            type="button"
+            class="btn-add-row"
+            onclick="tambahBarisBarang()">
+            ➕ Tambah Barang
+        </button>
+    </h3>
 
-<br>
+    <div class="table-responsive detail-table">
+        <table id="tableDetailBarang">
+            <thead>
+                <tr>
+                    <th width="50">No</th>
+                    <th width="280">Cari Barang</th>
+                    <th width="120">Kode</th>
+                    <th width="160">Kategori</th>
+                    <th width="100">Satuan</th>
+                    <th width="100">Qty</th>
+                    <th width="70">Aksi</th>
+                </tr>
+            </thead>
+            <tbody id="detailBarangBody">
+                <tr>
+                    <td>1</td>
+                    <td>
+                        <input
+                            type="text"
+                            class="barang-search"
+                            list="listBarang"
+                            placeholder="Cari Barang..."
+                            autocomplete="off">
+                    </td>
+                    <td>
+                        <input type="text" class="kode_barang" readonly>
+                    </td>
+                    <td>
+                        <input type="text" class="kategori" readonly>
+                    </td>
+                    <td>
+                        <input type="text" class="satuan" readonly>
+                    </td>
+                    <td>
+                        <input type="number" class="qty" min="1" value="1">
+                    </td>
+                    <td>
+                        <button
+                            type="button"
+                            class="btn-delete"
+                            onclick="hapusBaris(this)">
+                            🗑
+                        </button>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
 
-<table id="tableDetailBarang">
-
-<thead>
-
-<tr>
-
-<th width="50">No</th>
-
-<th width="300">Cari Barang</th>
-
-<th width="130">Kode</th>
-
-<th width="170">Kategori</th>
-
-<th width="100">Satuan</th>
-
-<th width="100">Qty</th>
-
-<th width="100">Aksi</th>
-
-</tr>
-
-</thead>
-
-<tbody id="detailBarangBody">
-
-<tr>
-
-<td>1</td>
-
-<td>
-
-<input
-type="text"
-class="barang-search"
-list="listBarang"
-placeholder="Cari Barang..."
-autocomplete="off">
-
-</td>
-
-<td>
-
-<input
-type="text"
-class="kode_barang"
-readonly>
-
-</td>
-
-<td>
-
-<input
-type="text"
-class="kategori"
-readonly>
-
-</td>
-
-<td>
-
-<input
-type="text"
-class="satuan"
-readonly>
-
-</td>
-
-<td>
-
-<input
-type="number"
-class="qty"
-min="1"
-value="1">
-
-</td>
-
-<td>
-
-<button
-type="button"
-class="btn-delete"
-onclick="hapusBaris(this)">
-
-🗑
-
-</button>
-
-</td>
-
-</tr>
-
-</tbody>
-
-</table>
-
-<br>
-
-<button
-type="button"
-class="btn-import"
-onclick="tambahBarisBarang()">
-
-➕ Tambah Barang
-
-</button>
-
-<datalist id="listBarang">
-
-</datalist>
-
+    <datalist id="listBarang"></datalist>
 </div>
 
 <!-- ================= AKSI ================= -->
-
-<div class="panel">
-
-<div style="display:flex;gap:10px;justify-content:flex-end;">
-
-<button
-type="button"
-class="btn-import"
-onclick="tambahBarisBarang()">
-
-➕ Tambah Barang
-
-</button>
-
-<button
-type="button"
-class="btn-dashboard"
-id="btnSimpanBTB">
-
-💾 Simpan BTB
-
-</button>
-
-</div>
-
+<div class="panel action-panel">
+    <div class="action-bar">
+        <span class="action-hint">Pastikan semua barang &amp; qty sudah benar sebelum menyimpan.</span>
+        <div class="action-buttons">
+            <button
+                type="button"
+                class="btn-import"
+                onclick="tambahBarisBarang()">
+                ➕ Tambah Barang
+            </button>
+            <button
+                type="button"
+                class="btn-save"
+                id="btnSimpanBTB">
+                💾 Simpan BTB
+            </button>
+        </div>
+    </div>
 </div>
 
 <!-- ================= HISTORI ================= -->
-
 <div class="panel">
 
-<h3>📋 Histori Barang Masuk</h3>
+    <h3>
+        <span class="panel-icon">📋</span>
+        Histori Barang Masuk
+    </h3>
 
-<br>
+    <div class="search-box">
+        <input
+            type="text"
+            id="search"
+            placeholder="🔍 Cari No BTB / Supplier...">
+    </div>
 
-<div class="search-box">
-
-<input
-type="text"
-id="search"
-placeholder="Cari No BTB / Supplier">
-
-</div>
-
-<br>
-
-<table id="tableMasuk">
-
-<thead>
-
-<tr>
-
-<th width="70">No</th>
-
-<th width="170">No BTB</th>
-
-<th width="120">Tanggal</th>
-
-<th>Supplier</th>
-
-<th width="100">Item</th>
-
-<th width="170">Gudang</th>
-
-<th width="170">Created By</th>
-
-<th width="170">Aksi</th>
-
-</tr>
-
-</thead>
-
-<tbody>
-
-</tbody>
-
-</table>
+    <div class="table-responsive">
+        <table id="tableMasuk">
+            <thead>
+                <tr>
+                    <th width="60">No</th>
+                    <th width="190">No BTB</th>
+                    <th width="120">Tanggal</th>
+                    <th>Supplier</th>
+                    <th width="90">Item</th>
+                    <th width="150">Gudang</th>
+                    <th width="150">Dibuat Oleh</th>
+                    <th width="160">Aksi</th>
+                </tr>
+            </thead>
+            <tbody>
+                <!-- diisi via tampilBarangMasuk() di JS -->
+            </tbody>
+        </table>
+    </div>
 
 </div>
