@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="id">
+
 <head>
 
 <meta charset="UTF-8">
@@ -14,7 +15,6 @@
 <link rel="stylesheet" href="css/dashboard.css">
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
-
 <script src="supabase/config.js"></script>
 
 </head>
@@ -23,142 +23,163 @@
 
 <div class="content">
 
-    <h2>📦 Master Barang</h2>
+<h2>📦 Master Barang</h2>
 
-    <br>
+<br>
 
-    <!-- Toolbar -->
+<!-- ================= TOOLBAR ================= -->
 
-    <div class="toolbar">
+<div class="toolbar">
 
-        <button
-            class="btn-dashboard"
-            onclick="location.href='dashboard.html'">
+<button
+class="btn-dashboard"
+onclick="location.href='dashboard.html'">
 
-            🏠 Dashboard
+🏠 Dashboard
 
-        </button>
+</button>
 
-        <button
-            class="btn-import"
-            onclick="document.getElementById('fileImport').click()">
+<button
+class="btn-import"
+onclick="document.getElementById('fileImport').click()">
 
-            📥 Import Excel
+📥 Import Excel
 
-        </button>
+</button>
 
-        <input
-            type="file"
-            id="fileImport"
-            accept=".xlsx,.xls"
-            hidden>
+<input
+type="file"
+id="fileImport"
+accept=".xlsx,.xls"
+hidden>
 
-        <button
-            class="btn-export"
-            onclick="exportExcel()">
+<button
+class="btn-export"
+onclick="exportExcel()">
 
-            📤 Export Excel
+📤 Export Excel
 
-        </button>
+</button>
 
-    </div>
+</div>
 
-    <br>
+<br>
 
-    <!-- FORM -->
+<!-- ================= FORM ================= -->
 
-    <div class="panel">
+<div class="panel">
 
-        <h3>Tambah Barang</h3>
+<h3 id="judulForm">
 
-        <br>
+➕ Tambah Barang
 
-        <form id="formBarang">
+</h3>
 
-            <input
-                type="text"
-                id="kode_barang"
-                placeholder="Kode Barang"
-                required>
+<br>
 
-            <input
-                type="text"
-                id="nama_barang"
-                placeholder="Nama Barang"
-                required>
+<form id="formBarang">
 
-            <select
-                id="kategori"
-                required>
+<input
+type="text"
+id="kode_barang"
+placeholder="Kode Barang"
+required>
 
-                <option value="">
-                    -- Pilih Kategori --
-                </option>
+<input
+type="text"
+id="nama_barang"
+placeholder="Nama Barang"
+required>
 
-            </select>
+<select
+id="kategori"
+required>
 
-            <select
-                id="satuan"
-                required>
+<option value="">
+-- Pilih Kategori --
+</option>
 
-                <option value="">
-                    -- Pilih Satuan --
-                </option>
+</select>
 
-            </select>
+<select
+id="satuan"
+required>
 
-            <button
-                type="submit">
+<option value="">
+-- Pilih Satuan --
+</option>
 
-                💾 Simpan Barang
+</select>
 
-            </button>
+<div style="grid-column:1/3;display:flex;gap:10px;">
 
-        </form>
+<button
+type="submit"
+id="btnSimpan">
 
-    </div>
+💾 Simpan Barang
 
-    <br>
+</button>
 
-    <!-- DAFTAR BARANG -->
+<button
+type="button"
+id="btnBatal"
+style="display:none;">
 
-    <div class="panel">
+❌ Batal
 
-        <h3>Daftar Barang</h3>
+</button>
 
-        <br>
+</div>
 
-        <table id="tableBarang">
+</form>
 
-            <thead>
+</div>
 
-                <tr>
+<br>
 
-                    <th width="150">Kode</th>
+<!-- ================= DAFTAR BARANG ================= -->
 
-                    <th>Nama Barang</th>
+<div class="panel">
 
-                    <th width="180">Kategori</th>
+<h3>Daftar Barang</h3>
 
-                    <th width="140">Satuan</th>
+<br>
 
-                    <th width="180">Aksi</th>
+<table id="tableBarang">
 
-                </tr>
+<thead>
 
-            </thead>
+<tr>
 
-            <tbody>
+<th width="130">Kode</th>
 
-            </tbody>
+<th>Nama Barang</th>
 
-        </table>
+<th width="170">Kategori</th>
 
-    </div>
+<th width="120">Satuan</th>
+
+<th width="180">Created By</th>
+
+<th width="170">Aksi</th>
+
+</tr>
+
+</thead>
+
+<tbody>
+
+</tbody>
+
+</table>
+
+</div>
 
 </div>
 
 <script src="js/master-barang.js"></script>
 
 </body>
+
 </html>
