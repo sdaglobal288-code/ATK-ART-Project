@@ -8,8 +8,108 @@ if (!user) {
     location.href = "login.html";
 }
 
-let editId = null;
-let allBarang = [];   // cache untuk search lokal
+let editId     = null;
+let allBarang  = [];
+let fotoFile   = null;    // file foto yang dipilih (belum diupload)
+let fotoUrlLama = null;   // url foto yg sudah tersimpan saat mode edit
+
+// Nama bucket Supabase Storage untuk foto barang
+const FOTO_BUCKET = "barang-photos";
+
+// =====================================
+// FOTO PREVIEW HELPERS
+// =====================================
+
+function setFotoPreview(url) {
+
+    const img         = document.getElementById("fotoPreviewImg");
+    const placeholder = document.getElementById("fotoPlaceholder");
+    const btnHapus    = document.getElementById("btnHapusFoto");
+
+    if (url) {
+        img.src = url;
+        img.style.display = "block";
+        placeholder.style.display = "none";
+        btnHapus.classList.add("visible");
+    } else {
+        img.src = "";
+        img.style.display = "none";
+        placeholder.style.display = "flex";
+        btnHapus.classList.remove("visible");
+    }
+
+}
+
+function hapusFotoPreview() {
+
+    fotoFile = null;
+    fotoUrlLama = null;
+    document.getElementById("inputFoto").value = "";
+    setFotoPreview(null);
+
+}
+
+// Listener input foto
+const inputFoto = document.getElementById("inputFoto");
+
+if (inputFoto) {
+
+    inputFoto.addEventListener("change", function () {
+
+        const file = this.files[0];
+        if (!file) return;
+
+        // Validasi ukuran (maks 2 MB)
+        if (file.size > 2 * 1024 * 1024) {
+            alert("Ukuran foto maksimal 2 MB.");
+            this.value = "";
+            return;
+        }
+
+        // Validasi tipe
+        if (!file.type.startsWith("image/")) {
+            alert("File harus berupa gambar (JPG/PNG/WEBP).");
+            this.value = "";
+            return;
+        }
+
+        fotoFile = file;
+        const reader = new FileReader();
+        reader.onload = e => setFotoPreview(e.target.result);
+        reader.readAsDataURL(file);
+
+    });
+
+}
+
+// =====================================
+// UPLOAD FOTO KE SUPABASE STORAGE
+// =====================================
+
+async function uploadFoto(kode) {
+
+    if (!fotoFile) return fotoUrlLama;  // tidak ada file baru → kembalikan URL lama
+
+    const ext  = fotoFile.name.split(".").pop().toLowerCase();
+    const path = `${kode}.${ext}`;
+
+    // Hapus file lama dulu jika ada (upsert storage)
+    await supabaseClient.storage.from(FOTO_BUCKET).remove([path]);
+
+    const { error } = await supabaseClient.storage
+        .from(FOTO_BUCKET)
+        .upload(path, fotoFile, { upsert: true, contentType: fotoFile.type });
+
+    if (error) throw error;
+
+    const { data: pub } = supabaseClient.storage
+        .from(FOTO_BUCKET)
+        .getPublicUrl(path);
+
+    // Tambahkan cache-buster supaya update langsung terlihat
+    return pub.publicUrl + "?t=" + Date.now();
+
+}
 
 // =====================================
 // MODAL HELPERS
@@ -18,7 +118,10 @@ let allBarang = [];   // cache untuk search lokal
 function bukaModalTambah() {
 
     editId = null;
+    fotoFile = null;
+    fotoUrlLama = null;
     form.reset();
+    setFotoPreview(null);
 
     document.getElementById("kode_barang").readOnly = false;
     document.getElementById("judulForm").innerHTML = "➕ Tambah Barang";
@@ -32,26 +135,29 @@ function tutupModal() {
 
     document.getElementById("modalBarang").classList.remove("active");
     editId = null;
+    fotoFile = null;
+    fotoUrlLama = null;
     form.reset();
+    setFotoPreview(null);
     document.getElementById("kode_barang").readOnly = false;
 
 }
 
 const modalBarangEl = document.getElementById("modalBarang");
 if (modalBarangEl) {
-
-    // tutup modal jika klik di area gelap luar kotak dialog
-    modalBarangEl.addEventListener("click", function (e) {
-        if (e.target === modalBarangEl) tutupModal();
+    modalBarangEl.addEventListener("click", e => { if (e.target === modalBarangEl) tutupModal(); });
+    document.addEventListener("keydown", e => {
+        if (e.key === "Escape" && modalBarangEl.classList.contains("active")) tutupModal();
     });
+}
 
-    // tutup modal dengan tombol Esc
-    document.addEventListener("keydown", function (e) {
-        if (e.key === "Escape" && modalBarangEl.classList.contains("active")) {
-            tutupModal();
-        }
-    });
+// =====================================
+// LIGHTBOX
+// =====================================
 
+function bukaLightbox(url) {
+    document.getElementById("lightboxImg").src = url;
+    document.getElementById("lightbox").classList.add("active");
 }
 
 // =====================================
@@ -69,16 +175,10 @@ async function loadKategori() {
 
         if (error) throw error;
 
-        const kategori = document.getElementById("kategori");
-
-        kategori.innerHTML = `<option value="">-- Pilih Kategori --</option>`;
-
+        const sel = document.getElementById("kategori");
+        sel.innerHTML = `<option value="">-- Pilih Kategori --</option>`;
         data.forEach(item => {
-            kategori.innerHTML += `
-                <option value="${item.nama_kategori}">
-                    ${item.nama_kategori}
-                </option>
-            `;
+            sel.innerHTML += `<option value="${item.nama_kategori}">${item.nama_kategori}</option>`;
         });
 
     } catch (err) {
@@ -103,16 +203,10 @@ async function loadSatuan() {
 
         if (error) throw error;
 
-        const satuan = document.getElementById("satuan");
-
-        satuan.innerHTML = `<option value="">-- Pilih Satuan --</option>`;
-
+        const sel = document.getElementById("satuan");
+        sel.innerHTML = `<option value="">-- Pilih Satuan --</option>`;
         data.forEach(item => {
-            satuan.innerHTML += `
-                <option value="${item.nama_satuan}">
-                    ${item.nama_satuan}
-                </option>
-            `;
+            sel.innerHTML += `<option value="${item.nama_satuan}">${item.nama_satuan}</option>`;
         });
 
     } catch (err) {
@@ -132,7 +226,7 @@ async function loadBarang() {
 
     tbody.innerHTML = `
         <tr>
-            <td colspan="6" class="loading-state">
+            <td colspan="7" class="loading-state">
                 <span class="spinner"></span> Memuat data...
             </td>
         </tr>
@@ -148,14 +242,13 @@ async function loadBarang() {
         if (error) throw error;
 
         allBarang = data || [];
-
         renderBarang(allBarang);
 
     } catch (err) {
         console.error(err);
         tbody.innerHTML = `
             <tr>
-                <td colspan="6" class="empty-state">
+                <td colspan="7" class="empty-state">
                     ⚠ Gagal memuat data: ${err.message}
                 </td>
             </tr>
@@ -170,7 +263,7 @@ async function loadBarang() {
 
 function renderBarang(list) {
 
-    const tbody = document.querySelector("#tableBarang tbody");
+    const tbody      = document.querySelector("#tableBarang tbody");
     const totalBadge = document.getElementById("totalBadge");
 
     totalBadge.textContent = `${list.length} item`;
@@ -178,7 +271,7 @@ function renderBarang(list) {
     if (list.length === 0) {
         tbody.innerHTML = `
             <tr>
-                <td colspan="6" class="empty-state">
+                <td colspan="7" class="empty-state">
                     Tidak ada data barang yang cocok.
                 </td>
             </tr>
@@ -189,8 +282,17 @@ function renderBarang(list) {
     tbody.innerHTML = "";
 
     list.forEach(item => {
+
+        const fotoHtml = item.foto_url
+            ? `<img src="${item.foto_url}" alt="${item.nama_barang}"
+                    class="tbl-foto" loading="lazy"
+                    onclick="bukaLightbox('${item.foto_url}')"
+                    style="cursor:zoom-in;">`
+            : `<div class="tbl-foto-empty">📦</div>`;
+
         tbody.innerHTML += `
             <tr>
+                <td>${fotoHtml}</td>
                 <td><span class="kode-pill">${item.kode_barang}</span></td>
                 <td>${item.nama_barang}</td>
                 <td>${item.kategori}</td>
@@ -215,20 +317,14 @@ function renderBarang(list) {
 const searchInput = document.getElementById("searchBarang");
 
 if (searchInput) {
-
     searchInput.addEventListener("input", function () {
-
         const keyword = this.value.trim().toLowerCase();
-
         const filtered = allBarang.filter(item =>
             item.kode_barang.toLowerCase().includes(keyword) ||
             item.nama_barang.toLowerCase().includes(keyword)
         );
-
         renderBarang(filtered);
-
     });
-
 }
 
 // =====================================
@@ -244,18 +340,14 @@ if (form) {
         e.preventDefault();
 
         const btnSimpan = document.getElementById("btnSimpan");
-        const teksAsli = btnSimpan.innerHTML;
+        const teksAsli  = btnSimpan.innerHTML;
 
         try {
 
-            const kode = document.getElementById("kode_barang")
-                .value.trim().toUpperCase();
-
-            const namaBarang = document.getElementById("nama_barang")
-                .value.trim();
-
+            const kode       = document.getElementById("kode_barang").value.trim().toUpperCase();
+            const namaBarang = document.getElementById("nama_barang").value.trim();
             const kategoriVal = document.getElementById("kategori").value;
-            const satuanVal = document.getElementById("satuan").value;
+            const satuanVal   = document.getElementById("satuan").value;
 
             if (!kode || !namaBarang || !kategoriVal || !satuanVal) {
                 alert("Semua field wajib diisi.");
@@ -265,24 +357,26 @@ if (form) {
             btnSimpan.disabled = true;
             btnSimpan.innerHTML = "⏳ Menyimpan...";
 
-            const barang = {
-                kode_barang: kode,
-                nama_barang: namaBarang,
-                kategori: kategoriVal,
-                satuan: satuanVal,
-                created_by: user.nama
-            };
+            // Upload foto jika ada file baru
+            const foto_url = await uploadFoto(kode);
 
             // ===== UPDATE =====
             if (editId !== null) {
 
+                const updatePayload = {
+                    nama_barang: namaBarang,
+                    kategori: kategoriVal,
+                    satuan: satuanVal
+                };
+
+                // Hanya update foto_url jika ada perubahan (ada file baru atau hapus foto)
+                if (fotoFile !== null || fotoUrlLama === null) {
+                    updatePayload.foto_url = foto_url ?? null;
+                }
+
                 const { error } = await supabaseClient
                     .from("master_barang")
-                    .update({
-                        nama_barang: barang.nama_barang,
-                        kategori: barang.kategori,
-                        satuan: barang.satuan
-                    })
+                    .update(updatePayload)
                     .eq("id", editId);
 
                 if (error) throw error;
@@ -310,7 +404,14 @@ if (form) {
             // ===== INSERT =====
             const { error } = await supabaseClient
                 .from("master_barang")
-                .insert([barang]);
+                .insert([{
+                    kode_barang: kode,
+                    nama_barang: namaBarang,
+                    kategori: kategoriVal,
+                    satuan: satuanVal,
+                    foto_url: foto_url ?? null,
+                    created_by: user.nama
+                }]);
 
             if (error) throw error;
 
@@ -347,17 +448,20 @@ async function editBarang(id) {
         if (error) throw error;
 
         editId = id;
+        fotoFile = null;
+        fotoUrlLama = data.foto_url ?? null;
 
-        document.getElementById("kode_barang").value = data.kode_barang;
-        document.getElementById("nama_barang").value = data.nama_barang;
-        document.getElementById("kategori").value = data.kategori;
-        document.getElementById("satuan").value = data.satuan;
+        document.getElementById("kode_barang").value  = data.kode_barang;
+        document.getElementById("nama_barang").value  = data.nama_barang;
+        document.getElementById("kategori").value     = data.kategori;
+        document.getElementById("satuan").value       = data.satuan;
 
-        // Kode barang tidak boleh diubah
+        // Tampilkan foto yang ada
+        setFotoPreview(fotoUrlLama);
+
         document.getElementById("kode_barang").readOnly = true;
-
-        document.getElementById("judulForm").innerHTML = "✏ Edit Barang";
-        document.getElementById("btnSimpan").innerHTML = "💾 Update Barang";
+        document.getElementById("judulForm").innerHTML  = "✏ Edit Barang";
+        document.getElementById("btnSimpan").innerHTML  = "💾 Update Barang";
 
         document.getElementById("modalBarang").classList.add("active");
 
@@ -377,6 +481,17 @@ async function hapusBarang(id) {
     if (!confirm("Hapus Master Barang ini?")) return;
 
     try {
+
+        // Cek apakah ada foto untuk dihapus dari storage
+        const item = allBarang.find(b => b.id === id);
+        if (item?.foto_url) {
+            // Ekstrak path dari URL
+            const url  = new URL(item.foto_url);
+            const path = url.pathname.split(`/${FOTO_BUCKET}/`)[1]?.split("?")[0];
+            if (path) {
+                await supabaseClient.storage.from(FOTO_BUCKET).remove([path]);
+            }
+        }
 
         const { error } = await supabaseClient
             .from("master_barang")
@@ -407,7 +522,7 @@ function exportExcel() {
     }
 
     if (typeof XLSX === "undefined") {
-        alert("Library SheetJS (xlsx) belum dimuat. Tambahkan script SheetJS di <head> untuk mengaktifkan fitur export.");
+        alert("Library SheetJS (xlsx) belum dimuat. Tambahkan script SheetJS di <head>.");
         return;
     }
 
@@ -417,6 +532,7 @@ function exportExcel() {
         "NAMA BARANG": item.nama_barang,
         "KATEGORI": item.kategori,
         "SATUAN": item.satuan,
+        "FOTO URL": item.foto_url ?? "-",
         "DIBUAT OLEH": item.created_by ?? "-"
     }));
 
@@ -443,7 +559,7 @@ if (fileImport) {
         if (!file) return;
 
         if (typeof XLSX === "undefined") {
-            alert("Library SheetJS (xlsx) belum dimuat. Tambahkan script SheetJS di <head> untuk mengaktifkan fitur import.");
+            alert("Library SheetJS (xlsx) belum dimuat.");
             fileImport.value = "";
             return;
         }
@@ -451,9 +567,9 @@ if (fileImport) {
         try {
 
             const buffer = await file.arrayBuffer();
-            const wb = XLSX.read(buffer, { type: "array" });
-            const sheet = wb.Sheets[wb.SheetNames[0]];
-            const rows = XLSX.utils.sheet_to_json(sheet);
+            const wb     = XLSX.read(buffer, { type: "array" });
+            const sheet  = wb.Sheets[wb.SheetNames[0]];
+            const rows   = XLSX.utils.sheet_to_json(sheet);
 
             if (!rows.length) {
                 alert("File kosong atau format tidak sesuai.");
@@ -469,7 +585,7 @@ if (fileImport) {
             })).filter(item => item.kode_barang && item.nama_barang);
 
             if (!payload.length) {
-                alert("Tidak ada baris valid untuk diimport. Pastikan kolom KODE dan NAMA BARANG terisi.");
+                alert("Tidak ada baris valid. Pastikan kolom KODE dan NAMA BARANG terisi.");
                 return;
             }
 
