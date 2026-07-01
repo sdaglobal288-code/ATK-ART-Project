@@ -225,21 +225,6 @@ class="btn-dashboard"
 onclick="location.href='dashboard.html'">
 🏠 Dashboard
 </button>
-<button
-class="btn-import"
-onclick="document.getElementById('fileImport').click()">
-📥 Import Excel
-</button>
-<input
-type="file"
-id="fileImport"
-accept=".xlsx,.xls"
-hidden>
-<button
-class="btn-export"
-onclick="exportExcel()">
-📤 Export Excel
-</button>
 </div>
 <br>
 <!-- ================= FORM ================= -->
@@ -321,6 +306,23 @@ style="display:none;">
 <div class="panel">
 <h3>Histori Barang Keluar</h3>
 <br>
+<div class="toolbar" style="margin-bottom:14px;">
+<button
+class="btn-import"
+onclick="document.getElementById('fileImport').click()">
+📥 Import Excel
+</button>
+<input
+type="file"
+id="fileImport"
+accept=".xlsx,.xls"
+hidden>
+<button
+class="btn-export"
+onclick="exportExcel()">
+📤 Export Excel
+</button>
+</div>
 <input
 type="text"
 id="search"
