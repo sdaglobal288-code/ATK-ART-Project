@@ -261,6 +261,84 @@
     #btnSimpanBTB:hover{
         background:#2563eb;
     }
+
+    /* ---------- Modal Detail BTB ---------- */
+
+    .modal-overlay{
+        position:fixed;
+        inset:0;
+        background:rgba(0,0,0,.65);
+        display:none;
+        align-items:center;
+        justify-content:center;
+        z-index:1000;
+        padding:20px;
+    }
+
+    .modal-overlay.show{
+        display:flex;
+    }
+
+    .modal-box{
+        background:#0f172a;
+        border:1px solid #334155;
+        border-radius:14px;
+        padding:22px;
+        width:100%;
+        max-width:640px;
+        max-height:82vh;
+        overflow-y:auto;
+        box-shadow:0 20px 50px rgba(0,0,0,.5);
+    }
+
+    .modal-header{
+        display:flex;
+        justify-content:space-between;
+        align-items:center;
+        margin-bottom:16px;
+    }
+
+    .modal-header h3{
+        margin:0;
+        color:#e2e8f0;
+    }
+
+    .modal-close{
+        background:rgba(239,68,68,.12);
+        color:#f87171;
+        border:1px solid rgba(239,68,68,.35);
+        border-radius:8px;
+        width:32px;
+        height:32px;
+        cursor:pointer;
+        font-weight:700;
+    }
+
+    .modal-close:hover{
+        background:rgba(239,68,68,.25);
+    }
+
+    .modal-info{
+        display:grid;
+        grid-template-columns:1fr 1fr;
+        gap:8px 20px;
+        margin-bottom:18px;
+        color:#e2e8f0;
+        font-size:13.5px;
+        background:rgba(255,255,255,.02);
+        border:1px solid #263041;
+        border-radius:10px;
+        padding:12px 14px;
+    }
+
+    .modal-info span{
+        color:#94a3b8;
+    }
+
+    #tableDetailBTB th,
+    #tableDetailBTB td{
+        font-size:13px;
+    }
 </style>
 </head>
 <body>
@@ -403,6 +481,40 @@ style="width:100%;padding:10px;border:1px solid #334155;border-radius:8px;backgr
 </div>
 </div>
 </div>
+
+<!-- ================= MODAL DETAIL BTB ================= -->
+<div class="modal-overlay" id="modalDetailBTB">
+    <div class="modal-box">
+        <div class="modal-header">
+            <h3>📦 Detail Barang Masuk</h3>
+            <button type="button" class="modal-close" id="btnTutupModalDetail">✕</button>
+        </div>
+
+        <div class="modal-info">
+            <div><span>No. BTB:</span> <b id="modalNoBTB"></b></div>
+            <div><span>Tanggal:</span> <b id="modalTanggal"></b></div>
+            <div><span>Supplier:</span> <b id="modalSupplier"></b></div>
+            <div><span>Keterangan:</span> <b id="modalKeterangan"></b></div>
+        </div>
+
+        <div class="table-responsive">
+            <table id="tableDetailBTB">
+                <thead>
+                    <tr>
+                        <th width="50">No</th>
+                        <th>Kode</th>
+                        <th>Nama Barang</th>
+                        <th>Kategori</th>
+                        <th>Satuan</th>
+                        <th width="70">Qty</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
 <!-- Logic Barang Masuk -->
 <script src="js/barang-masuk.js"></script>
 </body>
