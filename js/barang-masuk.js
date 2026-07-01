@@ -88,33 +88,41 @@ function renderSupplierDropdown(keyword){
 
 }
 
-supplierSearchInput.addEventListener("input", function(){
+if(supplierSearchInput && supplierHidden && supplierDropdown){
 
-    // reset pilihan sebelumnya sampai user memilih ulang dari daftar
-    supplierHidden.value = "";
+    supplierSearchInput.addEventListener("input", function(){
 
-    renderSupplierDropdown(this.value);
+        // reset pilihan sebelumnya sampai user memilih ulang dari daftar
+        supplierHidden.value = "";
 
-});
+        renderSupplierDropdown(this.value);
 
-supplierSearchInput.addEventListener("focus", function(){
+    });
 
-    renderSupplierDropdown(this.value);
+    supplierSearchInput.addEventListener("focus", function(){
 
-});
+        renderSupplierDropdown(this.value);
 
-supplierDropdown.addEventListener("click", function(e){
+    });
 
-    const item = e.target.closest(".combo-item");
+    supplierDropdown.addEventListener("click", function(e){
 
-    if(!item || !item.dataset.nama) return;
+        const item = e.target.closest(".combo-item");
 
-    supplierHidden.value = item.dataset.nama;
-    supplierSearchInput.value = item.dataset.nama;
+        if(!item || !item.dataset.nama) return;
 
-    supplierDropdown.classList.remove("show");
+        supplierHidden.value = item.dataset.nama;
+        supplierSearchInput.value = item.dataset.nama;
 
-});
+        supplierDropdown.classList.remove("show");
+
+    });
+
+} else {
+
+    console.error("Elemen combobox supplier tidak lengkap ditemukan di halaman (cek id: supplierSearch, supplier, supplierDropdown).");
+
+}
 
 // =====================================
 // LOAD MASTER BARANG
@@ -280,6 +288,13 @@ function hapusBarisBarang(row){
 
 const detailRowsContainer = document.getElementById("detailRows");
 
+if(!detailRowsContainer){
+
+    console.error("Elemen #detailRows tidak ditemukan di halaman.");
+
+}
+
+if(detailRowsContainer){
 detailRowsContainer.addEventListener("input", function(e){
 
     const row = e.target.closest(".detail-row");
@@ -357,6 +372,7 @@ detailRowsContainer.addEventListener("click", function(e){
     }
 
 });
+} // end if(detailRowsContainer)
 
 function renderBarangDropdown(row, keyword){
 
@@ -395,13 +411,21 @@ function renderBarangDropdown(row, keyword){
 
 }
 
-document
-.getElementById("btnTambahBaris")
-.addEventListener("click", function(){
+const btnTambahBarisEl = document.getElementById("btnTambahBaris");
 
-    tambahBarisBarang();
+if(btnTambahBarisEl){
 
-});
+    btnTambahBarisEl.addEventListener("click", function(){
+
+        tambahBarisBarang();
+
+    });
+
+} else {
+
+    console.error("Elemen #btnTambahBaris tidak ditemukan di halaman.");
+
+}
 
 // =====================================
 // TUTUP DROPDOWN SAAT KLIK DI LUAR
@@ -427,9 +451,17 @@ document.addEventListener("click", function(e){
 // SIMPAN BARANG MASUK (BTB)
 // =====================================
 
-document
-.getElementById("btnSimpanBTB")
-.addEventListener("click", simpanBTB);
+const btnSimpanBTBEl = document.getElementById("btnSimpanBTB");
+
+if(btnSimpanBTBEl){
+
+    btnSimpanBTBEl.addEventListener("click", simpanBTB);
+
+} else {
+
+    console.error("Elemen #btnSimpanBTB tidak ditemukan di halaman.");
+
+}
 
 async function simpanBTB(){
 
@@ -729,9 +761,13 @@ function cariBarangMasuk(){
 
 }
 
-document
-.getElementById("search")
-.addEventListener("keyup",cariBarangMasuk);
+const searchInputEl = document.getElementById("search");
+
+if(searchInputEl){
+
+    searchInputEl.addEventListener("keyup",cariBarangMasuk);
+
+}
 
 // =====================================
 // DETAIL BTB
@@ -771,15 +807,17 @@ function exportExcel(){
 // IMPORT
 // =====================================
 
-document
+const fileImportEl = document.getElementById("fileImport");
 
-.getElementById("fileImport")
+if(fileImportEl){
 
-.addEventListener("change",function(){
+    fileImportEl.addEventListener("change",function(){
 
-    alert("Fitur Import Excel akan dibuat pada tahap berikutnya.");
+        alert("Fitur Import Excel akan dibuat pada tahap berikutnya.");
 
-});
+    });
+
+}
 
 // =====================================
 // LOAD AWAL
