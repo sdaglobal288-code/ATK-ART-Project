@@ -374,6 +374,159 @@
 
   #fileImport{ display:none; }
 
+  /* ===== Foto Upload ===== */
+  .foto-upload-area{
+    grid-column: 1 / -1;
+    display:flex;
+    gap:16px;
+    align-items:flex-start;
+  }
+
+  .foto-preview-wrap{
+    flex-shrink:0;
+    width:90px;
+    height:90px;
+    border-radius:10px;
+    border:1px dashed var(--mb-border);
+    background:var(--mb-surface-2);
+    overflow:hidden;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    cursor:pointer;
+    transition:border-color .15s ease;
+    position:relative;
+  }
+  .foto-preview-wrap:hover{ border-color:var(--mb-purple); }
+
+  .foto-preview-wrap img{
+    width:100%;
+    height:100%;
+    object-fit:cover;
+  }
+
+  .foto-placeholder{
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    gap:5px;
+    color:var(--mb-muted);
+    font-size:11.5px;
+    font-weight:600;
+    text-align:center;
+    padding:8px;
+    pointer-events:none;
+  }
+
+  .foto-placeholder .icon{ font-size:26px; }
+
+  .foto-info{
+    flex:1;
+    display:flex;
+    flex-direction:column;
+    gap:8px;
+    justify-content:center;
+  }
+
+  .foto-info label{
+    font-size:12.5px;
+    font-weight:600;
+    color:var(--mb-muted);
+    text-transform:uppercase;
+    letter-spacing:.03em;
+  }
+
+  .foto-info .hint{
+    font-size:12px;
+    color:var(--mb-muted);
+    line-height:1.5;
+  }
+
+  .btn-pilih-foto{
+    display:inline-flex;
+    align-items:center;
+    gap:6px;
+    background:var(--mb-surface-2);
+    color:var(--mb-text);
+    border:1px solid var(--mb-border);
+    border-radius:8px;
+    padding:7px 14px;
+    font-size:13px;
+    font-weight:600;
+    font-family:inherit;
+    cursor:pointer;
+    transition:background .15s ease, border-color .15s ease;
+    width:fit-content;
+  }
+  .btn-pilih-foto:hover{ background:#262a3c; border-color:var(--mb-purple); }
+
+  .btn-hapus-foto{
+    display:none;
+    align-items:center;
+    gap:6px;
+    background:var(--mb-danger-soft);
+    color:var(--mb-danger);
+    border:1px solid #8a3548;
+    border-radius:8px;
+    padding:7px 14px;
+    font-size:13px;
+    font-weight:600;
+    font-family:inherit;
+    cursor:pointer;
+    transition:background .15s ease;
+    width:fit-content;
+  }
+  .btn-hapus-foto.visible{ display:inline-flex; }
+  .btn-hapus-foto:hover{ background:var(--mb-danger); color:#fff; }
+
+  #inputFoto{ display:none; }
+
+  /* ===== Foto di tabel ===== */
+  .tbl-foto{
+    width:44px;
+    height:44px;
+    border-radius:8px;
+    object-fit:cover;
+    border:1px solid var(--mb-border);
+    background:var(--mb-surface-2);
+    display:block;
+  }
+
+  .tbl-foto-empty{
+    width:44px;
+    height:44px;
+    border-radius:8px;
+    border:1px dashed var(--mb-border);
+    background:var(--mb-surface-2);
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    font-size:18px;
+    color:var(--mb-border);
+  }
+
+  /* ===== Lightbox ===== */
+  .lightbox{
+    display:none;
+    position:fixed;
+    inset:0;
+    background:rgba(0,0,0,.85);
+    z-index:2000;
+    align-items:center;
+    justify-content:center;
+    padding:20px;
+    cursor:zoom-out;
+  }
+  .lightbox.active{ display:flex; }
+  .lightbox img{
+    max-width:90vw;
+    max-height:85vh;
+    border-radius:12px;
+    box-shadow:0 20px 60px rgba(0,0,0,.6);
+    object-fit:contain;
+    cursor:default;
+  }
+
   /* ===== Modal (Tambah/Edit Barang) ===== */
   .modal-overlay{
     display:none;
@@ -486,6 +639,7 @@
       <table id="tableBarang">
         <thead>
           <tr>
+            <th width="70">FOTO</th>
             <th width="120">KODE</th>
             <th>NAMA BARANG</th>
             <th width="140">KATEGORI</th>
@@ -496,7 +650,7 @@
         </thead>
         <tbody>
           <tr>
-            <td colspan="6" class="loading-state">
+            <td colspan="7" class="loading-state">
               <span class="spinner"></span> Memuat data...
             </td>
           </tr>
@@ -544,6 +698,28 @@
             </select>
           </div>
 
+          <!-- Foto Barang -->
+          <div class="foto-upload-area">
+            <div class="foto-preview-wrap" id="fotoPreviewWrap" onclick="document.getElementById('inputFoto').click()">
+              <div class="foto-placeholder" id="fotoPlaceholder">
+                <span class="icon">📷</span>
+                <span>Klik untuk<br>pilih foto</span>
+              </div>
+              <img id="fotoPreviewImg" src="" alt="" style="display:none;">
+            </div>
+            <input type="file" id="inputFoto" accept="image/*">
+            <div class="foto-info">
+              <label>Foto Barang</label>
+              <span class="hint">Format JPG/PNG/WEBP · maks. 2 MB<br>Klik gambar atau tombol di bawah untuk pilih.</span>
+              <button type="button" class="btn-pilih-foto" onclick="document.getElementById('inputFoto').click()">
+                🖼 Pilih Foto
+              </button>
+              <button type="button" class="btn-hapus-foto" id="btnHapusFoto" onclick="hapusFotoPreview()">
+                🗑 Hapus Foto
+              </button>
+            </div>
+          </div>
+
         </div>
       </div>
 
@@ -558,6 +734,11 @@
     </form>
 
   </div>
+</div>
+
+<!-- ================= LIGHTBOX ================= -->
+<div class="lightbox" id="lightbox" onclick="document.getElementById('lightbox').classList.remove('active')">
+  <img id="lightboxImg" src="" alt="Foto Barang">
 </div>
 
 <script src="js/master-barang.js"></script>
