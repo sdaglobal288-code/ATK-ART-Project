@@ -10,8 +10,9 @@ if (!user) {
 
 let editId = null;
 
-// Menyimpan master barang di memory
+// Menyimpan master data di memory
 let masterBarang = [];
+let masterSupplier = [];
 
 // =====================================
 // LOAD SUPPLIER
@@ -28,15 +29,7 @@ async function loadSupplier(){
 
         if(error) throw error;
 
-        const list = document.getElementById("listSupplier");
-
-        list.innerHTML = "";
-
-        data.forEach(item=>{
-
-            list.innerHTML += `<option value="${item.nama_toko}"></option>`;
-
-        });
+        masterSupplier = data || [];
 
     }
     catch(err){
@@ -47,6 +40,78 @@ async function loadSupplier(){
     }
 
 }
+
+// =====================================
+// SUPPLIER - COMBOBOX PENCARIAN
+// =====================================
+
+const supplierSearchInput = document.getElementById("supplierSearch");
+const supplierHidden      = document.getElementById("supplier");
+const supplierDropdown    = document.getElementById("supplierDropdown");
+
+function renderSupplierDropdown(keyword){
+
+    const kw = (keyword || "").trim().toLowerCase();
+
+    const filtered = masterSupplier.filter(s =>
+        s.nama_toko.toLowerCase().includes(kw)
+    );
+
+    supplierDropdown.innerHTML = "";
+
+    if(filtered.length === 0){
+
+        supplierDropdown.innerHTML =
+            `<div class="combo-empty">Supplier tidak ditemukan</div>`;
+
+    } else {
+
+        filtered.forEach(s=>{
+
+            const item = document.createElement("div");
+
+            item.className = "combo-item";
+            item.textContent = s.nama_toko;
+            item.dataset.id = s.id;
+            item.dataset.nama = s.nama_toko;
+
+            supplierDropdown.appendChild(item);
+
+        });
+
+    }
+
+    supplierDropdown.classList.add("show");
+
+}
+
+supplierSearchInput.addEventListener("input", function(){
+
+    // reset pilihan sebelumnya sampai user memilih ulang dari daftar
+    supplierHidden.value = "";
+
+    renderSupplierDropdown(this.value);
+
+});
+
+supplierSearchInput.addEventListener("focus", function(){
+
+    renderSupplierDropdown(this.value);
+
+});
+
+supplierDropdown.addEventListener("click", function(e){
+
+    const item = e.target.closest(".combo-item");
+
+    if(!item || !item.dataset.nama) return;
+
+    supplierHidden.value = item.dataset.nama;
+    supplierSearchInput.value = item.dataset.nama;
+
+    supplierDropdown.classList.remove("show");
+
+});
 
 // =====================================
 // LOAD MASTER BARANG
@@ -63,17 +128,7 @@ async function loadBarang(){
 
         if(error) throw error;
 
-        masterBarang = data;
-
-        const list = document.getElementById("listBarang");
-
-        list.innerHTML = "";
-
-        data.forEach(item=>{
-
-            list.innerHTML += `<option value="${item.nama_barang}"></option>`;
-
-        });
+        masterBarang = data || [];
 
     }
     catch(err){
@@ -86,7 +141,7 @@ async function loadBarang(){
 }
 
 // =====================================
-// CARI BARANG
+// CARI BARANG (exact match, dipakai saat simpan)
 // =====================================
 
 function cariBarang(namaBarang){
@@ -94,6 +149,56 @@ function cariBarang(namaBarang){
     return masterBarang.find(item=>
         item.nama_barang.toLowerCase() === namaBarang.toLowerCase()
     );
+
+}
+
+// =====================================
+// BARANG - COMBOBOX PENCARIAN PER BARIS
+// =====================================
+
+function renderBarangDropdown(row, keyword){
+
+    const dropdown = row.querySelector(".barang-dropdown");
+
+    const kw = (keyword || "").trim().toLowerCase();
+
+    const filtered = masterBarang.filter(b =>
+        b.nama_barang.toLowerCase().includes(kw)
+    );
+
+    dropdown.innerHTML = "";
+
+    if(filtered.length === 0){
+
+        dropdown.innerHTML =
+            `<div class="combo-empty">Barang tidak ditemukan</div>`;
+
+    } else {
+
+        filtered.forEach(b=>{
+
+            const item = document.createElement("div");
+
+            item.className = "combo-item";
+            item.textContent = b.nama_barang;
+            item.dataset.id = b.id;
+
+            dropdown.appendChild(item);
+
+        });
+
+    }
+
+    dropdown.classList.add("show");
+
+}
+
+function pilihBarangDariDropdown(row, barang){
+
+    row.querySelector(".barang-search").value = barang.nama_barang;
+    row.querySelector(".kode_barang").value = barang.kode_barang;
+    row.querySelector(".kategori").value = barang.kategori;
+    row.querySelector(".satuan").value = barang.satuan;
 
 }
 
@@ -111,13 +216,14 @@ function tambahBarisBarang(){
     tr.innerHTML = `
     <td>${no}</td>
     <td>
-        <input
-        type="text"
-        class="barang-search"
-        list="listBarang"
-        placeholder="Cari Barang..."
-        autocomplete="off"
-        oninput="pilihBarang(this)">
+        <div class="combo-wrapper">
+            <input
+            type="text"
+            class="combo-input barang-search"
+            placeholder="-- Cari Barang --"
+            autocomplete="off">
+            <div class="combo-dropdown barang-dropdown"></div>
+        </div>
     </td>
     <td>
         <input type="text" class="kode_barang" readonly>
@@ -132,7 +238,7 @@ function tambahBarisBarang(){
         <input type="number" class="qty" min="1" value="1">
     </td>
     <td>
-        <button type="button" class="btn-delete" onclick="hapusBaris(this)">🗑</button>
+        <button type="button" class="btn-hapus-baris" onclick="hapusBaris(this)">🗑</button>
     </td>
     `;
 
@@ -175,28 +281,85 @@ function nomorUlang(){
 }
 
 // =====================================
-// PILIH BARANG
+// EVENT DELEGATION UNTUK BARIS BARANG
+// (supaya baris yang ditambah belakangan tetap berfungsi)
 // =====================================
 
-function pilihBarang(input){
+const detailBarangBody = document.getElementById("detailBarangBody");
 
-    const barang = cariBarang(input.value);
-
-    if(!barang) return;
-
-    const row = input.closest("tr");
-
-    row.querySelector(".kode_barang").value = barang.kode_barang;
-    row.querySelector(".kategori").value = barang.kategori;
-    row.querySelector(".satuan").value = barang.satuan;
-
-}
-
-document.addEventListener("input",function(e){
+detailBarangBody.addEventListener("input", function(e){
 
     if(e.target.classList.contains("barang-search")){
-        pilihBarang(e.target);
+
+        const row = e.target.closest("tr");
+
+        if(!row) return;
+
+        // reset pilihan sampai user memilih ulang dari daftar
+        row.querySelector(".kode_barang").value = "";
+        row.querySelector(".kategori").value = "";
+        row.querySelector(".satuan").value = "";
+
+        renderBarangDropdown(row, e.target.value);
+
     }
+
+});
+
+// focus tidak bubbling, gunakan focusin untuk delegasi
+detailBarangBody.addEventListener("focusin", function(e){
+
+    if(e.target.classList.contains("barang-search")){
+
+        const row = e.target.closest("tr");
+
+        if(row) renderBarangDropdown(row, e.target.value);
+
+    }
+
+});
+
+detailBarangBody.addEventListener("click", function(e){
+
+    const comboItem = e.target.closest(".combo-item");
+
+    if(comboItem && comboItem.dataset.id && comboItem.closest(".barang-dropdown")){
+
+        const row = e.target.closest("tr");
+
+        if(!row) return;
+
+        const barang = masterBarang.find(
+            b => String(b.id) === String(comboItem.dataset.id)
+        );
+
+        if(!barang) return;
+
+        pilihBarangDariDropdown(row, barang);
+
+        row.querySelector(".barang-dropdown").classList.remove("show");
+
+    }
+
+});
+
+// =====================================
+// TUTUP DROPDOWN SAAT KLIK DI LUAR
+// =====================================
+
+document.addEventListener("click", function(e){
+
+    document.querySelectorAll(".combo-wrapper").forEach(wrapper=>{
+
+        if(!wrapper.contains(e.target)){
+
+            const dd = wrapper.querySelector(".combo-dropdown");
+
+            if(dd) dd.classList.remove("show");
+
+        }
+
+    });
 
 });
 
@@ -218,7 +381,7 @@ async function simpanBTB(){
 
         const noBTB = document.getElementById("no_btb").value.trim();
         const tanggal = document.getElementById("tanggal").value;
-        const supplier = document.getElementById("supplier").value.trim();
+        const supplier = supplierHidden.value.trim();
         const keterangan = document.getElementById("keterangan").value.trim();
 
         if(noBTB==""){
@@ -232,7 +395,7 @@ async function simpanBTB(){
         }
 
         if(supplier==""){
-            alert("Supplier wajib dipilih.");
+            alert("Supplier wajib dipilih dari daftar pencarian.");
             return;
         }
 
@@ -283,12 +446,12 @@ async function simpanBTB(){
             const satuan = row.querySelector(".satuan").value;
             const qty = parseInt(row.querySelector(".qty").value);
 
-            if(namaBarang==""){
-                alert("Masih ada barang yang belum dipilih.");
+            if(namaBarang=="" || kode==""){
+                alert("Masih ada barang yang belum dipilih dari daftar pencarian.");
                 return;
             }
 
-            if(qty<=0){
+            if(!qty || qty<=0){
                 alert("Qty harus lebih dari 0.");
                 return;
             }
@@ -337,9 +500,15 @@ async function simpanBTB(){
 
         document.getElementById("formMasukHeader").reset();
 
+        supplierHidden.value = "";
+        supplierSearchInput.value = "";
+
         const tbody = document.getElementById("detailBarangBody");
         tbody.innerHTML="";
         tambahBarisBarang();
+
+        // muat ulang master barang supaya stok terbaru terpakai untuk transaksi berikutnya
+        await loadBarang();
 
         loadBarangMasuk();
 
@@ -482,6 +651,9 @@ function hapusBTB(id){
 // =====================================
 
 document.addEventListener("DOMContentLoaded",async()=>{
+
+    document.getElementById("tanggal").value =
+        new Date().toISOString().split("T")[0];
 
     await loadSupplier();
     await loadBarang();
