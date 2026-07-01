@@ -130,6 +130,9 @@ async function loadBarang(){
 
         masterBarang = data || [];
 
+        // sinkronkan badge stok pada baris yang barangnya sudah dipilih
+        refreshSemuaBarisStok();
+
     }
     catch(err){
 
@@ -137,18 +140,6 @@ async function loadBarang(){
         alert(err.message);
 
     }
-
-}
-
-// =====================================
-// CARI BARANG (exact match, dipakai saat simpan)
-// =====================================
-
-function cariBarang(namaBarang){
-
-    return masterBarang.find(item=>
-        item.nama_barang.toLowerCase() === namaBarang.toLowerCase()
-    );
 
 }
 
@@ -200,6 +191,73 @@ function pilihBarangDariDropdown(row, barang){
     row.querySelector(".kategori").value = barang.kategori;
     row.querySelector(".satuan").value = barang.satuan;
 
+    row.dataset.kodeBarang = barang.kode_barang;
+
+    refreshStokBaris(row);
+
+}
+
+// =====================================
+// STOK REALTIME PER BARIS
+// =====================================
+
+function refreshStokBaris(row){
+
+    const badge = row.querySelector(".stok-badge");
+
+    const kodeBarang = row.dataset.kodeBarang;
+
+    if(!kodeBarang){
+
+        badge.textContent = "Stok: -";
+        return;
+
+    }
+
+    const barang = masterBarang.find(b => b.kode_barang === kodeBarang);
+
+    const stok = barang ? (barang.stok || 0) : 0;
+
+    badge.textContent = `Stok: ${stok}`;
+
+}
+
+function refreshSemuaBarisStok(){
+
+    const rows = document.querySelectorAll("#detailBarangBody tr");
+
+    rows.forEach(row=>{
+
+        if(row.dataset.kodeBarang) refreshStokBaris(row);
+
+    });
+
+}
+
+// =====================================
+// REALTIME SUBSCRIBE STOK MASTER BARANG
+// =====================================
+
+function aktifkanRealtimeStok(){
+
+    supabaseClient
+
+    .channel("stok-realtime-barang-masuk")
+
+    .on("postgres_changes",
+
+        { event: "*", schema: "public", table: "master_barang" },
+
+        async () => {
+
+            await loadBarang();
+
+        }
+
+    )
+
+    .subscribe();
+
 }
 
 // =====================================
@@ -212,6 +270,8 @@ function tambahBarisBarang(){
     const no = tbody.rows.length + 1;
 
     const tr = document.createElement("tr");
+
+    tr.dataset.kodeBarang = "";
 
     tr.innerHTML = `
     <td>${no}</td>
@@ -233,6 +293,9 @@ function tambahBarisBarang(){
     </td>
     <td>
         <input type="text" class="satuan" readonly>
+    </td>
+    <td>
+        <span class="stok-badge">Stok: -</span>
     </td>
     <td>
         <input type="number" class="qty" min="1" value="1">
@@ -299,6 +362,9 @@ detailBarangBody.addEventListener("input", function(e){
         row.querySelector(".kode_barang").value = "";
         row.querySelector(".kategori").value = "";
         row.querySelector(".satuan").value = "";
+        row.dataset.kodeBarang = "";
+
+        refreshStokBaris(row);
 
         renderBarangDropdown(row, e.target.value);
 
@@ -364,7 +430,7 @@ document.addEventListener("click", function(e){
 });
 
 // =====================================
-// SIMPAN BTB
+// SIMPAN BARANG MASUK (BTB)
 // =====================================
 
 document
@@ -384,13 +450,13 @@ async function simpanBTB(){
         const supplier = supplierHidden.value.trim();
         const keterangan = document.getElementById("keterangan").value.trim();
 
-        if(noBTB==""){
-            alert("Nomor BTB wajib diisi.");
+        if(tanggal==""){
+            alert("Tanggal wajib diisi.");
             return;
         }
 
-        if(tanggal==""){
-            alert("Tanggal wajib diisi.");
+        if(noBTB==""){
+            alert("Nomor BTB wajib diisi.");
             return;
         }
 
@@ -414,6 +480,30 @@ async function simpanBTB(){
         }
 
         //---------------------------------
+        // VALIDASI DETAIL SEBELUM SIMPAN
+        //---------------------------------
+
+        const rows = document.querySelectorAll("#detailBarangBody tr");
+
+        for(const row of rows){
+
+            const namaBarang = row.querySelector(".barang-search").value.trim();
+            const kode = row.querySelector(".kode_barang").value;
+            const qty = parseInt(row.querySelector(".qty").value);
+
+            if(namaBarang=="" || kode==""){
+                alert("Masih ada barang yang belum dipilih dari daftar pencarian.");
+                return;
+            }
+
+            if(!qty || qty<=0){
+                alert("Qty harus lebih dari 0.");
+                return;
+            }
+
+        }
+
+        //---------------------------------
         // SIMPAN HEADER
         //---------------------------------
 
@@ -433,10 +523,8 @@ async function simpanBTB(){
         if(headerError) throw headerError;
 
         //---------------------------------
-        // SIMPAN DETAIL
+        // SIMPAN DETAIL + UPDATE STOK
         //---------------------------------
-
-        const rows = document.querySelectorAll("#detailBarangBody tr");
 
         for(const row of rows){
 
@@ -445,16 +533,6 @@ async function simpanBTB(){
             const kategori = row.querySelector(".kategori").value;
             const satuan = row.querySelector(".satuan").value;
             const qty = parseInt(row.querySelector(".qty").value);
-
-            if(namaBarang=="" || kode==""){
-                alert("Masih ada barang yang belum dipilih dari daftar pencarian.");
-                return;
-            }
-
-            if(!qty || qty<=0){
-                alert("Qty harus lebih dari 0.");
-                return;
-            }
 
             // =====================================
             // SIMPAN DETAIL
@@ -496,12 +574,15 @@ async function simpanBTB(){
         // SELESAI
         //---------------------------------
 
-        alert("BTB berhasil disimpan.");
+        alert("Barang Masuk berhasil disimpan.");
 
         document.getElementById("formMasukHeader").reset();
 
         supplierHidden.value = "";
         supplierSearchInput.value = "";
+
+        document.getElementById("tanggal").value =
+            new Date().toISOString().split("T")[0];
 
         const tbody = document.getElementById("detailBarangBody");
         tbody.innerHTML="";
@@ -647,6 +728,30 @@ function hapusBTB(id){
 }
 
 // =====================================
+// EXPORT
+// =====================================
+
+function exportExcel(){
+
+    alert("Fitur Export Excel akan dibuat pada tahap berikutnya.");
+
+}
+
+// =====================================
+// IMPORT
+// =====================================
+
+document
+
+.getElementById("fileImport")
+
+.addEventListener("change",function(){
+
+    alert("Fitur Import Excel akan dibuat pada tahap berikutnya.");
+
+});
+
+// =====================================
 // LOAD AWAL
 // =====================================
 
@@ -657,7 +762,9 @@ document.addEventListener("DOMContentLoaded",async()=>{
 
     await loadSupplier();
     await loadBarang();
-    await loadBarangMasuk();
     tambahBarisBarang();
+    await loadBarangMasuk();
+
+    aktifkanRealtimeStok();
 
 });
