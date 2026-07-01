@@ -1,5 +1,5 @@
 // =====================================
-// BARANG KELUAR (MULTI ITEM + STOK REALTIME)
+// BARANG KELUAR (MULTI ITEM + PENCARIAN + STOK REALTIME)
 // =====================================
 
 const user = JSON.parse(sessionStorage.getItem("user"));
@@ -10,8 +10,9 @@ if (!user) {
 
 let editId = null;
 
-// cache master barang, dipakai untuk isi opsi tiap baris tanpa query berulang
+// cache master data supaya tidak query berulang tiap kali user mengetik/pilih
 let masterBarangList = [];
+let masterKaryawanList = [];
 
 // counter untuk id unik tiap baris detail
 let rowCounter = 0;
@@ -32,23 +33,7 @@ async function loadKaryawan() {
 
         if (error) throw error;
 
-        const pengambil = document.getElementById("pengambil");
-
-        pengambil.innerHTML = `
-            <option value="">-- Pilih Nama Pengambil --</option>
-        `;
-
-        data.forEach(item => {
-
-            pengambil.innerHTML += `
-
-                <option value="${item.id}">
-                    ${item.nama}
-                </option>
-
-            `;
-
-        });
+        masterKaryawanList = data || [];
 
     } catch (err) {
 
@@ -61,54 +46,85 @@ async function loadKaryawan() {
 }
 
 // =====================================
-// AUTO ISI KARYAWAN
+// PENGAMBIL - COMBOBOX PENCARIAN
 // =====================================
 
-document
-.getElementById("pengambil")
-.addEventListener("change", async function(){
+const pengambilSearchInput = document.getElementById("pengambilSearch");
+const pengambilHidden      = document.getElementById("pengambil");
+const pengambilDropdown    = document.getElementById("pengambilDropdown");
 
-    const id = this.value;
+function renderPengambilDropdown(keyword){
 
-    if(id==""){
+    const kw = (keyword || "").trim().toLowerCase();
 
-        document.getElementById("departemen").value="";
+    const filtered = masterKaryawanList.filter(k =>
+        k.nama.toLowerCase().includes(kw)
+    );
 
-        document.getElementById("jabatan").value="";
+    pengambilDropdown.innerHTML = "";
 
-        return;
+    if(filtered.length === 0){
 
-    }
+        pengambilDropdown.innerHTML =
+            `<div class="combo-empty">Nama tidak ditemukan</div>`;
 
-    try{
+    } else {
 
-        const { data,error } = await supabaseClient
+        filtered.forEach(k=>{
 
-        .from("master_karyawan")
+            const item = document.createElement("div");
 
-        .select("*")
+            item.className = "combo-item";
+            item.textContent = k.nama;
+            item.dataset.id = k.id;
 
-        .eq("id",id)
+            pengambilDropdown.appendChild(item);
 
-        .single();
-
-        if(error) throw error;
-
-        document.getElementById("departemen").value =
-            data.departemen;
-
-        document.getElementById("jabatan").value =
-            data.jabatan;
+        });
 
     }
 
-    catch(err){
+    pengambilDropdown.classList.add("show");
 
-        console.error(err);
+}
 
-        alert(err.message);
+pengambilSearchInput.addEventListener("input", function(){
 
-    }
+    // reset pilihan sebelumnya sampai user memilih ulang dari daftar
+    pengambilHidden.value = "";
+
+    document.getElementById("departemen").value = "";
+    document.getElementById("jabatan").value = "";
+
+    renderPengambilDropdown(this.value);
+
+});
+
+pengambilSearchInput.addEventListener("focus", function(){
+
+    renderPengambilDropdown(this.value);
+
+});
+
+pengambilDropdown.addEventListener("click", function(e){
+
+    const item = e.target.closest(".combo-item");
+
+    if(!item || !item.dataset.id) return;
+
+    const karyawan = masterKaryawanList.find(
+        k => String(k.id) === String(item.dataset.id)
+    );
+
+    if(!karyawan) return;
+
+    pengambilHidden.value = karyawan.id;
+    pengambilSearchInput.value = karyawan.nama;
+
+    document.getElementById("departemen").value = karyawan.departemen;
+    document.getElementById("jabatan").value = karyawan.jabatan;
+
+    pengambilDropdown.classList.remove("show");
 
 });
 
@@ -144,17 +160,40 @@ async function loadBarang(){
 
 }
 
-function buildOpsiBarang(){
+function renderBarangDropdown(row, keyword){
 
-    let html = `<option value="">-- Pilih Barang --</option>`;
+    const dropdown = row.querySelector(".input-barang-dropdown");
 
-    masterBarangList.forEach(item=>{
+    const kw = (keyword || "").trim().toLowerCase();
 
-        html += `<option value="${item.id}">${item.nama_barang}</option>`;
+    const filtered = masterBarangList.filter(b =>
+        b.nama_barang.toLowerCase().includes(kw)
+    );
 
-    });
+    dropdown.innerHTML = "";
 
-    return html;
+    if(filtered.length === 0){
+
+        dropdown.innerHTML =
+            `<div class="combo-empty">Barang tidak ditemukan</div>`;
+
+    } else {
+
+        filtered.forEach(b=>{
+
+            const item = document.createElement("div");
+
+            item.className = "combo-item";
+            item.textContent = b.nama_barang;
+            item.dataset.id = b.id;
+
+            dropdown.appendChild(item);
+
+        });
+
+    }
+
+    dropdown.classList.add("show");
 
 }
 
@@ -204,6 +243,14 @@ function tambahBarisBarang(){
 
     const wrapper = document.getElementById("detailRows");
 
+    if(!wrapper){
+
+        console.error("Elemen #detailRows tidak ditemukan di halaman.");
+
+        return;
+
+    }
+
     const row = document.createElement("div");
 
     row.className = "detail-row";
@@ -213,13 +260,16 @@ function tambahBarisBarang(){
 
     row.innerHTML = `
 
-        <select class="input-barang" required>
-            ${buildOpsiBarang()}
-        </select>
+        <div class="combo-wrapper">
+            <input type="text" class="combo-input input-barang-search"
+                placeholder="-- Cari Barang --" autocomplete="off" required>
+            <input type="hidden" class="input-barang-id">
+            <div class="combo-dropdown input-barang-dropdown"></div>
+        </div>
 
-        <input type="text" class="input-kategori" placeholder="Kategori" readonly>
+        <input type="text" class="input-readonly input-kategori" placeholder="Kategori" readonly>
 
-        <input type="text" class="input-satuan" placeholder="Satuan" readonly>
+        <input type="text" class="input-readonly input-satuan" placeholder="Satuan" readonly>
 
         <span class="stok-badge">Stok: -</span>
 
@@ -258,9 +308,7 @@ async function refreshStokBaris(row){
     if(!kodeBarang){
 
         badge.textContent = "Stok: -";
-
         badge.classList.remove("warning");
-
         row.dataset.stok = "0";
 
         return;
@@ -290,84 +338,105 @@ function validasiQtyBaris(row){
     if(qty > stok){
 
         row.classList.add("qty-invalid");
-
         badge.classList.add("warning");
 
     } else {
 
         row.classList.remove("qty-invalid");
-
         badge.classList.remove("warning");
 
     }
 
 }
 
-// event delegation untuk semua baris di dalam #detailRows
-document
-.getElementById("detailRows")
-.addEventListener("change", async function(e){
+// =====================================
+// EVENT DELEGATION UNTUK SEMUA BARIS DI #detailRows
+// (supaya baris yang ditambah belakangan tetap berfungsi)
+// =====================================
+
+const detailRowsContainer = document.getElementById("detailRows");
+
+detailRowsContainer.addEventListener("input", function(e){
 
     const row = e.target.closest(".detail-row");
 
     if(!row) return;
 
-    if(e.target.classList.contains("input-barang")){
+    if(e.target.classList.contains("input-barang-search")){
 
-        const id = e.target.value;
+        // reset pilihan sampai user memilih ulang dari daftar
+        row.querySelector(".input-barang-id").value = "";
+        row.querySelector(".input-kategori").value = "";
+        row.querySelector(".input-satuan").value = "";
+        row.dataset.kodeBarang = "";
 
-        const kategoriInput = row.querySelector(".input-kategori");
-        const satuanInput   = row.querySelector(".input-satuan");
+        refreshStokBaris(row);
 
-        if(id==""){
+        renderBarangDropdown(row, e.target.value);
 
-            kategoriInput.value = "";
-            satuanInput.value   = "";
-            row.dataset.kodeBarang = "";
-
-            await refreshStokBaris(row);
-
-            return;
-
-        }
-
-        const barang = masterBarangList.find(b => String(b.id) === String(id));
-
-        if(!barang) return;
-
-        kategoriInput.value = barang.kategori;
-        satuanInput.value   = barang.satuan;
-        row.dataset.kodeBarang = barang.kode_barang;
-
-        await refreshStokBaris(row);
+        return;
 
     }
-
-});
-
-document
-.getElementById("detailRows")
-.addEventListener("input", function(e){
 
     if(e.target.classList.contains("input-qty")){
 
-        const row = e.target.closest(".detail-row");
-
-        if(row) validasiQtyBaris(row);
+        validasiQtyBaris(row);
 
     }
 
 });
 
-document
-.getElementById("detailRows")
-.addEventListener("click", function(e){
+// focus tidak bubbling, gunakan focusin untuk delegasi
+detailRowsContainer.addEventListener("focusin", function(e){
 
+    if(e.target.classList.contains("input-barang-search")){
+
+        const row = e.target.closest(".detail-row");
+
+        if(row) renderBarangDropdown(row, e.target.value);
+
+    }
+
+});
+
+detailRowsContainer.addEventListener("click", function(e){
+
+    // hapus baris
     if(e.target.classList.contains("btn-hapus-baris")){
 
         const row = e.target.closest(".detail-row");
 
         if(row) hapusBarisBarang(row);
+
+        return;
+
+    }
+
+    // pilih barang dari dropdown pencarian
+    const comboItem = e.target.closest(".combo-item");
+
+    if(comboItem && comboItem.dataset.id && comboItem.closest(".input-barang-dropdown")){
+
+        const row = e.target.closest(".detail-row");
+
+        if(!row) return;
+
+        const barang = masterBarangList.find(
+            b => String(b.id) === String(comboItem.dataset.id)
+        );
+
+        if(!barang) return;
+
+        row.querySelector(".input-barang-search").value = barang.nama_barang;
+        row.querySelector(".input-barang-id").value = barang.id;
+        row.querySelector(".input-kategori").value = barang.kategori;
+        row.querySelector(".input-satuan").value = barang.satuan;
+
+        row.dataset.kodeBarang = barang.kode_barang;
+
+        row.querySelector(".input-barang-dropdown").classList.remove("show");
+
+        refreshStokBaris(row);
 
     }
 
@@ -375,7 +444,31 @@ document
 
 document
 .getElementById("btnTambahBaris")
-.addEventListener("click", tambahBarisBarang);
+.addEventListener("click", function(){
+
+    tambahBarisBarang();
+
+});
+
+// =====================================
+// TUTUP DROPDOWN SAAT KLIK DI LUAR
+// =====================================
+
+document.addEventListener("click", function(e){
+
+    document.querySelectorAll(".combo-wrapper").forEach(wrapper=>{
+
+        if(!wrapper.contains(e.target)){
+
+            const dd = wrapper.querySelector(".combo-dropdown");
+
+            if(dd) dd.classList.remove("show");
+
+        }
+
+    });
+
+});
 
 // =====================================
 // REALTIME STOK (subscribe perubahan barang_masuk & barang_keluar)
@@ -541,7 +634,7 @@ function tampilBarangKeluar(data){
 }
 
 // =====================================
-// SEARCH
+// SEARCH HISTORI
 // =====================================
 
 function cariBarangKeluar(){
@@ -603,12 +696,11 @@ form.addEventListener("submit", async function(e){
         // VALIDASI PENGAMBIL
         // --------------------------------------
 
-        const pengambilId =
-            document.getElementById("pengambil").value;
+        const pengambilId = pengambilHidden.value;
 
-        if(pengambilId==""){
+        if(pengambilId===""){
 
-            alert("Pilih nama pengambil.");
+            alert("Pilih nama pengambil dari daftar pencarian.");
 
             return;
 
@@ -634,17 +726,15 @@ form.addEventListener("submit", async function(e){
 
         for(const row of rows){
 
-            const barangSelect = row.querySelector(".input-barang");
+            const barangId = row.querySelector(".input-barang-id").value;
 
             const qtyInput = row.querySelector(".input-qty");
-
-            const barangId = barangSelect.value;
 
             const qty = parseInt(qtyInput.value);
 
             if(barangId===""){
 
-                alert("Ada baris yang belum memilih barang.");
+                alert("Ada baris yang belum memilih barang dari daftar pencarian.");
 
                 return;
 
@@ -712,19 +802,17 @@ form.addEventListener("submit", async function(e){
         // MASTER KARYAWAN
         // --------------------------------------
 
-        const { data:karyawan,error:errorKar }
+        const karyawan = masterKaryawanList.find(
+            k => String(k.id) === String(pengambilId)
+        );
 
-        = await supabaseClient
+        if(!karyawan){
 
-        .from("master_karyawan")
+            alert("Data pengambil tidak ditemukan, coba muat ulang halaman.");
 
-        .select("*")
+            return;
 
-        .eq("id",pengambilId)
-
-        .single();
-
-        if(errorKar) throw errorKar;
+        }
 
         // --------------------------------------
         // SUSUN TRANSAKSI (1 BARIS PER BARANG)
@@ -807,8 +895,10 @@ function resetFormKeluar(){
 
     form.reset();
 
-    document.getElementById("departemen").value="";
+    pengambilHidden.value = "";
+    pengambilSearchInput.value = "";
 
+    document.getElementById("departemen").value="";
     document.getElementById("jabatan").value="";
 
     document.getElementById("tanggal").value =
@@ -848,7 +938,17 @@ async function editBarangKeluar(id){
         document.getElementById("keterangan").value =
             data.keterangan ?? "";
 
-        // set pengambil sesuai data (jika masih ada di master_karyawan)
+        // isi pengambil dari data histori (walau tidak dipilih dari dropdown)
+
+        pengambilHidden.value = "";
+
+        const karyawanCocok = masterKaryawanList.find(
+            k => k.nama === data.nama_pengambil
+        );
+
+        pengambilSearchInput.value = data.nama_pengambil;
+
+        if(karyawanCocok) pengambilHidden.value = karyawanCocok.id;
 
         document.getElementById("departemen").value = data.departemen;
         document.getElementById("jabatan").value = data.jabatan;
@@ -869,10 +969,9 @@ async function editBarangKeluar(id){
 
         if(barang){
 
-            row.querySelector(".input-barang").value = barang.id;
-
+            row.querySelector(".input-barang-search").value = barang.nama_barang;
+            row.querySelector(".input-barang-id").value = barang.id;
             row.querySelector(".input-kategori").value = barang.kategori;
-
             row.querySelector(".input-satuan").value = barang.satuan;
 
             row.dataset.kodeBarang = barang.kode_barang;
@@ -1001,7 +1100,7 @@ document
 // LOAD AWAL
 // =====================================
 
-document.addEventListener("DOMContentLoaded",async()=>{
+document.addEventListener("DOMContentLoaded", async ()=>{
 
     document.getElementById("tanggal").value =
         new Date().toISOString().split("T")[0];
