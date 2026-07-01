@@ -9,11 +9,238 @@
 <link rel="stylesheet" href="css/dashboard.css">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
 <script src="supabase/config.js"></script>
+<style>
+    /* ====================================================
+       TAMBAHAN: pencarian (combobox) & tampilan gelap
+       senada dengan halaman Barang Keluar.
+       ==================================================== */
+
+    .combo-wrapper{
+        position:relative;
+        width:100%;
+    }
+
+    .combo-input{
+        width:100%;
+        padding:10px 12px;
+        border-radius:8px;
+        border:1px solid #334155;
+        background:#0f172a;
+        color:#e2e8f0;
+        font-family:inherit;
+        font-size:14px;
+        box-sizing:border-box;
+        transition:border-color .15s, box-shadow .15s;
+    }
+
+    .combo-input::placeholder{
+        color:#64748b;
+    }
+
+    .combo-input:focus{
+        outline:none;
+        border-color:#3b82f6;
+        box-shadow:0 0 0 3px rgba(59,130,246,.2);
+    }
+
+    .combo-dropdown{
+        position:absolute;
+        top:calc(100% + 6px);
+        left:0;
+        right:0;
+        background:#111827;
+        border:1px solid #334155;
+        border-radius:10px;
+        max-height:230px;
+        overflow-y:auto;
+        z-index:60;
+        display:none;
+        box-shadow:0 12px 28px rgba(0,0,0,.45);
+    }
+
+    .combo-dropdown.show{
+        display:block;
+    }
+
+    .combo-item{
+        padding:10px 14px;
+        color:#e2e8f0;
+        cursor:pointer;
+        font-size:13.5px;
+        border-bottom:1px solid #1f2937;
+    }
+
+    .combo-item:last-child{
+        border-bottom:none;
+    }
+
+    .combo-item:hover,
+    .combo-item.active{
+        background:#1e293b;
+        color:#60a5fa;
+    }
+
+    .combo-empty{
+        padding:10px 14px;
+        color:#64748b;
+        font-size:13px;
+        font-style:italic;
+    }
+
+    /* ---------- Form header ---------- */
+
+    #formMasukHeader{
+        display:grid;
+        grid-template-columns:1fr 1fr;
+        gap:16px;
+    }
+
+    #formMasukHeader > div{
+        display:flex;
+        flex-direction:column;
+        gap:6px;
+    }
+
+    #formMasukHeader label{
+        font-size:13px;
+        color:#94a3b8;
+    }
+
+    #formMasukHeader input[type="text"],
+    #formMasukHeader input[type="date"]{
+        width:100%;
+        padding:10px 12px;
+        border-radius:8px;
+        border:1px solid #334155;
+        background:#0f172a;
+        color:#e2e8f0;
+        font-family:inherit;
+        font-size:14px;
+        box-sizing:border-box;
+    }
+
+    #formMasukHeader input:focus{
+        outline:none;
+        border-color:#3b82f6;
+        box-shadow:0 0 0 3px rgba(59,130,246,.2);
+    }
+
+    /* ---------- Tabel detail barang ---------- */
+
+    .table-responsive{
+        overflow-x:auto;
+    }
+
+    #tableDetailBarang{
+        width:100%;
+        border-collapse:separate;
+        border-spacing:0 10px;
+    }
+
+    #tableDetailBarang thead th{
+        font-size:12px;
+        font-weight:600;
+        letter-spacing:.03em;
+        text-transform:uppercase;
+        color:#64748b;
+        text-align:left;
+        padding:0 6px 6px;
+    }
+
+    #tableDetailBarang tbody tr{
+        background:rgba(255,255,255,.02);
+    }
+
+    #tableDetailBarang tbody td{
+        padding:10px 6px;
+        vertical-align:middle;
+    }
+
+    #tableDetailBarang tbody td:first-child{
+        text-align:center;
+        color:#94a3b8;
+        font-weight:600;
+        width:40px;
+    }
+
+    #tableDetailBarang input.kode_barang,
+    #tableDetailBarang input.kategori,
+    #tableDetailBarang input.satuan{
+        width:100%;
+        padding:10px 12px;
+        border-radius:8px;
+        border:1px dashed #334155;
+        background:#0b1220;
+        color:#94a3b8;
+        font-family:inherit;
+        font-size:13.5px;
+        box-sizing:border-box;
+    }
+
+    #tableDetailBarang input.qty{
+        width:100%;
+        padding:10px 12px;
+        border-radius:8px;
+        border:1px solid #334155;
+        background:#0f172a;
+        color:#e2e8f0;
+        font-family:inherit;
+        font-size:14px;
+        box-sizing:border-box;
+    }
+
+    #tableDetailBarang input.qty:focus{
+        outline:none;
+        border-color:#3b82f6;
+        box-shadow:0 0 0 3px rgba(59,130,246,.2);
+    }
+
+    .btn-hapus-baris{
+        background:rgba(239,68,68,.12);
+        color:#f87171;
+        border:1px solid rgba(239,68,68,.35);
+        border-radius:8px;
+        cursor:pointer;
+        font-weight:700;
+        height:38px;
+        width:100%;
+        transition:background .15s;
+    }
+
+    .btn-hapus-baris:hover{
+        background:rgba(239,68,68,.25);
+    }
+
+    .btn-tambah-baris{
+        background:rgba(59,130,246,.12);
+        color:#60a5fa;
+        border:1px solid rgba(59,130,246,.35);
+        border-radius:8px;
+        padding:10px 16px;
+        cursor:pointer;
+        font-weight:600;
+        font-size:13.5px;
+        transition:background .15s;
+    }
+
+    .btn-tambah-baris:hover{
+        background:rgba(59,130,246,.22);
+    }
+</style>
 </head>
 <body>
-
 <div class="content">
-
+<h2>📥 Barang Masuk</h2>
+<br>
+<!-- ================= TOOLBAR ================= -->
+<div class="toolbar">
+<button
+class="btn-dashboard"
+onclick="location.href='dashboard.html'">
+🏠 Dashboard
+</button>
+</div>
+<br>
 <!-- ================= FORM HEADER ================= -->
 <div class="panel">
 <h3 id="judulForm"><span>📥 Input Barang Masuk (BTB)</span></h3>
@@ -39,14 +266,17 @@ required>
 </div>
 <div>
 <label><b>Supplier</b></label>
-<input
-type="text"
-id="supplier"
-list="listSupplier"
-placeholder="Cari Supplier..."
-autocomplete="off"
-required>
-<datalist id="listSupplier"></datalist>
+<div class="combo-wrapper">
+    <input
+        type="text"
+        id="supplierSearch"
+        class="combo-input"
+        placeholder="-- Cari Supplier --"
+        autocomplete="off"
+        required>
+    <input type="hidden" id="supplier">
+    <div class="combo-dropdown" id="supplierDropdown"></div>
+</div>
 </div>
 <div>
 <label><b>Keterangan</b></label>
@@ -57,7 +287,6 @@ placeholder="Keterangan BTB">
 </div>
 </form>
 </div>
-
 <!-- ================= DETAIL BARANG ================= -->
 <div class="panel">
 <h3><span>📦 Detail Barang</span></h3>
@@ -76,54 +305,21 @@ placeholder="Keterangan BTB">
 </tr>
 </thead>
 <tbody id="detailBarangBody">
-<tr>
-<td>1</td>
-<td>
-<input
-type="text"
-class="barang-search"
-list="listBarang"
-placeholder="Cari Barang..."
-autocomplete="off">
-</td>
-<td>
-<input type="text" class="kode_barang" readonly>
-</td>
-<td>
-<input type="text" class="kategori" readonly>
-</td>
-<td>
-<input type="text" class="satuan" readonly>
-</td>
-<td>
-<input type="number" class="qty" min="1" value="1">
-</td>
-<td>
-<button type="button" class="btn-delete" onclick="hapusBaris(this)">🗑</button>
-</td>
-</tr>
+<!-- baris detail barang ditambahkan lewat JS -->
 </tbody>
 </table>
 </div>
 <br>
 <button
 type="button"
-class="btn-import"
+class="btn-tambah-baris"
 onclick="tambahBarisBarang()">
 ➕ Tambah Barang
 </button>
-<datalist id="listBarang"></datalist>
 </div>
-
 <!-- ================= AKSI ================= -->
 <div class="panel">
 <div style="display:flex;gap:10px;justify-content:flex-end;">
-<button
-type="button"
-class="btn-import"
-onclick="tambahBarisBarang()">
-➕ Tambah Barang
-</button>
 <button
 type="button"
 class="btn-dashboard"
@@ -132,7 +328,6 @@ id="btnSimpanBTB">
 </button>
 </div>
 </div>
-
 <!-- ================= HISTORI ================= -->
 <div class="panel">
 <h3><span>📋 Histori Barang Masuk</span></h3>
@@ -141,7 +336,8 @@ id="btnSimpanBTB">
 <input
 type="text"
 id="search"
-placeholder="Cari No BTB / Supplier">
+placeholder="🔍 Cari No BTB / Supplier"
+style="width:100%;padding:10px;border:1px solid #334155;border-radius:8px;background:#0f172a;color:#e2e8f0;box-sizing:border-box;">
 </div>
 <br>
 <div class="table-responsive">
@@ -162,11 +358,8 @@ placeholder="Cari No BTB / Supplier">
 </table>
 </div>
 </div>
-
 </div>
-
 <!-- Logic Barang Masuk -->
 <script src="js/barang-masuk.js"></script>
-
 </body>
 </html>
