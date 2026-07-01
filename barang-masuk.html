@@ -239,6 +239,28 @@
     .btn-tambah-baris:hover{
         background:rgba(59,130,246,.22);
     }
+
+    /* ---------- Tombol Simpan (disamakan dengan Simpan Barang Keluar) ---------- */
+
+    #btnSimpanBTB{
+        background:#3b82f6;
+        color:#ffffff;
+        border:none;
+        border-radius:10px;
+        padding:14px 22px;
+        cursor:pointer;
+        font-weight:600;
+        font-size:14.5px;
+        font-family:inherit;
+        display:inline-flex;
+        align-items:center;
+        gap:6px;
+        transition:background .15s;
+    }
+
+    #btnSimpanBTB:hover{
+        background:#2563eb;
+    }
 </style>
 </head>
 <body>
@@ -327,7 +349,7 @@ id="btnTambahBaris">
 
 <div style="display:flex;gap:10px;">
 <button
-type="button"
+type="submit"
 id="btnSimpanBTB">
 💾 Simpan Barang Masuk
 </button>
