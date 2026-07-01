@@ -1,161 +1,510 @@
 <!DOCTYPE html>
 <html lang="id">
-
 <head>
-
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
 <title>Master Jabatan</title>
-
 <link rel="preconnect" href="https://fonts.googleapis.com">
-
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-
 <link rel="stylesheet" href="css/dashboard.css">
-
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
 <script src="supabase/config.js"></script>
+<style>
+  :root{
+    --mj-bg:#0f1018;
+    --mj-surface:#171926;
+    --mj-surface-2:#1e2130;
+    --mj-border:#2a2d3d;
+    --mj-text:#e9eaf2;
+    --mj-muted:#9498ab;
+    --mj-purple:#6c5dd3;
+    --mj-purple-dark:#5a4cc0;
+    --mj-purple-soft:rgba(108,93,211,.15);
+    --mj-danger:#ef5675;
+    --mj-danger-soft:rgba(239,84,117,.12);
+  }
 
+  body{
+    font-family:'Inter', sans-serif;
+    background:var(--mj-bg);
+    color:var(--mj-text);
+  }
+
+  .content{
+    max-width:1100px;
+    margin:0 auto;
+    padding:28px 24px 60px;
+  }
+
+  .content h2{
+    font-size:23px;
+    font-weight:700;
+    color:var(--mj-text);
+    display:flex;
+    align-items:center;
+    gap:10px;
+    margin:0;
+  }
+
+  .page-subtitle{
+    color:var(--mj-muted);
+    font-size:13.5px;
+    margin-top:4px;
+  }
+
+  /* ===== Toolbar ===== */
+  .toolbar{
+    display:flex;
+    gap:12px;
+    flex-wrap:wrap;
+  }
+
+  .toolbar button{
+    display:inline-flex;
+    align-items:center;
+    gap:8px;
+    border:none;
+    border-radius:10px;
+    padding:10px 18px;
+    font-size:14px;
+    font-weight:600;
+    cursor:pointer;
+    transition:opacity .15s ease, transform .12s ease;
+  }
+
+  .toolbar button:active{ transform:translateY(1px); }
+
+  .btn-dashboard{
+    background:var(--mj-surface-2);
+    color:var(--mj-text);
+    border:1px solid var(--mj-border);
+  }
+  .btn-dashboard:hover{ background:#262a3c; }
+
+  .btn-tambah{
+    background:linear-gradient(135deg, var(--mj-purple), var(--mj-purple-dark));
+    color:#fff;
+    box-shadow:0 4px 12px rgba(108,93,211,.35);
+  }
+  .btn-tambah:hover{ opacity:.92; }
+
+  .btn-import{
+    background:var(--mj-surface-2);
+    color:var(--mj-text);
+    border:1px solid var(--mj-border);
+  }
+  .btn-import:hover{ background:#262a3c; }
+
+  .btn-export-xl{
+    background:var(--mj-surface-2);
+    color:var(--mj-text);
+    border:1px solid var(--mj-border);
+  }
+  .btn-export-xl:hover{ background:#262a3c; }
+
+  /* ===== Panel ===== */
+  .panel{
+    background:var(--mj-surface);
+    border:1px solid var(--mj-border);
+    border-radius:14px;
+    padding:22px 24px;
+    box-shadow:0 4px 16px rgba(0,0,0,.18);
+  }
+
+  .panel h3{
+    margin:0 0 16px;
+    font-size:16px;
+    font-weight:600;
+    color:var(--mj-text);
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+  }
+
+  .total-badge{
+    font-size:12.5px;
+    font-weight:600;
+    color:var(--mj-purple);
+    background:var(--mj-purple-soft);
+    padding:4px 10px;
+    border-radius:999px;
+  }
+
+  /* ===== Search ===== */
+  .table-toolbar{
+    display:flex;
+    align-items:center;
+    gap:14px;
+    flex-wrap:wrap;
+    margin-bottom:16px;
+  }
+
+  .search-box{
+    flex:1;
+    min-width:220px;
+    max-width:340px;
+    padding:10px 14px;
+    border:1px solid var(--mj-border);
+    border-radius:10px;
+    font-size:13.5px;
+    font-family:inherit;
+    color:var(--mj-text);
+    background:var(--mj-surface-2);
+    transition:border-color .15s ease, box-shadow .15s ease;
+  }
+  .search-box:focus{
+    outline:none;
+    border-color:var(--mj-purple);
+    box-shadow:0 0 0 3px var(--mj-purple-soft);
+  }
+
+  /* ===== Table ===== */
+  .table-wrap{
+    overflow-x:auto;
+    border-radius:10px;
+    border:1px solid var(--mj-border);
+  }
+
+  table{
+    width:100%;
+    border-collapse:collapse;
+    font-size:13.5px;
+    min-width:560px;
+  }
+
+  thead th{
+    background:var(--mj-surface-2);
+    color:var(--mj-muted);
+    text-transform:uppercase;
+    font-size:11.5px;
+    letter-spacing:.04em;
+    font-weight:700;
+    text-align:left;
+    padding:12px 14px;
+    border-bottom:1px solid var(--mj-border);
+    white-space:nowrap;
+  }
+
+  tbody td{
+    padding:11px 14px;
+    border-bottom:1px solid var(--mj-border);
+    color:var(--mj-text);
+    vertical-align:middle;
+  }
+
+  tbody tr:last-child td{ border-bottom:none; }
+
+  #tableJabatan tbody tr:hover td{
+    background:transparent !important;
+    color:var(--mj-text) !important;
+  }
+
+  .kode-pill{
+    display:inline-block;
+    font-weight:600;
+    color:#bcb2f5;
+    background:var(--mj-purple-soft);
+    padding:3px 9px;
+    border-radius:6px;
+    font-size:12.5px;
+    letter-spacing:.02em;
+  }
+
+  .actions-cell{ display:flex; gap:8px; }
+
+  .btn-edit, .btn-delete{
+    display:inline-flex;
+    align-items:center;
+    gap:5px;
+    border-radius:8px;
+    padding:7px 13px;
+    font-size:12.5px;
+    font-weight:600;
+    font-family:inherit;
+    cursor:pointer;
+    transition:background .15s ease, color .15s ease, border-color .15s ease, transform .12s ease;
+  }
+  .btn-edit:active, .btn-delete:active{ transform:translateY(1px); }
+
+  .btn-edit{
+    background:transparent;
+    color:#bcb2f5 !important;
+    border:1px solid #4d4499;
+  }
+  .btn-edit:hover{
+    background:var(--mj-purple) !important;
+    color:#fff !important;
+    border-color:var(--mj-purple);
+  }
+
+  .btn-delete{
+    background:transparent;
+    color:var(--mj-danger) !important;
+    border:1px solid #8a3548;
+  }
+  .btn-delete:hover{
+    background:var(--mj-danger) !important;
+    color:#fff !important;
+    border-color:var(--mj-danger);
+  }
+
+  .empty-state, .loading-state{
+    text-align:center;
+    padding:36px 10px;
+    color:var(--mj-muted);
+    font-size:14px;
+  }
+
+  .loading-state .spinner{
+    display:inline-block;
+    width:16px; height:16px;
+    border:2px solid var(--mj-border);
+    border-top-color:var(--mj-purple);
+    border-radius:50%;
+    animation:spin .7s linear infinite;
+    margin-right:8px;
+    vertical-align:middle;
+  }
+
+  @keyframes spin{ to{ transform:rotate(360deg); } }
+
+  /* ===== Modal ===== */
+  .modal-overlay{
+    display:none;
+    position:fixed;
+    inset:0;
+    background:rgba(8,9,15,.65);
+    backdrop-filter:blur(2px);
+    align-items:center;
+    justify-content:center;
+    z-index:1000;
+    padding:20px;
+  }
+  .modal-overlay.active{ display:flex; }
+
+  .modal-box{
+    background:var(--mj-surface);
+    border:1px solid var(--mj-border);
+    border-radius:14px;
+    width:460px;
+    max-width:100%;
+    max-height:90vh;
+    overflow-y:auto;
+    box-shadow:0 20px 50px rgba(0,0,0,.45);
+    animation:modalPop .15s ease;
+  }
+
+  @keyframes modalPop{
+    from{ opacity:0; transform:translateY(8px) scale(.98); }
+    to{ opacity:1; transform:translateY(0) scale(1); }
+  }
+
+  .modal-header{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    padding:18px 22px;
+    border-bottom:1px solid var(--mj-border);
+  }
+
+  .modal-header h3{
+    margin:0;
+    font-size:16px;
+    font-weight:700;
+    color:var(--mj-text);
+  }
+
+  .modal-close{
+    background:none;
+    border:none;
+    color:var(--mj-muted);
+    font-size:18px;
+    cursor:pointer;
+    padding:4px;
+    border-radius:6px;
+    transition:background .15s ease, color .15s ease;
+  }
+  .modal-close:hover{ background:var(--mj-surface-2); color:var(--mj-text); }
+
+  .modal-body{
+    padding:22px;
+    display:flex;
+    flex-direction:column;
+    gap:16px;
+  }
+
+  .modal-footer{
+    display:flex;
+    justify-content:flex-end;
+    gap:10px;
+    padding:16px 22px;
+    border-top:1px solid var(--mj-border);
+  }
+
+  .field{ display:flex; flex-direction:column; gap:6px; }
+
+  .field label{
+    font-size:12.5px;
+    font-weight:600;
+    color:var(--mj-muted);
+    text-transform:uppercase;
+    letter-spacing:.03em;
+  }
+
+  .field input{
+    width:100%;
+    box-sizing:border-box;
+    padding:11px 14px;
+    border:1px solid var(--mj-border);
+    border-radius:10px;
+    font-size:14px;
+    font-family:inherit;
+    color:var(--mj-text);
+    background:var(--mj-surface-2);
+    transition:border-color .15s ease, box-shadow .15s ease;
+  }
+  .field input::placeholder{ color:#5d6175; }
+  .field input:focus{
+    outline:none;
+    border-color:var(--mj-purple);
+    box-shadow:0 0 0 3px var(--mj-purple-soft);
+  }
+  .field input[readonly]{ opacity:.65; cursor:not-allowed; }
+
+  #btnSimpan{
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    gap:8px;
+    height:42px;
+    background:linear-gradient(135deg, var(--mj-purple), var(--mj-purple-dark));
+    color:#fff;
+    border:none;
+    border-radius:10px;
+    padding:0 22px;
+    font-size:14px;
+    font-weight:600;
+    font-family:inherit;
+    cursor:pointer;
+    box-shadow:0 4px 12px rgba(108,93,211,.3);
+    transition:filter .15s ease, transform .12s ease;
+  }
+  #btnSimpan:hover{ filter:brightness(1.08); }
+  #btnSimpan:active{ transform:translateY(1px); }
+  #btnSimpan:disabled{ opacity:.55; cursor:not-allowed; filter:none; box-shadow:none; }
+
+  #btnBatal{
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    height:42px;
+    background:transparent;
+    color:var(--mj-danger);
+    border:1px solid #5a2a36;
+    border-radius:10px;
+    padding:0 18px;
+    font-size:14px;
+    font-weight:600;
+    font-family:inherit;
+    cursor:pointer;
+    transition:background .15s ease, border-color .15s ease;
+  }
+  #btnBatal:hover{ background:var(--mj-danger-soft); border-color:var(--mj-danger); }
+</style>
 </head>
-
 <body>
-
 <div class="content">
 
-<h2>💼 Master Jabatan</h2>
+  <h2>💼 Master Jabatan</h2>
+  <p class="page-subtitle">Kelola data master jabatan karyawan.</p>
+  <br>
 
-<br>
+  <!-- ================= TOOLBAR ================= -->
+  <div class="toolbar">
+    <button class="btn-dashboard" onclick="location.href='dashboard.html'">
+      🏠 Dashboard
+    </button>
+    <button class="btn-tambah" onclick="bukaModalTambah()">
+      ➕ Tambah Jabatan
+    </button>
+    <button class="btn-import" onclick="document.getElementById('fileImport').click()">
+      📥 Import Excel
+    </button>
+    <input type="file" id="fileImport" accept=".xlsx,.xls,.csv" hidden>
+    <button class="btn-export-xl" onclick="exportExcel()">
+      📤 Export Excel
+    </button>
+  </div>
+  <br>
 
-<!-- ================= TOOLBAR ================= -->
+  <!-- ================= TABLE ================= -->
+  <div class="panel">
+    <h3>
+      Daftar Jabatan
+      <span class="total-badge" id="totalBadge">0 item</span>
+    </h3>
 
-<div class="toolbar">
+    <div class="table-toolbar">
+      <input type="text" id="searchJabatan" class="search-box" placeholder="🔍 Cari kode atau nama jabatan...">
+    </div>
 
-<button
-class="btn-dashboard"
-onclick="location.href='dashboard.html'">
-
-🏠 Dashboard
-
-</button>
-
-<button
-class="btn-import"
-onclick="document.getElementById('fileImport').click()">
-
-📥 Import Excel
-
-</button>
-
-<input
-type="file"
-id="fileImport"
-accept=".xlsx,.xls"
-hidden>
-
-<button
-class="btn-export"
-onclick="exportExcel()">
-
-📤 Export Excel
-
-</button>
-
-</div>
-
-<br>
-
-<!-- ================= FORM ================= -->
-
-<div class="panel">
-
-<h3 id="judulForm">
-
-➕ Tambah Jabatan
-
-</h3>
-
-<br>
-
-<form id="formJabatan">
-
-<input
-type="text"
-id="kode_jabatan"
-placeholder="Kode Jabatan"
-required>
-
-<input
-type="text"
-id="nama_jabatan"
-placeholder="Nama Jabatan"
-required>
-
-<div style="grid-column:1/3;display:flex;gap:10px;">
-
-<button
-type="submit"
-id="btnSimpan">
-
-💾 Simpan Jabatan
-
-</button>
-
-<button
-type="button"
-id="btnBatal"
-style="display:none;">
-
-❌ Batal
-
-</button>
+    <div class="table-wrap">
+      <table id="tableJabatan">
+        <thead>
+          <tr>
+            <th width="160">Kode Jabatan</th>
+            <th>Nama Jabatan</th>
+            <th width="160">Dibuat Oleh</th>
+            <th width="170">Aksi</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td colspan="4" class="loading-state">
+              <span class="spinner"></span> Memuat data...
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
 
 </div>
 
-</form>
+<!-- ================= MODAL TAMBAH/EDIT JABATAN ================= -->
+<div class="modal-overlay" id="modalJabatan">
+  <div class="modal-box">
 
-</div>
+    <div class="modal-header">
+      <h3 id="judulForm">➕ Tambah Jabatan</h3>
+      <button type="button" class="modal-close" onclick="tutupModal()">✕</button>
+    </div>
 
-<br>
+    <form id="formJabatan">
+      <div class="modal-body">
 
-<!-- ================= TABEL ================= -->
+        <div class="field">
+          <label for="kode_jabatan">Kode Jabatan</label>
+          <input type="text" id="kode_jabatan" placeholder="Contoh: JBT001" required>
+        </div>
 
-<div class="panel">
+        <div class="field">
+          <label for="nama_jabatan">Nama Jabatan</label>
+          <input type="text" id="nama_jabatan" placeholder="Nama jabatan" required>
+        </div>
 
-<h3>Daftar Jabatan</h3>
+      </div>
 
-<br>
+      <div class="modal-footer">
+        <button type="button" id="btnBatal" onclick="tutupModal()">Batal</button>
+        <button type="submit" id="btnSimpan">💾 Simpan Jabatan</button>
+      </div>
+    </form>
 
-<table id="tableJabatan">
-
-<thead>
-
-<tr>
-
-<th width="160">Kode Jabatan</th>
-
-<th>Nama Jabatan</th>
-
-<th width="180">Created By</th>
-
-<th width="180">Aksi</th>
-
-</tr>
-
-</thead>
-
-<tbody>
-
-</tbody>
-
-</table>
-
-</div>
-
+  </div>
 </div>
 
 <script src="js/master-jabatan.js"></script>
-
 </body>
-
 </html>
