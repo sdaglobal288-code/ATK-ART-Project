@@ -327,6 +327,12 @@
   }
   .modal-close:hover{ background:var(--mj-surface-2); color:var(--mj-text); }
 
+  /* Paksa block agar dashboard.css grid tidak membuat
+     modal-body dan modal-footer duduk berdampingan */
+  #formJabatan{
+    display:block !important;
+  }
+
   .modal-body{
     padding:22px;
     display:grid;
