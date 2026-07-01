@@ -2,19 +2,13 @@
 // DATABASE BARANG (Rekap Stok + Foto)
 // =====================================
 //
-// Asumsi nama tabel/kolom Supabase:
-//   master_barang   -> kode_barang, nama_barang, kategori, satuan, foto_url
-//   stok_awal       -> kode_barang, jumlah
-//   barang_masuk    -> kode_barang, jumlah  (atau sesuai tabel transaksi masuk)
-//   barang_keluar   -> kode_barang, jumlah  (atau sesuai tabel transaksi keluar)
+// master_barang -> katalog barang BERSAMA (dipakai Margomulyo & Raden Saleh)
+// stok_gudang   -> stok AKTUAL per gudang (barang_id, gudang, stok) - sumber
+//                  kebenaran untuk kolom SISA STOK, difilter user.gudang
+// barang_masuk / barang_masuk_detail -> histori masuk, difilter via header.gudang
+// barang_keluar -> histori keluar, punya kolom gudang sendiri per baris
 //
-// Sesuaikan 3 konstanta di bawah jika nama tabel/kolom berbeda:
-
-const TABLE_STOK_AWAL = "stok_awal";
-const TABLE_MASUK     = "barang_masuk";
-const TABLE_KELUAR    = "barang_keluar";
-const KOLOM_JUMLAH    = "jumlah";
-
+// STOK AWAL saat ini selalu 0 (tabel stok_awal belum dipakai / masih kosong).
 // =====================================
 
 const user = JSON.parse(sessionStorage.getItem("user"));
@@ -65,27 +59,109 @@ async function loadKategoriFilter() {
 }
 
 // =====================================
-// HELPER: jumlahkan kolom per kode_barang
+// STOK SAAT INI (stok_gudang), KHUSUS GUDANG YANG SEDANG LOGIN
+// key: barang_id -> stok
 // =====================================
 
-async function sumPerKode(tableName) {
-    const totals = new Map();
+async function loadStokGudangMap() {
+
+    const map = new Map();
+
     try {
         const { data, error } = await supabaseClient
-            .from(tableName)
-            .select(`kode_barang, ${KOLOM_JUMLAH}`);
+            .from("stok_gudang")
+            .select("barang_id, stok")
+            .eq("gudang", user.gudang);
+
+        if (error) throw error;
+
+        (data || []).forEach(row => {
+            map.set(String(row.barang_id), Number(row.stok) || 0);
+        });
+
+    } catch (err) {
+        console.warn("Gagal memuat stok_gudang:", err.message);
+    }
+
+    return map;
+
+}
+
+// =====================================
+// TOTAL MASUK PER KODE BARANG, KHUSUS GUDANG YANG SEDANG LOGIN
+// (barang_masuk_detail tidak punya kolom gudang sendiri, jadi ambil
+// dulu daftar id header barang_masuk milik gudang ini, baru jumlahkan
+// qty di barang_masuk_detail yang barang_masuk_id-nya ada di daftar itu)
+// =====================================
+
+async function sumMasukPerKode() {
+
+    const totals = new Map();
+
+    try {
+
+        const { data: headers, error: hErr } = await supabaseClient
+            .from("barang_masuk")
+            .select("id")
+            .eq("gudang", user.gudang);
+
+        if (hErr) throw hErr;
+
+        const ids = (headers || []).map(h => h.id);
+
+        if (ids.length === 0) return totals;
+
+        const { data: details, error: dErr } = await supabaseClient
+            .from("barang_masuk_detail")
+            .select("kode_barang, qty, barang_masuk_id")
+            .in("barang_masuk_id", ids);
+
+        if (dErr) throw dErr;
+
+        (details || []).forEach(row => {
+            const kode = row.kode_barang;
+            const jml  = Number(row.qty) || 0;
+            totals.set(kode, (totals.get(kode) || 0) + jml);
+        });
+
+    } catch (err) {
+        console.warn("Gagal menghitung total Masuk:", err.message);
+    }
+
+    return totals;
+
+}
+
+// =====================================
+// TOTAL KELUAR PER KODE BARANG, KHUSUS GUDANG YANG SEDANG LOGIN
+// (barang_keluar punya kolom gudang langsung di tiap baris)
+// =====================================
+
+async function sumKeluarPerKode() {
+
+    const totals = new Map();
+
+    try {
+
+        const { data, error } = await supabaseClient
+            .from("barang_keluar")
+            .select("kode_barang, qty")
+            .eq("gudang", user.gudang);
 
         if (error) throw error;
 
         (data || []).forEach(row => {
             const kode = row.kode_barang;
-            const jml  = Number(row[KOLOM_JUMLAH]) || 0;
+            const jml  = Number(row.qty) || 0;
             totals.set(kode, (totals.get(kode) || 0) + jml);
         });
+
     } catch (err) {
-        console.warn(`Tabel "${tableName}" tidak bisa dibaca:`, err.message);
+        console.warn("Gagal menghitung total Keluar:", err.message);
     }
+
     return totals;
+
 }
 
 // =====================================
@@ -111,17 +187,21 @@ async function loadBarang() {
 
         if (error) throw error;
 
-        const [awalMap, masukMap, keluarMap] = await Promise.all([
-            sumPerKode(TABLE_STOK_AWAL),
-            sumPerKode(TABLE_MASUK),
-            sumPerKode(TABLE_KELUAR)
+        const [masukMap, keluarMap, stokMap] = await Promise.all([
+            sumMasukPerKode(),
+            sumKeluarPerKode(),
+            loadStokGudangMap()
         ]);
 
         dataBarang = (master || []).map(item => {
-            const stokAwal = awalMap.get(item.kode_barang)  || 0;
+            // Stok Awal belum dipakai (tabel stok_awal masih kosong) -> 0
+            const stokAwal = 0;
             const masuk    = masukMap.get(item.kode_barang)  || 0;
             const keluar   = keluarMap.get(item.kode_barang) || 0;
-            const sisa     = stokAwal + masuk - keluar;
+            // Sisa Stok = angka aktual dari stok_gudang (sumber kebenaran),
+            // BUKAN hasil hitung ulang stokAwal + masuk - keluar, supaya
+            // selalu konsisten dengan halaman Barang Masuk / Barang Keluar.
+            const sisa = stokMap.get(String(item.id)) || 0;
             return { ...item, stok_awal: stokAwal, masuk, keluar, sisa };
         });
 
@@ -245,10 +325,37 @@ function exportExcel() {
 
     const ws = XLSX.utils.json_to_sheet(rows);
     const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Database Barang");
+    XLSX.utils.book_append_sheet(wb, ws, `Database Barang - ${user.gudang}`);
 
     const tanggal = new Date().toISOString().slice(0, 10);
-    XLSX.writeFile(wb, `Database_Barang_${tanggal}.xlsx`);
+    XLSX.writeFile(wb, `Database_Barang_${user.gudang}_${tanggal}.xlsx`);
+}
+
+// =====================================
+// REALTIME: kalau stok_gudang gudang ini berubah, muat ulang
+// =====================================
+
+function aktifkanRealtimeStok(){
+
+    supabaseClient
+
+    .channel("stok-realtime-database-barang")
+
+    .on("postgres_changes",
+
+        {
+            event: "*",
+            schema: "public",
+            table: "stok_gudang",
+            filter: `gudang=eq.${user.gudang}`
+        },
+
+        () => loadBarang()
+
+    )
+
+    .subscribe();
+
 }
 
 // =====================================
@@ -258,4 +365,5 @@ function exportExcel() {
 document.addEventListener("DOMContentLoaded", async () => {
     await loadKategoriFilter();
     await loadBarang();
+    aktifkanRealtimeStok();
 });
