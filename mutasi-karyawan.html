@@ -1,161 +1,589 @@
 <!DOCTYPE html>
 <html lang="id">
-
 <head>
-
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
 <title>Mutasi Karyawan</title>
-
 <link rel="preconnect" href="https://fonts.googleapis.com">
-
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-
 <link rel="stylesheet" href="css/dashboard.css">
-
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
 <script src="supabase/config.js"></script>
+<style>
+  :root{
+    --mu-bg:#0f1018;
+    --mu-surface:#171926;
+    --mu-surface-2:#1e2130;
+    --mu-border:#2a2d3d;
+    --mu-text:#e9eaf2;
+    --mu-muted:#9498ab;
+    --mu-purple:#6c5dd3;
+    --mu-purple-dark:#5a4cc0;
+    --mu-purple-soft:rgba(108,93,211,.15);
+    --mu-danger:#ef5675;
+    --mu-danger-soft:rgba(239,84,117,.12);
+    --mu-success:#3ecf8e;
+    --mu-success-soft:rgba(62,207,142,.12);
+    --mu-warning:#f59e0b;
+    --mu-warning-soft:rgba(245,158,11,.12);
+    --mu-info:#38bdf8;
+    --mu-info-soft:rgba(56,189,248,.10);
+  }
 
+  body{
+    font-family:'Inter', sans-serif;
+    background:var(--mu-bg);
+    color:var(--mu-text);
+  }
+
+  .content{
+    max-width:1100px;
+    margin:0 auto;
+    padding:28px 24px 60px;
+  }
+
+  .content h2{
+    font-size:23px;
+    font-weight:700;
+    color:var(--mu-text);
+    display:flex;
+    align-items:center;
+    gap:10px;
+    margin:0;
+  }
+
+  .page-subtitle{
+    color:var(--mu-muted);
+    font-size:13.5px;
+    margin-top:4px;
+  }
+
+  /* ===== Toolbar ===== */
+  .toolbar{
+    display:flex;
+    gap:12px;
+    flex-wrap:wrap;
+  }
+
+  .toolbar button{
+    display:inline-flex;
+    align-items:center;
+    gap:8px;
+    border:none;
+    border-radius:10px;
+    padding:10px 18px;
+    font-size:14px;
+    font-weight:600;
+    cursor:pointer;
+    transition:opacity .15s ease, transform .12s ease;
+  }
+  .toolbar button:active{ transform:translateY(1px); }
+
+  .btn-dashboard{
+    background:var(--mu-surface-2);
+    color:var(--mu-text);
+    border:1px solid var(--mu-border);
+  }
+  .btn-dashboard:hover{ background:#262a3c; }
+
+  /* ===== Panel ===== */
+  .panel{
+    background:var(--mu-surface);
+    border:1px solid var(--mu-border);
+    border-radius:14px;
+    padding:22px 24px;
+    box-shadow:0 4px 16px rgba(0,0,0,.18);
+  }
+
+  .panel-title{
+    font-size:15px;
+    font-weight:700;
+    color:var(--mu-text);
+    margin:0 0 18px;
+    display:flex;
+    align-items:center;
+    gap:8px;
+  }
+
+  .panel-title span.dot{
+    width:8px; height:8px;
+    border-radius:50%;
+    background:var(--mu-purple);
+    display:inline-block;
+  }
+
+  /* ===== NIK Search row ===== */
+  #formMutasi{
+    display:block !important;
+  }
+
+  .nik-row{
+    display:flex;
+    gap:12px;
+    align-items:flex-end;
+    margin-bottom:22px;
+  }
+
+  .nik-row .field{
+    flex:1;
+  }
+
+  .btn-cari{
+    height:44px;
+    padding:0 20px;
+    background:linear-gradient(135deg, var(--mu-purple), var(--mu-purple-dark));
+    color:#fff;
+    border:none;
+    border-radius:10px;
+    font-size:14px;
+    font-weight:600;
+    font-family:inherit;
+    cursor:pointer;
+    white-space:nowrap;
+    box-shadow:0 4px 12px rgba(108,93,211,.3);
+    transition:filter .15s ease, transform .12s ease;
+    flex-shrink:0;
+  }
+  .btn-cari:hover{ filter:brightness(1.08); }
+  .btn-cari:active{ transform:translateY(1px); }
+  .btn-cari:disabled{ opacity:.55; cursor:not-allowed; filter:none; }
+
+  /* ===== Divider lama/baru ===== */
+  .mutasi-grid{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:20px;
+    margin-bottom:20px;
+  }
+
+  @media(max-width:700px){
+    .mutasi-grid{ grid-template-columns:1fr; }
+    .nik-row{ flex-direction:column; align-items:stretch; }
+    .btn-cari{ height:44px; }
+  }
+
+  .data-card{
+    background:var(--mu-surface-2);
+    border:1px solid var(--mu-border);
+    border-radius:12px;
+    padding:18px;
+  }
+
+  .data-card-title{
+    font-size:12px;
+    font-weight:700;
+    text-transform:uppercase;
+    letter-spacing:.06em;
+    margin-bottom:14px;
+    display:flex;
+    align-items:center;
+    gap:8px;
+  }
+
+  .data-card-title.lama{ color:var(--mu-muted); }
+  .data-card-title.lama .icon{ color:var(--mu-muted); }
+
+  .data-card-title.baru{ color:var(--mu-purple); }
+  .data-card-title .badge{
+    font-size:10.5px;
+    font-weight:700;
+    padding:2px 8px;
+    border-radius:999px;
+  }
+  .badge-lama{ background:rgba(148,152,171,.12); color:var(--mu-muted); }
+  .badge-baru{ background:var(--mu-purple-soft); color:var(--mu-purple); }
+
+  .data-fields{
+    display:flex;
+    flex-direction:column;
+    gap:12px;
+  }
+
+  /* ===== Field ===== */
+  .field{ display:flex; flex-direction:column; gap:6px; }
+
+  .field label{
+    font-size:12px;
+    font-weight:600;
+    color:var(--mu-muted);
+    text-transform:uppercase;
+    letter-spacing:.03em;
+  }
+
+  .field input,
+  .field select,
+  .field textarea{
+    width:100%;
+    box-sizing:border-box;
+    padding:10px 14px;
+    border:1px solid var(--mu-border);
+    border-radius:10px;
+    font-size:14px;
+    font-family:inherit;
+    color:var(--mu-text);
+    background:var(--mu-surface);
+    transition:border-color .15s ease, box-shadow .15s ease;
+    resize:vertical;
+  }
+
+  .field input::placeholder,
+  .field textarea::placeholder{ color:#5d6175; }
+
+  .field input:focus,
+  .field select:focus,
+  .field textarea:focus{
+    outline:none;
+    border-color:var(--mu-purple);
+    box-shadow:0 0 0 3px var(--mu-purple-soft);
+  }
+
+  .field input[readonly]{
+    background:var(--mu-bg);
+    color:var(--mu-muted);
+    cursor:default;
+    border-color:transparent;
+  }
+
+  .field-readonly-val{
+    padding:10px 14px;
+    border-radius:10px;
+    background:var(--mu-bg);
+    font-size:14px;
+    color:var(--mu-muted);
+    border:1px dashed var(--mu-border);
+    min-height:42px;
+  }
+
+  /* ===== Keterangan + Submit ===== */
+  .bottom-row{
+    display:flex;
+    flex-direction:column;
+    gap:16px;
+  }
+
+  .btn-simpan-mutasi{
+    display:inline-flex;
+    align-self:flex-end;
+    align-items:center;
+    gap:8px;
+    height:46px;
+    padding:0 28px;
+    background:linear-gradient(135deg, var(--mu-purple), var(--mu-purple-dark));
+    color:#fff;
+    border:none;
+    border-radius:10px;
+    font-size:15px;
+    font-weight:700;
+    font-family:inherit;
+    cursor:pointer;
+    box-shadow:0 4px 14px rgba(108,93,211,.35);
+    transition:filter .15s ease, transform .12s ease, box-shadow .15s ease;
+  }
+  .btn-simpan-mutasi:hover{ filter:brightness(1.08); box-shadow:0 6px 18px rgba(108,93,211,.45); }
+  .btn-simpan-mutasi:active{ transform:translateY(1px); }
+  .btn-simpan-mutasi:disabled{ opacity:.55; cursor:not-allowed; filter:none; box-shadow:none; }
+
+  /* ===== Info box ===== */
+  .info-box{
+    background:var(--mu-info-soft);
+    border:1px solid rgba(56,189,248,.2);
+    border-radius:10px;
+    padding:14px 16px;
+    font-size:13.5px;
+    color:var(--mu-info);
+    display:flex;
+    align-items:flex-start;
+    gap:10px;
+    margin-bottom:20px;
+  }
+
+  .info-box .icon{ font-size:16px; flex-shrink:0; margin-top:1px; }
+
+  .info-box ol{
+    margin:0; padding-left:18px;
+    color:var(--mu-muted);
+    line-height:1.9;
+    font-size:13px;
+  }
+
+  /* ===== Riwayat Tabel ===== */
+  .total-badge{
+    font-size:12.5px;
+    font-weight:600;
+    color:var(--mu-purple);
+    background:var(--mu-purple-soft);
+    padding:4px 10px;
+    border-radius:999px;
+  }
+
+  .table-wrap{
+    overflow-x:auto;
+    border-radius:10px;
+    border:1px solid var(--mu-border);
+  }
+
+  table{
+    width:100%;
+    border-collapse:collapse;
+    font-size:13.5px;
+    min-width:800px;
+  }
+
+  thead th{
+    background:var(--mu-surface-2);
+    color:var(--mu-muted);
+    text-transform:uppercase;
+    font-size:11.5px;
+    letter-spacing:.04em;
+    font-weight:700;
+    text-align:left;
+    padding:12px 14px;
+    border-bottom:1px solid var(--mu-border);
+    white-space:nowrap;
+  }
+
+  tbody td{
+    padding:11px 14px;
+    border-bottom:1px solid var(--mu-border);
+    color:var(--mu-text);
+    vertical-align:middle;
+  }
+
+  tbody tr:last-child td{ border-bottom:none; }
+
+  #tableMutasi tbody tr:hover td{
+    background:transparent !important;
+    color:var(--mu-text) !important;
+  }
+
+  .nik-pill{
+    display:inline-block;
+    font-weight:600;
+    color:#bcb2f5;
+    background:var(--mu-purple-soft);
+    padding:3px 9px;
+    border-radius:6px;
+    font-size:12px;
+    white-space:nowrap;
+  }
+
+  .arrow-icon{
+    color:var(--mu-muted);
+    font-size:13px;
+    margin:0 4px;
+  }
+
+  .empty-state, .loading-state{
+    text-align:center;
+    padding:36px 10px;
+    color:var(--mu-muted);
+    font-size:14px;
+  }
+
+  .loading-state .spinner{
+    display:inline-block;
+    width:16px; height:16px;
+    border:2px solid var(--mu-border);
+    border-top-color:var(--mu-purple);
+    border-radius:50%;
+    animation:spin .7s linear infinite;
+    margin-right:8px;
+    vertical-align:middle;
+  }
+
+  @keyframes spin{ to{ transform:rotate(360deg); } }
+
+  .table-toolbar{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:12px;
+    flex-wrap:wrap;
+    margin-bottom:16px;
+  }
+
+  .panel-header{
+    font-size:15px;
+    font-weight:700;
+    color:var(--mu-text);
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    margin-bottom:16px;
+  }
+
+  .btn-export-riwayat{
+    display:inline-flex;
+    align-items:center;
+    gap:6px;
+    border:1px solid var(--mu-border);
+    border-radius:8px;
+    padding:7px 14px;
+    font-size:13px;
+    font-weight:600;
+    font-family:inherit;
+    color:var(--mu-text);
+    background:var(--mu-surface-2);
+    cursor:pointer;
+    transition:background .15s ease;
+  }
+  .btn-export-riwayat:hover{ background:#262a3c; }
+</style>
 </head>
-
 <body>
-
 <div class="content">
 
-<h2>🔄 Mutasi Karyawan</h2>
+  <h2>🔄 Mutasi Karyawan</h2>
+  <p class="page-subtitle">Pindahkan karyawan antar departemen, jabatan, atau gudang.</p>
+  <br>
 
-<br>
+  <!-- ================= TOOLBAR ================= -->
+  <div class="toolbar">
+    <button class="btn-dashboard" onclick="location.href='dashboard.html'">
+      🏠 Dashboard
+    </button>
+  </div>
+  <br>
 
-<div class="toolbar">
+  <!-- ================= FORM MUTASI ================= -->
+  <div class="panel">
+    <p class="panel-title"><span class="dot"></span> Form Mutasi Karyawan</p>
 
-<button
-class="btn-dashboard"
-onclick="location.href='dashboard.html'">
+    <!-- Petunjuk -->
+    <div class="info-box">
+      <span class="icon">ℹ️</span>
+      <ol>
+        <li>Masukkan NIK karyawan lalu klik <strong>Cari</strong> — data lama akan muncul otomatis.</li>
+        <li>Pilih Gudang, Departemen, dan Jabatan tujuan.</li>
+        <li>Isi keterangan mutasi (opsional), lalu klik <strong>Simpan Mutasi</strong>.</li>
+      </ol>
+    </div>
 
-🏠 Dashboard
+    <form id="formMutasi">
 
-</button>
+      <!-- NIK Search -->
+      <div class="nik-row">
+        <div class="field">
+          <label for="nik">NIK Karyawan</label>
+          <input type="text" id="nik" placeholder="Masukkan NIK karyawan..." required>
+        </div>
+        <button type="button" class="btn-cari" id="btnCari" onclick="cariKaryawan()">
+          🔍 Cari
+        </button>
+      </div>
+
+      <!-- Data Lama | Data Baru -->
+      <div class="mutasi-grid">
+
+        <!-- Kolom kiri: Data Lama (readonly) -->
+        <div class="data-card">
+          <p class="data-card-title lama">
+            📋 Data Saat Ini
+            <span class="badge badge-lama">SEKARANG</span>
+          </p>
+          <div class="data-fields">
+            <div class="field">
+              <label>Nama Karyawan</label>
+              <input type="text" id="nama" readonly placeholder="—">
+            </div>
+            <div class="field">
+              <label>Gudang Lama</label>
+              <input type="text" id="gudang_lama" readonly placeholder="—">
+            </div>
+            <div class="field">
+              <label>Departemen Lama</label>
+              <input type="text" id="departemen_lama" readonly placeholder="—">
+            </div>
+            <div class="field">
+              <label>Jabatan Lama</label>
+              <input type="text" id="jabatan_lama" readonly placeholder="—">
+            </div>
+          </div>
+        </div>
+
+        <!-- Kolom kanan: Data Baru -->
+        <div class="data-card">
+          <p class="data-card-title baru">
+            🚀 Data Tujuan
+            <span class="badge badge-baru">BARU</span>
+          </p>
+          <div class="data-fields">
+            <div class="field">
+              <label for="gudang_baru">Gudang Baru</label>
+              <select id="gudang_baru" required>
+                <option value="">-- Pilih Gudang --</option>
+                <option value="Margomulyo">Margomulyo</option>
+                <option value="Raden Saleh">Raden Saleh</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="departemen_baru">Departemen Baru</label>
+              <select id="departemen_baru" required>
+                <option value="">-- Pilih Departemen --</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="jabatan_baru">Jabatan Baru</label>
+              <select id="jabatan_baru" required>
+                <option value="">-- Pilih Jabatan --</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Keterangan + Simpan -->
+      <div class="bottom-row">
+        <div class="field">
+          <label for="keterangan">Keterangan Mutasi <span style="color:var(--mu-muted);font-weight:400;">(opsional)</span></label>
+          <textarea id="keterangan" rows="3" placeholder="Contoh: Mutasi karena kebutuhan operasional departemen..."></textarea>
+        </div>
+        <button type="submit" class="btn-simpan-mutasi" id="btnSimpan" disabled>
+          💾 Simpan Mutasi
+        </button>
+      </div>
+
+    </form>
+  </div>
+  <br>
+
+  <!-- ================= RIWAYAT MUTASI ================= -->
+  <div class="panel">
+    <div class="panel-header">
+      <span>
+        📜 Riwayat Mutasi
+        <span class="total-badge" id="totalBadge" style="margin-left:10px;">0 data</span>
+      </span>
+      <button class="btn-export-riwayat" onclick="exportExcel()">📤 Export Excel</button>
+    </div>
+
+    <div class="table-wrap">
+      <table id="tableMutasi">
+        <thead>
+          <tr>
+            <th width="110">NIK</th>
+            <th width="160">Nama</th>
+            <th>Dari</th>
+            <th>Ke</th>
+            <th>Keterangan</th>
+            <th width="130">Tanggal</th>
+            <th width="130">Dibuat Oleh</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td colspan="7" class="loading-state">
+              <span class="spinner"></span> Memuat riwayat...
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
 
 </div>
-
-<br>
-
-<div class="panel">
-
-<h3>Form Mutasi</h3>
-
-<br>
-
-<form id="formMutasi">
-
-<input
-type="text"
-id="nik"
-placeholder="Masukkan NIK"
-required>
-
-<input
-type="text"
-id="nama"
-placeholder="Nama Karyawan"
-readonly>
-
-<input
-type="text"
-id="gudang_lama"
-placeholder="Gudang Lama"
-readonly>
-
-<input
-type="text"
-id="departemen_lama"
-placeholder="Departemen Lama"
-readonly>
-
-<input
-type="text"
-id="jabatan_lama"
-placeholder="Jabatan Lama"
-readonly>
-
-<select
-id="gudang_baru"
-required>
-
-<option value="">-- Pilih Gudang Baru --</option>
-
-<option value="Margomulyo">Margomulyo</option>
-
-<option value="Raden Saleh">Raden Saleh</option>
-
-</select>
-
-<select
-id="departemen_baru"
-required>
-
-<option value="">
--- Pilih Departemen Baru --
-</option>
-
-</select>
-
-<select
-id="jabatan_baru"
-required>
-
-<option value="">
--- Pilih Jabatan Baru --
-</option>
-
-</select>
-
-<textarea
-id="keterangan"
-rows="4"
-placeholder="Keterangan Mutasi"></textarea>
-
-<button type="submit">
-
-💾 Simpan Mutasi
-
-</button>
-
-</form>
-
-</div>
-
-<br>
-
-<div class="panel">
-
-<h3>Petunjuk</h3>
-
-<br>
-
-<ul style="line-height:32px;padding-left:25px;">
-
-<li>Masukkan NIK karyawan.</li>
-
-<li>Data lama akan muncul otomatis.</li>
-
-<li>Pilih gudang tujuan.</li>
-
-<li>Pilih departemen tujuan.</li>
-
-<li>Pilih jabatan tujuan.</li>
-
-<li>Klik Simpan Mutasi.</li>
-
-</ul>
-
-</div>
-
-</div>
-
 <script src="js/mutasi-karyawan.js"></script>
-
 </body>
-
 </html>
