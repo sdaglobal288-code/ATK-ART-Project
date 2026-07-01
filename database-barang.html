@@ -1,130 +1,245 @@
 <!DOCTYPE html>
 <html lang="id">
-
 <head>
-
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
 <title>Database Barang</title>
-
 <link rel="preconnect" href="https://fonts.googleapis.com">
-
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-
 <link rel="stylesheet" href="css/dashboard.css">
-
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
-
+<script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
 <script src="supabase/config.js"></script>
+<style>
+  :root{
+    --db-bg:#0f1018;
+    --db-surface:#171926;
+    --db-surface-2:#1e2130;
+    --db-border:#2a2d3d;
+    --db-text:#e9eaf2;
+    --db-muted:#9498ab;
+    --db-purple:#6c5dd3;
+    --db-purple-dark:#5a4cc0;
+    --db-purple-soft:rgba(108,93,211,.15);
+    --db-danger:#ef5675;
+    --db-danger-soft:rgba(239,84,117,.12);
+    --db-success:#3ecf8e;
+    --db-success-soft:rgba(62,207,142,.12);
+    --db-warning:#f59e0b;
+    --db-warning-soft:rgba(245,158,11,.12);
+  }
 
+  body{ font-family:'Inter',sans-serif; background:var(--db-bg); color:var(--db-text); }
+
+  .content{ max-width:1320px; margin:0 auto; padding:28px 24px 60px; }
+
+  .content h2{
+    font-size:23px; font-weight:700; color:var(--db-text);
+    display:flex; align-items:center; gap:10px; margin:0;
+  }
+
+  .page-subtitle{ color:var(--db-muted); font-size:13.5px; margin-top:4px; }
+
+  .toolbar{ display:flex; gap:12px; flex-wrap:wrap; }
+
+  .toolbar button{
+    display:inline-flex; align-items:center; gap:8px; border:none;
+    border-radius:10px; padding:10px 18px; font-size:14px; font-weight:600;
+    cursor:pointer; transition:opacity .15s ease, transform .12s ease;
+  }
+  .toolbar button:active{ transform:translateY(1px); }
+
+  .btn-dashboard{ background:var(--db-surface-2); color:var(--db-text); border:1px solid var(--db-border); }
+  .btn-dashboard:hover{ background:#262a3c; }
+
+  .btn-export{
+    background:linear-gradient(135deg,var(--db-purple),var(--db-purple-dark));
+    color:#fff; box-shadow:0 4px 12px rgba(108,93,211,.35);
+  }
+  .btn-export:hover{ opacity:.92; }
+
+  .panel{
+    background:var(--db-surface); border:1px solid var(--db-border);
+    border-radius:14px; padding:20px 22px; box-shadow:0 4px 16px rgba(0,0,0,.18);
+  }
+
+  .panel-header{
+    display:flex; align-items:center; justify-content:space-between;
+    margin-bottom:16px; gap:12px; flex-wrap:wrap;
+  }
+  .panel-header h3{ font-size:16px; font-weight:600; color:var(--db-text); margin:0; }
+
+  .total-badge{
+    font-size:12.5px; font-weight:600; color:var(--db-purple);
+    background:var(--db-purple-soft); padding:4px 10px; border-radius:999px; white-space:nowrap;
+  }
+
+  .filter-row{ display:grid; grid-template-columns:1fr 220px; gap:14px; }
+  @media(max-width:600px){ .filter-row{ grid-template-columns:1fr; } }
+
+  .filter-row input,
+  .filter-row select{
+    width:100%; box-sizing:border-box; padding:11px 14px;
+    border:1px solid var(--db-border); border-radius:10px; font-size:14px;
+    font-family:inherit; color:var(--db-text); background:var(--db-surface-2);
+    transition:border-color .15s ease, box-shadow .15s ease;
+  }
+  .filter-row input::placeholder{ color:#5d6175; }
+  .filter-row input:focus,
+  .filter-row select:focus{
+    outline:none; border-color:var(--db-purple);
+    box-shadow:0 0 0 3px var(--db-purple-soft);
+  }
+
+  .table-wrap{
+    overflow-x:auto; border-radius:10px; border:1px solid var(--db-border);
+  }
+
+  table{ width:100%; border-collapse:collapse; font-size:13.5px; min-width:900px; }
+
+  thead th{
+    background:var(--db-surface-2); color:var(--db-muted); text-transform:uppercase;
+    font-size:11.5px; letter-spacing:.04em; font-weight:700; text-align:left;
+    padding:12px 14px; border-bottom:1px solid var(--db-border); white-space:nowrap;
+  }
+  thead th.num{ text-align:right; }
+
+  tbody td{
+    padding:11px 14px; border-bottom:1px solid var(--db-border);
+    color:var(--db-text); vertical-align:middle;
+  }
+  tbody td.num{ text-align:right; font-variant-numeric:tabular-nums; }
+  tbody tr:last-child td{ border-bottom:none; }
+  #tableBarang tbody tr:hover td{ background:transparent !important; color:var(--db-text) !important; }
+
+  .tbl-foto{
+    width:48px; height:48px; border-radius:8px; object-fit:cover;
+    border:1px solid var(--db-border); background:var(--db-surface-2);
+    display:block; cursor:zoom-in; transition:opacity .15s ease;
+  }
+  .tbl-foto:hover{ opacity:.82; }
+
+  .tbl-foto-empty{
+    width:48px; height:48px; border-radius:8px; border:1px dashed var(--db-border);
+    background:var(--db-surface-2); display:flex; align-items:center;
+    justify-content:center; font-size:20px; color:var(--db-border);
+  }
+
+  .kode-pill{
+    display:inline-block; font-weight:600; color:#bcb2f5; background:var(--db-purple-soft);
+    padding:3px 9px; border-radius:6px; font-size:12.5px; letter-spacing:.02em; white-space:nowrap;
+  }
+
+  .val-masuk{ color:var(--db-success); font-weight:600; }
+  .val-keluar{ color:var(--db-danger);  font-weight:600; }
+
+  .stok-badge{
+    display:inline-flex; align-items:center; gap:5px;
+    padding:4px 10px; border-radius:999px; font-size:13px; font-weight:700; white-space:nowrap;
+  }
+  .stok-badge::before{
+    content:''; width:6px; height:6px; border-radius:50%;
+    background:currentColor; display:inline-block;
+  }
+  .stok-badge.ok{  background:var(--db-success-soft); color:var(--db-success); }
+  .stok-badge.mid{ background:var(--db-warning-soft); color:var(--db-warning); }
+  .stok-badge.low{ background:var(--db-danger-soft);  color:var(--db-danger);  }
+
+  .empty-state,.loading-state{
+    text-align:center; padding:40px 10px; color:var(--db-muted); font-size:14px;
+  }
+  .loading-state .spinner{
+    display:inline-block; width:16px; height:16px;
+    border:2px solid var(--db-border); border-top-color:var(--db-purple);
+    border-radius:50%; animation:spin .7s linear infinite;
+    margin-right:8px; vertical-align:middle;
+  }
+  @keyframes spin{ to{ transform:rotate(360deg); } }
+
+  /* Lightbox */
+  .lightbox{
+    display:none; position:fixed; inset:0; background:rgba(0,0,0,.88);
+    z-index:2000; align-items:center; justify-content:center;
+    padding:24px; cursor:zoom-out;
+  }
+  .lightbox.active{ display:flex; }
+  .lightbox img{
+    max-width:88vw; max-height:82vh; border-radius:12px;
+    box-shadow:0 24px 60px rgba(0,0,0,.7); object-fit:contain; cursor:default;
+  }
+  .lightbox-caption{
+    position:fixed; bottom:24px; left:50%; transform:translateX(-50%);
+    background:rgba(15,16,24,.85); color:var(--db-text);
+    padding:8px 18px; border-radius:999px; font-size:13px;
+    font-weight:600; pointer-events:none; white-space:nowrap;
+  }
+</style>
 </head>
-
 <body>
-
 <div class="content">
 
-<h2>📦 Database Barang</h2>
+  <h2>📦 Database Barang</h2>
+  <p class="page-subtitle">Rekap stok seluruh barang: stok awal, masuk, keluar, dan sisa stok terkini.</p>
+  <br>
 
-<br>
+  <!-- TOOLBAR -->
+  <div class="toolbar">
+    <button class="btn-dashboard" onclick="location.href='dashboard.html'">🏠 Dashboard</button>
+    <button class="btn-export" onclick="exportExcel()">📤 Export Excel</button>
+  </div>
+  <br>
 
-<!-- ================= TOOLBAR ================= -->
+  <!-- FILTER -->
+  <div class="panel">
+    <div class="filter-row">
+      <input type="text" id="search" placeholder="🔍 Cari kode atau nama barang...">
+      <select id="filterKategori">
+        <option value="">Semua Kategori</option>
+      </select>
+    </div>
+  </div>
+  <br>
 
-<div class="toolbar">
-
-<button
-class="btn-dashboard"
-onclick="location.href='dashboard.html'">
-
-🏠 Dashboard
-
-</button>
-
-<button
-class="btn-export"
-onclick="exportExcel()">
-
-📤 Export Excel
-
-</button>
-
-</div>
-
-<br>
-
-<!-- ================= FILTER ================= -->
-
-<div class="panel">
-
-<div class="form-grid">
-
-<input
-type="text"
-id="search"
-placeholder="🔍 Cari kode atau nama barang...">
-
-<select id="filterKategori">
-
-<option value="">
-Semua Kategori
-</option>
-
-</select>
-
-</div>
-
-</div>
-
-<br>
-
-<!-- ================= TABLE ================= -->
-
-<div class="panel">
-
-<h3>Database Barang</h3>
-
-<br>
-
-<table id="tableBarang">
-
-<thead>
-
-<tr>
-
-<th width="60">NO</th>
-
-<th width="120">KODE</th>
-
-<th>NAMA BARANG</th>
-
-<th width="140">KATEGORI</th>
-
-<th width="120">SATUAN</th>
-
-<th width="120">STOK AWAL</th>
-
-<th width="100">MASUK</th>
-
-<th width="100">KELUAR</th>
-
-<th width="150">SISA STOK</th>
-
-</tr>
-
-</thead>
-
-<tbody>
-
-</tbody>
-
-</table>
+  <!-- TABLE -->
+  <div class="panel">
+    <div class="panel-header">
+      <h3>Database Barang</h3>
+      <span class="total-badge" id="totalBadge">0 item</span>
+    </div>
+    <div class="table-wrap">
+      <table id="tableBarang">
+        <thead>
+          <tr>
+            <th width="64">FOTO</th>
+            <th width="120">KODE</th>
+            <th>NAMA BARANG</th>
+            <th width="130">KATEGORI</th>
+            <th width="90">SATUAN</th>
+            <th width="100" class="num">STOK AWAL</th>
+            <th width="90"  class="num">MASUK</th>
+            <th width="90"  class="num">KELUAR</th>
+            <th width="140" class="num">SISA STOK</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td colspan="9" class="loading-state">
+              <span class="spinner"></span> Memuat data...
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
 
 </div>
 
+<!-- LIGHTBOX -->
+<div class="lightbox" id="lightbox" onclick="tutupLightbox()">
+  <img id="lightboxImg" src="" alt="">
+  <div class="lightbox-caption" id="lightboxCaption"></div>
 </div>
 
 <script src="js/database-barang.js"></script>
-
 </body>
-
 </html>
