@@ -1,6 +1,13 @@
 // =====================================
 // BARANG KELUAR (MULTI ITEM + PENCARIAN + STOK REALTIME)
 // =====================================
+//
+// SUMBER STOK: tabel "stok_gudang" (barang_id, gudang, stok, updated_at)
+// adalah SATU-SATUNYA sumber kebenaran stok saat ini, dan selalu
+// difilter berdasarkan gudang akun yang sedang login (user.gudang).
+// master_barang tetap satu tabel bersama (dipakai kedua gudang) untuk
+// data katalog (nama, kategori, satuan) saja - bukan untuk stok.
+// =====================================
 
 const user = JSON.parse(sessionStorage.getItem("user"));
 
@@ -13,6 +20,9 @@ let editId = null;
 // cache master data supaya tidak query berulang tiap kali user mengetik/pilih
 let masterBarangList = [];
 let masterKaryawanList = [];
+
+// stok per barang UNTUK GUDANG YANG SEDANG LOGIN (key: barang_id -> stok)
+let stokGudangMap = new Map();
 
 // counter untuk id unik tiap baris detail
 let rowCounter = 0;
@@ -129,7 +139,7 @@ pengambilDropdown.addEventListener("click", function(e){
 });
 
 // =====================================
-// LOAD MASTER BARANG (dicache untuk semua baris)
+// LOAD MASTER BARANG (katalog bersama, TANPA info stok)
 // =====================================
 
 async function loadBarang(){
@@ -198,36 +208,104 @@ function renderBarangDropdown(row, keyword){
 }
 
 // =====================================
-// HITUNG STOK REALTIME (masuk - keluar)
+// LOAD STOK GUDANG (khusus gudang yang sedang login)
 // =====================================
 
-async function hitungStok(kodeBarang){
+async function loadStokGudang(){
 
-    if(!kodeBarang) return 0;
+    try{
 
-    const { data:masuk } = await supabaseClient
+        const { data, error } = await supabaseClient
+            .from("stok_gudang")
+            .select("barang_id, stok")
+            .eq("gudang", user.gudang);
 
-    .from("barang_masuk")
+        if(error) throw error;
 
-    .select("qty")
+        stokGudangMap = new Map();
 
-    .eq("kode_barang",kodeBarang);
+        (data || []).forEach(row=>{
+            stokGudangMap.set(String(row.barang_id), Number(row.stok) || 0);
+        });
 
-    const { data:keluar } = await supabaseClient
+    }
+    catch(err){
 
-    .from("barang_keluar")
+        console.error(err);
+        alert(err.message);
 
-    .select("qty")
+    }
 
-    .eq("kode_barang",kodeBarang);
+}
 
-    const totalMasuk =
-        (masuk || []).reduce((a,b)=>a+b.qty,0);
+// =====================================
+// AMBIL STOK TERKINI (live, langsung ke DB) - dipakai saat validasi submit
+// supaya tidak salah baca cache kalau ada perubahan dari device lain.
+// =====================================
 
-    const totalKeluar =
-        (keluar || []).reduce((a,b)=>a+b.qty,0);
+async function ambilStokLive(barangId){
 
-    return totalMasuk - totalKeluar;
+    if(!barangId) return 0;
+
+    const { data, error } = await supabaseClient
+        .from("stok_gudang")
+        .select("stok")
+        .eq("barang_id", barangId)
+        .eq("gudang", user.gudang)
+        .maybeSingle();
+
+    if(error){
+        console.error(error);
+        return 0;
+    }
+
+    return data ? (Number(data.stok) || 0) : 0;
+
+}
+
+// =====================================
+// KURANGI STOK GUDANG (dipanggil setelah Barang Keluar berhasil disimpan)
+// =====================================
+
+async function kurangiStokGudang(barangId, qty){
+
+    const { data: existing, error: selErr } = await supabaseClient
+        .from("stok_gudang")
+        .select("*")
+        .eq("barang_id", barangId)
+        .eq("gudang", user.gudang)
+        .maybeSingle();
+
+    if(selErr) throw selErr;
+
+    const stokBaru = (existing ? (Number(existing.stok) || 0) : 0) - qty;
+
+    if(existing){
+
+        const { error: updErr } = await supabaseClient
+            .from("stok_gudang")
+            .update({
+                stok: stokBaru,
+                updated_at: new Date().toISOString()
+            })
+            .eq("id", existing.id);
+
+        if(updErr) throw updErr;
+
+    } else {
+
+        const { error: insErr } = await supabaseClient
+            .from("stok_gudang")
+            .insert([{
+                barang_id: barangId,
+                gudang: user.gudang,
+                stok: stokBaru,
+                updated_at: new Date().toISOString()
+            }]);
+
+        if(insErr) throw insErr;
+
+    }
 
 }
 
@@ -299,13 +377,15 @@ function hapusBarisBarang(row){
 
 }
 
-async function refreshStokBaris(row){
+function refreshStokBaris(row){
 
     const kodeBarang = row.dataset.kodeBarang;
 
     const badge = row.querySelector(".stok-badge");
 
-    if(!kodeBarang){
+    const barangId = row.querySelector(".input-barang-id").value;
+
+    if(!kodeBarang || !barangId){
 
         badge.textContent = "Stok: -";
         badge.classList.remove("warning");
@@ -315,7 +395,7 @@ async function refreshStokBaris(row){
 
     }
 
-    const stok = await hitungStok(kodeBarang);
+    const stok = stokGudangMap.get(String(barangId)) || 0;
 
     row.dataset.stok = stok;
 
@@ -471,7 +551,7 @@ document.addEventListener("click", function(e){
 });
 
 // =====================================
-// REALTIME STOK (subscribe perubahan barang_masuk & barang_keluar)
+// REALTIME STOK (subscribe perubahan stok_gudang, difilter gudang login)
 // =====================================
 
 function aktifkanRealtimeStok(){
@@ -482,17 +562,19 @@ function aktifkanRealtimeStok(){
 
     .on("postgres_changes",
 
-        { event: "*", schema: "public", table: "barang_masuk" },
+        {
+            event: "*",
+            schema: "public",
+            table: "stok_gudang",
+            filter: `gudang=eq.${user.gudang}`
+        },
 
-        () => refreshSemuaBarisStok()
+        async () => {
 
-    )
+            await loadStokGudang();
+            refreshSemuaBarisStok();
 
-    .on("postgres_changes",
-
-        { event: "*", schema: "public", table: "barang_keluar" },
-
-        () => refreshSemuaBarisStok()
+        }
 
     )
 
@@ -519,6 +601,10 @@ function refreshSemuaBarisStok(){
 // =====================================
 // LOAD HISTORI BARANG KELUAR
 // =====================================
+// Histori difilter sesuai gudang akun yang sedang login (user.gudang),
+// jadi akun Margomulyo hanya melihat transaksi Margomulyo, dan akun
+// Raden Saleh hanya melihat transaksi Raden Saleh.
+// =====================================
 
 async function loadBarangKeluar() {
 
@@ -527,6 +613,7 @@ async function loadBarangKeluar() {
         const { data, error } = await supabaseClient
             .from("barang_keluar")
             .select("*")
+            .eq("gudang", user.gudang)
             .order("tanggal", { ascending: false })
             .order("id", { ascending: false });
 
@@ -777,9 +864,11 @@ form.addEventListener("submit", async function(e){
 
             kodeSudahDipakai.add(barang.kode_barang);
 
-            // cek ulang stok realtime saat submit (bukan hanya dari cache)
+            // cek ulang stok realtime saat submit (bukan hanya dari cache),
+            // otomatis sudah khusus gudang user karena ambilStokLive()
+            // difilter dengan user.gudang
 
-            const stokSaatIni = await hitungStok(barang.kode_barang);
+            const stokSaatIni = await ambilStokLive(barang.id);
 
             if(qty > stokSaatIni){
 
@@ -863,6 +952,16 @@ form.addEventListener("submit", async function(e){
 
         if(error) throw error;
 
+        // --------------------------------------
+        // KURANGI STOK DI stok_gudang (hanya utk gudang user.gudang)
+        // --------------------------------------
+
+        for(const { barang, qty } of itemList){
+
+            await kurangiStokGudang(barang.id, qty);
+
+        }
+
         alert(
 
             `Barang Keluar berhasil disimpan (${transaksiList.length} item).`
@@ -870,6 +969,8 @@ form.addEventListener("submit", async function(e){
         );
 
         resetFormKeluar();
+
+        await loadStokGudang();
 
         await loadBarangKeluar();
 
@@ -976,7 +1077,7 @@ async function editBarangKeluar(id){
 
             row.dataset.kodeBarang = barang.kode_barang;
 
-            await refreshStokBaris(row);
+            refreshStokBaris(row);
 
         }
 
@@ -1048,6 +1149,20 @@ async function hapusBarangKeluar(id){
 
     try{
 
+        // ambil dulu datanya supaya bisa kembalikan (kredit balik) stoknya
+
+        const { data:dataLama, error: getErr } = await supabaseClient
+
+        .from("barang_keluar")
+
+        .select("*")
+
+        .eq("id",id)
+
+        .single();
+
+        if(getErr) throw getErr;
+
         const { error } = await supabaseClient
 
         .from("barang_keluar")
@@ -1058,7 +1173,25 @@ async function hapusBarangKeluar(id){
 
         if(error) throw error;
 
+        // kembalikan stok yang tadinya dikurangi
+
+        if(dataLama){
+
+            const barang = masterBarangList.find(
+                b => b.kode_barang === dataLama.kode_barang
+            );
+
+            if(barang){
+
+                await tambahKembaliStokGudang(barang.id, dataLama.qty);
+
+            }
+
+        }
+
         alert("Data berhasil dihapus.");
+
+        await loadStokGudang();
 
         loadBarangKeluar();
 
@@ -1067,6 +1200,52 @@ async function hapusBarangKeluar(id){
     catch(err){
 
         alert(err.message);
+
+    }
+
+}
+
+// =====================================
+// KEMBALIKAN STOK (dipakai saat hapus histori Barang Keluar)
+// =====================================
+
+async function tambahKembaliStokGudang(barangId, qty){
+
+    const { data: existing, error: selErr } = await supabaseClient
+        .from("stok_gudang")
+        .select("*")
+        .eq("barang_id", barangId)
+        .eq("gudang", user.gudang)
+        .maybeSingle();
+
+    if(selErr) throw selErr;
+
+    if(existing){
+
+        const stokBaru = (Number(existing.stok) || 0) + qty;
+
+        const { error: updErr } = await supabaseClient
+            .from("stok_gudang")
+            .update({
+                stok: stokBaru,
+                updated_at: new Date().toISOString()
+            })
+            .eq("id", existing.id);
+
+        if(updErr) throw updErr;
+
+    } else {
+
+        const { error: insErr } = await supabaseClient
+            .from("stok_gudang")
+            .insert([{
+                barang_id: barangId,
+                gudang: user.gudang,
+                stok: qty,
+                updated_at: new Date().toISOString()
+            }]);
+
+        if(insErr) throw insErr;
 
     }
 
@@ -1108,6 +1287,8 @@ document.addEventListener("DOMContentLoaded", async ()=>{
     await loadKaryawan();
 
     await loadBarang();
+
+    await loadStokGudang();
 
     tambahBarisBarang();
 
