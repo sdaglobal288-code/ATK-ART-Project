@@ -11,8 +11,9 @@
 <script src="supabase/config.js"></script>
 <style>
     /* ====================================================
-       TAMBAHAN: pencarian (combobox), stok realtime, &
-       tampilan gelap senada dengan halaman Barang Keluar.
+       Style ini disamakan PERSIS dengan halaman Barang Keluar
+       (combobox pencarian, baris detail grid, badge stok,
+       tombol tambah/hapus baris).
        ==================================================== */
 
     .combo-wrapper{
@@ -125,47 +126,43 @@
         box-shadow:0 0 0 3px rgba(59,130,246,.2);
     }
 
-    /* ---------- Tabel detail barang ---------- */
+    /* ---------- Detail baris barang (sama persis dengan Barang Keluar) ---------- */
 
-    .table-responsive{
-        overflow-x:auto;
-    }
-
-    #tableDetailBarang{
-        width:100%;
-        border-collapse:separate;
-        border-spacing:0 10px;
-    }
-
-    #tableDetailBarang thead th{
+    .header-label{
+        display:grid;
+        grid-template-columns: 2.2fr 1.1fr 0.9fr 1fr 0.9fr 40px;
+        gap:10px;
         font-size:12px;
         font-weight:600;
         letter-spacing:.03em;
         text-transform:uppercase;
         color:#64748b;
-        text-align:left;
-        padding:0 6px 6px;
+        margin-bottom:8px;
+        padding:0 4px;
     }
 
-    #tableDetailBarang tbody tr{
+    .detail-wrapper{
+        border:1px solid #263041;
+        border-radius:12px;
+        padding:14px;
+        margin-bottom:12px;
         background:rgba(255,255,255,.02);
     }
 
-    #tableDetailBarang tbody td{
-        padding:10px 6px;
-        vertical-align:middle;
+    .detail-row{
+        display:grid;
+        grid-template-columns: 2.2fr 1.1fr 0.9fr 1fr 0.9fr 40px;
+        gap:10px;
+        align-items:center;
+        margin-bottom:10px;
+        position:relative;
     }
 
-    #tableDetailBarang tbody td:first-child{
-        text-align:center;
-        color:#94a3b8;
-        font-weight:600;
-        width:40px;
+    .detail-row:last-child{
+        margin-bottom:0;
     }
 
-    #tableDetailBarang input.kode_barang,
-    #tableDetailBarang input.kategori,
-    #tableDetailBarang input.satuan{
+    .input-readonly{
         width:100%;
         padding:10px 12px;
         border-radius:8px;
@@ -177,7 +174,7 @@
         box-sizing:border-box;
     }
 
-    #tableDetailBarang input.qty{
+    .input-qty{
         width:100%;
         padding:10px 12px;
         border-radius:8px;
@@ -189,14 +186,13 @@
         box-sizing:border-box;
     }
 
-    #tableDetailBarang input.qty:focus{
+    .input-qty:focus{
         outline:none;
         border-color:#3b82f6;
         box-shadow:0 0 0 3px rgba(59,130,246,.2);
     }
 
     .stok-badge{
-        display:block;
         font-weight:600;
         font-size:13px;
         padding:9px 8px;
@@ -235,6 +231,7 @@
         cursor:pointer;
         font-weight:600;
         font-size:13.5px;
+        margin-top:2px;
         transition:background .15s;
     }
 
@@ -302,37 +299,32 @@ placeholder="Keterangan BTB">
 </div>
 </form>
 </div>
-<!-- ================= DETAIL BARANG ================= -->
+<!-- ================= DETAIL BARANG (SAMA PERSIS DENGAN BARANG KELUAR) ================= -->
 <div class="panel">
 <h3><span>📦 Detail Barang</span></h3>
 <br>
-<div class="table-responsive">
-<table id="tableDetailBarang">
-<thead>
-<tr>
-<th width="50">No</th>
-<th width="260">Cari Barang</th>
-<th width="120">Kode</th>
-<th width="150">Kategori</th>
-<th width="90">Satuan</th>
-<th width="120">Sisa Stok</th>
-<th width="90">Qty</th>
-<th width="80">Aksi</th>
-</tr>
-</thead>
-<tbody id="detailBarangBody">
-<!-- baris detail barang ditambahkan lewat JS -->
-</tbody>
-</table>
+
+<div class="header-label">
+    <span>Barang</span>
+    <span>Kategori</span>
+    <span>Satuan</span>
+    <span>Sisa Stok</span>
+    <span>Qty Masuk</span>
+    <span></span>
 </div>
-<br>
-<div style="display:flex;gap:10px;">
+<div class="detail-wrapper" id="detailRows">
+    <!-- baris detail barang ditambahkan lewat JS -->
+</div>
 <button
 type="button"
 class="btn-tambah-baris"
-onclick="tambahBarisBarang()">
+id="btnTambahBaris">
 ➕ Tambah Barang
 </button>
+
+<br><br>
+
+<div style="display:flex;gap:10px;">
 <button
 type="button"
 id="btnSimpanBTB">
