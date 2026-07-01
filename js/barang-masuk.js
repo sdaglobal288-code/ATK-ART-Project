@@ -1,6 +1,13 @@
 // =====================================
 // BARANG MASUK (BTB) - SAMA PERSIS DENGAN BARANG KELUAR
 // =====================================
+//
+// SUMBER STOK: tabel "stok_gudang" (barang_id, gudang, stok, updated_at)
+// adalah SATU-SATUNYA sumber kebenaran stok saat ini, dan selalu
+// difilter berdasarkan gudang akun yang sedang login (user.gudang).
+// master_barang tetap satu tabel bersama (dipakai kedua gudang) untuk
+// data katalog (nama, kategori, satuan) saja - bukan untuk stok.
+// =====================================
 
 const user = JSON.parse(sessionStorage.getItem("user"));
 
@@ -13,6 +20,9 @@ let editId = null;
 // Menyimpan master data di memory
 let masterBarang = [];
 let masterSupplier = [];
+
+// stok per barang UNTUK GUDANG YANG SEDANG LOGIN (key: barang_id -> stok)
+let stokGudangMap = new Map();
 
 // counter untuk id unik tiap baris detail
 let rowCounter = 0;
@@ -125,7 +135,7 @@ if(supplierSearchInput && supplierHidden && supplierDropdown){
 }
 
 // =====================================
-// LOAD MASTER BARANG
+// LOAD MASTER BARANG (katalog bersama, TANPA info stok)
 // =====================================
 
 async function loadBarang(){
@@ -155,6 +165,85 @@ async function loadBarang(){
 }
 
 // =====================================
+// LOAD STOK GUDANG (khusus gudang yang sedang login)
+// =====================================
+
+async function loadStokGudang(){
+
+    try{
+
+        const { data, error } = await supabaseClient
+            .from("stok_gudang")
+            .select("barang_id, stok")
+            .eq("gudang", user.gudang);
+
+        if(error) throw error;
+
+        stokGudangMap = new Map();
+
+        (data || []).forEach(row=>{
+            stokGudangMap.set(String(row.barang_id), Number(row.stok) || 0);
+        });
+
+    }
+    catch(err){
+
+        console.error(err);
+        alert(err.message);
+
+    }
+
+}
+
+// =====================================
+// TAMBAH STOK GUDANG (dipanggil saat simpan BTB)
+// Upsert manual: kalau baris (barang_id, gudang) sudah ada -> update,
+// kalau belum ada -> insert baru.
+// =====================================
+
+async function tambahStokGudang(barangId, qty){
+
+    const { data: existing, error: selErr } = await supabaseClient
+        .from("stok_gudang")
+        .select("*")
+        .eq("barang_id", barangId)
+        .eq("gudang", user.gudang)
+        .maybeSingle();
+
+    if(selErr) throw selErr;
+
+    if(existing){
+
+        const stokBaru = (Number(existing.stok) || 0) + qty;
+
+        const { error: updErr } = await supabaseClient
+            .from("stok_gudang")
+            .update({
+                stok: stokBaru,
+                updated_at: new Date().toISOString()
+            })
+            .eq("id", existing.id);
+
+        if(updErr) throw updErr;
+
+    } else {
+
+        const { error: insErr } = await supabaseClient
+            .from("stok_gudang")
+            .insert([{
+                barang_id: barangId,
+                gudang: user.gudang,
+                stok: qty,
+                updated_at: new Date().toISOString()
+            }]);
+
+        if(insErr) throw insErr;
+
+    }
+
+}
+
+// =====================================
 // STOK REALTIME PER BARIS
 // =====================================
 
@@ -162,18 +251,16 @@ function refreshStokBaris(row){
 
     const badge = row.querySelector(".stok-badge");
 
-    const kodeBarang = row.dataset.kodeBarang;
+    const barangId = row.querySelector(".input-barang-id").value;
 
-    if(!kodeBarang){
+    if(!barangId){
 
         badge.textContent = "Stok: -";
         return;
 
     }
 
-    const barang = masterBarang.find(b => b.kode_barang === kodeBarang);
-
-    const stok = barang ? (barang.stok || 0) : 0;
+    const stok = stokGudangMap.get(String(barangId)) || 0;
 
     badge.textContent = `Stok: ${stok}`;
 
@@ -185,14 +272,14 @@ function refreshSemuaBarisStok(){
 
     rows.forEach(row=>{
 
-        if(row.dataset.kodeBarang) refreshStokBaris(row);
+        if(row.querySelector(".input-barang-id").value) refreshStokBaris(row);
 
     });
 
 }
 
 // =====================================
-// REALTIME SUBSCRIBE STOK MASTER BARANG
+// REALTIME SUBSCRIBE STOK (stok_gudang, difilter gudang login)
 // =====================================
 
 function aktifkanRealtimeStok(){
@@ -200,6 +287,24 @@ function aktifkanRealtimeStok(){
     supabaseClient
 
     .channel("stok-realtime-barang-masuk")
+
+    .on("postgres_changes",
+
+        {
+            event: "*",
+            schema: "public",
+            table: "stok_gudang",
+            filter: `gudang=eq.${user.gudang}`
+        },
+
+        async () => {
+
+            await loadStokGudang();
+            refreshSemuaBarisStok();
+
+        }
+
+    )
 
     .on("postgres_changes",
 
@@ -587,7 +692,7 @@ async function simpanBTB(){
         if(headerError) throw headerError;
 
         //---------------------------------
-        // SIMPAN DETAIL + UPDATE STOK
+        // SIMPAN DETAIL + TAMBAH STOK GUDANG
         //---------------------------------
 
         for(const { barang, qty } of itemList){
@@ -610,15 +715,10 @@ async function simpanBTB(){
             if(detailError) throw detailError;
 
             // =====================================
-            // UPDATE STOK
+            // TAMBAH STOK DI stok_gudang (hanya utk gudang user.gudang)
             // =====================================
 
-            await supabaseClient
-                .from("master_barang")
-                .update({
-                    stok:(barang.stok || 0) + qty
-                })
-                .eq("id",barang.id);
+            await tambahStokGudang(barang.id, qty);
 
         }
 
@@ -630,8 +730,10 @@ async function simpanBTB(){
 
         resetFormMasuk();
 
-        // muat ulang master barang supaya stok terbaru terpakai untuk transaksi berikutnya
+        // muat ulang master barang & stok gudang supaya angka terbaru terpakai
         await loadBarang();
+        await loadStokGudang();
+        refreshSemuaBarisStok();
 
         loadBarangMasuk();
 
@@ -668,9 +770,9 @@ function resetFormMasuk(){
 // =====================================
 // LOAD HISTORI BTB
 // =====================================
-// PERBAIKAN: histori sekarang difilter sesuai gudang akun yang sedang
-// login (user.gudang), jadi akun Margomulyo hanya melihat transaksi
-// Margomulyo, dan akun Raden Saleh hanya melihat transaksi Raden Saleh.
+// Histori difilter sesuai gudang akun yang sedang login (user.gudang),
+// jadi akun Margomulyo hanya melihat transaksi Margomulyo, dan akun
+// Raden Saleh hanya melihat transaksi Raden Saleh.
 // =====================================
 
 async function loadBarangMasuk(){
@@ -835,6 +937,7 @@ document.addEventListener("DOMContentLoaded",async()=>{
 
     await loadSupplier();
     await loadBarang();
+    await loadStokGudang();
     tambahBarisBarang();
     await loadBarangMasuk();
 
