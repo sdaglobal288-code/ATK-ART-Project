@@ -668,6 +668,10 @@ function resetFormMasuk(){
 // =====================================
 // LOAD HISTORI BTB
 // =====================================
+// PERBAIKAN: histori sekarang difilter sesuai gudang akun yang sedang
+// login (user.gudang), jadi akun Margomulyo hanya melihat transaksi
+// Margomulyo, dan akun Raden Saleh hanya melihat transaksi Raden Saleh.
+// =====================================
 
 async function loadBarangMasuk(){
 
@@ -676,6 +680,7 @@ async function loadBarangMasuk(){
         const { data,error } = await supabaseClient
             .from("barang_masuk")
             .select("*")
+            .eq("gudang", user.gudang)
             .order("tanggal",{ascending:false})
             .order("id",{ascending:false});
 
