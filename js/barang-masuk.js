@@ -877,11 +877,103 @@ if(searchInputEl){
 }
 
 // =====================================
-// DETAIL BTB
+// DETAIL BTB (MODAL)
 // =====================================
 
-function lihatDetail(id){
-    alert("Fitur Detail BTB akan dibuat pada tahap berikutnya.");
+async function lihatDetail(id){
+
+    try{
+
+        const { data: header, error: headerErr } = await supabaseClient
+            .from("barang_masuk")
+            .select("*")
+            .eq("id", id)
+            .single();
+
+        if(headerErr) throw headerErr;
+
+        const { data: details, error: detailErr } = await supabaseClient
+            .from("barang_masuk_detail")
+            .select("*")
+            .eq("barang_masuk_id", id)
+            .order("id");
+
+        if(detailErr) throw detailErr;
+
+        document.getElementById("modalNoBTB").textContent = header.no_btb;
+        document.getElementById("modalTanggal").textContent = header.tanggal;
+        document.getElementById("modalSupplier").textContent = header.supplier;
+        document.getElementById("modalKeterangan").textContent = header.keterangan || "-";
+
+        const tbody = document.querySelector("#tableDetailBTB tbody");
+        tbody.innerHTML = "";
+
+        if(!details || details.length === 0){
+
+            tbody.innerHTML = `
+            <tr>
+                <td colspan="6" class="empty-state">Tidak ada detail barang.</td>
+            </tr>
+            `;
+
+        } else {
+
+            let no = 1;
+
+            details.forEach(d=>{
+
+                tbody.innerHTML += `
+                <tr>
+                    <td>${no++}</td>
+                    <td>${d.kode_barang}</td>
+                    <td>${d.nama_barang}</td>
+                    <td>${d.kategori}</td>
+                    <td>${d.satuan}</td>
+                    <td>${d.qty}</td>
+                </tr>
+                `;
+
+            });
+
+        }
+
+        document.getElementById("modalDetailBTB").classList.add("show");
+
+    }
+    catch(err){
+
+        console.error(err);
+        alert(err.message);
+
+    }
+
+}
+
+function tutupModalDetail(){
+
+    document.getElementById("modalDetailBTB").classList.remove("show");
+
+}
+
+const btnTutupModalDetailEl = document.getElementById("btnTutupModalDetail");
+
+if(btnTutupModalDetailEl){
+
+    btnTutupModalDetailEl.addEventListener("click", tutupModalDetail);
+
+}
+
+const modalDetailBTBEl = document.getElementById("modalDetailBTB");
+
+if(modalDetailBTBEl){
+
+    // klik di luar box -> tutup modal
+    modalDetailBTBEl.addEventListener("click", function(e){
+
+        if(e.target === modalDetailBTBEl) tutupModalDetail();
+
+    });
+
 }
 
 // =====================================
