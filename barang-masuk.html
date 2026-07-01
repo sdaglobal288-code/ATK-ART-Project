@@ -11,8 +11,8 @@
 <script src="supabase/config.js"></script>
 <style>
     /* ====================================================
-       TAMBAHAN: pencarian (combobox) & tampilan gelap
-       senada dengan halaman Barang Keluar.
+       TAMBAHAN: pencarian (combobox), stok realtime, &
+       tampilan gelap senada dengan halaman Barang Keluar.
        ==================================================== */
 
     .combo-wrapper{
@@ -195,6 +195,21 @@
         box-shadow:0 0 0 3px rgba(59,130,246,.2);
     }
 
+    .stok-badge{
+        display:block;
+        font-weight:600;
+        font-size:13px;
+        padding:9px 8px;
+        border-radius:8px;
+        text-align:center;
+        background:rgba(34,197,94,.12);
+        color:#4ade80;
+        border:1px solid rgba(34,197,94,.35);
+        white-space:nowrap;
+        overflow:hidden;
+        text-overflow:ellipsis;
+    }
+
     .btn-hapus-baris{
         background:rgba(239,68,68,.12);
         color:#f87171;
@@ -247,6 +262,13 @@ onclick="location.href='dashboard.html'">
 <br>
 <form id="formMasukHeader">
 <div>
+<label><b>Tanggal</b></label>
+<input
+type="date"
+id="tanggal"
+required>
+</div>
+<div>
 <label><b>No. BTB</b></label>
 <input
 type="text"
@@ -256,13 +278,6 @@ required>
 <small style="color:#64748B;">
 Format : XXXX/BTB-U-GI-R/VI/2026
 </small>
-</div>
-<div>
-<label><b>Tanggal</b></label>
-<input
-type="date"
-id="tanggal"
-required>
 </div>
 <div>
 <label><b>Supplier</b></label>
@@ -296,12 +311,13 @@ placeholder="Keterangan BTB">
 <thead>
 <tr>
 <th width="50">No</th>
-<th width="300">Cari Barang</th>
-<th width="130">Kode</th>
-<th width="170">Kategori</th>
-<th width="100">Satuan</th>
-<th width="100">Qty</th>
-<th width="100">Aksi</th>
+<th width="260">Cari Barang</th>
+<th width="120">Kode</th>
+<th width="150">Kategori</th>
+<th width="90">Satuan</th>
+<th width="120">Sisa Stok</th>
+<th width="90">Qty</th>
+<th width="80">Aksi</th>
 </tr>
 </thead>
 <tbody id="detailBarangBody">
@@ -310,21 +326,17 @@ placeholder="Keterangan BTB">
 </table>
 </div>
 <br>
+<div style="display:flex;gap:10px;">
 <button
 type="button"
 class="btn-tambah-baris"
 onclick="tambahBarisBarang()">
 ➕ Tambah Barang
 </button>
-</div>
-<!-- ================= AKSI ================= -->
-<div class="panel">
-<div style="display:flex;gap:10px;justify-content:flex-end;">
 <button
 type="button"
-class="btn-dashboard"
 id="btnSimpanBTB">
-💾 Simpan BTB
+💾 Simpan Barang Masuk
 </button>
 </div>
 </div>
@@ -332,6 +344,23 @@ id="btnSimpanBTB">
 <div class="panel">
 <h3><span>📋 Histori Barang Masuk</span></h3>
 <br>
+<div class="toolbar" style="margin-bottom:14px;">
+<button
+class="btn-import"
+onclick="document.getElementById('fileImport').click()">
+📥 Import Excel
+</button>
+<input
+type="file"
+id="fileImport"
+accept=".xlsx,.xls"
+hidden>
+<button
+class="btn-export"
+onclick="exportExcel()">
+📤 Export Excel
+</button>
+</div>
 <div class="search-box">
 <input
 type="text"
