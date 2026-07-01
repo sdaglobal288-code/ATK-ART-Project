@@ -1,5 +1,5 @@
 // =====================================
-// BARANG KELUAR
+// BARANG KELUAR (MULTI ITEM + STOK REALTIME)
 // =====================================
 
 const user = JSON.parse(sessionStorage.getItem("user"));
@@ -9,6 +9,12 @@ if (!user) {
 }
 
 let editId = null;
+
+// cache master barang, dipakai untuk isi opsi tiap baris tanpa query berulang
+let masterBarangList = [];
+
+// counter untuk id unik tiap baris detail
+let rowCounter = 0;
 
 // =====================================
 // LOAD KARYAWAN
@@ -107,7 +113,7 @@ document
 });
 
 // =====================================
-// LOAD BARANG
+// LOAD MASTER BARANG (dicache untuk semua baris)
 // =====================================
 
 async function loadBarang(){
@@ -124,28 +130,7 @@ async function loadBarang(){
 
         if(error) throw error;
 
-        const barang =
-            document.getElementById("barang");
-
-        barang.innerHTML = `
-            <option value="">
-                -- Pilih Barang --
-            </option>
-        `;
-
-        data.forEach(item=>{
-
-            barang.innerHTML += `
-
-            <option value="${item.id}">
-
-                ${item.nama_barang}
-
-            </option>
-
-            `;
-
-        });
+        masterBarangList = data || [];
 
     }
 
@@ -159,57 +144,284 @@ async function loadBarang(){
 
 }
 
+function buildOpsiBarang(){
+
+    let html = `<option value="">-- Pilih Barang --</option>`;
+
+    masterBarangList.forEach(item=>{
+
+        html += `<option value="${item.id}">${item.nama_barang}</option>`;
+
+    });
+
+    return html;
+
+}
+
 // =====================================
-// AUTO ISI BARANG
+// HITUNG STOK REALTIME (masuk - keluar)
 // =====================================
 
-document
-.getElementById("barang")
-.addEventListener("change", async function(){
+async function hitungStok(kodeBarang){
 
-    const id=this.value;
+    if(!kodeBarang) return 0;
 
-    if(id==""){
+    const { data:masuk } = await supabaseClient
 
-        document.getElementById("kategori").value="";
+    .from("barang_masuk")
 
-        document.getElementById("satuan").value="";
+    .select("qty")
+
+    .eq("kode_barang",kodeBarang);
+
+    const { data:keluar } = await supabaseClient
+
+    .from("barang_keluar")
+
+    .select("qty")
+
+    .eq("kode_barang",kodeBarang);
+
+    const totalMasuk =
+        (masuk || []).reduce((a,b)=>a+b.qty,0);
+
+    const totalKeluar =
+        (keluar || []).reduce((a,b)=>a+b.qty,0);
+
+    return totalMasuk - totalKeluar;
+
+}
+
+// =====================================
+// BARIS DETAIL BARANG (MULTI ITEM)
+// =====================================
+
+function tambahBarisBarang(){
+
+    rowCounter++;
+
+    const rowId = `row-${rowCounter}`;
+
+    const wrapper = document.getElementById("detailRows");
+
+    const row = document.createElement("div");
+
+    row.className = "detail-row";
+    row.id = rowId;
+    row.dataset.stok = "0";
+    row.dataset.kodeBarang = "";
+
+    row.innerHTML = `
+
+        <select class="input-barang" required>
+            ${buildOpsiBarang()}
+        </select>
+
+        <input type="text" class="input-kategori" placeholder="Kategori" readonly>
+
+        <input type="text" class="input-satuan" placeholder="Satuan" readonly>
+
+        <span class="stok-badge">Stok: -</span>
+
+        <input type="number" class="input-qty" placeholder="Qty" min="1" required>
+
+        <button type="button" class="btn-hapus-baris" title="Hapus baris">✕</button>
+
+    `;
+
+    wrapper.appendChild(row);
+
+}
+
+function hapusBarisBarang(row){
+
+    const wrapper = document.getElementById("detailRows");
+
+    if(wrapper.children.length <= 1){
+
+        alert("Minimal harus ada 1 baris barang.");
 
         return;
 
     }
 
-    try{
+    row.remove();
 
-        const { data,error } = await supabaseClient
+}
 
-        .from("master_barang")
+async function refreshStokBaris(row){
 
-        .select("*")
+    const kodeBarang = row.dataset.kodeBarang;
 
-        .eq("id",id)
+    const badge = row.querySelector(".stok-badge");
 
-        .single();
+    if(!kodeBarang){
 
-        if(error) throw error;
+        badge.textContent = "Stok: -";
 
-        document.getElementById("kategori").value =
-            data.kategori;
+        badge.classList.remove("warning");
 
-        document.getElementById("satuan").value =
-            data.satuan;
+        row.dataset.stok = "0";
+
+        return;
 
     }
 
-    catch(err){
+    const stok = await hitungStok(kodeBarang);
 
-        console.error(err);
+    row.dataset.stok = stok;
 
-        alert(err.message);
+    badge.textContent = `Stok: ${stok}`;
+
+    validasiQtyBaris(row);
+
+}
+
+function validasiQtyBaris(row){
+
+    const badge = row.querySelector(".stok-badge");
+
+    const qtyInput = row.querySelector(".input-qty");
+
+    const stok = parseInt(row.dataset.stok || "0");
+
+    const qty = parseInt(qtyInput.value || "0");
+
+    if(qty > stok){
+
+        row.classList.add("qty-invalid");
+
+        badge.classList.add("warning");
+
+    } else {
+
+        row.classList.remove("qty-invalid");
+
+        badge.classList.remove("warning");
+
+    }
+
+}
+
+// event delegation untuk semua baris di dalam #detailRows
+document
+.getElementById("detailRows")
+.addEventListener("change", async function(e){
+
+    const row = e.target.closest(".detail-row");
+
+    if(!row) return;
+
+    if(e.target.classList.contains("input-barang")){
+
+        const id = e.target.value;
+
+        const kategoriInput = row.querySelector(".input-kategori");
+        const satuanInput   = row.querySelector(".input-satuan");
+
+        if(id==""){
+
+            kategoriInput.value = "";
+            satuanInput.value   = "";
+            row.dataset.kodeBarang = "";
+
+            await refreshStokBaris(row);
+
+            return;
+
+        }
+
+        const barang = masterBarangList.find(b => String(b.id) === String(id));
+
+        if(!barang) return;
+
+        kategoriInput.value = barang.kategori;
+        satuanInput.value   = barang.satuan;
+        row.dataset.kodeBarang = barang.kode_barang;
+
+        await refreshStokBaris(row);
 
     }
 
 });
+
+document
+.getElementById("detailRows")
+.addEventListener("input", function(e){
+
+    if(e.target.classList.contains("input-qty")){
+
+        const row = e.target.closest(".detail-row");
+
+        if(row) validasiQtyBaris(row);
+
+    }
+
+});
+
+document
+.getElementById("detailRows")
+.addEventListener("click", function(e){
+
+    if(e.target.classList.contains("btn-hapus-baris")){
+
+        const row = e.target.closest(".detail-row");
+
+        if(row) hapusBarisBarang(row);
+
+    }
+
+});
+
+document
+.getElementById("btnTambahBaris")
+.addEventListener("click", tambahBarisBarang);
+
+// =====================================
+// REALTIME STOK (subscribe perubahan barang_masuk & barang_keluar)
+// =====================================
+
+function aktifkanRealtimeStok(){
+
+    supabaseClient
+
+    .channel("stok-realtime-barang-keluar")
+
+    .on("postgres_changes",
+
+        { event: "*", schema: "public", table: "barang_masuk" },
+
+        () => refreshSemuaBarisStok()
+
+    )
+
+    .on("postgres_changes",
+
+        { event: "*", schema: "public", table: "barang_keluar" },
+
+        () => refreshSemuaBarisStok()
+
+    )
+
+    .subscribe();
+
+}
+
+function refreshSemuaBarisStok(){
+
+    const rows = document.querySelectorAll("#detailRows .detail-row");
+
+    rows.forEach(row => {
+
+        if(row.dataset.kodeBarang){
+
+            refreshStokBaris(row);
+
+        }
+
+    });
+
+}
 
 // =====================================
 // LOAD HISTORI BARANG KELUAR
@@ -374,7 +586,7 @@ document
 .addEventListener("keyup",cariBarangKeluar);
 
 // =====================================
-// SIMPAN BARANG KELUAR
+// SIMPAN BARANG KELUAR (MULTI ITEM)
 // =====================================
 
 const form = document.getElementById("formKeluar");
@@ -387,19 +599,12 @@ form.addEventListener("submit", async function(e){
 
     try{
 
-        const barangId =
-            document.getElementById("barang").value;
+        // --------------------------------------
+        // VALIDASI PENGAMBIL
+        // --------------------------------------
 
         const pengambilId =
             document.getElementById("pengambil").value;
-
-        if(barangId==""){
-
-            alert("Pilih barang.");
-
-            return;
-
-        }
 
         if(pengambilId==""){
 
@@ -409,38 +614,103 @@ form.addEventListener("submit", async function(e){
 
         }
 
-        const qty =
-            parseInt(document.getElementById("qty").value);
+        // --------------------------------------
+        // AMBIL SEMUA BARIS DETAIL BARANG
+        // --------------------------------------
 
-        if(qty<=0){
+        const rows =
+            document.querySelectorAll("#detailRows .detail-row");
 
-            alert("Qty harus lebih dari 0.");
+        if(rows.length===0){
+
+            alert("Tambahkan minimal 1 barang.");
 
             return;
 
         }
 
-        //-----------------------------------------
-        // MASTER BARANG
-        //-----------------------------------------
+        const itemList = [];
+        const kodeSudahDipakai = new Set();
 
-        const { data:barang,error:errorBarang }
+        for(const row of rows){
 
-        = await supabaseClient
+            const barangSelect = row.querySelector(".input-barang");
 
-        .from("master_barang")
+            const qtyInput = row.querySelector(".input-qty");
 
-        .select("*")
+            const barangId = barangSelect.value;
 
-        .eq("id",barangId)
+            const qty = parseInt(qtyInput.value);
 
-        .single();
+            if(barangId===""){
 
-        if(errorBarang) throw errorBarang;
+                alert("Ada baris yang belum memilih barang.");
 
-        //-----------------------------------------
+                return;
+
+            }
+
+            if(!qty || qty<=0){
+
+                alert("Qty harus lebih dari 0 untuk setiap barang.");
+
+                return;
+
+            }
+
+            const barang = masterBarangList.find(
+
+                b => String(b.id) === String(barangId)
+
+            );
+
+            if(!barang){
+
+                alert("Data barang tidak ditemukan, coba muat ulang halaman.");
+
+                return;
+
+            }
+
+            if(kodeSudahDipakai.has(barang.kode_barang)){
+
+                alert(
+
+                    `Barang "${barang.nama_barang}" dipilih lebih dari satu kali.\n` +
+                    `Gabungkan qty-nya dalam satu baris saja.`
+
+                );
+
+                return;
+
+            }
+
+            kodeSudahDipakai.add(barang.kode_barang);
+
+            // cek ulang stok realtime saat submit (bukan hanya dari cache)
+
+            const stokSaatIni = await hitungStok(barang.kode_barang);
+
+            if(qty > stokSaatIni){
+
+                alert(
+
+                    `Stok "${barang.nama_barang}" tidak mencukupi.\n\n` +
+                    `Stok tersedia : ${stokSaatIni}`
+
+                );
+
+                return;
+
+            }
+
+            itemList.push({ barang, qty });
+
+        }
+
+        // --------------------------------------
         // MASTER KARYAWAN
-        //-----------------------------------------
+        // --------------------------------------
 
         const { data:karyawan,error:errorKar }
 
@@ -456,127 +726,62 @@ form.addEventListener("submit", async function(e){
 
         if(errorKar) throw errorKar;
 
-          //-----------------------------------------
-        // HITUNG STOK
-        //-----------------------------------------
+        // --------------------------------------
+        // SUSUN TRANSAKSI (1 BARIS PER BARANG)
+        // --------------------------------------
 
-        const { data:masuk } = await supabaseClient
+        const tanggal = document.getElementById("tanggal").value;
+        const keterangan = document.getElementById("keterangan").value;
 
-        .from("barang_masuk")
+        const transaksiList = itemList.map(({barang, qty}) => ({
 
-        .select("qty")
+            tanggal: tanggal,
 
-        .eq("kode_barang",barang.kode_barang);
+            nik: karyawan.nik,
 
-        const { data:keluar } = await supabaseClient
+            nama_pengambil: karyawan.nama,
 
-        .from("barang_keluar")
+            departemen: karyawan.departemen,
 
-        .select("qty")
+            jabatan: karyawan.jabatan,
 
-        .eq("kode_barang",barang.kode_barang);
+            kode_barang: barang.kode_barang,
 
-        const totalMasuk =
-            (masuk || [])
-            .reduce((a,b)=>a+b.qty,0);
+            nama_barang: barang.nama_barang,
 
-        const totalKeluar =
-            (keluar || [])
-            .reduce((a,b)=>a+b.qty,0);
+            kategori: barang.kategori,
 
-        const stok =
-            totalMasuk-totalKeluar;
+            satuan: barang.satuan,
 
-        if(qty>stok){
+            qty: qty,
 
-            alert(
+            keterangan: keterangan,
 
-                "Stok tidak mencukupi.\n\n" +
+            gudang: user.gudang,
 
-                "Stok tersedia : " +
+            created_by: user.nama
 
-                stok
+        }));
 
-            );
-
-            return;
-
-        }
-
-          //-----------------------------------------
-        // INSERT
-        //-----------------------------------------
-
-        const transaksi={
-
-            tanggal:
-
-                document.getElementById("tanggal").value,
-
-            nik:karyawan.nik,
-
-            nama_pengambil:
-
-                karyawan.nama,
-
-            departemen:
-
-                karyawan.departemen,
-
-            jabatan:
-
-                karyawan.jabatan,
-
-            kode_barang:
-
-                barang.kode_barang,
-
-            nama_barang:
-
-                barang.nama_barang,
-
-            kategori:
-
-                barang.kategori,
-
-            satuan:
-
-                barang.satuan,
-
-            qty:qty,
-
-            keterangan:
-
-                document.getElementById("keterangan").value,
-
-            gudang:user.gudang,
-
-            created_by:user.nama
-
-        };
+        // --------------------------------------
+        // INSERT SEKALIGUS
+        // --------------------------------------
 
         const { error } = await supabaseClient
 
         .from("barang_keluar")
 
-        .insert([transaksi]);
+        .insert(transaksiList);
 
         if(error) throw error;
 
-          alert("Barang Keluar berhasil disimpan.");
+        alert(
 
-        form.reset();
+            `Barang Keluar berhasil disimpan (${transaksiList.length} item).`
 
-        document.getElementById("departemen").value="";
+        );
 
-        document.getElementById("jabatan").value="";
-
-        document.getElementById("kategori").value="";
-
-        document.getElementById("satuan").value="";
-
-        document.getElementById("tanggal").value =
-            new Date().toISOString().split("T")[0];
+        resetFormKeluar();
 
         await loadBarangKeluar();
 
@@ -595,7 +800,28 @@ form.addEventListener("submit", async function(e){
 }
 
 // =====================================
-// EDIT BARANG KELUAR
+// RESET FORM (kembali ke 1 baris kosong)
+// =====================================
+
+function resetFormKeluar(){
+
+    form.reset();
+
+    document.getElementById("departemen").value="";
+
+    document.getElementById("jabatan").value="";
+
+    document.getElementById("tanggal").value =
+        new Date().toISOString().split("T")[0];
+
+    document.getElementById("detailRows").innerHTML = "";
+
+    tambahBarisBarang();
+
+}
+
+// =====================================
+// EDIT BARANG KELUAR (per item / baris histori)
 // =====================================
 
 async function editBarangKeluar(id){
@@ -619,11 +845,43 @@ async function editBarangKeluar(id){
         document.getElementById("tanggal").value =
             data.tanggal;
 
-        document.getElementById("qty").value =
-            data.qty;
-
         document.getElementById("keterangan").value =
             data.keterangan ?? "";
+
+        // set pengambil sesuai data (jika masih ada di master_karyawan)
+
+        document.getElementById("departemen").value = data.departemen;
+        document.getElementById("jabatan").value = data.jabatan;
+
+        // kosongkan baris detail, tampilkan 1 baris berisi item yang diedit
+
+        document.getElementById("detailRows").innerHTML = "";
+
+        tambahBarisBarang();
+
+        const row = document.querySelector("#detailRows .detail-row");
+
+        const barang = masterBarangList.find(
+
+            b => b.kode_barang === data.kode_barang
+
+        );
+
+        if(barang){
+
+            row.querySelector(".input-barang").value = barang.id;
+
+            row.querySelector(".input-kategori").value = barang.kategori;
+
+            row.querySelector(".input-satuan").value = barang.satuan;
+
+            row.dataset.kodeBarang = barang.kode_barang;
+
+            await refreshStokBaris(row);
+
+        }
+
+        row.querySelector(".input-qty").value = data.qty;
 
         document.getElementById("judulForm").innerHTML =
             "✏ Edit Barang Keluar";
@@ -660,19 +918,6 @@ function batalEdit(){
 
     editId=null;
 
-    form.reset();
-
-    document.getElementById("tanggal").value =
-        new Date().toISOString().split("T")[0];
-
-    document.getElementById("departemen").value="";
-
-    document.getElementById("jabatan").value="";
-
-    document.getElementById("kategori").value="";
-
-    document.getElementById("satuan").value="";
-
     document.getElementById("judulForm").innerHTML =
         "➖ Barang Keluar";
 
@@ -681,6 +926,8 @@ function batalEdit(){
 
     document.getElementById("btnBatal").style.display =
         "none";
+
+    resetFormKeluar();
 
 }
 
@@ -763,6 +1010,10 @@ document.addEventListener("DOMContentLoaded",async()=>{
 
     await loadBarang();
 
+    tambahBarisBarang();
+
     await loadBarangKeluar();
+
+    aktifkanRealtimeStok();
 
 });
