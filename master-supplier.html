@@ -8,248 +8,537 @@
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="css/dashboard.css">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
 <script src="supabase/config.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <style>
-    /* ====================================================
-       Style disamakan dengan pola Barang Keluar / Barang Masuk
-       ==================================================== */
+  :root{
+    --md-bg:#0f1018;
+    --md-surface:#171926;
+    --md-surface-2:#1e2130;
+    --md-border:#2a2d3d;
+    --md-text:#e9eaf2;
+    --md-muted:#9498ab;
+    --md-purple:#6c5dd3;
+    --md-purple-dark:#5a4cc0;
+    --md-purple-soft:rgba(108,93,211,.15);
+    --md-danger:#ef5675;
+    --md-danger-soft:rgba(239,84,117,.12);
+  }
 
-    #formSupplier{
-        display:grid;
-        grid-template-columns:1fr 1fr;
-        gap:16px;
-    }
+  body{
+    font-family:'Inter', sans-serif;
+    background:var(--md-bg);
+    color:var(--md-text);
+  }
 
-    #formSupplier input[type="text"]{
-        width:100%;
-        padding:10px 12px;
-        border-radius:8px;
-        border:1px solid #334155;
-        background:#0f172a;
-        color:#e2e8f0;
-        font-family:inherit;
-        font-size:14px;
-        box-sizing:border-box;
-    }
+  .content{
+    max-width:1100px;
+    margin:0 auto;
+    padding:28px 24px 60px;
+  }
 
-    #formSupplier input[type="text"]::placeholder{
-        color:#64748b;
-    }
+  .content h2{
+    font-size:23px;
+    font-weight:700;
+    color:var(--md-text);
+    display:flex;
+    align-items:center;
+    gap:10px;
+    margin:0;
+  }
 
-    #formSupplier input[type="text"]:focus{
-        outline:none;
-        border-color:#3b82f6;
-        box-shadow:0 0 0 3px rgba(59,130,246,.2);
-    }
+  .page-subtitle{
+    color:var(--md-muted);
+    font-size:13.5px;
+    margin-top:4px;
+  }
 
-    #formSupplier input[readonly]{
-        background:#0b1220;
-        color:#94a3b8;
-        border-style:dashed;
-    }
+  /* ===== Toolbar ===== */
+  .toolbar{
+    display:flex;
+    gap:12px;
+    flex-wrap:wrap;
+  }
 
-    #btnSimpan{
-        background:#3b82f6;
-        color:#ffffff;
-        border:none;
-        border-radius:10px;
-        padding:12px 20px;
-        cursor:pointer;
-        font-weight:600;
-        font-size:14px;
-        font-family:inherit;
-        transition:background .15s;
-    }
+  .toolbar button{
+    display:inline-flex;
+    align-items:center;
+    gap:8px;
+    border:none;
+    border-radius:10px;
+    padding:10px 18px;
+    font-size:14px;
+    font-weight:600;
+    cursor:pointer;
+    transition:transform .12s ease, box-shadow .12s ease, opacity .15s ease;
+  }
 
-    #btnSimpan:hover{
-        background:#2563eb;
-    }
+  .toolbar button:active{ transform: translateY(1px); }
 
-    #btnBatal{
-        background:rgba(239,68,68,.12);
-        color:#f87171;
-        border:1px solid rgba(239,68,68,.35);
-        border-radius:10px;
-        padding:12px 20px;
-        cursor:pointer;
-        font-weight:600;
-        font-size:14px;
-        font-family:inherit;
-        transition:background .15s;
-    }
+  .btn-dashboard{
+    background:var(--md-surface-2);
+    color:var(--md-text);
+    border:1px solid var(--md-border);
+  }
+  .btn-dashboard:hover{ background:#262a3c; }
 
-    #btnBatal:hover{
-        background:rgba(239,68,68,.25);
-    }
+  .btn-import{
+    background:var(--md-surface-2);
+    color:var(--md-text);
+    border:1px solid var(--md-border);
+  }
+  .btn-import:hover{ background:#262a3c; }
 
-    /* ---------- Tabel ---------- */
+  .btn-export{
+    background:linear-gradient(135deg, var(--md-purple), var(--md-purple-dark));
+    color:#fff;
+    box-shadow:0 4px 12px rgba(108,93,211,.35);
+  }
+  .btn-export:hover{ opacity:.92; }
 
-    .table-responsive{
-        overflow-x:auto;
-    }
+  /* ===== Panel ===== */
+  .panel{
+    background:var(--md-surface);
+    border:1px solid var(--md-border);
+    border-radius:14px;
+    padding:22px 24px;
+    box-shadow:0 4px 16px rgba(0,0,0,.18);
+  }
 
-    #tableSupplier{
-        width:100%;
-        border-collapse:separate;
-        border-spacing:0 8px;
-    }
+  .panel h3{
+    margin:0 0 16px;
+    font-size:16px;
+    font-weight:600;
+    color:var(--md-text);
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+  }
 
-    #tableSupplier thead th{
-        font-size:12px;
-        font-weight:600;
-        letter-spacing:.03em;
-        text-transform:uppercase;
-        color:#64748b;
-        text-align:left;
-        padding:0 12px 8px;
-    }
+  .total-badge{
+    font-size:12.5px;
+    font-weight:600;
+    color:var(--md-purple);
+    background:var(--md-purple-soft);
+    padding:4px 10px;
+    border-radius:999px;
+  }
 
-    #tableSupplier tbody tr{
-        background:rgba(255,255,255,.02);
-    }
+  /* ===== Form (dalam modal) ===== */
+  #formSupplier{
+    display:block !important;
+  }
 
-    #tableSupplier tbody td{
-        padding:12px;
-        vertical-align:middle;
-        color:#e2e8f0;
-        font-size:13.5px;
-        border-top:1px solid #263041;
-        border-bottom:1px solid #263041;
-    }
+  .form-grid{
+    display:grid !important;
+    grid-template-columns: 1fr 1fr !important;
+    gap:16px;
+  }
 
-    #tableSupplier tbody td:first-child{
-        border-left:1px solid #263041;
-        border-top-left-radius:8px;
-        border-bottom-left-radius:8px;
-        font-weight:600;
-        color:#60a5fa;
-    }
+  @media (max-width:680px){
+    .form-grid{ grid-template-columns: 1fr; }
+  }
 
-    #tableSupplier tbody td:last-child{
-        border-right:1px solid #263041;
-        border-top-right-radius:8px;
-        border-bottom-right-radius:8px;
-    }
+  .field{
+    display:flex;
+    flex-direction:column;
+    gap:6px;
+  }
 
-    #searchSupplier{
-        width:100%;
-        padding:10px 12px;
-        margin-bottom:14px;
-        border:1px solid #334155;
-        border-radius:8px;
-        background:#0f172a;
-        color:#e2e8f0;
-        font-family:inherit;
-        font-size:14px;
-        box-sizing:border-box;
-    }
+  .field label{
+    font-size:12.5px;
+    font-weight:600;
+    color:var(--md-muted);
+    text-transform:uppercase;
+    letter-spacing:.03em;
+  }
 
-    #searchSupplier::placeholder{
-        color:#64748b;
-    }
+  #formSupplier input{
+    width:100%;
+    box-sizing:border-box;
+    padding:11px 14px;
+    border:1px solid var(--md-border);
+    border-radius:10px;
+    font-size:14px;
+    font-family:inherit;
+    color:var(--md-text);
+    background:var(--md-surface-2);
+    transition:border-color .15s ease, box-shadow .15s ease;
+  }
 
-    #searchSupplier:focus{
-        outline:none;
-        border-color:#3b82f6;
-        box-shadow:0 0 0 3px rgba(59,130,246,.2);
-    }
+  #formSupplier input::placeholder{ color:#5d6175; }
 
-    .empty-state{
-        text-align:center;
-        color:#64748b;
-        padding:20px;
-        font-style:italic;
-    }
+  #formSupplier input:focus{
+    outline:none;
+    border-color:var(--md-purple);
+    box-shadow:0 0 0 3px var(--md-purple-soft);
+  }
+
+  #formSupplier input[readonly]{
+    opacity:.65;
+    cursor:not-allowed;
+  }
+
+  .form-actions{
+    grid-column: 1 / -1;
+    display:flex !important;
+    align-items:center !important;
+    gap:12px;
+    margin-top:6px;
+    height:auto !important;
+  }
+
+  #btnSimpan{
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    gap:8px;
+    height:44px !important;
+    background:linear-gradient(135deg, var(--md-purple), var(--md-purple-dark));
+    color:#fff;
+    border:none;
+    border-radius:10px;
+    padding:0 24px;
+    font-size:14px;
+    font-weight:600;
+    font-family:inherit;
+    cursor:pointer;
+    box-shadow:0 4px 12px rgba(108,93,211,.3);
+    transition:filter .15s ease, transform .12s ease, box-shadow .15s ease;
+  }
+  #btnSimpan:hover{ filter:brightness(1.08); box-shadow:0 6px 16px rgba(108,93,211,.4); }
+  #btnSimpan:active{ transform: translateY(1px); }
+  #btnSimpan:disabled{ opacity:.55; cursor:not-allowed; filter:none; box-shadow:none; }
+
+  #btnBatal{
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    gap:8px;
+    height:44px !important;
+    background:transparent;
+    color:var(--md-danger);
+    border:1px solid #5a2a36;
+    border-radius:10px;
+    padding:0 20px;
+    font-size:14px;
+    font-weight:600;
+    font-family:inherit;
+    cursor:pointer;
+    transition:background .15s ease, border-color .15s ease;
+  }
+  #btnBatal:hover{ background:var(--md-danger-soft); border-color:var(--md-danger); }
+
+  /* ===== Search row above table ===== */
+  .table-toolbar{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    gap:14px;
+    flex-wrap:wrap;
+    margin-bottom:16px;
+  }
+
+  .search-box{
+    flex:1;
+    min-width:220px;
+    max-width:340px;
+    padding:10px 14px;
+    border:1px solid var(--md-border);
+    border-radius:10px;
+    font-size:13.5px;
+    font-family:inherit;
+    color:var(--md-text);
+    background:var(--md-surface-2);
+  }
+  .search-box:focus{
+    outline:none;
+    border-color:var(--md-purple);
+    box-shadow:0 0 0 3px var(--md-purple-soft);
+  }
+
+  /* ===== Table ===== */
+  .table-wrap{
+    overflow-x:auto;
+    border-radius:10px;
+    border:1px solid var(--md-border);
+  }
+
+  table{
+    width:100%;
+    border-collapse:collapse;
+    font-size:13.5px;
+    min-width:560px;
+  }
+
+  thead th{
+    background:var(--md-surface-2);
+    color:var(--md-muted);
+    text-transform:uppercase;
+    font-size:11.5px;
+    letter-spacing:.04em;
+    font-weight:700;
+    text-align:left;
+    padding:12px 14px;
+    border-bottom:1px solid var(--md-border);
+    white-space:nowrap;
+  }
+
+  tbody td{
+    padding:11px 14px;
+    border-bottom:1px solid var(--md-border);
+    color:var(--md-text);
+    vertical-align:middle;
+  }
+
+  tbody tr:last-child td{ border-bottom:none; }
+  #tableSupplier tbody tr:hover td{
+    background:transparent !important;
+    color:var(--md-text) !important;
+  }
+
+  .kode-pill{
+    display:inline-block;
+    font-weight:600;
+    color:#bcb2f5;
+    background:var(--md-purple-soft);
+    padding:3px 9px;
+    border-radius:6px;
+    font-size:12.5px;
+    letter-spacing:.02em;
+  }
+
+  .actions-cell{
+    display:flex;
+    gap:8px;
+  }
+
+  .btn-edit, .btn-delete{
+    display:inline-flex;
+    align-items:center;
+    gap:5px;
+    border-radius:8px;
+    padding:7px 13px;
+    font-size:12.5px;
+    font-weight:600;
+    font-family:inherit;
+    cursor:pointer;
+    transition:background .15s ease, color .15s ease, border-color .15s ease, transform .12s ease;
+  }
+  .btn-edit:active, .btn-delete:active{ transform:translateY(1px); }
+
+  .btn-edit{
+    background:transparent;
+    color:#bcb2f5 !important;
+    border:1px solid #4d4499;
+  }
+  .btn-edit:hover{
+    background:var(--md-purple) !important;
+    color:#fff !important;
+    border-color:var(--md-purple);
+  }
+
+  .btn-delete{
+    background:transparent;
+    color:var(--md-danger) !important;
+    border:1px solid #8a3548;
+  }
+  .btn-delete:hover{
+    background:var(--md-danger) !important;
+    color:#fff !important;
+    border-color:var(--md-danger);
+  }
+
+  .empty-state, .loading-state{
+    text-align:center;
+    padding:36px 10px;
+    color:var(--md-muted);
+    font-size:14px;
+  }
+
+  .loading-state .spinner{
+    display:inline-block;
+    width:16px; height:16px;
+    border:2px solid var(--md-border);
+    border-top-color:var(--md-purple);
+    border-radius:50%;
+    animation:spin .7s linear infinite;
+    margin-right:8px;
+    vertical-align:middle;
+  }
+
+  @keyframes spin{ to{ transform:rotate(360deg); } }
+
+  /* ===== Modal (Tambah/Edit Supplier) ===== */
+  .modal-overlay{
+    display:none;
+    position:fixed;
+    inset:0;
+    background:rgba(8,9,15,.65);
+    backdrop-filter:blur(2px);
+    align-items:center;
+    justify-content:center;
+    z-index:1000;
+    padding:20px;
+  }
+  .modal-overlay.active{ display:flex; }
+
+  .modal-box{
+    background:var(--md-surface);
+    border:1px solid var(--md-border);
+    border-radius:14px;
+    width:480px;
+    max-width:100%;
+    max-height:90vh;
+    overflow-y:auto;
+    box-shadow:0 20px 50px rgba(0,0,0,.45);
+    animation:modalPop .15s ease;
+  }
+
+  @keyframes modalPop{
+    from{ opacity:0; transform:translateY(8px) scale(.98); }
+    to{ opacity:1; transform:translateY(0) scale(1); }
+  }
+
+  .modal-header{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    padding:18px 22px;
+    border-bottom:1px solid var(--md-border);
+  }
+
+  .modal-header h3{
+    margin:0;
+    font-size:16px;
+    font-weight:700;
+    color:var(--md-text);
+  }
+
+  .modal-close{
+    background:none;
+    border:none;
+    color:var(--md-muted);
+    font-size:18px;
+    cursor:pointer;
+    line-height:1;
+    padding:4px;
+    border-radius:6px;
+    transition:background .15s ease, color .15s ease;
+  }
+  .modal-close:hover{ background:var(--md-surface-2); color:var(--md-text); }
+
+  .modal-body{
+    padding:22px;
+  }
+
+  .modal-footer{
+    display:flex;
+    justify-content:flex-end;
+    gap:10px;
+    padding:16px 22px;
+    border-top:1px solid var(--md-border);
+  }
 </style>
 </head>
 <body>
 <div class="content">
-<h2>🚚 Master Supplier</h2>
-<br>
-<!-- ================= TOOLBAR ================= -->
-<div class="toolbar">
-<button
-class="btn-dashboard"
-onclick="location.href='dashboard.html'">
-🏠 Dashboard
-</button>
+
+  <h2>🚚 Master Supplier</h2>
+  <p class="page-subtitle">Kelola data master supplier / toko rekanan.</p>
+  <br>
+
+  <!-- ================= TOOLBAR ================= -->
+  <div class="toolbar">
+    <button class="btn-dashboard" onclick="location.href='dashboard.html'">
+      🏠 Dashboard
+    </button>
+    <button class="btn-export" onclick="bukaModalTambah()">
+      ➕ Tambah Supplier
+    </button>
+    <button class="btn-import" onclick="document.getElementById('fileImport').click()">
+      📥 Import Excel
+    </button>
+    <input type="file" id="fileImport" accept=".xlsx,.xls,.csv" hidden>
+    <button class="btn-export" onclick="exportExcel()">
+      📤 Export Excel
+    </button>
+  </div>
+  <br>
+
+  <!-- ================= TABEL ================= -->
+  <div class="panel">
+    <h3>
+      Daftar Supplier
+      <span class="total-badge" id="totalBadge">0 item</span>
+    </h3>
+
+    <div class="table-toolbar">
+      <input type="text" id="searchSupplier" class="search-box" placeholder="🔍 Cari kode atau nama toko...">
+    </div>
+
+    <div class="table-wrap">
+      <table id="tableSupplier">
+        <thead>
+          <tr>
+            <th width="150">Kode Supplier</th>
+            <th>Nama Toko</th>
+            <th width="160">Dibuat Oleh</th>
+            <th width="170">Aksi</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td colspan="4" class="loading-state">
+              <span class="spinner"></span> Memuat data...
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
 </div>
-<br>
-<!-- ================= FORM ================= -->
-<div class="panel">
-<h3 id="judulForm">
-➕ Tambah Supplier
-</h3>
-<br>
-<form id="formSupplier">
-<input
-type="text"
-id="kode_supplier"
-placeholder="Kode Supplier"
-required>
-<input
-type="text"
-id="nama_toko"
-placeholder="Nama Toko"
-required>
-<div style="grid-column:1/3;display:flex;gap:10px;">
-<button
-type="submit"
-id="btnSimpan">
-💾 Simpan Supplier
-</button>
-<button
-type="button"
-id="btnBatal"
-style="display:none;">
-❌ Batal
-</button>
+
+<!-- ================= MODAL TAMBAH/EDIT SUPPLIER ================= -->
+<div class="modal-overlay" id="modalSupplier">
+  <div class="modal-box">
+
+    <div class="modal-header">
+      <h3 id="judulForm">➕ Tambah Supplier</h3>
+      <button type="button" class="modal-close" onclick="tutupModal()">✕</button>
+    </div>
+
+    <form id="formSupplier">
+      <div class="modal-body">
+        <div class="form-grid">
+
+          <div class="field">
+            <label for="kode_supplier">Kode Supplier</label>
+            <input type="text" id="kode_supplier" placeholder="Contoh: SUP01" required>
+          </div>
+
+          <div class="field">
+            <label for="nama_toko">Nama Toko</label>
+            <input type="text" id="nama_toko" placeholder="Nama toko / supplier" required>
+          </div>
+
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" id="btnBatal" onclick="tutupModal()">
+          Batal
+        </button>
+        <button type="submit" id="btnSimpan">
+          💾 Simpan Supplier
+        </button>
+      </div>
+    </form>
+
+  </div>
 </div>
-</form>
-</div>
-<br>
-<!-- ================= TABEL ================= -->
-<div class="panel">
-<h3>Daftar Supplier</h3>
-<br>
-<div class="toolbar" style="margin-bottom:14px;">
-<button
-class="btn-import"
-onclick="document.getElementById('fileImport').click()">
-📥 Import Excel
-</button>
-<input
-type="file"
-id="fileImport"
-accept=".xlsx,.xls"
-hidden>
-<button
-class="btn-export"
-onclick="exportExcel()">
-📤 Export Excel
-</button>
-</div>
-<input
-type="text"
-id="searchSupplier"
-placeholder="🔍 Cari kode supplier / nama toko...">
-<div class="table-responsive">
-<table id="tableSupplier">
-<thead>
-<tr>
-<th width="160">Kode Supplier</th>
-<th>Nama Toko</th>
-<th width="200">Created By</th>
-<th width="180">Aksi</th>
-</tr>
-</thead>
-<tbody>
-</tbody>
-</table>
-</div>
-</div>
-</div>
+
 <script src="js/master-supplier.js"></script>
 </body>
 </html>
