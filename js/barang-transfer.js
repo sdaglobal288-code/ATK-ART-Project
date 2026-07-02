@@ -146,24 +146,22 @@ function isiDropdownGudang(){
 
     if(!gudangAsal || !gudangTujuan) return;
 
-    const opsiHtml = daftarGudang.map(g =>
-        `<option value="${g}">${g}</option>`
-    ).join("");
+    // Gudang Asal dikunci = gudang akun yang sedang login, tidak bisa dipilih.
+    gudangAsal.value = (user && user.gudang) ? user.gudang : "";
+    gudangAsal.readOnly = true;
 
-    gudangAsal.innerHTML = opsiHtml;
-    gudangTujuan.innerHTML = opsiHtml;
+    // Gudang Tujuan hanya menampilkan gudang LAIN (gudang sendiri dikecualikan)
+    const pilihanTujuan = daftarGudang.filter(g => g !== gudangAsal.value);
 
-    // default gudang asal = gudang milik user yang sedang login (kalau cocok)
-    if(user && user.gudang && daftarGudang.includes(user.gudang)){
+    gudangTujuan.innerHTML = pilihanTujuan
+        .map(g => `<option value="${g}">${g}</option>`)
+        .join("");
 
-        gudangAsal.value = user.gudang;
+    if(pilihanTujuan.length > 0){
+
+        gudangTujuan.value = pilihanTujuan[0];
 
     }
-
-    // gudang tujuan default ke opsi lain supaya tidak sama dengan asal
-    const alternatif = daftarGudang.find(g => g !== gudangAsal.value);
-
-    if(alternatif) gudangTujuan.value = alternatif;
 
     const labelGudangUser = document.getElementById("labelGudangUser");
 
