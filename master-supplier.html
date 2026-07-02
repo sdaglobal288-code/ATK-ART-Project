@@ -1,162 +1,255 @@
 <!DOCTYPE html>
 <html lang="id">
-
 <head>
-
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
 <title>Master Supplier</title>
-
 <link rel="preconnect" href="https://fonts.googleapis.com">
-
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-
 <link rel="stylesheet" href="css/dashboard.css">
-
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
-
 <script src="supabase/config.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<style>
+    /* ====================================================
+       Style disamakan dengan pola Barang Keluar / Barang Masuk
+       ==================================================== */
 
+    #formSupplier{
+        display:grid;
+        grid-template-columns:1fr 1fr;
+        gap:16px;
+    }
+
+    #formSupplier input[type="text"]{
+        width:100%;
+        padding:10px 12px;
+        border-radius:8px;
+        border:1px solid #334155;
+        background:#0f172a;
+        color:#e2e8f0;
+        font-family:inherit;
+        font-size:14px;
+        box-sizing:border-box;
+    }
+
+    #formSupplier input[type="text"]::placeholder{
+        color:#64748b;
+    }
+
+    #formSupplier input[type="text"]:focus{
+        outline:none;
+        border-color:#3b82f6;
+        box-shadow:0 0 0 3px rgba(59,130,246,.2);
+    }
+
+    #formSupplier input[readonly]{
+        background:#0b1220;
+        color:#94a3b8;
+        border-style:dashed;
+    }
+
+    #btnSimpan{
+        background:#3b82f6;
+        color:#ffffff;
+        border:none;
+        border-radius:10px;
+        padding:12px 20px;
+        cursor:pointer;
+        font-weight:600;
+        font-size:14px;
+        font-family:inherit;
+        transition:background .15s;
+    }
+
+    #btnSimpan:hover{
+        background:#2563eb;
+    }
+
+    #btnBatal{
+        background:rgba(239,68,68,.12);
+        color:#f87171;
+        border:1px solid rgba(239,68,68,.35);
+        border-radius:10px;
+        padding:12px 20px;
+        cursor:pointer;
+        font-weight:600;
+        font-size:14px;
+        font-family:inherit;
+        transition:background .15s;
+    }
+
+    #btnBatal:hover{
+        background:rgba(239,68,68,.25);
+    }
+
+    /* ---------- Tabel ---------- */
+
+    .table-responsive{
+        overflow-x:auto;
+    }
+
+    #tableSupplier{
+        width:100%;
+        border-collapse:separate;
+        border-spacing:0 8px;
+    }
+
+    #tableSupplier thead th{
+        font-size:12px;
+        font-weight:600;
+        letter-spacing:.03em;
+        text-transform:uppercase;
+        color:#64748b;
+        text-align:left;
+        padding:0 12px 8px;
+    }
+
+    #tableSupplier tbody tr{
+        background:rgba(255,255,255,.02);
+    }
+
+    #tableSupplier tbody td{
+        padding:12px;
+        vertical-align:middle;
+        color:#e2e8f0;
+        font-size:13.5px;
+        border-top:1px solid #263041;
+        border-bottom:1px solid #263041;
+    }
+
+    #tableSupplier tbody td:first-child{
+        border-left:1px solid #263041;
+        border-top-left-radius:8px;
+        border-bottom-left-radius:8px;
+        font-weight:600;
+        color:#60a5fa;
+    }
+
+    #tableSupplier tbody td:last-child{
+        border-right:1px solid #263041;
+        border-top-right-radius:8px;
+        border-bottom-right-radius:8px;
+    }
+
+    #searchSupplier{
+        width:100%;
+        padding:10px 12px;
+        margin-bottom:14px;
+        border:1px solid #334155;
+        border-radius:8px;
+        background:#0f172a;
+        color:#e2e8f0;
+        font-family:inherit;
+        font-size:14px;
+        box-sizing:border-box;
+    }
+
+    #searchSupplier::placeholder{
+        color:#64748b;
+    }
+
+    #searchSupplier:focus{
+        outline:none;
+        border-color:#3b82f6;
+        box-shadow:0 0 0 3px rgba(59,130,246,.2);
+    }
+
+    .empty-state{
+        text-align:center;
+        color:#64748b;
+        padding:20px;
+        font-style:italic;
+    }
+</style>
 </head>
-
 <body>
-
 <div class="content">
-
 <h2>🚚 Master Supplier</h2>
-
 <br>
-
 <!-- ================= TOOLBAR ================= -->
-
 <div class="toolbar">
-
 <button
 class="btn-dashboard"
 onclick="location.href='dashboard.html'">
-
 🏠 Dashboard
-
 </button>
-
-<button
-class="btn-import"
-onclick="document.getElementById('fileImport').click()">
-
-📥 Import Excel
-
-</button>
-
-<input
-type="file"
-id="fileImport"
-accept=".xlsx,.xls"
-hidden>
-
-<button
-class="btn-export"
-onclick="exportExcel()">
-
-📤 Export Excel
-
-</button>
-
 </div>
-
 <br>
-
 <!-- ================= FORM ================= -->
-
 <div class="panel">
-
 <h3 id="judulForm">
-
 ➕ Tambah Supplier
-
 </h3>
-
 <br>
-
 <form id="formSupplier">
-
 <input
 type="text"
 id="kode_supplier"
 placeholder="Kode Supplier"
 required>
-
 <input
 type="text"
 id="nama_toko"
 placeholder="Nama Toko"
 required>
-
-<div style="display:flex;gap:10px;">
-
+<div style="grid-column:1/3;display:flex;gap:10px;">
 <button
 type="submit"
 id="btnSimpan">
-
 💾 Simpan Supplier
-
 </button>
-
 <button
 type="button"
 id="btnBatal"
 style="display:none;">
-
 ❌ Batal
-
 </button>
-
 </div>
-
 </form>
-
 </div>
-
 <br>
-
 <!-- ================= TABEL ================= -->
-
 <div class="panel">
-
 <h3>Daftar Supplier</h3>
-
 <br>
-
+<div class="toolbar" style="margin-bottom:14px;">
+<button
+class="btn-import"
+onclick="document.getElementById('fileImport').click()">
+📥 Import Excel
+</button>
+<input
+type="file"
+id="fileImport"
+accept=".xlsx,.xls"
+hidden>
+<button
+class="btn-export"
+onclick="exportExcel()">
+📤 Export Excel
+</button>
+</div>
+<input
+type="text"
+id="searchSupplier"
+placeholder="🔍 Cari kode supplier / nama toko...">
+<div class="table-responsive">
 <table id="tableSupplier">
-
 <thead>
-
 <tr>
-
 <th width="160">Kode Supplier</th>
-
 <th>Nama Toko</th>
-
 <th width="200">Created By</th>
-
 <th width="180">Aksi</th>
-
 </tr>
-
 </thead>
-
 <tbody>
-
 </tbody>
-
 </table>
-
 </div>
-
 </div>
-
+</div>
 <script src="js/master-supplier.js"></script>
-
 </body>
-
 </html>
