@@ -14,6 +14,13 @@
 //   3. Reject          -> stok kembali ke gudang asal, status = "Rejected"
 //   4. Retur (setelah Approved) -> stok gudang tujuan berkurang,
 //                                   stok gudang asal bertambah lagi, status = "Retur"
+//
+// NOMOR TRANSFER OTOMATIS:
+//   Format  : TRF-0001/VII/2026  (urut 4 digit / bulan romawi / tahun,
+//             bulan & tahun mengikuti tanggal sistem saat ini)
+//   Urut    : global lintas gudang, RESET ke 0001 setiap bulan baru
+//             (dihitung dari no_transfer yang polanya cocok bulan+tahun berjalan)
+//   Field no_transfer bersifat readonly, diisi otomatis oleh sistem.
 // =====================================
 
 const user = JSON.parse(sessionStorage.getItem("user"));
@@ -25,12 +32,81 @@ if (!user) {
 // Daftar gudang default kalau tabel master_gudang belum ada / kosong
 const DAFTAR_GUDANG_FALLBACK = ["Raden Saleh", "Margomulyo"];
 
+// Bulan romawi untuk format nomor transfer
+const BULAN_ROMAWI = ["I","II","III","IV","V","VI","VII","VIII","IX","X","XI","XII"];
+
 // cache master data
 let masterBarang = [];
 let daftarGudang = [];
 
 // counter id unik baris detail
 let rowCounter = 0;
+
+// =====================================
+// NOMOR TRANSFER OTOMATIS
+// =====================================
+
+async function generateNoTransfer(){
+
+    const now = new Date();
+
+    const bulanRomawi = BULAN_ROMAWI[now.getMonth()];
+    const tahun = now.getFullYear();
+
+    // pola nomor bulan+tahun berjalan, contoh: "%/VII/2026"
+    const pattern = `%/${bulanRomawi}/${tahun}`;
+
+    let urutTerbesar = 0;
+
+    try{
+
+        const { data, error } = await supabaseClient
+            .from("barang_transfer")
+            .select("no_transfer")
+            .ilike("no_transfer", pattern);
+
+        if(error) throw error;
+
+        (data || []).forEach(row=>{
+
+            const match = (row.no_transfer || "").match(/^TRF-(\d{4})\//);
+
+            if(match){
+
+                const angka = parseInt(match[1], 10);
+
+                if(angka > urutTerbesar) urutTerbesar = angka;
+
+            }
+
+        });
+
+    }
+    catch(err){
+
+        console.error("Gagal menghitung nomor transfer otomatis:", err);
+
+    }
+
+    const urutBaru = urutTerbesar + 1;
+    const urutStr = String(urutBaru).padStart(4, "0");
+
+    return `TRF-${urutStr}/${bulanRomawi}/${tahun}`;
+
+}
+
+async function isiNomorTransferOtomatis(){
+
+    const noTransferInput = document.getElementById("no_transfer");
+
+    if(!noTransferInput) return;
+
+    noTransferInput.readOnly = true;
+    noTransferInput.value = "Memuat nomor...";
+
+    noTransferInput.value = await generateNoTransfer();
+
+}
 
 // =====================================
 // LOAD DAFTAR GUDANG
@@ -538,8 +614,8 @@ async function simpanTransfer(e){
             return;
         }
 
-        if(noTransfer==""){
-            alert("Nomor Transfer wajib diisi.");
+        if(noTransfer=="" || noTransfer==="Memuat nomor..."){
+            alert("Nomor Transfer belum siap, coba tunggu sebentar atau muat ulang halaman.");
             return;
         }
 
@@ -555,6 +631,8 @@ async function simpanTransfer(e){
 
         //---------------------------------
         // VALIDASI NOMOR TRANSFER
+        // (double check ke DB - jaga-jaga kalau ada nomor bentrok
+        // karena dibuat hampir bersamaan oleh user lain)
         //---------------------------------
 
         const { data:cekNomor } = await supabaseClient
@@ -563,8 +641,13 @@ async function simpanTransfer(e){
             .eq("no_transfer", noTransfer);
 
         if(cekNomor && cekNomor.length>0){
-            alert("Nomor Transfer sudah digunakan.");
+
+            alert("Nomor Transfer sudah digunakan (kemungkinan dibuat bersamaan oleh user lain). Nomor baru akan dibuatkan otomatis, silakan simpan ulang.");
+
+            await isiNomorTransferOtomatis();
+
             return;
+
         }
 
         //---------------------------------
@@ -680,7 +763,7 @@ async function simpanTransfer(e){
 
         alert(`Transfer Barang berhasil dibuat (${itemList.length} item), menunggu approval dari ${gudangTujuan}.`);
 
-        resetFormTransfer();
+        await resetFormTransfer();
 
         await loadPendingApproval();
         await loadRiwayatTransfer();
@@ -695,7 +778,7 @@ async function simpanTransfer(e){
 
 }
 
-function resetFormTransfer(){
+async function resetFormTransfer(){
 
     if(formTransfer) formTransfer.reset();
 
@@ -707,6 +790,9 @@ function resetFormTransfer(){
     document.getElementById("detailRows").innerHTML = "";
 
     tambahBarisBarang();
+
+    // buatkan nomor transfer baru untuk transaksi berikutnya
+    await isiNomorTransferOtomatis();
 
 }
 
@@ -1184,6 +1270,8 @@ document.addEventListener("DOMContentLoaded", async ()=>{
 
     document.getElementById("tanggal").value =
         new Date().toISOString().split("T")[0];
+
+    await isiNomorTransferOtomatis();
 
     await loadGudang();
     await loadBarang();
