@@ -14,6 +14,55 @@ let editId = null;
 let daftarSupplier = [];
 
 // =====================================
+// MODAL: BUKA / TUTUP
+// =====================================
+
+function bukaModalTambah(){
+
+    editId = null;
+
+    form.reset();
+
+    document.getElementById("kode_supplier").readOnly = false;
+
+    document.getElementById("judulForm").innerHTML =
+        "➕ Tambah Supplier";
+
+    document.getElementById("btnSimpan").innerHTML =
+        "💾 Simpan Supplier";
+
+    document.getElementById("modalSupplier").classList.add("active");
+
+    setTimeout(()=>{
+        document.getElementById("kode_supplier").focus();
+    }, 50);
+
+}
+
+function tutupModal(){
+
+    document.getElementById("modalSupplier").classList.remove("active");
+
+    editId = null;
+
+    form.reset();
+
+    document.getElementById("kode_supplier").readOnly = false;
+
+}
+
+// tutup modal kalau klik area gelap di luar box
+document
+.getElementById("modalSupplier")
+.addEventListener("click", function(e){
+
+    if(e.target === this){
+        tutupModal();
+    }
+
+});
+
+// =====================================
 // LOAD DATA
 // =====================================
 
@@ -32,6 +81,8 @@ async function loadSupplier() {
 
         tampilkanSupplier(daftarSupplier);
 
+        updateTotalBadge(daftarSupplier.length);
+
     } catch (err) {
 
         console.error(err);
@@ -39,6 +90,14 @@ async function loadSupplier() {
         alert(err.message);
 
     }
+
+}
+
+function updateTotalBadge(jumlah){
+
+    const badge = document.getElementById("totalBadge");
+
+    if(badge) badge.textContent = `${jumlah} item`;
 
 }
 
@@ -71,30 +130,32 @@ function tampilkanSupplier(data){
         tbody.innerHTML += `
         <tr>
 
-            <td>${item.kode_supplier}</td>
+            <td><span class="kode-pill">${item.kode_supplier}</span></td>
 
             <td>${item.nama_toko}</td>
 
             <td>${item.created_by ?? "-"}</td>
 
             <td>
+                <div class="actions-cell">
 
-                <button
-                    class="btn-edit"
-                    onclick="editSupplier(${item.id})">
+                    <button
+                        class="btn-edit"
+                        onclick="editSupplier(${item.id})">
 
-                    ✏ Edit
+                        ✏ Edit
 
-                </button>
+                    </button>
 
-                <button
-                    class="btn-delete"
-                    onclick="hapusSupplier(${item.id})">
+                    <button
+                        class="btn-delete"
+                        onclick="hapusSupplier(${item.id})">
 
-                    🗑 Hapus
+                        🗑 Hapus
 
-                </button>
+                    </button>
 
+                </div>
             </td>
 
         </tr>
@@ -119,6 +180,7 @@ function cariSupplier(){
     if(keyword === ""){
 
         tampilkanSupplier(daftarSupplier);
+        updateTotalBadge(daftarSupplier.length);
         return;
 
     }
@@ -129,6 +191,7 @@ function cariSupplier(){
     );
 
     tampilkanSupplier(hasil);
+    updateTotalBadge(hasil.length);
 
 }
 
@@ -193,7 +256,7 @@ form.addEventListener("submit", async function(e){
 
             alert("Supplier berhasil diupdate.");
 
-            batalEdit();
+            tutupModal();
 
             loadSupplier();
 
@@ -235,7 +298,7 @@ form.addEventListener("submit", async function(e){
 
         alert("Supplier berhasil disimpan.");
 
-        form.reset();
+        tutupModal();
 
         loadSupplier();
 
@@ -287,16 +350,7 @@ async function editSupplier(id){
         document.getElementById("btnSimpan").innerHTML =
             "💾 Update Supplier";
 
-        document.getElementById("btnBatal").style.display =
-            "inline-block";
-
-        window.scrollTo({
-
-            top:0,
-
-            behavior:"smooth"
-
-        });
+        document.getElementById("modalSupplier").classList.add("active");
 
     }
 
@@ -307,33 +361,6 @@ async function editSupplier(id){
     }
 
 }
-
-// =====================================
-// BATAL EDIT
-// =====================================
-
-function batalEdit(){
-
-    editId = null;
-
-    form.reset();
-
-    document.getElementById("kode_supplier").readOnly = false;
-
-    document.getElementById("judulForm").innerHTML =
-        "➕ Tambah Supplier";
-
-    document.getElementById("btnSimpan").innerHTML =
-        "💾 Simpan Supplier";
-
-    document.getElementById("btnBatal").style.display =
-        "none";
-
-}
-
-document
-.getElementById("btnBatal")
-.addEventListener("click", batalEdit);
 
 // =====================================
 // HAPUS
