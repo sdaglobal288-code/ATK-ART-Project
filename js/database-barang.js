@@ -1,5 +1,5 @@
 // =====================================
-// DATABASE BARANG (Rekap Stok + Foto + Set Stok Awal)
+// DATABASE BARANG (Rekap Stok + Foto + Set Stok Awal + Reset Stok)
 // =====================================
 //
 // master_barang -> katalog barang BERSAMA (dipakai Margomulyo & Raden Saleh)
@@ -8,6 +8,15 @@
 // stok_awal     -> catatan angka stok awal per barang per gudang (untuk
 //                  ditampilkan di kolom STOK AWAL). Mengisi/mengubah nilai
 //                  ini JUGA langsung menimpa stok_gudang.stok (opname).
+//
+// PENTING: stok_awal dan stok_gudang adalah DUA TABEL TERPISAH.
+// Menghapus baris di stok_awal (misalnya lewat Supabase Table Editor)
+// TIDAK otomatis mereset stok_gudang. Kalau ingin benar-benar reset
+// Sisa Stok ke 0 (misalnya karena import sebelumnya cuma masuk
+// sebagian), gunakan tombol "Reset Stok (gudang ini)" di halaman ini -
+// itu akan menghapus KEDUANYA sekaligus, khusus untuk gudang yang
+// sedang login.
+//
 // barang_masuk / barang_masuk_detail -> histori masuk, difilter via header.gudang
 // barang_keluar -> histori keluar, punya kolom gudang sendiri per baris
 // =====================================
@@ -39,6 +48,7 @@ document.addEventListener("keydown", e => {
     if (e.key === "Escape") {
         tutupLightbox();
         tutupModalStok();
+        tutupModalReset();
     }
 });
 
@@ -212,6 +222,109 @@ async function setStokAwalSatuItem(barangId, kodeBarang, gudang, nilai){
         if(error) throw error;
 
     }
+
+}
+
+// =====================================
+// MODAL RESET STOK (SATU GUDANG - HAPUS stok_awal + stok_gudang)
+// =====================================
+
+function bukaModalReset(){
+
+    document.getElementById("resetGudangNama").textContent = user.gudang;
+    document.getElementById("resetKonfirmasiInput").value = "";
+
+    document.getElementById("modalResetStok").classList.add("active");
+
+    setTimeout(()=>{
+        document.getElementById("resetKonfirmasiInput").focus();
+    }, 50);
+
+}
+
+function tutupModalReset(){
+
+    document.getElementById("modalResetStok").classList.remove("active");
+
+}
+
+document
+.getElementById("modalResetStok")
+.addEventListener("click", function(e){
+    if(e.target === this) tutupModalReset();
+});
+
+document
+.getElementById("formResetStok")
+.addEventListener("submit", async function(e){
+
+    e.preventDefault();
+
+    const teks = document.getElementById("resetKonfirmasiInput").value.trim();
+
+    if(teks !== "RESET"){
+        alert('Ketik persis "RESET" (huruf besar semua) untuk konfirmasi.');
+        return;
+    }
+
+    const btn = document.getElementById("btnKonfirmasiReset");
+    const teksAsliBtn = btn.innerHTML;
+
+    btn.disabled = true;
+    btn.innerHTML = "⏳ Mereset...";
+
+    try{
+
+        await resetStokGudangIni();
+
+        alert(
+            `Stok gudang ${user.gudang} berhasil direset ke 0.\n\n` +
+            `Silakan import ulang Stok Awal, atau input ulang transaksi sesuai kebutuhan.`
+        );
+
+        tutupModalReset();
+
+        await loadBarang();
+
+    }
+    catch(err){
+
+        console.error(err);
+        alert("Gagal reset stok: " + err.message);
+
+    }
+    finally{
+
+        btn.disabled = false;
+        btn.innerHTML = teksAsliBtn;
+
+    }
+
+});
+
+// =====================================
+// FUNGSI INTI: RESET stok_awal + stok_gudang UNTUK GUDANG YANG SEDANG LOGIN
+// =====================================
+
+async function resetStokGudangIni(){
+
+    // hapus seluruh catatan stok_awal utk gudang ini
+    const { error: delAwalErr } = await supabaseClient
+        .from("stok_awal")
+        .delete()
+        .eq("gudang", user.gudang);
+
+    if(delAwalErr) throw delAwalErr;
+
+    // hapus seluruh baris stok_gudang utk gudang ini
+    // (barang tanpa baris di stok_gudang otomatis dianggap Sisa Stok = 0,
+    // lihat loadStokGudangMap() di bawah)
+    const { error: delStokErr } = await supabaseClient
+        .from("stok_gudang")
+        .delete()
+        .eq("gudang", user.gudang);
+
+    if(delStokErr) throw delStokErr;
 
 }
 
@@ -546,6 +659,10 @@ function exportExcel() {
 // IMPORT STOK AWAL (MASSAL, VIA EXCEL)
 // Kolom yang dibaca: "Kode Barang" dan "Stok Awal"
 // (fleksibel: juga menerima "kode_barang" / "stok_awal")
+//
+// Setelah selesai, laporan hasil import (baris mana yang Berhasil /
+// Tidak Ditemukan / Gagal beserta alasannya) bisa didownload sebagai
+// Excel supaya mudah dicek kalau ada yang tidak masuk semua.
 // =====================================
 
 document
@@ -585,20 +702,60 @@ document
                 kode_barang: String(
                     row["Kode Barang"] ?? row["kode_barang"] ?? row["KODE"] ?? ""
                 ).trim(),
-                stok_awal: Number(
+                stok_awal_mentah:
                     row["Stok Awal"] ?? row["stok_awal"] ?? row["STOK AWAL"] ?? ""
-                )
-            })).filter(row =>
-                row.kode_barang !== "" && !isNaN(row.stok_awal) && row.stok_awal >= 0
-            );
+            }));
 
-            if(dataMasuk.length === 0){
+            // pisahkan baris yang formatnya sudah tidak valid dari awal
+            // (kode kosong, atau stok bukan angka >= 0) supaya tetap
+            // muncul di laporan sebagai "Dilewati", bukan hilang diam-diam
+            const reportRows = [];
+            const dataValid = [];
+
+            dataMasuk.forEach(row => {
+
+                const stokAwal = Number(row.stok_awal_mentah);
+
+                if(row.kode_barang === ""){
+
+                    reportRows.push({
+                        "Kode Barang": "(kosong)",
+                        "Stok Awal Diminta": row.stok_awal_mentah,
+                        "Status": "Dilewati",
+                        "Keterangan": "Baris tidak punya Kode Barang"
+                    });
+
+                    return;
+
+                }
+
+                if(isNaN(stokAwal) || stokAwal < 0){
+
+                    reportRows.push({
+                        "Kode Barang": row.kode_barang,
+                        "Stok Awal Diminta": row.stok_awal_mentah,
+                        "Status": "Dilewati",
+                        "Keterangan": "Stok Awal bukan angka >= 0"
+                    });
+
+                    return;
+
+                }
+
+                dataValid.push({
+                    kode_barang: row.kode_barang,
+                    stok_awal: stokAwal
+                });
+
+            });
+
+            if(dataValid.length === 0){
                 alert("Tidak ditemukan baris valid. Pastikan ada kolom 'Kode Barang' dan 'Stok Awal' berisi angka.");
                 return;
             }
 
             if(!confirm(
-                `Ditemukan ${dataMasuk.length} baris.\n\n` +
+                `Ditemukan ${dataValid.length} baris valid dari total ${rows.length} baris di file.\n\n` +
                 `Proses ini akan MENIMPA Sisa Stok barang-barang tersebut di gudang ${user.gudang}.\n` +
                 `Lanjutkan import?`
             )){
@@ -609,36 +766,82 @@ document
             let tidakDitemukan = 0;
             let gagal = 0;
 
-            for(const row of dataMasuk){
+            for(const row of dataValid){
 
                 const item = dataBarang.find(b =>
-                    b.kode_barang.toLowerCase() === row.kode_barang.toLowerCase()
+                    b.kode_barang.trim().toLowerCase() === row.kode_barang.toLowerCase()
                 );
 
                 if(!item){
+
                     tidakDitemukan++;
+
+                    reportRows.push({
+                        "Kode Barang": row.kode_barang,
+                        "Stok Awal Diminta": row.stok_awal,
+                        "Status": "Tidak Ditemukan",
+                        "Keterangan": "Kode barang tidak ada di master_barang gudang ini"
+                    });
+
                     continue;
+
                 }
 
                 try{
 
                     await setStokAwalSatuItem(item.id, item.kode_barang, user.gudang, row.stok_awal);
+
                     berhasil++;
+
+                    reportRows.push({
+                        "Kode Barang": row.kode_barang,
+                        "Stok Awal Diminta": row.stok_awal,
+                        "Status": "Berhasil",
+                        "Keterangan": ""
+                    });
 
                 }
                 catch(err){
+
                     console.error(`Gagal set stok awal untuk ${row.kode_barang}:`, err);
+
                     gagal++;
+
+                    reportRows.push({
+                        "Kode Barang": row.kode_barang,
+                        "Stok Awal Diminta": row.stok_awal,
+                        "Status": "Gagal",
+                        "Keterangan": err.message || "Kesalahan tidak diketahui"
+                    });
+
                 }
 
             }
 
             alert(
                 `Import Stok Awal selesai.\n\n` +
-                `Berhasil     : ${berhasil}\n` +
-                `Tidak ditemukan (kode tidak cocok) : ${tidakDitemukan}\n` +
-                `Gagal        : ${gagal}`
+                `Berhasil                              : ${berhasil}\n` +
+                `Tidak ditemukan (kode tidak cocok)     : ${tidakDitemukan}\n` +
+                `Gagal (error saat simpan)              : ${gagal}\n` +
+                `Dilewati (format baris tidak valid)    : ${reportRows.length - berhasil - tidakDitemukan - gagal}`
             );
+
+            // kalau ada yang bermasalah, tawarkan laporan detail supaya
+            // gampang dicek baris mana saja yang tidak masuk & kenapa
+            if((tidakDitemukan + gagal + (reportRows.length - berhasil - tidakDitemukan - gagal)) > 0){
+
+                const mauLaporan = confirm(
+                    "Ada baris yang tidak berhasil diimport.\n\n" +
+                    "Download laporan detail (Excel) supaya bisa dicek satu-satu?"
+                );
+
+                if(mauLaporan){
+
+                    downloadLaporanImport(reportRows);
+
+                }
+
+            }
 
             await loadBarang();
 
@@ -660,6 +863,28 @@ document
     reader.readAsArrayBuffer(file);
 
 });
+
+// =====================================
+// DOWNLOAD LAPORAN HASIL IMPORT STOK AWAL
+// =====================================
+
+function downloadLaporanImport(reportRows){
+
+    if(typeof XLSX === "undefined"){
+        alert("Library Excel belum termuat, tidak bisa membuat laporan.");
+        return;
+    }
+
+    const ws = XLSX.utils.json_to_sheet(reportRows);
+    const wb = XLSX.utils.book_new();
+
+    XLSX.utils.book_append_sheet(wb, ws, "Laporan Import Stok Awal");
+
+    const tanggal = new Date().toISOString().slice(0, 10);
+
+    XLSX.writeFile(wb, `Laporan_Import_StokAwal_${user.gudang}_${tanggal}.xlsx`);
+
+}
 
 // =====================================
 // REALTIME: kalau stok_gudang gudang ini berubah, muat ulang
