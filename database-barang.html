@@ -61,6 +61,11 @@
   }
   .btn-export:hover{ opacity:.92; }
 
+  .btn-danger-outline{
+    background:transparent; color:var(--db-danger); border:1px solid #5a2a36;
+  }
+  .btn-danger-outline:hover{ background:var(--db-danger-soft); border-color:var(--db-danger); }
+
   .panel{
     background:var(--db-surface); border:1px solid var(--db-border);
     border-radius:14px; padding:20px 22px; box-shadow:0 4px 16px rgba(0,0,0,.18);
@@ -188,7 +193,7 @@
     font-weight:600; pointer-events:none; white-space:nowrap;
   }
 
-  /* ===== Modal Set Stok Awal ===== */
+  /* ===== Modal (Set Stok Awal / Reset Stok) ===== */
   .modal-overlay{
     display:none !important; position:fixed !important; inset:0; background:rgba(8,9,15,.65);
     backdrop-filter:blur(2px); align-items:center !important; justify-content:center !important;
@@ -226,7 +231,8 @@
   }
   .modal-close:hover{ background:var(--db-surface-2); color:var(--db-text); }
 
-  #formStokAwal{
+  #formStokAwal,
+  #formResetStok{
     display:flex !important;
     flex-direction:column !important;
     width:100% !important;
@@ -263,6 +269,15 @@
     font-size:12px; color:var(--db-muted); margin-top:8px; line-height:1.5;
   }
 
+  .modal-body .hint.danger{
+    color:#ffb4c2;
+    background:var(--db-danger-soft);
+    border:1px solid #5a2a36;
+    border-radius:10px;
+    padding:12px 14px;
+    margin-top:0;
+  }
+
   .modal-footer{
     display:flex !important;
     flex-direction:row !important;
@@ -272,14 +287,16 @@
     padding:16px 22px; border-top:1px solid var(--db-border);
   }
 
-  #btnBatalStok{
+  #btnBatalStok,
+  #btnBatalReset{
     display:inline-flex; align-items:center; justify-content:center; gap:8px;
     height:42px; background:transparent; color:var(--db-danger);
     border:1px solid #5a2a36; border-radius:10px; padding:0 20px;
     font-size:14px; font-weight:600; font-family:inherit; cursor:pointer;
     transition:background .15s ease, border-color .15s ease;
   }
-  #btnBatalStok:hover{ background:var(--db-danger-soft); border-color:var(--db-danger); }
+  #btnBatalStok:hover,
+  #btnBatalReset:hover{ background:var(--db-danger-soft); border-color:var(--db-danger); }
 
   #btnSimpanStok{
     display:inline-flex; align-items:center; justify-content:center; gap:8px;
@@ -290,6 +307,16 @@
     transition:filter .15s ease;
   }
   #btnSimpanStok:hover{ filter:brightness(1.08); }
+
+  #btnKonfirmasiReset{
+    display:inline-flex; align-items:center; justify-content:center; gap:8px;
+    height:42px; background:linear-gradient(135deg,#ef5675,#d63d5e);
+    color:#fff; border:none; border-radius:10px; padding:0 22px;
+    font-size:14px; font-weight:600; font-family:inherit; cursor:pointer;
+    box-shadow:0 4px 12px rgba(239,84,117,.3);
+    transition:filter .15s ease;
+  }
+  #btnKonfirmasiReset:hover{ filter:brightness(1.08); }
 </style>
 </head>
 <body>
@@ -305,6 +332,7 @@
     <button class="btn-import" onclick="document.getElementById('fileImportStok').click()">📥 Import Stok Awal</button>
     <input type="file" id="fileImportStok" accept=".xlsx,.xls,.csv" hidden>
     <button class="btn-export" onclick="exportExcel()">📤 Export Excel</button>
+    <button class="btn-danger-outline" id="btnResetStok" onclick="bukaModalReset()">🗑️ Reset Stok (gudang ini)</button>
   </div>
   <br>
 
@@ -398,6 +426,43 @@
       <div class="modal-footer">
         <button type="button" id="btnBatalStok" onclick="tutupModalStok()">Batal</button>
         <button type="submit" id="btnSimpanStok">💾 Simpan Stok Awal</button>
+      </div>
+    </form>
+
+  </div>
+</div>
+
+<!-- MODAL RESET STOK (SATU GUDANG) -->
+<div class="modal-overlay" id="modalResetStok">
+  <div class="modal-box">
+
+    <div class="modal-header">
+      <h3>🗑️ Reset Stok Gudang Ini</h3>
+      <button type="button" class="modal-close" onclick="tutupModalReset()">✕</button>
+    </div>
+
+    <form id="formResetStok">
+      <div class="modal-body">
+
+        <p class="hint danger">
+          ⚠ Tindakan ini akan <b>menghapus seluruh data Stok Awal</b> dan mengembalikan
+          <b>Sisa Stok semua barang</b> di gudang <b><span id="resetGudangNama"></span></b> menjadi <b>0</b>.<br><br>
+          Histori transaksi Barang Masuk / Barang Keluar <b>TIDAK</b> ikut terhapus — tapi Sisa Stok
+          akan mulai dari 0 lagi, jadi kamu perlu import ulang Stok Awal (atau input ulang transaksi)
+          setelah ini.<br><br>
+          Tindakan ini <b>tidak bisa dibatalkan</b>.
+        </p>
+
+        <div class="field" style="margin-top:16px;">
+          <label>Ketik <b>RESET</b> untuk konfirmasi</label>
+          <input type="text" id="resetKonfirmasiInput" placeholder="RESET" autocomplete="off" required>
+        </div>
+
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" id="btnBatalReset" onclick="tutupModalReset()">Batal</button>
+        <button type="submit" id="btnKonfirmasiReset">🗑️ Reset Sekarang</button>
       </div>
     </form>
 
