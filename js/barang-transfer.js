@@ -3,7 +3,7 @@
 // =====================================
 //
 // SKEMA TABEL YANG DIBUTUHKAN (lihat transfer-barang-schema.sql):
-//   - stok_gudang          (kode_barang, gudang, stok)
+//   - stok_gudang          (barang_id, gudang, stok, updated_at)
 //   - master_gudang        (nama_gudang)            [opsional, ada fallback]
 //   - barang_transfer      (header transfer)
 //   - barang_transfer_detail (item per transfer)
@@ -206,16 +206,16 @@ async function loadBarang(){
 // STOK PER GUDANG
 // =====================================
 
-async function ambilStokGudang(kodeBarang, gudang){
+async function ambilStokGudang(barangId, gudang){
 
-    if(!kodeBarang || !gudang) return 0;
+    if(!barangId || !gudang) return 0;
 
     try{
 
         const { data, error } = await supabaseClient
             .from("stok_gudang")
             .select("stok")
-            .eq("kode_barang", kodeBarang)
+            .eq("barang_id", barangId)
             .eq("gudang", gudang)
             .maybeSingle();
 
@@ -233,13 +233,13 @@ async function ambilStokGudang(kodeBarang, gudang){
 
 }
 
-async function tambahStokGudang(kodeBarang, gudang, delta){
+async function tambahStokGudang(barangId, gudang, delta){
 
     // ambil baris stok_gudang yang ada (kalau belum ada, anggap 0)
     const { data:existing, error:errGet } = await supabaseClient
         .from("stok_gudang")
         .select("*")
-        .eq("kode_barang", kodeBarang)
+        .eq("barang_id", barangId)
         .eq("gudang", gudang)
         .maybeSingle();
 
@@ -251,7 +251,10 @@ async function tambahStokGudang(kodeBarang, gudang, delta){
 
         const { error:errUpdate } = await supabaseClient
             .from("stok_gudang")
-            .update({ stok: stokBaru })
+            .update({
+                stok: stokBaru,
+                updated_at: new Date().toISOString()
+            })
             .eq("id", existing.id);
 
         if(errUpdate) throw errUpdate;
@@ -261,14 +264,25 @@ async function tambahStokGudang(kodeBarang, gudang, delta){
         const { error:errInsert } = await supabaseClient
             .from("stok_gudang")
             .insert([{
-                kode_barang: kodeBarang,
+                barang_id: barangId,
                 gudang: gudang,
-                stok: delta
+                stok: delta,
+                updated_at: new Date().toISOString()
             }]);
 
         if(errInsert) throw errInsert;
 
     }
+
+}
+
+// Helper: cari barang_id dari kode_barang (dipakai saat kita hanya punya
+// data histori barang_transfer_detail yang menyimpan kode_barang, bukan id)
+function cariBarangIdDariKode(kodeBarang){
+
+    const barang = masterBarang.find(b => b.kode_barang === kodeBarang);
+
+    return barang ? barang.id : null;
 
 }
 
@@ -281,10 +295,11 @@ async function refreshStokBaris(row){
     const badge = row.querySelector(".stok-badge");
 
     const kodeBarang = row.dataset.kodeBarang;
+    const barangId = row.querySelector(".input-barang-id").value;
 
     const gudangAsal = document.getElementById("gudangAsal").value;
 
-    if(!kodeBarang){
+    if(!kodeBarang || !barangId){
 
         badge.textContent = "Stok: -";
         badge.classList.remove("warning");
@@ -294,7 +309,7 @@ async function refreshStokBaris(row){
 
     }
 
-    const stok = await ambilStokGudang(kodeBarang, gudangAsal);
+    const stok = await ambilStokGudang(barangId, gudangAsal);
 
     row.dataset.stok = stok;
     badge.textContent = `Stok: ${stok}`;
@@ -697,7 +712,7 @@ async function simpanTransfer(e){
             kodeSudahDipakai.add(barang.kode_barang);
 
             // cek ulang stok realtime di gudang asal saat submit
-            const stokSaatIni = await ambilStokGudang(barang.kode_barang, gudangAsal);
+            const stokSaatIni = await ambilStokGudang(barang.id, gudangAsal);
 
             if(qty > stokSaatIni){
                 alert(
@@ -751,7 +766,7 @@ async function simpanTransfer(e){
             if(detailError) throw detailError;
 
             // stok gudang asal langsung berkurang (barang "dalam perjalanan")
-            await tambahStokGudang(barang.kode_barang, gudangAsal, -qty);
+            await tambahStokGudang(barang.id, gudangAsal, -qty);
 
         }
 
@@ -858,7 +873,9 @@ async function tampilkanPendingApproval(data){
             <td><b>${item.no_transfer}</b></td>
             <td>${item.tanggal}</td>
             <td>${item.gudang_asal}</td>
-            <td>${jumlahItem}</td>
+            <td>
+                <button class="btn-edit" onclick="lihatDetailTransfer(${item.id})">📦 ${jumlahItem} item</button>
+            </td>
             <td>${item.created_by ?? "-"}</td>
             <td>
                 <button class="btn-approve" onclick="approveTransfer(${item.id})">✅ Approve</button>
@@ -914,7 +931,14 @@ async function approveTransfer(id){
 
         for(const item of detail){
 
-            await tambahStokGudang(item.kode_barang, header.gudang_tujuan, item.qty);
+            const barangId = cariBarangIdDariKode(item.kode_barang);
+
+            if(!barangId){
+                console.warn(`Barang dengan kode ${item.kode_barang} tidak ditemukan di master_barang, stok tidak diupdate.`);
+                continue;
+            }
+
+            await tambahStokGudang(barangId, header.gudang_tujuan, item.qty);
 
         }
 
@@ -976,7 +1000,14 @@ async function rejectTransfer(id){
 
         for(const item of detail){
 
-            await tambahStokGudang(item.kode_barang, header.gudang_asal, item.qty);
+            const barangId = cariBarangIdDariKode(item.kode_barang);
+
+            if(!barangId){
+                console.warn(`Barang dengan kode ${item.kode_barang} tidak ditemukan di master_barang, stok tidak diupdate.`);
+                continue;
+            }
+
+            await tambahStokGudang(barangId, header.gudang_asal, item.qty);
 
         }
 
@@ -1038,11 +1069,18 @@ async function returTransfer(id){
 
         for(const item of detail){
 
+            const barangId = cariBarangIdDariKode(item.kode_barang);
+
+            if(!barangId){
+                console.warn(`Barang dengan kode ${item.kode_barang} tidak ditemukan di master_barang, stok tidak diupdate.`);
+                continue;
+            }
+
             // stok berkurang di gudang tujuan (yang sekarang punya barang)
-            await tambahStokGudang(item.kode_barang, header.gudang_tujuan, -item.qty);
+            await tambahStokGudang(barangId, header.gudang_tujuan, -item.qty);
 
             // stok bertambah kembali di gudang asal (yang meminjami)
-            await tambahStokGudang(item.kode_barang, header.gudang_asal, item.qty);
+            await tambahStokGudang(barangId, header.gudang_asal, item.qty);
 
         }
 
