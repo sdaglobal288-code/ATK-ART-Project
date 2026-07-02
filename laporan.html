@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Laporan</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/dashboard.css">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="supabase/config.js"></script>
+<style>
+    /* ====================================================
+       Style disamakan dengan tema gelap halaman lain
+       (Barang Masuk / Barang Keluar).
+       ==================================================== */
+
+    /* ---------- Filter Periode ---------- */
+
+    #formFilter{
+        display:grid;
+        grid-template-columns: 1fr 1fr auto auto;
+        gap:16px;
+        align-items:end;
+    }
+
+    #formFilter > div{
+        display:flex;
+        flex-direction:column;
+        gap:6px;
+    }
+
+    #formFilter label{
+        font-size:13px;
+        color:#94a3b8;
+    }
+
+    #formFilter input[type="date"]{
+        width:100%;
+        padding:10px 12px;
+        border-radius:8px;
+        border:1px solid #334155;
+        background:#0f172a;
+        color:#e2e8f0;
+        font-family:inherit;
+        font-size:14px;
+        box-sizing:border-box;
+    }
+
+    #formFilter input:focus{
+        outline:none;
+        border-color:#3b82f6;
+        box-shadow:0 0 0 3px rgba(59,130,246,.2);
+    }
+
+    #btnTerapkanFilter{
+        background:#3b82f6;
+        color:#ffffff;
+        border:none;
+        border-radius:10px;
+        padding:11px 20px;
+        cursor:pointer;
+        font-weight:600;
+        font-size:14px;
+        font-family:inherit;
+        transition:background .15s;
+        white-space:nowrap;
+    }
+
+    #btnTerapkanFilter:hover{
+        background:#2563eb;
+    }
+
+    #btnExportLaporan{
+        background:rgba(59,130,246,.12);
+        color:#60a5fa;
+        border:1px solid rgba(59,130,246,.35);
+        border-radius:10px;
+        padding:11px 20px;
+        cursor:pointer;
+        font-weight:600;
+        font-size:14px;
+        font-family:inherit;
+        transition:background .15s;
+        white-space:nowrap;
+    }
+
+    #btnExportLaporan:hover{
+        background:rgba(59,130,246,.22);
+    }
+
+    /* ---------- Ringkasan (summary cards) ---------- */
+
+    .summary-grid{
+        display:grid;
+        grid-template-columns:repeat(auto-fit, minmax(190px, 1fr));
+        gap:14px;
+    }
+
+    .summary-card{
+        border:1px solid #263041;
+        border-radius:12px;
+        padding:16px 18px;
+        background:rgba(255,255,255,.02);
+    }
+
+    .summary-card .label{
+        font-size:12.5px;
+        color:#94a3b8;
+        text-transform:uppercase;
+        letter-spacing:.03em;
+        margin-bottom:8px;
+    }
+
+    .summary-card .value{
+        font-size:24px;
+        font-weight:700;
+        color:#e2e8f0;
+    }
+
+    .summary-card .value.masuk{
+        color:#4ade80;
+    }
+
+    .summary-card .value.keluar{
+        color:#f87171;
+    }
+
+    .summary-card .value.selisih-positif{
+        color:#4ade80;
+    }
+
+    .summary-card .value.selisih-negatif{
+        color:#f87171;
+    }
+
+    .summary-card .sub{
+        margin-top:6px;
+        font-size:12.5px;
+        color:#64748b;
+    }
+
+    /* ---------- Grafik ---------- */
+
+    .chart-grid{
+        display:grid;
+        grid-template-columns:1fr 1fr;
+        gap:20px;
+    }
+
+    .chart-box{
+        border:1px solid #263041;
+        border-radius:12px;
+        padding:16px;
+        background:rgba(255,255,255,.02);
+    }
+
+    .chart-box h4{
+        margin:0 0 14px 0;
+        color:#e2e8f0;
+        font-size:14.5px;
+    }
+
+    .chart-canvas-wrap{
+        position:relative;
+        height:280px;
+    }
+
+    .chart-canvas-wrap.tall{
+        height:320px;
+    }
+
+    @media (max-width: 900px){
+        .chart-grid{
+            grid-template-columns:1fr;
+        }
+        #formFilter{
+            grid-template-columns:1fr;
+        }
+    }
+
+    /* ---------- Tabel Stok ---------- */
+
+    .stok-empty{
+        text-align:center;
+        color:#64748b;
+        padding:18px;
+        font-style:italic;
+    }
+</style>
+</head>
+<body>
+<div class="content">
+<h2>📊 Laporan</h2>
+<br>
+
+<!-- ================= TOOLBAR ================= -->
+<div class="toolbar">
+<button
+class="btn-dashboard"
+onclick="location.href='dashboard.html'">
+🏠 Dashboard
+</button>
+</div>
+<br>
+
+<!-- ================= FILTER PERIODE ================= -->
+<div class="panel">
+<h3><span>🗓️ Filter Periode</span></h3>
+<br>
+<form id="formFilter" onsubmit="return false;">
+<div>
+<label><b>Dari Tanggal</b></label>
+<input type="date" id="filterDari" required>
+</div>
+<div>
+<label><b>Sampai Tanggal</b></label>
+<input type="date" id="filterSampai" required>
+</div>
+<button type="button" id="btnTerapkanFilter">🔎 Terapkan Filter</button>
+<button type="button" id="btnExportLaporan">📤 Export Laporan Excel</button>
+</form>
+</div>
+<br>
+
+<!-- ================= RINGKASAN ================= -->
+<div class="panel">
+<h3><span>📈 Ringkasan Periode</span></h3>
+<br>
+<div class="summary-grid" id="summaryGrid">
+    <!-- kartu ringkasan diisi lewat JS -->
+</div>
+</div>
+<br>
+
+<!-- ================= GRAFIK TREN ================= -->
+<div class="panel">
+<h3><span>📊 Tren Barang Masuk vs Keluar per Bulan</span></h3>
+<br>
+<div class="chart-canvas-wrap tall">
+<canvas id="chartTren"></canvas>
+</div>
+</div>
+<br>
+
+<!-- ================= GRAFIK KATEGORI & TOP BARANG ================= -->
+<div class="panel">
+<h3><span>🥧 Distribusi & Barang Teratas</span></h3>
+<br>
+<div class="chart-grid">
+<div class="chart-box">
+<h4>Distribusi Stok Saat Ini per Kategori</h4>
+<div class="chart-canvas-wrap">
+<canvas id="chartKategori"></canvas>
+</div>
+</div>
+<div class="chart-box">
+<h4>Top 5 Barang Keluar Terbanyak (periode ini)</h4>
+<div class="chart-canvas-wrap">
+<canvas id="chartTopKeluar"></canvas>
+</div>
+</div>
+</div>
+</div>
+<br>
+
+<!-- ================= TABEL STOK SAAT INI ================= -->
+<div class="panel">
+<h3><span>📦 Stok Barang Saat Ini</span></h3>
+<br>
+<div class="search-box">
+<input
+type="text"
+id="searchStok"
+placeholder="🔍 Cari nama / kode barang / kategori"
+style="width:100%;padding:10px;border:1px solid #334155;border-radius:8px;background:#0f172a;color:#e2e8f0;box-sizing:border-box;">
+</div>
+<br>
+<div class="table-responsive">
+<table id="tableStok">
+<thead>
+<tr>
+<th width="70">No</th>
+<th width="140">Kode Barang</th>
+<th>Nama Barang</th>
+<th width="160">Kategori</th>
+<th width="110">Satuan</th>
+<th width="110">Stok</th>
+</tr>
+</thead>
+<tbody></tbody>
+</table>
+</div>
+</div>
+
+</div>
+<script src="js/laporan.js"></script>
+</body>
+</html>
