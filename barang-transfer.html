@@ -388,6 +388,138 @@
         color:#e2e8f0;
         font-size:13px;
     }
+
+    /* ---------- Modal Detail Transfer ---------- */
+
+    .modal-overlay{
+        display:none;
+        position:fixed;
+        inset:0;
+        background:rgba(0,0,0,.6);
+        z-index:1000;
+        align-items:center;
+        justify-content:center;
+        padding:20px;
+    }
+
+    .modal-overlay.show{
+        display:flex;
+    }
+
+    .modal-box{
+        background:#131722;
+        border:1px solid #263041;
+        border-radius:14px;
+        max-width:720px;
+        width:100%;
+        max-height:85vh;
+        overflow-y:auto;
+        padding:22px 24px;
+        box-shadow:0 20px 50px rgba(0,0,0,.5);
+    }
+
+    .modal-header{
+        display:flex;
+        align-items:center;
+        justify-content:space-between;
+        margin-bottom:16px;
+    }
+
+    .modal-header h3{
+        margin:0;
+        font-size:17px;
+        color:#e2e8f0;
+        display:flex;
+        align-items:center;
+        gap:8px;
+    }
+
+    .modal-close{
+        background:rgba(239,68,68,.12);
+        color:#f87171;
+        border:1px solid rgba(239,68,68,.35);
+        border-radius:8px;
+        width:32px;
+        height:32px;
+        cursor:pointer;
+        font-weight:700;
+        flex-shrink:0;
+        transition:background .15s;
+    }
+
+    .modal-close:hover{
+        background:rgba(239,68,68,.25);
+    }
+
+    .modal-info{
+        display:grid;
+        grid-template-columns:1fr 1fr;
+        gap:10px 20px;
+        background:rgba(255,255,255,.02);
+        border:1px solid #263041;
+        border-radius:10px;
+        padding:14px 16px;
+        margin-bottom:16px;
+        font-size:13.5px;
+        color:#94a3b8;
+    }
+
+    .modal-info b{
+        color:#e2e8f0;
+    }
+
+    .modal-table-wrap{
+        overflow-x:auto;
+        border:1px solid #263041;
+        border-radius:10px;
+    }
+
+    .modal-table{
+        width:100%;
+        border-collapse:collapse;
+        font-size:13.5px;
+    }
+
+    .modal-table thead th{
+        background:#1a1f2e;
+        color:#64748b;
+        text-transform:uppercase;
+        font-size:11px;
+        letter-spacing:.03em;
+        text-align:left;
+        padding:10px 12px;
+        border-bottom:1px solid #263041;
+        white-space:nowrap;
+    }
+
+    .modal-table tbody td{
+        padding:10px 12px;
+        border-bottom:1px solid #1f2937;
+        color:#e2e8f0;
+    }
+
+    .modal-table tbody tr:last-child td{
+        border-bottom:none;
+    }
+
+    .kode-pill{
+        display:inline-block;
+        font-weight:600;
+        color:#bcb2f5;
+        background:rgba(108,93,211,.15);
+        padding:3px 9px;
+        border-radius:6px;
+        font-size:12.5px;
+        letter-spacing:.02em;
+        white-space:nowrap;
+    }
+
+    .modal-table .empty-state{
+        text-align:center;
+        padding:24px 10px;
+        color:#64748b;
+        font-size:13.5px;
+    }
 </style>
 </head>
 <body>
@@ -540,6 +672,35 @@ style="width:100%;padding:10px;margin-bottom:12px;border:1px solid #334155;borde
 </div>
 
 </div>
+
+<!-- ================= MODAL DETAIL TRANSFER ================= -->
+<div class="modal-overlay" id="modalDetailTransfer" onclick="if(event.target===this) tutupDetailTransfer()">
+<div class="modal-box">
+<div class="modal-header">
+<h3>🔁 Detail Transfer Barang</h3>
+<button class="modal-close" onclick="tutupDetailTransfer()">✕</button>
+</div>
+<div class="modal-info" id="modalDetailInfo">
+<!-- diisi lewat JS -->
+</div>
+<div class="modal-table-wrap">
+<table class="modal-table">
+<thead>
+<tr>
+<th width="50">No</th>
+<th width="100">Kode</th>
+<th>Nama Barang</th>
+<th width="120">Kategori</th>
+<th width="100">Satuan</th>
+<th width="80">Qty</th>
+</tr>
+</thead>
+<tbody id="modalDetailBody"></tbody>
+</table>
+</div>
+</div>
+</div>
+
 <!-- Logic Transfer Barang -->
 <script src="js/barang-transfer.js"></script>
 </body>
