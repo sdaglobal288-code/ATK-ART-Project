@@ -52,6 +52,9 @@
   .btn-dashboard{ background:var(--db-surface-2); color:var(--db-text); border:1px solid var(--db-border); }
   .btn-dashboard:hover{ background:#262a3c; }
 
+  .btn-import{ background:var(--db-surface-2); color:var(--db-text); border:1px solid var(--db-border); }
+  .btn-import:hover{ background:#262a3c; }
+
   .btn-export{
     background:linear-gradient(135deg,var(--db-purple),var(--db-purple-dark));
     color:#fff; box-shadow:0 4px 12px rgba(108,93,211,.35);
@@ -95,7 +98,7 @@
     overflow-x:auto; border-radius:10px; border:1px solid var(--db-border);
   }
 
-  table{ width:100%; border-collapse:collapse; font-size:13.5px; min-width:900px; }
+  table{ width:100%; border-collapse:collapse; font-size:13.5px; min-width:980px; }
 
   thead th{
     background:var(--db-surface-2); color:var(--db-muted); text-transform:uppercase;
@@ -145,6 +148,17 @@
   .stok-badge.mid{ background:var(--db-warning-soft); color:var(--db-warning); }
   .stok-badge.low{ background:var(--db-danger-soft);  color:var(--db-danger);  }
 
+  .btn-set-stok{
+    display:inline-flex; align-items:center; gap:5px;
+    border-radius:8px; padding:7px 12px; font-size:12.5px; font-weight:600;
+    font-family:inherit; cursor:pointer; white-space:nowrap;
+    background:transparent; color:#bcb2f5 !important; border:1px solid #4d4499;
+    transition:background .15s ease, color .15s ease, border-color .15s ease;
+  }
+  .btn-set-stok:hover{
+    background:var(--db-purple) !important; color:#fff !important; border-color:var(--db-purple);
+  }
+
   .empty-state,.loading-state{
     text-align:center; padding:40px 10px; color:var(--db-muted); font-size:14px;
   }
@@ -173,6 +187,87 @@
     padding:8px 18px; border-radius:999px; font-size:13px;
     font-weight:600; pointer-events:none; white-space:nowrap;
   }
+
+  /* ===== Modal Set Stok Awal ===== */
+  .modal-overlay{
+    display:none; position:fixed; inset:0; background:rgba(8,9,15,.65);
+    backdrop-filter:blur(2px); align-items:center; justify-content:center;
+    z-index:1000; padding:20px;
+  }
+  .modal-overlay.active{ display:flex; }
+
+  .modal-box{
+    background:var(--db-surface); border:1px solid var(--db-border);
+    border-radius:14px; width:440px; max-width:100%;
+    box-shadow:0 20px 50px rgba(0,0,0,.45);
+    animation:modalPop .15s ease;
+  }
+  @keyframes modalPop{
+    from{ opacity:0; transform:translateY(8px) scale(.98); }
+    to{ opacity:1; transform:translateY(0) scale(1); }
+  }
+
+  .modal-header{
+    display:flex; align-items:center; justify-content:space-between;
+    padding:18px 22px; border-bottom:1px solid var(--db-border);
+  }
+  .modal-header h3{ margin:0; font-size:16px; font-weight:700; color:var(--db-text); }
+
+  .modal-close{
+    background:none; border:none; color:var(--db-muted); font-size:18px;
+    cursor:pointer; line-height:1; padding:4px; border-radius:6px;
+    transition:background .15s ease, color .15s ease;
+  }
+  .modal-close:hover{ background:var(--db-surface-2); color:var(--db-text); }
+
+  .modal-body{ padding:22px; }
+
+  .modal-body .field{ display:flex; flex-direction:column; gap:6px; margin-bottom:16px; }
+  .modal-body .field:last-child{ margin-bottom:0; }
+
+  .modal-body label{
+    font-size:12.5px; font-weight:600; color:var(--db-muted);
+    text-transform:uppercase; letter-spacing:.03em;
+  }
+
+  .modal-body input{
+    width:100%; box-sizing:border-box; padding:11px 14px;
+    border:1px solid var(--db-border); border-radius:10px; font-size:14px;
+    font-family:inherit; color:var(--db-text); background:var(--db-surface-2);
+  }
+  .modal-body input[readonly]{ opacity:.65; cursor:not-allowed; }
+  .modal-body input:focus{
+    outline:none; border-color:var(--db-purple);
+    box-shadow:0 0 0 3px var(--db-purple-soft);
+  }
+
+  .modal-body .hint{
+    font-size:12px; color:var(--db-muted); margin-top:8px; line-height:1.5;
+  }
+
+  .modal-footer{
+    display:flex; justify-content:flex-end; gap:10px;
+    padding:16px 22px; border-top:1px solid var(--db-border);
+  }
+
+  #btnBatalStok{
+    display:inline-flex; align-items:center; justify-content:center; gap:8px;
+    height:42px; background:transparent; color:var(--db-danger);
+    border:1px solid #5a2a36; border-radius:10px; padding:0 20px;
+    font-size:14px; font-weight:600; font-family:inherit; cursor:pointer;
+    transition:background .15s ease, border-color .15s ease;
+  }
+  #btnBatalStok:hover{ background:var(--db-danger-soft); border-color:var(--db-danger); }
+
+  #btnSimpanStok{
+    display:inline-flex; align-items:center; justify-content:center; gap:8px;
+    height:42px; background:linear-gradient(135deg,var(--db-purple),var(--db-purple-dark));
+    color:#fff; border:none; border-radius:10px; padding:0 22px;
+    font-size:14px; font-weight:600; font-family:inherit; cursor:pointer;
+    box-shadow:0 4px 12px rgba(108,93,211,.3);
+    transition:filter .15s ease;
+  }
+  #btnSimpanStok:hover{ filter:brightness(1.08); }
 </style>
 </head>
 <body>
@@ -185,6 +280,8 @@
   <!-- TOOLBAR -->
   <div class="toolbar">
     <button class="btn-dashboard" onclick="location.href='dashboard.html'">🏠 Dashboard</button>
+    <button class="btn-import" onclick="document.getElementById('fileImportStok').click()">📥 Import Stok Awal</button>
+    <input type="file" id="fileImportStok" accept=".xlsx,.xls,.csv" hidden>
     <button class="btn-export" onclick="exportExcel()">📤 Export Excel</button>
   </div>
   <br>
@@ -219,11 +316,12 @@
             <th width="90"  class="num">MASUK</th>
             <th width="90"  class="num">KELUAR</th>
             <th width="140" class="num">SISA STOK</th>
+            <th width="130">AKSI</th>
           </tr>
         </thead>
         <tbody>
           <tr>
-            <td colspan="9" class="loading-state">
+            <td colspan="10" class="loading-state">
               <span class="spinner"></span> Memuat data...
             </td>
           </tr>
@@ -238,6 +336,50 @@
 <div class="lightbox" id="lightbox" onclick="tutupLightbox()">
   <img id="lightboxImg" src="" alt="">
   <div class="lightbox-caption" id="lightboxCaption"></div>
+</div>
+
+<!-- MODAL SET STOK AWAL (SATU ITEM) -->
+<div class="modal-overlay" id="modalStokAwal">
+  <div class="modal-box">
+
+    <div class="modal-header">
+      <h3>✏ Set Stok Awal</h3>
+      <button type="button" class="modal-close" onclick="tutupModalStok()">✕</button>
+    </div>
+
+    <form id="formStokAwal">
+      <div class="modal-body">
+
+        <div class="field">
+          <label>Barang</label>
+          <input type="text" id="stokBarangNama" readonly>
+        </div>
+
+        <div class="field">
+          <label>Gudang</label>
+          <input type="text" id="stokGudangNama" readonly>
+        </div>
+
+        <div class="field">
+          <label>Stok Awal</label>
+          <input type="number" id="stokAwalInput" min="0" placeholder="0" required>
+        </div>
+
+        <p class="hint">
+          ⚠ Angka ini akan langsung menjadi <b>Sisa Stok</b> barang ini di gudang Anda
+          (menimpa angka sebelumnya). Paling aman dipakai untuk barang yang belum
+          pernah ada transaksi Masuk/Keluar.
+        </p>
+
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" id="btnBatalStok" onclick="tutupModalStok()">Batal</button>
+        <button type="submit" id="btnSimpanStok">💾 Simpan Stok Awal</button>
+      </div>
+    </form>
+
+  </div>
 </div>
 
 <script src="js/database-barang.js"></script>
