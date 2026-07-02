@@ -131,6 +131,13 @@
         box-shadow:0 0 0 3px rgba(59,130,246,.2);
     }
 
+    #formTransferHeader input[readonly]{
+        color:#94a3b8;
+        border-style:dashed;
+        background:#0b1220;
+        cursor:not-allowed;
+    }
+
     /* ---------- Detail baris barang ---------- */
 
     .header-label{
@@ -413,8 +420,12 @@ required>
 <input
 type="text"
 id="no_transfer"
-placeholder="Contoh : TRF-0001/VII/2026"
+placeholder="Memuat nomor..."
+readonly
 required>
+<small style="color:#64748B;">
+Otomatis : TRF-0001/bulan/tahun berjalan, urut &amp; reset tiap bulan
+</small>
 </div>
 <div>
 <label><b>Gudang Asal</b></label>
