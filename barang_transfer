@@ -523,6 +523,6 @@ style="width:100%;padding:10px;margin-bottom:12px;border:1px solid #334155;borde
 
 </div>
 <!-- Logic Transfer Barang -->
-<script src="js/transfer.js"></script>
+<script src="js/barang-transfer.js"></script>
 </body>
 </html>
