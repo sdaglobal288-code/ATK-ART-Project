@@ -1209,23 +1209,23 @@ async function lihatDetailTransfer(id){
 
     try{
 
-        const { data, error } = await supabaseClient
+        const { data:header, error:errHeader } = await supabaseClient
+            .from("barang_transfer")
+            .select("*")
+            .eq("id", id)
+            .single();
+
+        if(errHeader) throw errHeader;
+
+        const { data:detail, error:errDetail } = await supabaseClient
             .from("barang_transfer_detail")
             .select("*")
-            .eq("transfer_id", id);
+            .eq("transfer_id", id)
+            .order("id");
 
-        if(error) throw error;
+        if(errDetail) throw errDetail;
 
-        if(!data || data.length===0){
-            alert("Tidak ada item pada transfer ini.");
-            return;
-        }
-
-        const daftar = data.map(d =>
-            `- ${d.nama_barang} : ${d.qty} ${d.satuan ?? ""}`
-        ).join("\n");
-
-        alert(`Detail Item Transfer:\n\n${daftar}`);
+        tampilkanModalDetailTransfer(header, detail || []);
 
     }
     catch(err){
@@ -1236,6 +1236,61 @@ async function lihatDetailTransfer(id){
     }
 
 }
+
+function tampilkanModalDetailTransfer(header, detail){
+
+    const info = document.getElementById("modalDetailInfo");
+    const body = document.getElementById("modalDetailBody");
+
+    info.innerHTML = `
+        <div>No. Transfer : <b>${header.no_transfer}</b></div>
+        <div>Tanggal : <b>${header.tanggal}</b></div>
+        <div>Gudang Asal : <b>${header.gudang_asal}</b></div>
+        <div>Gudang Tujuan : <b>${header.gudang_tujuan}</b></div>
+        <div>Status : <b>${badgeStatus(header.status)}</b></div>
+        <div>Keterangan : <b>${header.keterangan ? header.keterangan : "-"}</b></div>
+    `;
+
+    if(detail.length === 0){
+
+        body.innerHTML = `
+        <tr>
+            <td colspan="6" class="empty-state">Tidak ada item pada transfer ini.</td>
+        </tr>
+        `;
+
+    } else {
+
+        body.innerHTML = detail.map((d, i) => `
+        <tr>
+            <td>${i+1}</td>
+            <td><span class="kode-pill">${d.kode_barang}</span></td>
+            <td><strong>${d.nama_barang}</strong></td>
+            <td>${d.kategori ?? "-"}</td>
+            <td>${d.satuan ?? "-"}</td>
+            <td>${d.qty}</td>
+        </tr>
+        `).join("");
+
+    }
+
+    document.getElementById("modalDetailTransfer").classList.add("show");
+
+}
+
+function tutupDetailTransfer(){
+
+    const modal = document.getElementById("modalDetailTransfer");
+
+    if(modal) modal.classList.remove("show");
+
+}
+
+document.addEventListener("keydown", function(e){
+
+    if(e.key === "Escape") tutupDetailTransfer();
+
+});
 
 // =====================================
 // SEARCH RIWAYAT
