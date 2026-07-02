@@ -8,6 +8,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="css/dashboard.css">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script src="supabase/config.js"></script>
 <style>
     /* ====================================================
@@ -212,6 +213,121 @@
     .btn-tambah-baris:hover{
         background:rgba(59,130,246,.22);
     }
+
+    /* ---------- Modal Edit Barang Keluar ---------- */
+
+    .modal-overlay{
+        position:fixed;
+        inset:0;
+        background:rgba(0,0,0,.65);
+        display:none;
+        align-items:center;
+        justify-content:center;
+        z-index:1000;
+        padding:20px;
+        overflow-y:auto;
+    }
+
+    .modal-overlay.show{
+        display:flex;
+    }
+
+    .modal-box{
+        background:#0f172a;
+        border:1px solid #334155;
+        border-radius:14px;
+        padding:22px;
+        width:100%;
+        max-width:640px;
+        max-height:82vh;
+        overflow-y:auto;
+        box-shadow:0 20px 50px rgba(0,0,0,.5);
+        margin:auto;
+    }
+
+    .modal-box-wide{
+        max-width:780px;
+    }
+
+    .modal-header{
+        display:flex;
+        justify-content:space-between;
+        align-items:center;
+        margin-bottom:16px;
+    }
+
+    .modal-header h3{
+        margin:0;
+        color:#e2e8f0;
+    }
+
+    .modal-close{
+        background:rgba(239,68,68,.12);
+        color:#f87171;
+        border:1px solid rgba(239,68,68,.35);
+        border-radius:8px;
+        width:32px;
+        height:32px;
+        cursor:pointer;
+        font-weight:700;
+    }
+
+    .modal-close:hover{
+        background:rgba(239,68,68,.25);
+    }
+
+    #formEditKeluar{
+        display:grid;
+        grid-template-columns:1fr 1fr;
+        gap:16px;
+    }
+
+    #formEditKeluar > div{
+        display:flex;
+        flex-direction:column;
+        gap:6px;
+    }
+
+    #formEditKeluar label{
+        font-size:13px;
+        color:#94a3b8;
+    }
+
+    #formEditKeluar input[type="text"],
+    #formEditKeluar input[type="date"]{
+        width:100%;
+        padding:10px 12px;
+        border-radius:8px;
+        border:1px solid #334155;
+        background:#0f172a;
+        color:#e2e8f0;
+        font-family:inherit;
+        font-size:14px;
+        box-sizing:border-box;
+    }
+
+    #formEditKeluar input:focus{
+        outline:none;
+        border-color:#3b82f6;
+        box-shadow:0 0 0 3px rgba(59,130,246,.2);
+    }
+
+    #btnSimpanEditKeluar{
+        background:#3b82f6;
+        color:#ffffff;
+        border:none;
+        border-radius:10px;
+        padding:14px 22px;
+        cursor:pointer;
+        font-weight:600;
+        font-size:14.5px;
+        font-family:inherit;
+        transition:background .15s;
+    }
+
+    #btnSimpanEditKeluar:hover{
+        background:#2563eb;
+    }
 </style>
 </head>
 <body>
@@ -292,12 +408,6 @@ type="submit"
 id="btnSimpan">
 💾 Simpan Barang Keluar
 </button>
-<button
-type="button"
-id="btnBatal"
-style="display:none;">
-❌ Batal
-</button>
 </div>
 </form>
 </div>
@@ -348,6 +458,75 @@ style="width:100%;padding:10px;margin-bottom:10px;border:1px solid #334155;borde
 </table>
 </div>
 </div>
+
+<!-- ================= MODAL EDIT BARANG KELUAR ================= -->
+<div class="modal-overlay" id="modalEditKeluar">
+    <div class="modal-box modal-box-wide">
+        <div class="modal-header">
+            <h3>✏ Edit Barang Keluar</h3>
+            <button type="button" class="modal-close" id="btnTutupModalEdit">✕</button>
+        </div>
+
+        <form id="formEditKeluar" onsubmit="return false;">
+        <div>
+        <label><b>Tanggal</b></label>
+        <input type="date" id="editTanggal" required>
+        </div>
+        <div>
+        <label><b>Pengambil</b></label>
+        <div class="combo-wrapper">
+            <input
+                type="text"
+                id="editPengambilSearch"
+                class="combo-input"
+                placeholder="-- Cari Nama Pengambil --"
+                autocomplete="off"
+                required>
+            <input type="hidden" id="editPengambil">
+            <div class="combo-dropdown" id="editPengambilDropdown"></div>
+        </div>
+        </div>
+        <div>
+        <label><b>Departemen</b></label>
+        <input type="text" id="editDepartemen" readonly>
+        </div>
+        <div>
+        <label><b>Jabatan</b></label>
+        <input type="text" id="editJabatan" readonly>
+        </div>
+        <div style="grid-column:1/3;">
+        <label><b>Keterangan</b></label>
+        <input type="text" id="editKeterangan" placeholder="Keterangan (opsional)">
+        </div>
+        </form>
+
+        <br>
+
+        <h3><span>📦 Barang</span></h3>
+        <br>
+
+        <div class="header-label">
+            <span>Barang</span>
+            <span>Kategori</span>
+            <span>Satuan</span>
+            <span>Sisa Stok</span>
+            <span>Qty Keluar</span>
+            <span></span>
+        </div>
+        <div class="detail-wrapper" id="editDetailRows">
+            <!-- baris barang yang diedit diisi lewat JS -->
+        </div>
+
+        <br>
+
+        <div style="display:flex;gap:10px;">
+        <button type="button" id="btnSimpanEditKeluar">
+        💾 Simpan Perubahan
+        </button>
+        </div>
+    </div>
+</div>
+
 <script src="js/barang-keluar.js"></script>
 </body>
 </html>
