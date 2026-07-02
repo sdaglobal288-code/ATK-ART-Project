@@ -8,599 +8,414 @@
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="css/dashboard.css">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
-<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
 <script src="supabase/config.js"></script>
 <style>
-    /* ====================================================
-       Style ini disamakan PERSIS dengan halaman Barang Keluar
-       (combobox pencarian, baris detail grid, badge stok,
-       tombol tambah/hapus baris).
-       ==================================================== */
+  :root{
+    --bm-bg:#0f1018;
+    --bm-surface:#171926;
+    --bm-surface-2:#1e2130;
+    --bm-border:#2a2d3d;
+    --bm-text:#e9eaf2;
+    --bm-muted:#9498ab;
+    --bm-purple:#6c5dd3;
+    --bm-purple-dark:#5a4cc0;
+    --bm-purple-soft:rgba(108,93,211,.15);
+    --bm-blue:#3b82f6;
+    --bm-blue-soft:rgba(59,130,246,.12);
+    --bm-danger:#ef5675;
+    --bm-danger-soft:rgba(239,84,117,.12);
+    --bm-success:#3ecf8e;
+    --bm-success-soft:rgba(62,207,142,.12);
+  }
 
-    .combo-wrapper{
-        position:relative !important;
-        width:100%;
-    }
+  body{ font-family:'Inter',sans-serif; background:var(--bm-bg); color:var(--bm-text); }
 
-    .combo-input{
-        width:100%;
-        padding:10px 12px;
-        border-radius:8px;
-        border:1px solid #334155;
-        background:#0f172a;
-        color:#e2e8f0;
-        font-family:inherit;
-        font-size:14px;
-        box-sizing:border-box;
-        transition:border-color .15s, box-shadow .15s;
-    }
+  .content{ max-width:1180px; margin:0 auto; padding:28px 24px 60px; }
 
-    .combo-input::placeholder{
-        color:#64748b;
-    }
+  .content h2{
+    font-size:23px; font-weight:700; color:var(--bm-text);
+    display:flex; align-items:center; gap:10px; margin:0;
+  }
 
-    .combo-input:focus{
-        outline:none;
-        border-color:#3b82f6;
-        box-shadow:0 0 0 3px rgba(59,130,246,.2);
-    }
+  .page-subtitle{ color:var(--bm-muted); font-size:13.5px; margin-top:4px; }
 
-    .combo-dropdown{
-        position:absolute !important;
-        top:calc(100% + 6px) !important;
-        left:0 !important;
-        right:0 !important;
-        background:#111827;
-        border:1px solid #334155;
-        border-radius:10px;
-        max-height:230px;
-        overflow-y:auto;
-        z-index:60;
-        display:none !important;
-        box-shadow:0 12px 28px rgba(0,0,0,.45);
-        margin:0 !important;
-    }
+  .toolbar{ display:flex; gap:12px; flex-wrap:wrap; }
 
-    .combo-dropdown.show{
-        display:block !important;
-    }
+  .toolbar button{
+    display:inline-flex; align-items:center; gap:8px; border:none;
+    border-radius:10px; padding:10px 18px; font-size:14px; font-weight:600;
+    cursor:pointer; font-family:inherit;
+    transition:opacity .15s ease, transform .12s ease;
+  }
+  .toolbar button:active{ transform:translateY(1px); }
 
-    .combo-item{
-        padding:10px 14px;
-        color:#e2e8f0;
-        cursor:pointer;
-        font-size:13.5px;
-        border-bottom:1px solid #1f2937;
-    }
+  .btn-dashboard{ background:var(--bm-surface-2); color:var(--bm-text); border:1px solid var(--bm-border); }
+  .btn-dashboard:hover{ background:#262a3c; }
+  .btn-import{ background:var(--bm-surface-2); color:var(--bm-text); border:1px solid var(--bm-border); }
+  .btn-import:hover{ background:#262a3c; }
+  .btn-export{ background:var(--bm-surface-2); color:var(--bm-text); border:1px solid var(--bm-border); }
+  .btn-export:hover{ background:#262a3c; }
 
-    .combo-item:last-child{
-        border-bottom:none;
-    }
+  /* Panel */
+  .panel{
+    background:var(--bm-surface); border:1px solid var(--bm-border);
+    border-radius:14px; padding:22px 24px; box-shadow:0 4px 16px rgba(0,0,0,.18);
+    margin-bottom:20px;
+  }
 
-    .combo-item:hover,
-    .combo-item.active{
-        background:#1e293b;
-        color:#60a5fa;
-    }
+  .panel h3{
+    font-size:16px; font-weight:700; color:var(--bm-text); margin:0 0 18px;
+    display:flex; align-items:center; gap:8px;
+  }
 
-    .combo-empty{
-        padding:10px 14px;
-        color:#64748b;
-        font-size:13px;
-        font-style:italic;
-    }
+  /* Form header */
+  #formMasukHeader, #formEditHeader{
+    display:grid; grid-template-columns:1fr 1fr; gap:16px;
+  }
+  #formMasukHeader > div, #formEditHeader > div{
+    display:flex; flex-direction:column; gap:6px;
+  }
+  #formMasukHeader label, #formEditHeader label{
+    font-size:12.5px; font-weight:600; color:var(--bm-muted);
+    text-transform:uppercase; letter-spacing:.03em;
+  }
+  #formMasukHeader input, #formEditHeader input{
+    width:100%; padding:11px 14px; border-radius:10px;
+    border:1px solid var(--bm-border); background:var(--bm-surface-2);
+    color:var(--bm-text); font-family:inherit; font-size:14px; box-sizing:border-box;
+  }
+  #formMasukHeader input::placeholder, #formEditHeader input::placeholder{ color:#5d6175; }
+  #formMasukHeader input:focus, #formEditHeader input:focus{
+    outline:none; border-color:var(--bm-blue); box-shadow:0 0 0 3px var(--bm-blue-soft);
+  }
 
-    /* ---------- Form header ---------- */
+  /* Combobox */
+  .combo-wrapper{ position:relative !important; width:100%; }
+  .combo-input{
+    width:100%; padding:11px 14px; border-radius:10px; border:1px solid var(--bm-border);
+    background:var(--bm-surface-2); color:var(--bm-text); font-family:inherit;
+    font-size:14px; box-sizing:border-box;
+  }
+  .combo-input::placeholder{ color:#5d6175; }
+  .combo-input:focus{
+    outline:none; border-color:var(--bm-blue); box-shadow:0 0 0 3px var(--bm-blue-soft);
+  }
+  .combo-dropdown{
+    position:absolute !important; top:calc(100% + 4px) !important;
+    left:0 !important; right:0 !important;
+    background:#131622; border:1px solid var(--bm-border); border-radius:10px;
+    max-height:230px; overflow-y:auto; z-index:200;
+    display:none !important; box-shadow:0 12px 28px rgba(0,0,0,.45);
+  }
+  .combo-dropdown.show{ display:block !important; }
+  .combo-item{
+    padding:10px 14px; color:var(--bm-text); cursor:pointer;
+    font-size:13.5px; border-bottom:1px solid var(--bm-border);
+  }
+  .combo-item:last-child{ border-bottom:none; }
+  .combo-item:hover, .combo-item.active{ background:var(--bm-surface-2); color:#60a5fa; }
+  .combo-empty{ padding:10px 14px; color:var(--bm-muted); font-size:13px; font-style:italic; }
 
-    #formMasukHeader,
-    #formEditHeader{
-        display:grid;
-        grid-template-columns:1fr 1fr;
-        gap:16px;
-    }
+  /* Detail rows */
+  .header-label{
+    display:grid; grid-template-columns:2.2fr 1.1fr 0.9fr 1fr 0.9fr 40px;
+    gap:10px; font-size:12px; font-weight:700; letter-spacing:.04em;
+    text-transform:uppercase; color:var(--bm-muted); margin-bottom:10px; padding:0 4px;
+  }
 
-    #formMasukHeader > div,
-    #formEditHeader > div{
-        display:flex;
-        flex-direction:column;
-        gap:6px;
-    }
+  .detail-wrapper{
+    border:1px solid var(--bm-border); border-radius:12px;
+    padding:14px; margin-bottom:12px; background:rgba(255,255,255,.02);
+    display:flex; flex-direction:column; gap:10px;
+  }
 
-    #formMasukHeader label,
-    #formEditHeader label{
-        font-size:13px;
-        color:#94a3b8;
-    }
+  .detail-row{
+    display:grid !important;
+    grid-template-columns:2.2fr 1.1fr 0.9fr 1fr 0.9fr 40px !important;
+    gap:10px; align-items:center;
+  }
 
-    #formMasukHeader input[type="text"],
-    #formMasukHeader input[type="date"],
-    #formEditHeader input[type="text"],
-    #formEditHeader input[type="date"]{
-        width:100%;
-        padding:10px 12px;
-        border-radius:8px;
-        border:1px solid #334155;
-        background:#0f172a;
-        color:#e2e8f0;
-        font-family:inherit;
-        font-size:14px;
-        box-sizing:border-box;
-    }
+  .input-readonly{
+    width:100%; padding:10px 12px; border-radius:8px;
+    border:1px dashed var(--bm-border); background:var(--bm-bg);
+    color:var(--bm-muted); font-family:inherit; font-size:13.5px; box-sizing:border-box;
+  }
 
-    #formMasukHeader input:focus,
-    #formEditHeader input:focus{
-        outline:none;
-        border-color:#3b82f6;
-        box-shadow:0 0 0 3px rgba(59,130,246,.2);
-    }
+  .input-qty{
+    width:100%; padding:10px 12px; border-radius:8px; border:1px solid var(--bm-border);
+    background:var(--bm-surface-2); color:var(--bm-text); font-family:inherit;
+    font-size:14px; box-sizing:border-box;
+  }
+  .input-qty:focus{ outline:none; border-color:var(--bm-blue); box-shadow:0 0 0 3px var(--bm-blue-soft); }
 
-    /* ---------- Detail baris barang (sama persis dengan Barang Keluar) ---------- */
+  .stok-badge{
+    font-weight:700; font-size:13px; padding:9px 8px; border-radius:8px;
+    text-align:center; background:var(--bm-success-soft); color:var(--bm-success);
+    border:1px solid rgba(62,207,142,.3); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+  }
 
-    .header-label{
-        display:grid;
-        grid-template-columns: 2.2fr 1.1fr 0.9fr 1fr 0.9fr 40px;
-        gap:10px;
-        font-size:12px;
-        font-weight:600;
-        letter-spacing:.03em;
-        text-transform:uppercase;
-        color:#64748b;
-        margin-bottom:8px;
-        padding:0 4px;
-    }
+  .btn-hapus-baris{
+    background:var(--bm-danger-soft); color:var(--bm-danger);
+    border:1px solid rgba(239,84,117,.35); border-radius:8px;
+    cursor:pointer; font-weight:700; height:38px; width:100%; font-family:inherit;
+    transition:background .15s;
+  }
+  .btn-hapus-baris:hover{ background:var(--bm-danger); color:#fff; }
 
-    .detail-wrapper{
-        border:1px solid #263041;
-        border-radius:12px;
-        padding:14px;
-        margin-bottom:12px;
-        background:rgba(255,255,255,.02);
-    }
+  .btn-tambah-baris{
+    background:var(--bm-blue-soft); color:var(--bm-blue);
+    border:1px solid rgba(59,130,246,.35); border-radius:8px;
+    padding:10px 18px; cursor:pointer; font-weight:600; font-size:13.5px;
+    font-family:inherit; transition:background .15s;
+  }
+  .btn-tambah-baris:hover{ background:rgba(59,130,246,.22); }
 
-    .detail-row{
-        display:grid !important;
-        grid-template-columns: 2.2fr 1.1fr 0.9fr 1fr 0.9fr 40px !important;
-        gap:10px;
-        align-items:center;
-        margin-bottom:10px;
-        position:relative;
-    }
+  #btnSimpanBTB, #btnSimpanEditBTB{
+    background:linear-gradient(135deg,var(--bm-purple),var(--bm-purple-dark));
+    color:#fff; border:none; border-radius:10px; padding:12px 24px;
+    cursor:pointer; font-weight:700; font-size:14.5px; font-family:inherit;
+    display:inline-flex; align-items:center; gap:8px;
+    box-shadow:0 4px 12px rgba(108,93,211,.35);
+    transition:filter .15s ease, transform .12s ease;
+  }
+  #btnSimpanBTB:hover, #btnSimpanEditBTB:hover{ filter:brightness(1.08); }
+  #btnSimpanBTB:disabled, #btnSimpanEditBTB:disabled{ opacity:.55; cursor:not-allowed; filter:none; }
 
-    .detail-row:last-child{
-        margin-bottom:0;
-    }
+  /* Table */
+  .table-responsive{ overflow-x:auto; border-radius:10px; border:1px solid var(--bm-border); }
+  table{ width:100%; border-collapse:collapse; font-size:13.5px; min-width:760px; }
+  thead th{
+    background:var(--bm-surface-2); color:var(--bm-muted); text-transform:uppercase;
+    font-size:11.5px; letter-spacing:.04em; font-weight:700; text-align:left;
+    padding:12px 14px; border-bottom:1px solid var(--bm-border); white-space:nowrap;
+  }
+  tbody td{ padding:11px 14px; border-bottom:1px solid var(--bm-border); color:var(--bm-text); vertical-align:middle; }
+  tbody tr:last-child td{ border-bottom:none; }
+  #tableMasuk tbody tr:hover td{ background:transparent !important; color:var(--bm-text) !important; }
+  #tableDetailBTB tbody tr:hover td{ background:transparent !important; }
 
-    .input-readonly{
-        width:100%;
-        padding:10px 12px;
-        border-radius:8px;
-        border:1px dashed #334155;
-        background:#0b1220;
-        color:#94a3b8;
-        font-family:inherit;
-        font-size:13.5px;
-        box-sizing:border-box;
-    }
+  /* Search box */
+  .search-input{
+    width:100%; max-width:380px; padding:10px 14px; border:1px solid var(--bm-border);
+    border-radius:10px; background:var(--bm-surface-2); color:var(--bm-text);
+    font-family:inherit; font-size:13.5px; box-sizing:border-box; margin-bottom:16px;
+  }
+  .search-input::placeholder{ color:#5d6175; }
+  .search-input:focus{ outline:none; border-color:var(--bm-purple); box-shadow:0 0 0 3px var(--bm-purple-soft); }
 
-    .input-qty{
-        width:100%;
-        padding:10px 12px;
-        border-radius:8px;
-        border:1px solid #334155;
-        background:#0f172a;
-        color:#e2e8f0;
-        font-family:inherit;
-        font-size:14px;
-        box-sizing:border-box;
-    }
+  /* Modal */
+  .modal-overlay{
+    position:fixed; inset:0; background:rgba(0,0,0,.72);
+    display:none; align-items:center; justify-content:center;
+    z-index:1000; padding:20px; overflow-y:auto; backdrop-filter:blur(2px);
+  }
+  .modal-overlay.show{ display:flex; }
+  .modal-box{
+    background:var(--bm-surface); border:1px solid var(--bm-border); border-radius:14px;
+    padding:22px; width:100%; max-width:640px; max-height:85vh; overflow-y:auto;
+    box-shadow:0 20px 50px rgba(0,0,0,.55); margin:auto;
+    animation:modalPop .15s ease;
+  }
+  .modal-box-wide{ max-width:860px; }
+  @keyframes modalPop{
+    from{ opacity:0; transform:translateY(8px) scale(.98); }
+    to{ opacity:1; transform:translateY(0) scale(1); }
+  }
+  .modal-header{
+    display:flex; justify-content:space-between; align-items:center; margin-bottom:18px;
+  }
+  .modal-header h3{ margin:0; font-size:16px; font-weight:700; color:var(--bm-text); }
+  .modal-close{
+    background:var(--bm-danger-soft); color:var(--bm-danger);
+    border:1px solid rgba(239,84,117,.35); border-radius:8px;
+    width:32px; height:32px; cursor:pointer; font-weight:700; font-size:16px;
+    display:flex; align-items:center; justify-content:center;
+  }
+  .modal-close:hover{ background:var(--bm-danger); color:#fff; }
+  .modal-info{
+    display:grid; grid-template-columns:1fr 1fr; gap:8px 20px; margin-bottom:18px;
+    font-size:13.5px; background:var(--bm-surface-2); border:1px solid var(--bm-border);
+    border-radius:10px; padding:14px;
+  }
+  .modal-info div{ display:flex; flex-direction:column; gap:3px; }
+  .modal-info span{ font-size:11.5px; font-weight:600; color:var(--bm-muted); text-transform:uppercase; letter-spacing:.03em; }
+  .modal-info b{ color:var(--bm-text); font-weight:600; }
 
-    .input-qty:focus{
-        outline:none;
-        border-color:#3b82f6;
-        box-shadow:0 0 0 3px rgba(59,130,246,.2);
-    }
-
-    .stok-badge{
-        font-weight:600;
-        font-size:13px;
-        padding:9px 8px;
-        border-radius:8px;
-        text-align:center;
-        background:rgba(34,197,94,.12);
-        color:#4ade80;
-        border:1px solid rgba(34,197,94,.35);
-        white-space:nowrap;
-        overflow:hidden;
-        text-overflow:ellipsis;
-    }
-
-    .btn-hapus-baris{
-        background:rgba(239,68,68,.12);
-        color:#f87171;
-        border:1px solid rgba(239,68,68,.35);
-        border-radius:8px;
-        cursor:pointer;
-        font-weight:700;
-        height:38px;
-        width:100%;
-        transition:background .15s;
-    }
-
-    .btn-hapus-baris:hover{
-        background:rgba(239,68,68,.25);
-    }
-
-    .btn-tambah-baris{
-        background:rgba(59,130,246,.12);
-        color:#60a5fa;
-        border:1px solid rgba(59,130,246,.35);
-        border-radius:8px;
-        padding:10px 16px;
-        cursor:pointer;
-        font-weight:600;
-        font-size:13.5px;
-        margin-top:2px;
-        transition:background .15s;
-    }
-
-    .btn-tambah-baris:hover{
-        background:rgba(59,130,246,.22);
-    }
-
-    /* ---------- Tombol Simpan (disamakan dengan Simpan Barang Keluar) ---------- */
-
-    #btnSimpanBTB,
-    #btnSimpanEditBTB{
-        background:#3b82f6;
-        color:#ffffff;
-        border:none;
-        border-radius:10px;
-        padding:14px 22px;
-        cursor:pointer;
-        font-weight:600;
-        font-size:14.5px;
-        font-family:inherit;
-        display:inline-flex;
-        align-items:center;
-        gap:6px;
-        transition:background .15s;
-    }
-
-    #btnSimpanBTB:hover,
-    #btnSimpanEditBTB:hover{
-        background:#2563eb;
-    }
-
-    /* ---------- Modal (Detail & Edit BTB) ---------- */
-
-    .modal-overlay{
-        position:fixed;
-        inset:0;
-        background:rgba(0,0,0,.65);
-        display:none;
-        align-items:center;
-        justify-content:center;
-        z-index:1000;
-        padding:20px;
-        overflow-y:auto;
-    }
-
-    .modal-overlay.show{
-        display:flex;
-    }
-
-    .modal-box{
-        background:#0f172a;
-        border:1px solid #334155;
-        border-radius:14px;
-        padding:22px;
-        width:100%;
-        max-width:640px;
-        max-height:82vh;
-        overflow-y:auto;
-        box-shadow:0 20px 50px rgba(0,0,0,.5);
-        margin:auto;
-    }
-
-    .modal-box-wide{
-        max-width:840px;
-    }
-
-    .modal-header{
-        display:flex;
-        justify-content:space-between;
-        align-items:center;
-        margin-bottom:16px;
-    }
-
-    .modal-header h3{
-        margin:0;
-        color:#e2e8f0;
-    }
-
-    .modal-close{
-        background:rgba(239,68,68,.12);
-        color:#f87171;
-        border:1px solid rgba(239,68,68,.35);
-        border-radius:8px;
-        width:32px;
-        height:32px;
-        cursor:pointer;
-        font-weight:700;
-    }
-
-    .modal-close:hover{
-        background:rgba(239,68,68,.25);
-    }
-
-    .modal-info{
-        display:grid;
-        grid-template-columns:1fr 1fr;
-        gap:8px 20px;
-        margin-bottom:18px;
-        color:#e2e8f0;
-        font-size:13.5px;
-        background:rgba(255,255,255,.02);
-        border:1px solid #263041;
-        border-radius:10px;
-        padding:12px 14px;
-    }
-
-    .modal-info span{
-        color:#94a3b8;
-    }
-
-    #tableDetailBTB th,
-    #tableDetailBTB td{
-        font-size:13px;
-    }
+  @keyframes spin{ to{ transform:rotate(360deg); } }
 </style>
 </head>
 <body>
 <div class="content">
-<h2>📥 Barang Masuk</h2>
-<br>
-<!-- ================= TOOLBAR ================= -->
-<div class="toolbar">
-<button
-class="btn-dashboard"
-onclick="location.href='dashboard.html'">
-🏠 Dashboard
-</button>
-</div>
-<br>
-<!-- ================= FORM HEADER ================= -->
-<div class="panel">
-<h3 id="judulForm"><span>📥 Input Barang Masuk (BTB)</span></h3>
-<br>
-<form id="formMasukHeader">
-<div>
-<label><b>Tanggal</b></label>
-<input
-type="date"
-id="tanggal"
-required>
-</div>
-<div>
-<label><b>No. BTB</b></label>
-<input
-type="text"
-id="no_btb"
-placeholder="Contoh : 0064/BTB-U-GI-R/VI/2026"
-required>
-<small style="color:#64748B;">
-Format : XXXX/BTB-U-GI-R/VI/2026
-</small>
-</div>
-<div>
-<label><b>Supplier</b></label>
-<div class="combo-wrapper">
-    <input
-        type="text"
-        id="supplierSearch"
-        class="combo-input"
-        placeholder="-- Cari Supplier --"
-        autocomplete="off"
-        required>
-    <input type="hidden" id="supplier">
-    <div class="combo-dropdown" id="supplierDropdown"></div>
-</div>
-</div>
-<div>
-<label><b>Keterangan</b></label>
-<input
-type="text"
-id="keterangan"
-placeholder="Keterangan BTB">
-</div>
-</form>
-</div>
-<!-- ================= DETAIL BARANG (SAMA PERSIS DENGAN BARANG KELUAR) ================= -->
-<div class="panel">
-<h3><span>📦 Detail Barang</span></h3>
-<br>
 
-<div class="header-label">
-    <span>Barang</span>
-    <span>Kategori</span>
-    <span>Satuan</span>
-    <span>Sisa Stok</span>
-    <span>Qty Masuk</span>
-    <span></span>
-</div>
-<div class="detail-wrapper" id="detailRows">
-    <!-- baris detail barang ditambahkan lewat JS -->
-</div>
-<button
-type="button"
-class="btn-tambah-baris"
-id="btnTambahBaris">
-➕ Tambah Barang
-</button>
+  <h2>📥 Barang Masuk</h2>
+  <p class="page-subtitle">Input penerimaan barang menggunakan No. BTB.</p>
+  <br>
 
-<br><br>
+  <div class="toolbar">
+    <button class="btn-dashboard" onclick="location.href='dashboard.html'">🏠 Dashboard</button>
+  </div>
+  <br>
 
-<div style="display:flex;gap:10px;">
-<button
-type="submit"
-id="btnSimpanBTB">
-💾 Simpan Barang Masuk
-</button>
-</div>
-</div>
-<!-- ================= HISTORI ================= -->
-<div class="panel">
-<h3><span>📋 Histori Barang Masuk</span></h3>
-<br>
-<div class="toolbar" style="margin-bottom:14px;">
-<button
-class="btn-import"
-onclick="document.getElementById('fileImport').click()">
-📥 Import Excel
-</button>
-<input
-type="file"
-id="fileImport"
-accept=".xlsx,.xls"
-hidden>
-<button
-class="btn-export"
-onclick="exportExcel()">
-📤 Export Excel
-</button>
-</div>
-<div class="search-box">
-<input
-type="text"
-id="search"
-placeholder="🔍 Cari No BTB / Supplier"
-style="width:100%;padding:10px;border:1px solid #334155;border-radius:8px;background:#0f172a;color:#e2e8f0;box-sizing:border-box;">
-</div>
-<br>
-<div class="table-responsive">
-<table id="tableMasuk">
-<thead>
-<tr>
-<th width="70">No</th>
-<th width="170">No BTB</th>
-<th width="120">Tanggal</th>
-<th>Supplier</th>
-<th width="100">Item</th>
-<th width="170">Gudang</th>
-<th width="170">Created By</th>
-<th width="170">Aksi</th>
-</tr>
-</thead>
-<tbody></tbody>
-</table>
-</div>
-</div>
-</div>
-
-<!-- ================= MODAL DETAIL BTB ================= -->
-<div class="modal-overlay" id="modalDetailBTB">
-    <div class="modal-box">
-        <div class="modal-header">
-            <h3>📦 Detail Barang Masuk</h3>
-            <button type="button" class="modal-close" id="btnTutupModalDetail">✕</button>
-        </div>
-
-        <div class="modal-info">
-            <div><span>No. BTB:</span> <b id="modalNoBTB"></b></div>
-            <div><span>Tanggal:</span> <b id="modalTanggal"></b></div>
-            <div><span>Supplier:</span> <b id="modalSupplier"></b></div>
-            <div><span>Keterangan:</span> <b id="modalKeterangan"></b></div>
-        </div>
-
-        <div class="table-responsive">
-            <table id="tableDetailBTB">
-                <thead>
-                    <tr>
-                        <th width="50">No</th>
-                        <th>Kode</th>
-                        <th>Nama Barang</th>
-                        <th>Kategori</th>
-                        <th>Satuan</th>
-                        <th width="70">Qty</th>
-                    </tr>
-                </thead>
-                <tbody></tbody>
-            </table>
-        </div>
-    </div>
-</div>
-
-<!-- ================= MODAL EDIT BTB ================= -->
-<div class="modal-overlay" id="modalEditBTB">
-    <div class="modal-box modal-box-wide">
-        <div class="modal-header">
-            <h3>✏ Edit Barang Masuk</h3>
-            <button type="button" class="modal-close" id="btnTutupModalEdit">✕</button>
-        </div>
-
-        <form id="formEditHeader" onsubmit="return false;">
-        <div>
-        <label><b>Tanggal</b></label>
-        <input type="date" id="editTanggal" required>
-        </div>
-        <div>
-        <label><b>No. BTB</b></label>
-        <input type="text" id="editNoBTB" required>
-        </div>
-        <div>
-        <label><b>Supplier</b></label>
+  <!-- FORM HEADER -->
+  <div class="panel">
+    <h3>📥 Input Barang Masuk (BTB)</h3>
+    <form id="formMasukHeader">
+      <div>
+        <label>Tanggal</label>
+        <input type="date" id="tanggal" required>
+      </div>
+      <div>
+        <label>No. BTB</label>
+        <input type="text" id="no_btb" placeholder="Contoh: 0064/BTB-U-GI-R/VI/2026" required>
+      </div>
+      <div>
+        <label>Supplier</label>
         <div class="combo-wrapper">
-            <input
-                type="text"
-                id="editSupplierSearch"
-                class="combo-input"
-                placeholder="-- Cari Supplier --"
-                autocomplete="off"
-                required>
-            <input type="hidden" id="editSupplier">
-            <div class="combo-dropdown" id="editSupplierDropdown"></div>
+          <input type="text" id="supplierSearch" class="combo-input" placeholder="Cari supplier..." autocomplete="off">
+          <input type="hidden" id="supplier">
+          <div class="combo-dropdown" id="supplierDropdown"></div>
         </div>
-        </div>
-        <div>
-        <label><b>Keterangan</b></label>
-        <input type="text" id="editKeterangan" placeholder="Keterangan BTB">
-        </div>
-        </form>
+      </div>
+      <div>
+        <label>Keterangan</label>
+        <input type="text" id="keterangan" placeholder="Keterangan (opsional)">
+      </div>
+    </form>
+  </div>
 
-        <br>
+  <!-- DETAIL BARANG -->
+  <div class="panel">
+    <h3>📦 Detail Barang</h3>
 
-        <h3><span>📦 Detail Barang</span></h3>
-        <br>
-
-        <div class="header-label">
-            <span>Barang</span>
-            <span>Kategori</span>
-            <span>Satuan</span>
-            <span>Sisa Stok</span>
-            <span>Qty Masuk</span>
-            <span></span>
-        </div>
-        <div class="detail-wrapper" id="editDetailRows">
-            <!-- baris detail barang untuk edit ditambahkan lewat JS -->
-        </div>
-        <button
-        type="button"
-        class="btn-tambah-baris"
-        id="btnTambahBarisEdit">
-        ➕ Tambah Barang
-        </button>
-
-        <br><br>
-
-        <div style="display:flex;gap:10px;">
-        <button type="button" id="btnSimpanEditBTB">
-        💾 Simpan Perubahan
-        </button>
-        </div>
+    <div class="header-label">
+      <span>Barang</span>
+      <span>Kategori</span>
+      <span>Satuan</span>
+      <span>Sisa Stok</span>
+      <span>Qty Masuk</span>
+      <span></span>
     </div>
+
+    <div class="detail-wrapper" id="detailRows"></div>
+
+    <button type="button" class="btn-tambah-baris" id="btnTambahBaris">➕ Tambah Barang</button>
+
+    <br><br>
+    <button type="button" id="btnSimpanBTB">💾 Simpan Barang Masuk</button>
+  </div>
+
+  <!-- HISTORI -->
+  <div class="panel">
+    <h3>📋 Histori Barang Masuk</h3>
+
+    <div class="toolbar" style="margin-bottom:14px;">
+      <button class="btn-import" onclick="document.getElementById('fileImport').click()">📥 Import Excel</button>
+      <input type="file" id="fileImport" accept=".xlsx,.xls" hidden>
+      <button class="btn-export" onclick="exportExcel()">📤 Export Excel</button>
+    </div>
+
+    <input type="text" id="search" class="search-input" placeholder="🔍 Cari No BTB / Supplier...">
+
+    <div class="table-responsive">
+      <table id="tableMasuk">
+        <thead>
+          <tr>
+            <th width="50">No</th>
+            <th width="200">No BTB</th>
+            <th width="110">Tanggal</th>
+            <th>Supplier</th>
+            <th width="80">Item</th>
+            <th width="130">Gudang</th>
+            <th width="150">Dibuat Oleh</th>
+            <th width="200">Aksi</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+
 </div>
 
-<!-- Logic Barang Masuk -->
+<!-- MODAL DETAIL -->
+<div class="modal-overlay" id="modalDetailBTB">
+  <div class="modal-box">
+    <div class="modal-header">
+      <h3>📦 Detail Barang Masuk</h3>
+      <button type="button" class="modal-close" id="btnTutupModalDetail">✕</button>
+    </div>
+    <div class="modal-info">
+      <div><span>No. BTB</span><b id="modalNoBTB"></b></div>
+      <div><span>Tanggal</span><b id="modalTanggal"></b></div>
+      <div><span>Supplier</span><b id="modalSupplier"></b></div>
+      <div><span>Keterangan</span><b id="modalKeterangan"></b></div>
+    </div>
+    <div class="table-responsive">
+      <table id="tableDetailBTB">
+        <thead>
+          <tr>
+            <th width="40">No</th>
+            <th width="100">Kode</th>
+            <th>Nama Barang</th>
+            <th width="110">Kategori</th>
+            <th width="80">Satuan</th>
+            <th width="70">Qty</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL EDIT -->
+<div class="modal-overlay" id="modalEditBTB">
+  <div class="modal-box modal-box-wide">
+    <div class="modal-header">
+      <h3>✏ Edit Barang Masuk</h3>
+      <button type="button" class="modal-close" id="btnTutupModalEdit">✕</button>
+    </div>
+
+    <form id="formEditHeader">
+      <div>
+        <label>Tanggal</label>
+        <input type="date" id="editTanggal" required>
+      </div>
+      <div>
+        <label>No. BTB</label>
+        <input type="text" id="editNoBTB" readonly style="opacity:.65;cursor:not-allowed;">
+      </div>
+      <div>
+        <label>Supplier</label>
+        <div class="combo-wrapper">
+          <input type="text" id="editSupplierSearch" class="combo-input" placeholder="Cari supplier..." autocomplete="off">
+          <input type="hidden" id="editSupplier">
+          <div class="combo-dropdown" id="editSupplierDropdown"></div>
+        </div>
+      </div>
+      <div>
+        <label>Keterangan</label>
+        <input type="text" id="editKeterangan" placeholder="Keterangan (opsional)">
+      </div>
+    </form>
+
+    <br>
+    <h3>📦 Detail Barang</h3>
+    <br>
+
+    <div class="header-label">
+      <span>Barang</span><span>Kategori</span><span>Satuan</span>
+      <span>Sisa Stok</span><span>Qty Masuk</span><span></span>
+    </div>
+
+    <div class="detail-wrapper" id="editDetailRows"></div>
+    <button type="button" class="btn-tambah-baris" id="btnTambahBarisEdit">➕ Tambah Barang</button>
+    <br><br>
+    <button type="button" id="btnSimpanEditBTB">💾 Simpan Perubahan</button>
+  </div>
+</div>
+
 <script src="js/barang-masuk.js"></script>
 </body>
 </html>
