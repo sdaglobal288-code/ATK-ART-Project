@@ -1,207 +1,839 @@
 <!DOCTYPE html>
 <html lang="id">
-
 <head>
-
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
 <title>ATK & ART Management</title>
-
 <link rel="preconnect" href="https://fonts.googleapis.com">
-
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-
 <link rel="stylesheet" href="css/dashboard.css">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
+<script src="supabase/config.js"></script>
+<style>
+  :root{
+    --dsh-bg:#0f1018;
+    --dsh-surface:#171926;
+    --dsh-surface-2:#1e2130;
+    --dsh-border:#2a2d3d;
+    --dsh-text:#e9eaf2;
+    --dsh-muted:#9498ab;
+    --dsh-purple:#6c5dd3;
+    --dsh-purple-dark:#5a4cc0;
+    --dsh-purple-soft:rgba(108,93,211,.15);
+    --dsh-danger:#ef5675;
+    --dsh-danger-soft:rgba(239,84,117,.12);
+    --dsh-success:#3ecf8e;
+    --dsh-success-soft:rgba(62,207,142,.12);
+    --dsh-warning:#f59e0b;
+    --dsh-warning-soft:rgba(245,158,11,.12);
+    --dsh-info:#38bdf8;
+    --dsh-info-soft:rgba(56,189,248,.10);
+    --sidebar-w:260px;
+  }
 
-<script>
+  *, *::before, *::after{ box-sizing:border-box; margin:0; padding:0; }
 
-const user = JSON.parse(sessionStorage.getItem("user"));
+  body{
+    font-family:'Inter', sans-serif;
+    background:var(--dsh-bg);
+    color:var(--dsh-text);
+    min-height:100vh;
+    display:flex;
+  }
 
-if(!user){
+  /* ===========================
+     SIDEBAR
+  =========================== */
+  .sidebar{
+    width:var(--sidebar-w);
+    min-height:100vh;
+    background:#0b0d14;
+    border-right:1px solid var(--dsh-border);
+    display:flex;
+    flex-direction:column;
+    position:fixed;
+    top:0; left:0; bottom:0;
+    z-index:100;
+    overflow-y:auto;
+  }
 
-    location.href="login.html";
+  .logo{
+    padding:24px 20px 20px;
+    border-bottom:1px solid var(--dsh-border);
+  }
 
-}
+  .logo .logo-icon{
+    font-size:36px;
+    margin-bottom:8px;
+    display:block;
+  }
 
-function logout(){
+  .logo h2{
+    font-size:18px;
+    font-weight:800;
+    color:var(--dsh-text);
+    letter-spacing:-.01em;
+  }
 
-    sessionStorage.removeItem("user");
+  .logo .logo-sub{
+    font-size:12px;
+    color:var(--dsh-muted);
+    margin-top:4px;
+  }
 
-    location.href="login.html";
+  .logo .logo-user{
+    margin-top:12px;
+    display:flex;
+    align-items:center;
+    gap:10px;
+    background:var(--dsh-surface-2);
+    border:1px solid var(--dsh-border);
+    border-radius:10px;
+    padding:10px 12px;
+  }
 
-}
+  .logo-user .avatar{
+    width:32px; height:32px;
+    border-radius:50%;
+    background:linear-gradient(135deg,var(--dsh-purple),var(--dsh-purple-dark));
+    display:flex; align-items:center; justify-content:center;
+    font-size:14px; font-weight:700; color:#fff;
+    flex-shrink:0;
+  }
 
-function goPage(page){
+  .logo-user .user-info{
+    overflow:hidden;
+  }
 
-    location.href=page;
+  .logo-user .user-name{
+    font-size:13px;
+    font-weight:600;
+    color:var(--dsh-text);
+    white-space:nowrap;
+    overflow:hidden;
+    text-overflow:ellipsis;
+  }
 
-}
+  .logo-user .user-role{
+    font-size:11px;
+    color:var(--dsh-muted);
+  }
 
-</script>
+  /* Menu */
+  .menu{
+    flex:1;
+    padding:12px 10px 20px;
+    overflow-y:auto;
+  }
 
+  .menu-title{
+    font-size:10.5px;
+    font-weight:700;
+    color:#3d4258;
+    text-transform:uppercase;
+    letter-spacing:.1em;
+    padding:16px 10px 6px;
+  }
+
+  .menu button{
+    display:flex;
+    align-items:center;
+    gap:10px;
+    width:100%;
+    background:none;
+    border:none;
+    color:#8b8fa8;
+    padding:10px 12px;
+    border-radius:10px;
+    text-align:left;
+    cursor:pointer;
+    font-size:13.5px;
+    font-weight:500;
+    font-family:inherit;
+    transition:background .15s ease, color .15s ease;
+    margin-bottom:2px;
+  }
+
+  .menu button:hover{
+    background:var(--dsh-surface-2);
+    color:var(--dsh-text);
+  }
+
+  .menu button.active{
+    background:var(--dsh-purple-soft);
+    color:#bcb2f5;
+    font-weight:600;
+  }
+
+  .menu button.active .menu-icon{
+    color:var(--dsh-purple);
+  }
+
+  .menu .btn-logout{
+    color:var(--dsh-danger) !important;
+    margin-top:6px;
+    border:1px solid rgba(239,84,117,.15);
+  }
+  .menu .btn-logout:hover{
+    background:var(--dsh-danger-soft) !important;
+    color:var(--dsh-danger) !important;
+  }
+
+  .menu hr{
+    border:none;
+    border-top:1px solid var(--dsh-border);
+    margin:12px 0;
+  }
+
+  /* ===========================
+     MAIN CONTENT
+  =========================== */
+  .main{
+    margin-left:var(--sidebar-w);
+    flex:1;
+    min-height:100vh;
+    display:flex;
+    flex-direction:column;
+  }
+
+  /* Topbar */
+  .topbar{
+    background:var(--dsh-surface);
+    border-bottom:1px solid var(--dsh-border);
+    height:64px;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    padding:0 28px;
+    position:sticky;
+    top:0;
+    z-index:50;
+  }
+
+  .topbar-left h3{
+    font-size:17px;
+    font-weight:700;
+    color:var(--dsh-text);
+  }
+
+  .topbar-left p{
+    font-size:12.5px;
+    color:var(--dsh-muted);
+    margin-top:1px;
+  }
+
+  .topbar-right{
+    display:flex;
+    align-items:center;
+    gap:10px;
+  }
+
+  .topbar-date{
+    font-size:13px;
+    color:var(--dsh-muted);
+    background:var(--dsh-surface-2);
+    border:1px solid var(--dsh-border);
+    padding:6px 14px;
+    border-radius:8px;
+  }
+
+  /* Content area */
+  .content{
+    padding:28px;
+    flex:1;
+  }
+
+  /* ===========================
+     STAT CARDS
+  =========================== */
+  .stats-grid{
+    display:grid;
+    grid-template-columns:repeat(4, 1fr);
+    gap:16px;
+    margin-bottom:24px;
+  }
+
+  @media(max-width:1100px){ .stats-grid{ grid-template-columns:repeat(2,1fr); } }
+  @media(max-width:600px){  .stats-grid{ grid-template-columns:1fr; } }
+
+  .stat-card{
+    background:var(--dsh-surface);
+    border:1px solid var(--dsh-border);
+    border-radius:14px;
+    padding:20px;
+    display:flex;
+    flex-direction:column;
+    gap:12px;
+    transition:transform .15s ease, box-shadow .15s ease;
+    cursor:default;
+  }
+  .stat-card:hover{
+    transform:translateY(-2px);
+    box-shadow:0 8px 24px rgba(0,0,0,.25);
+  }
+
+  .stat-card-top{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+  }
+
+  .stat-label{
+    font-size:12.5px;
+    font-weight:600;
+    color:var(--dsh-muted);
+    text-transform:uppercase;
+    letter-spacing:.04em;
+  }
+
+  .stat-icon{
+    width:38px; height:38px;
+    border-radius:10px;
+    display:flex; align-items:center; justify-content:center;
+    font-size:18px;
+  }
+
+  .stat-value{
+    font-size:34px;
+    font-weight:800;
+    color:var(--dsh-text);
+    letter-spacing:-.02em;
+    line-height:1;
+  }
+
+  .stat-sub{
+    font-size:12.5px;
+    color:var(--dsh-muted);
+  }
+
+  /* Card color variants */
+  .stat-card.purple .stat-icon{ background:var(--dsh-purple-soft); }
+  .stat-card.purple .stat-value{ color:#bcb2f5; }
+
+  .stat-card.green .stat-icon{ background:var(--dsh-success-soft); }
+  .stat-card.green .stat-value{ color:var(--dsh-success); }
+
+  .stat-card.red .stat-icon{ background:var(--dsh-danger-soft); }
+  .stat-card.red .stat-value{ color:var(--dsh-danger); }
+
+  .stat-card.amber .stat-icon{ background:var(--dsh-warning-soft); }
+  .stat-card.amber .stat-value{ color:var(--dsh-warning); }
+
+  /* ===========================
+     QUICK ACCESS
+  =========================== */
+  .section-title{
+    font-size:15px;
+    font-weight:700;
+    color:var(--dsh-text);
+    margin-bottom:14px;
+  }
+
+  .quick-grid{
+    display:grid;
+    grid-template-columns:repeat(4, 1fr);
+    gap:12px;
+    margin-bottom:24px;
+  }
+
+  @media(max-width:900px){ .quick-grid{ grid-template-columns:repeat(2,1fr); } }
+  @media(max-width:500px){ .quick-grid{ grid-template-columns:1fr; } }
+
+  .quick-card{
+    background:var(--dsh-surface);
+    border:1px solid var(--dsh-border);
+    border-radius:12px;
+    padding:18px;
+    display:flex;
+    align-items:center;
+    gap:14px;
+    cursor:pointer;
+    transition:background .15s ease, border-color .15s ease, transform .12s ease;
+    text-decoration:none;
+  }
+  .quick-card:hover{
+    background:var(--dsh-surface-2);
+    border-color:var(--dsh-purple);
+    transform:translateY(-1px);
+  }
+  .quick-card:active{ transform:translateY(0); }
+
+  .quick-icon{
+    width:42px; height:42px;
+    border-radius:10px;
+    background:var(--dsh-purple-soft);
+    display:flex; align-items:center; justify-content:center;
+    font-size:20px;
+    flex-shrink:0;
+  }
+
+  .quick-info .quick-name{
+    font-size:13.5px;
+    font-weight:600;
+    color:var(--dsh-text);
+  }
+
+  .quick-info .quick-desc{
+    font-size:12px;
+    color:var(--dsh-muted);
+    margin-top:2px;
+  }
+
+  /* ===========================
+     BOTTOM GRID (2 panels)
+  =========================== */
+  .bottom-grid{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:16px;
+  }
+
+  @media(max-width:800px){ .bottom-grid{ grid-template-columns:1fr; } }
+
+  .panel{
+    background:var(--dsh-surface);
+    border:1px solid var(--dsh-border);
+    border-radius:14px;
+    padding:20px 22px;
+  }
+
+  .panel-head{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    margin-bottom:16px;
+  }
+
+  .panel-head h4{
+    font-size:14px;
+    font-weight:700;
+    color:var(--dsh-text);
+  }
+
+  .panel-badge{
+    font-size:11.5px;
+    font-weight:600;
+    color:var(--dsh-purple);
+    background:var(--dsh-purple-soft);
+    padding:3px 9px;
+    border-radius:999px;
+  }
+
+  /* Recent list */
+  .recent-list{ display:flex; flex-direction:column; gap:10px; }
+
+  .recent-item{
+    display:flex;
+    align-items:center;
+    gap:12px;
+    padding:10px 12px;
+    border-radius:10px;
+    background:var(--dsh-surface-2);
+    border:1px solid var(--dsh-border);
+  }
+
+  .recent-item .ri-icon{
+    width:34px; height:34px;
+    border-radius:8px;
+    display:flex; align-items:center; justify-content:center;
+    font-size:16px;
+    flex-shrink:0;
+  }
+
+  .recent-item .ri-info{
+    flex:1;
+    min-width:0;
+  }
+
+  .recent-item .ri-name{
+    font-size:13px;
+    font-weight:600;
+    color:var(--dsh-text);
+    white-space:nowrap;
+    overflow:hidden;
+    text-overflow:ellipsis;
+  }
+
+  .recent-item .ri-sub{
+    font-size:11.5px;
+    color:var(--dsh-muted);
+    margin-top:2px;
+  }
+
+  .recent-item .ri-badge{
+    font-size:12px;
+    font-weight:700;
+    padding:3px 9px;
+    border-radius:999px;
+    flex-shrink:0;
+  }
+
+  .empty-panel{
+    text-align:center;
+    padding:24px 10px;
+    color:var(--dsh-muted);
+    font-size:13.5px;
+  }
+
+  .loading-mini{
+    text-align:center;
+    padding:20px;
+    color:var(--dsh-muted);
+    font-size:13px;
+  }
+
+  .spinner-sm{
+    display:inline-block;
+    width:14px; height:14px;
+    border:2px solid var(--dsh-border);
+    border-top-color:var(--dsh-purple);
+    border-radius:50%;
+    animation:spin .7s linear infinite;
+    margin-right:6px;
+    vertical-align:middle;
+  }
+
+  @keyframes spin{ to{ transform:rotate(360deg); } }
+</style>
 </head>
-
 <body>
 
-<div class="container">
-
-<!-- ================= SIDEBAR ================= -->
-
+<!-- ===========================
+     SIDEBAR
+=========================== -->
 <div class="sidebar">
 
-<div class="logo">
+  <div class="logo">
+    <span class="logo-icon">📦</span>
+    <h2>ATK &amp; ART</h2>
+    <p class="logo-sub">Management System</p>
+    <div class="logo-user">
+      <div class="avatar" id="avatarInit">?</div>
+      <div class="user-info">
+        <div class="user-name" id="userName">—</div>
+        <div class="user-role" id="userGudang">—</div>
+      </div>
+    </div>
+  </div>
 
-<h1>📦</h1>
+  <div class="menu">
 
-<h2>ATK & ART</h2>
+    <button class="active" onclick="goPage('dashboard.html')">🏠 Dashboard</button>
 
-<p id="gudang"></p>
+    <div class="menu-title">Transaksi</div>
+    <button onclick="goPage('barang-masuk.html')">📥 Barang Masuk</button>
+    <button onclick="goPage('barang-keluar.html')">📤 Barang Keluar</button>
+    <button onclick="goPage('transfer.html')">🔄 Transfer Barang</button>
+    <button onclick="goPage('database-barang.html')">📦 Database Barang</button>
 
+    <div class="menu-title">Master Data</div>
+    <button onclick="goPage('master-barang.html')">📋 Master Barang</button>
+    <button onclick="goPage('master-karyawan.html')">👥 Master Karyawan</button>
+    <button onclick="goPage('mutasi-karyawan.html')">🔄 Mutasi Karyawan</button>
+    <button onclick="goPage('master-departemen.html')">🏢 Master Departemen</button>
+    <button onclick="goPage('master-jabatan.html')">💼 Master Jabatan</button>
+    <button onclick="goPage('master-supplier.html')">🚚 Master Supplier</button>
+
+    <div class="menu-title">Laporan</div>
+    <button onclick="goPage('laporan.html')">📊 Laporan</button>
+
+    <hr>
+    <button class="btn-logout" onclick="logout()">🚪 Logout</button>
+
+  </div>
 </div>
 
-<div class="menu">
-
-<button
-class="active"
-onclick="goPage('dashboard.html')">
-
-🏠 Dashboard
-
-</button>
-
-<!-- ================= TRANSAKSI ================= -->
-
-<div class="menu-title">
-
-TRANSAKSI
-
-</div>
-
-<button onclick="goPage('barang-masuk.html')">
-
-📥 Barang Masuk
-
-</button>
-
-<button onclick="goPage('barang-keluar.html')">
-
-📤 Barang Keluar
-
-</button>
-
-<button onclick="goPage('transfer.html')">
-
-🔄 Transfer Barang
-
-</button>
-
-<button onclick="goPage('database-barang.html')">
-
-📦 Database Barang
-
-</button>
-
-<!-- ================= MASTER ================= -->
-
-<div class="menu-title">
-
-MASTER DATA
-
-</div>
-
-<button onclick="goPage('master-barang.html')">
-
-📋 Master Barang
-
-</button>
-
-<button onclick="goPage('master-karyawan.html')">
-
-👥 Master Karyawan
-
-</button>
-
-<button onclick="goPage('mutasi-karyawan.html')">
-
-🔄 Mutasi Karyawan
-
-</button>
-
-<button onclick="goPage('master-departemen.html')">
-
-🏢 Master Departemen
-
-</button>
-
-<button onclick="goPage('master-jabatan.html')">
-
-💼 Master Jabatan
-
-</button>
-
-<button onclick="goPage('master-supplier.html')">
-
-🚚 Master Supplier
-
-</button>
-
-<!-- ================= HISTORI ================= -->
-
-<div class="menu-title">
-
-HISTORI
-
-</div>
-
-<button onclick="goPage('histori-masuk.html')">
-
-📥 Histori Barang Masuk
-
-</button>
-
-<button onclick="goPage('histori-keluar.html')">
-
-📤 Histori Barang Keluar
-
-</button>
-
-<button onclick="goPage('histori-transfer.html')">
-
-🔄 Histori Transfer
-
-</button>
-
-<button onclick="goPage('histori-mutasi.html')">
-
-👥 Histori Mutasi Karyawan
-
-</button>
-
-<!-- ================= LAPORAN ================= -->
-
-<div class="menu-title">
-
-LAPORAN
-
-</div>
-
-<button onclick="goPage('laporan.html')">
-
-📊 Laporan
-
-</button>
-
-<hr style="margin:20px 0;border-color:#334155;">
-
-<button onclick="logout()">
-
-🚪 Logout
-
-</button>
-
-</div>
-
-</div>
-
-<!-- ================= MAIN ================= -->
+<!-- ===========================
+     MAIN
+=========================== -->
+<div class="main">
+
+  <!-- Topbar -->
+  <div class="topbar">
+    <div class="topbar-left">
+      <h3>Dashboard</h3>
+      <p>Selamat datang kembali 👋</p>
+    </div>
+    <div class="topbar-right">
+      <div class="topbar-date" id="topbarDate">—</div>
+    </div>
+  </div>
+
+  <!-- Content -->
+  <div class="content">
+
+    <!-- Stat Cards -->
+    <div class="stats-grid">
+
+      <div class="stat-card purple">
+        <div class="stat-card-top">
+          <span class="stat-label">Total Barang</span>
+          <div class="stat-icon">📋</div>
+        </div>
+        <div class="stat-value" id="statBarang">—</div>
+        <div class="stat-sub">Item terdaftar di master</div>
+      </div>
+
+      <div class="stat-card green">
+        <div class="stat-card-top">
+          <span class="stat-label">Total Karyawan</span>
+          <div class="stat-icon">👥</div>
+        </div>
+        <div class="stat-value" id="statKaryawan">—</div>
+        <div class="stat-sub">Karyawan aktif</div>
+      </div>
+
+      <div class="stat-card amber">
+        <div class="stat-card-top">
+          <span class="stat-label">Total Departemen</span>
+          <div class="stat-icon">🏢</div>
+        </div>
+        <div class="stat-value" id="statDepartemen">—</div>
+        <div class="stat-sub">Departemen terdaftar</div>
+      </div>
+
+      <div class="stat-card red">
+        <div class="stat-card-top">
+          <span class="stat-label">Total Supplier</span>
+          <div class="stat-icon">🚚</div>
+        </div>
+        <div class="stat-value" id="statSupplier">—</div>
+        <div class="stat-sub">Supplier terdaftar</div>
+      </div>
+
+    </div>
+
+    <!-- Quick Access -->
+    <p class="section-title">⚡ Akses Cepat</p>
+    <div class="quick-grid">
+
+      <a class="quick-card" onclick="goPage('barang-masuk.html')">
+        <div class="quick-icon" style="background:rgba(62,207,142,.12);">📥</div>
+        <div class="quick-info">
+          <div class="quick-name">Barang Masuk</div>
+          <div class="quick-desc">Input penerimaan barang</div>
+        </div>
+      </a>
+
+      <a class="quick-card" onclick="goPage('barang-keluar.html')">
+        <div class="quick-icon" style="background:rgba(239,84,117,.12);">📤</div>
+        <div class="quick-info">
+          <div class="quick-name">Barang Keluar</div>
+          <div class="quick-desc">Input pengeluaran barang</div>
+        </div>
+      </a>
+
+      <a class="quick-card" onclick="goPage('database-barang.html')">
+        <div class="quick-icon" style="background:rgba(108,93,211,.15);">📦</div>
+        <div class="quick-info">
+          <div class="quick-name">Database Barang</div>
+          <div class="quick-desc">Lihat rekap stok terkini</div>
+        </div>
+      </a>
+
+      <a class="quick-card" onclick="goPage('mutasi-karyawan.html')">
+        <div class="quick-icon" style="background:rgba(245,158,11,.12);">🔄</div>
+        <div class="quick-info">
+          <div class="quick-name">Mutasi Karyawan</div>
+          <div class="quick-desc">Pindah departemen / jabatan</div>
+        </div>
+      </a>
+
+    </div>
+
+    <!-- Bottom panels -->
+    <div class="bottom-grid">
+
+      <!-- Barang Masuk Terbaru -->
+      <div class="panel">
+        <div class="panel-head">
+          <h4>📥 Barang Masuk Terbaru</h4>
+          <span class="panel-badge" id="badgeMasuk">—</span>
+        </div>
+        <div class="recent-list" id="listMasuk">
+          <div class="loading-mini"><span class="spinner-sm"></span>Memuat...</div>
+        </div>
+      </div>
+
+      <!-- Barang Keluar Terbaru -->
+      <div class="panel">
+        <div class="panel-head">
+          <h4>📤 Barang Keluar Terbaru</h4>
+          <span class="panel-badge" id="badgeKeluar">—</span>
+        </div>
+        <div class="recent-list" id="listKeluar">
+          <div class="loading-mini"><span class="spinner-sm"></span>Memuat...</div>
+        </div>
+      </div>
+
+    </div>
+
+  </div><!-- /content -->
+</div><!-- /main -->
+
+<script>
+// ===========================
+// AUTH CHECK
+// ===========================
+const user = JSON.parse(sessionStorage.getItem("user"));
+if (!user) { location.href = "login.html"; }
+
+function logout() {
+    sessionStorage.removeItem("user");
+    location.href = "login.html";
+}
+
+function goPage(page) { location.href = page; }
+
+// ===========================
+// USER INFO
+// ===========================
+// Fallback aman jika properti tidak ada
+const userName   = user?.nama   || user?.name  || user?.username || "User";
+const userGudang = user?.gudang || user?.role  || user?.jabatan  || "—";
+
+document.getElementById("userName").textContent  = userName;
+document.getElementById("userGudang").textContent = userGudang;
+document.getElementById("avatarInit").textContent = userName.charAt(0).toUpperCase();
+
+// ===========================
+// TANGGAL TOPBAR
+// ===========================
+function setDate() {
+    const now = new Date();
+    const opsi = { weekday:"long", day:"numeric", month:"long", year:"numeric" };
+    document.getElementById("topbarDate").textContent =
+        now.toLocaleDateString("id-ID", opsi);
+}
+setDate();
+
+// ===========================
+// LOAD STAT CARDS
+// ===========================
+async function loadStats() {
+    try {
+        const [
+            { count: cBarang },
+            { count: cKaryawan },
+            { count: cDept },
+            { count: cSupplier }
+        ] = await Promise.all([
+            supabaseClient.from("master_barang")    .select("*", { count:"exact", head:true }),
+            supabaseClient.from("master_karyawan")  .select("*", { count:"exact", head:true }).eq("status","Aktif"),
+            supabaseClient.from("master_departemen").select("*", { count:"exact", head:true }),
+            supabaseClient.from("master_supplier")  .select("*", { count:"exact", head:true })
+        ]);
+
+        document.getElementById("statBarang")    .textContent = cBarang    ?? 0;
+        document.getElementById("statKaryawan")  .textContent = cKaryawan  ?? 0;
+        document.getElementById("statDepartemen").textContent = cDept       ?? 0;
+        document.getElementById("statSupplier")  .textContent = cSupplier  ?? 0;
+
+    } catch (err) {
+        console.error("Gagal load stats:", err);
+    }
+}
+
+// ===========================
+// LOAD BARANG MASUK TERBARU
+// ===========================
+async function loadMasuk() {
+    const list = document.getElementById("listMasuk");
+    const badge = document.getElementById("badgeMasuk");
+
+    try {
+        const { data, error, count } = await supabaseClient
+            .from("barang_masuk")
+            .select("*", { count:"exact" })
+            .order("created_at", { ascending: false })
+            .limit(5);
+
+        if (error) throw error;
+
+        badge.textContent = `${count ?? 0} total`;
+
+        if (!data || data.length === 0) {
+            list.innerHTML = `<div class="empty-panel">Belum ada transaksi masuk.</div>`;
+            return;
+        }
+
+        list.innerHTML = data.map(item => `
+            <div class="recent-item">
+                <div class="ri-icon" style="background:rgba(62,207,142,.12);">📥</div>
+                <div class="ri-info">
+                    <div class="ri-name">${item.kode_barang ?? item.nama_barang ?? "—"}</div>
+                    <div class="ri-sub">${item.created_by ?? "-"} · ${
+                        item.created_at
+                            ? new Date(item.created_at).toLocaleDateString("id-ID",{day:"2-digit",month:"short",year:"numeric"})
+                            : "-"
+                    }</div>
+                </div>
+                <span class="ri-badge" style="background:rgba(62,207,142,.12);color:#3ecf8e;">
+                    +${Number(item.jumlah ?? 0).toLocaleString("id-ID")}
+                </span>
+            </div>
+        `).join("");
+
+    } catch (err) {
+        list.innerHTML = `<div class="empty-panel">⚠ Gagal memuat data.</div>`;
+        console.error(err);
+    }
+}
+
+// ===========================
+// LOAD BARANG KELUAR TERBARU
+// ===========================
+async function loadKeluar() {
+    const list  = document.getElementById("listKeluar");
+    const badge = document.getElementById("badgeKeluar");
+
+    try {
+        const { data, error, count } = await supabaseClient
+            .from("barang_keluar")
+            .select("*", { count:"exact" })
+            .order("created_at", { ascending: false })
+            .limit(5);
+
+        if (error) throw error;
+
+        badge.textContent = `${count ?? 0} total`;
+
+        if (!data || data.length === 0) {
+            list.innerHTML = `<div class="empty-panel">Belum ada transaksi keluar.</div>`;
+            return;
+        }
+
+        list.innerHTML = data.map(item => `
+            <div class="recent-item">
+                <div class="ri-icon" style="background:rgba(239,84,117,.12);">📤</div>
+                <div class="ri-info">
+                    <div class="ri-name">${item.kode_barang ?? item.nama_barang ?? "—"}</div>
+                    <div class="ri-sub">${item.created_by ?? "-"} · ${
+                        item.created_at
+                            ? new Date(item.created_at).toLocaleDateString("id-ID",{day:"2-digit",month:"short",year:"numeric"})
+                            : "-"
+                    }</div>
+                </div>
+                <span class="ri-badge" style="background:rgba(239,84,117,.12);color:#ef5675;">
+                    -${Number(item.jumlah ?? 0).toLocaleString("id-ID")}
+                </span>
+            </div>
+        `).join("");
+
+    } catch (err) {
+        list.innerHTML = `<div class="empty-panel">⚠ Gagal memuat data.</div>`;
+        console.error(err);
+    }
+}
+
+// ===========================
+// INIT
+// ===========================
+document.addEventListener("DOMContentLoaded", () => {
+    loadStats();
+    loadMasuk();
+    loadKeluar();
+});
+</script>
+</body>
+</html>
