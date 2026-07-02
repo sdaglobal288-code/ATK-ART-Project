@@ -1356,8 +1356,65 @@ async function simpanEditBTB(){
 // HAPUS BTB
 // =====================================
 
-function hapusBTB(id){
-    alert("Fitur Hapus BTB akan dibuat pada tahap berikutnya.");
+async function hapusBTB(id){
+
+    if(!confirm("Yakin ingin menghapus BTB ini?\nSemua detail barang dan perubahan stok akan dibatalkan.")){
+        return;
+    }
+
+    try{
+
+        // 1. Ambil detail untuk rollback stok
+        const { data: details, error: detailErr } = await supabaseClient
+            .from("barang_masuk_detail")
+            .select("*")
+            .eq("barang_masuk_id", id);
+
+        if(detailErr) throw detailErr;
+
+        // 2. Rollback stok (kurangi qty yang sudah pernah masuk)
+        for(const d of (details || [])){
+
+            const barang = findBarangByKode(d.kode_barang);
+
+            if(barang){
+
+                await tambahStokGudang(barang.id, -(Number(d.qty) || 0));
+
+            }
+
+        }
+
+        // 3. Hapus detail
+        const { error: delDetailErr } = await supabaseClient
+            .from("barang_masuk_detail")
+            .delete()
+            .eq("barang_masuk_id", id);
+
+        if(delDetailErr) throw delDetailErr;
+
+        // 4. Hapus header
+        const { error: delHeaderErr } = await supabaseClient
+            .from("barang_masuk")
+            .delete()
+            .eq("id", id);
+
+        if(delHeaderErr) throw delHeaderErr;
+
+        alert("BTB berhasil dihapus dan stok telah disesuaikan.");
+
+        await loadStokGudang();
+        refreshSemuaBarisStok();
+        loadBarangMasuk();
+
+    }
+    catch(err){
+
+        console.error(err);
+        alert("Gagal menghapus BTB: " + err.message);
+
+    }
+
 }
 
 // =====================================
