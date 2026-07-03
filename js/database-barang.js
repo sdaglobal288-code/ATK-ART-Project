@@ -7,7 +7,13 @@
 //                  kebenaran untuk kolom SISA STOK, difilter user.gudang
 // stok_awal     -> catatan angka stok awal per barang per gudang (untuk
 //                  ditampilkan di kolom STOK AWAL). Mengisi/mengubah nilai
-//                  ini JUGA langsung menimpa stok_gudang.stok (opname).
+//                  ini JUGA langsung menimpa stok_gudang.stok (opname) -
+//                  TAPI HANYA untuk barang yang BELUM PERNAH ada transaksi
+//                  Masuk/Keluar. Kalau barang sudah punya histori transaksi,
+//                  proses SATU-ITEM akan minta konfirmasi eksplisit sebelum
+//                  menimpa, dan proses IMPORT MASSAL akan otomatis
+//                  MELEWATI barang tersebut (lihat catatan di bagian
+//                  "IMPORT STOK AWAL (MASSAL)" di bawah).
 //
 // PENTING: stok_awal dan stok_gudang adalah DUA TABEL TERPISAH.
 // Menghapus baris di stok_awal (misalnya lewat Supabase Table Editor)
@@ -130,6 +136,9 @@ document
 
     try{
 
+        // Set Stok Awal satu-item (manual) TETAP boleh menimpa stok_gudang,
+        // karena user sudah eksplisit memilih barang ini & sudah dikonfirmasi
+        // di atas kalau barang tersebut sudah ada transaksinya.
         await setStokAwalSatuItem(item.id, item.kode_barang, user.gudang, nilaiBaru);
 
         alert("Stok awal berhasil disimpan.");
@@ -150,7 +159,12 @@ document
 
 // =====================================
 // FUNGSI INTI: SET STOK AWAL 1 KOMBINASI barang+gudang
-// (dipakai baik oleh modal satu-item maupun import massal)
+// (dipakai oleh modal satu-item; JUGA dipakai import massal HANYA untuk
+// barang yang belum punya transaksi Masuk/Keluar - lihat pemanggilnya)
+//
+// Fungsi ini menyimpan/update tabel stok_awal DAN ikut menimpa
+// stok_gudang.stok (opname langsung). Pemanggil bertanggung jawab
+// memastikan penimpaan stok_gudang ini aman dilakukan.
 // =====================================
 
 async function setStokAwalSatuItem(barangId, kodeBarang, gudang, nilai){
@@ -222,6 +236,58 @@ async function setStokAwalSatuItem(barangId, kodeBarang, gudang, nilai){
         if(error) throw error;
 
     }
+
+}
+
+// =====================================
+// FUNGSI KHUSUS IMPORT STOK AWAL MASSAL:
+// hanya menyimpan angka ke tabel stok_awal (kolom "STOK AWAL" saja),
+// TANPA menyentuh stok_gudang.stok sama sekali.
+//
+// Dipakai untuk barang yang SUDAH punya histori transaksi Masuk/Keluar,
+// supaya import massal tidak pernah mempengaruhi Sisa Stok yang sudah
+// terbentuk dari Barang Masuk / Barang Keluar.
+// =====================================
+
+async function setStokAwalSajaTanpaTimpaSisaStok(barangId, kodeBarang, gudang, nilai){
+
+    const { data: existingAwal } = await supabaseClient
+        .from("stok_awal")
+        .select("id")
+        .eq("barang_id", barangId)
+        .eq("gudang", gudang)
+        .maybeSingle();
+
+    if(existingAwal){
+
+        const { error } = await supabaseClient
+            .from("stok_awal")
+            .update({
+                stok_awal: nilai,
+                set_by: user.nama,
+                set_at: new Date().toISOString()
+            })
+            .eq("id", existingAwal.id);
+
+        if(error) throw error;
+
+    } else {
+
+        const { error } = await supabaseClient
+            .from("stok_awal")
+            .insert([{
+                barang_id: barangId,
+                kode_barang: kodeBarang,
+                gudang: gudang,
+                stok_awal: nilai,
+                set_by: user.nama
+            }]);
+
+        if(error) throw error;
+
+    }
+
+    // SENGAJA tidak menyentuh stok_gudang di sini.
 
 }
 
@@ -660,9 +726,23 @@ function exportExcel() {
 // Kolom yang dibaca: "Kode Barang" dan "Stok Awal"
 // (fleksibel: juga menerima "kode_barang" / "stok_awal")
 //
+// PENTING - PERILAKU BARU (perbaikan):
+// Import ini KHUSUS untuk mengisi kolom "Stok Awal" barang yang BELUM
+// PERNAH ada transaksi Barang Masuk / Barang Keluar. Untuk barang yang
+// sudah punya histori transaksi, import massal TIDAK AKAN menimpa Sisa
+// Stok-nya sama sekali (baris tersebut otomatis "Dilewati" dan dicatat
+// di laporan) - supaya import Stok Awal tidak pernah menghapus/menimpa
+// hasil Barang Masuk atau Barang Keluar yang sudah tercatat.
+//
+// Kalau memang ingin sengaja menimpa Sisa Stok barang yang sudah ada
+// transaksinya (misal untuk opname manual), gunakan tombol "✏ Stok Awal"
+// per-item di tabel - di situ akan ada konfirmasi eksplisit sebelum
+// menimpa.
+//
 // Setelah selesai, laporan hasil import (baris mana yang Berhasil /
-// Tidak Ditemukan / Gagal beserta alasannya) bisa didownload sebagai
-// Excel supaya mudah dicek kalau ada yang tidak masuk semua.
+// Dilewati (sudah ada transaksi) / Tidak Ditemukan / Gagal beserta
+// alasannya) bisa didownload sebagai Excel supaya mudah dicek kalau ada
+// yang tidak masuk semua.
 // =====================================
 
 document
@@ -756,13 +836,17 @@ document
 
             if(!confirm(
                 `Ditemukan ${dataValid.length} baris valid dari total ${rows.length} baris di file.\n\n` +
-                `Proses ini akan MENIMPA Sisa Stok barang-barang tersebut di gudang ${user.gudang}.\n` +
+                `Proses ini akan mengisi Stok Awal barang-barang tersebut di gudang ${user.gudang}.\n` +
+                `Barang yang SUDAH punya histori transaksi Masuk/Keluar akan otomatis DILEWATI ` +
+                `(Sisa Stok-nya TIDAK akan ditimpa), supaya import ini tidak mempengaruhi data ` +
+                `Barang Masuk / Barang Keluar yang sudah tercatat.\n\n` +
                 `Lanjutkan import?`
             )){
                 return;
             }
 
             let berhasil = 0;
+            let dilewatiSudahAdaTransaksi = 0;
             let tidakDitemukan = 0;
             let gagal = 0;
 
@@ -787,8 +871,37 @@ document
 
                 }
 
+                const sudahAdaTransaksi = (item.masuk > 0 || item.keluar > 0);
+
                 try{
 
+                    if(sudahAdaTransaksi){
+
+                        // Barang sudah punya histori Barang Masuk/Keluar -
+                        // import massal TIDAK BOLEH menimpa Sisa Stok-nya.
+                        // Kalau memang ingin menimpa, harus lewat tombol
+                        // "✏ Stok Awal" per-item (ada konfirmasi eksplisit).
+                        dilewatiSudahAdaTransaksi++;
+
+                        reportRows.push({
+                            "Kode Barang": row.kode_barang,
+                            "Stok Awal Diminta": row.stok_awal,
+                            "Status": "Dilewati (sudah ada transaksi)",
+                            "Keterangan":
+                                `Barang ini sudah punya histori transaksi ` +
+                                `(Masuk: ${item.masuk}, Keluar: ${item.keluar}). ` +
+                                `Sisa Stok TIDAK ditimpa oleh import massal. ` +
+                                `Gunakan tombol "✏ Stok Awal" per-item jika Anda ` +
+                                `yakin ingin menimpanya secara manual.`
+                        });
+
+                        continue;
+
+                    }
+
+                    // Belum ada transaksi sama sekali -> aman diisi langsung,
+                    // karena Sisa Stok saat ini pasti masih 0/kosong (belum
+                    // pernah disentuh Barang Masuk / Barang Keluar).
                     await setStokAwalSatuItem(item.id, item.kode_barang, user.gudang, row.stok_awal);
 
                     berhasil++;
@@ -818,20 +931,23 @@ document
 
             }
 
+            const totalDilewatiFormat = reportRows.length - berhasil - dilewatiSudahAdaTransaksi - tidakDitemukan - gagal;
+
             alert(
                 `Import Stok Awal selesai.\n\n` +
-                `Berhasil                              : ${berhasil}\n` +
-                `Tidak ditemukan (kode tidak cocok)     : ${tidakDitemukan}\n` +
-                `Gagal (error saat simpan)              : ${gagal}\n` +
-                `Dilewati (format baris tidak valid)    : ${reportRows.length - berhasil - tidakDitemukan - gagal}`
+                `Berhasil                                         : ${berhasil}\n` +
+                `Dilewati (sudah ada transaksi Masuk/Keluar)      : ${dilewatiSudahAdaTransaksi}\n` +
+                `Tidak ditemukan (kode tidak cocok)                : ${tidakDitemukan}\n` +
+                `Gagal (error saat simpan)                         : ${gagal}\n` +
+                `Dilewati (format baris tidak valid)               : ${totalDilewatiFormat}`
             );
 
-            // kalau ada yang bermasalah, tawarkan laporan detail supaya
-            // gampang dicek baris mana saja yang tidak masuk & kenapa
-            if((tidakDitemukan + gagal + (reportRows.length - berhasil - tidakDitemukan - gagal)) > 0){
+            // kalau ada yang bermasalah / dilewati, tawarkan laporan detail
+            // supaya gampang dicek baris mana saja yang tidak masuk & kenapa
+            if((dilewatiSudahAdaTransaksi + tidakDitemukan + gagal + totalDilewatiFormat) > 0){
 
                 const mauLaporan = confirm(
-                    "Ada baris yang tidak berhasil diimport.\n\n" +
+                    "Ada baris yang tidak diisi otomatis (dilewati/gagal/tidak ditemukan).\n\n" +
                     "Download laporan detail (Excel) supaya bisa dicek satu-satu?"
                 );
 
