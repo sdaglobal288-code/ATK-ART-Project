@@ -8,6 +8,7 @@
 // SUMBER DATA:
 // - barang_masuk (header) + barang_masuk_detail (item)  -> untuk tren masuk
 // - barang_keluar (flat, 1 baris = 1 item keluar)         -> untuk tren keluar
+//   & untuk grafik per departemen (kolom "departemen" per baris)
 // - stok_gudang + master_barang                            -> untuk stok saat ini
 // =====================================
 
@@ -22,10 +23,18 @@ const NAMA_BULAN = [
     "Jul","Agu","Sep","Okt","Nov","Des"
 ];
 
+const PALET_WARNA = [
+    "#60a5fa", "#4ade80", "#f87171", "#facc15",
+    "#a78bfa", "#38bdf8", "#fb923c", "#f472b6",
+    "#2dd4bf", "#94a3b8"
+];
+
 // instance Chart.js aktif, disimpan supaya bisa di-destroy sebelum render ulang
 let chartTrenInstance = null;
 let chartKategoriInstance = null;
 let chartTopKeluarInstance = null;
+let chartDepartemenInstance = null;
+let chartBarangDepartemenInstance = null;
 
 // cache master barang (untuk join kategori pada tabel stok)
 let masterBarangList = [];
@@ -142,7 +151,7 @@ async function ambilItemMasukPeriode(tanggalDari, tanggalSampai){
 
 // =====================================
 // AMBIL DATA BARANG KELUAR UNTUK PERIODE TERTENTU
-// Mengembalikan array item flat: { tanggal, nama_barang, qty }
+// Mengembalikan array item flat: { tanggal, nama_barang, qty, departemen }
 // =====================================
 
 async function ambilItemKeluarPeriode(tanggalDari, tanggalSampai){
@@ -159,7 +168,8 @@ async function ambilItemKeluarPeriode(tanggalDari, tanggalSampai){
     const items = (data || []).map(d => ({
         tanggal : d.tanggal,
         nama_barang : d.nama_barang,
-        qty : Number(d.qty) || 0
+        qty : Number(d.qty) || 0,
+        departemen : d.departemen || "Tanpa Departemen"
     }));
 
     return { items, totalTransaksi: (data || []).length };
@@ -332,12 +342,6 @@ function renderChartKategori(stokRows){
     const labels = Array.from(stokPerKategori.keys());
     const data = Array.from(stokPerKategori.values());
 
-    const palet = [
-        "#60a5fa", "#4ade80", "#f87171", "#facc15",
-        "#a78bfa", "#38bdf8", "#fb923c", "#f472b6",
-        "#2dd4bf", "#94a3b8"
-    ];
-
     const ctx = document.getElementById("chartKategori").getContext("2d");
 
     if(chartKategoriInstance) chartKategoriInstance.destroy();
@@ -355,7 +359,7 @@ function renderChartKategori(stokRows){
             labels,
             datasets: [{
                 data,
-                backgroundColor: labels.map((_, i) => palet[i % palet.length]),
+                backgroundColor: labels.map((_, i) => PALET_WARNA[i % PALET_WARNA.length]),
                 borderColor: "#0f172a",
                 borderWidth: 2
             }]
@@ -442,6 +446,234 @@ function renderChartTopKeluar(itemsKeluar){
             }
         }
     });
+
+}
+
+// =====================================
+// RENDER GRAFIK TOTAL QTY KELUAR PER DEPARTEMEN
+// =====================================
+
+function renderChartDepartemen(itemsKeluar){
+
+    const qtyPerDept = new Map();
+
+    itemsKeluar.forEach(it => {
+
+        qtyPerDept.set(
+            it.departemen,
+            (qtyPerDept.get(it.departemen) || 0) + it.qty
+        );
+
+    });
+
+    const sorted = Array.from(qtyPerDept.entries())
+        .sort((a, b) => b[1] - a[1]);
+
+    const labels = sorted.map(s => s[0]);
+    const data = sorted.map(s => s[1]);
+
+    const ctx = document.getElementById("chartDepartemen").getContext("2d");
+
+    if(chartDepartemenInstance) chartDepartemenInstance.destroy();
+
+    if(labels.length === 0){
+
+        chartDepartemenInstance = null;
+        return;
+
+    }
+
+    chartDepartemenInstance = new Chart(ctx, {
+        type: "bar",
+        data: {
+            labels,
+            datasets: [{
+                label: "Qty Keluar",
+                data,
+                backgroundColor: labels.map((_, i) => PALET_WARNA[i % PALET_WARNA.length] + "cc"),
+                borderColor: labels.map((_, i) => PALET_WARNA[i % PALET_WARNA.length]),
+                borderWidth: 1,
+                borderRadius: 6
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { display: false }
+            },
+            scales: {
+                x: {
+                    ticks: { color: "#94a3b8" },
+                    grid: { color: "rgba(148,163,184,.1)" }
+                },
+                y: {
+                    beginAtZero: true,
+                    ticks: { color: "#94a3b8" },
+                    grid: { color: "rgba(148,163,184,.1)" }
+                }
+            }
+        }
+    });
+
+}
+
+// =====================================
+// RENDER GRAFIK TOP 5 BARANG - RINCIAN PER DEPARTEMEN (GROUPED BAR)
+// Menjawab: "barang X paling banyak diambil oleh departemen apa"
+// =====================================
+
+function renderChartBarangDepartemen(itemsKeluar){
+
+    // total qty per barang (untuk tentukan top 5 barang)
+    const qtyPerBarang = new Map();
+
+    itemsKeluar.forEach(it => {
+        qtyPerBarang.set(it.nama_barang, (qtyPerBarang.get(it.nama_barang) || 0) + it.qty);
+    });
+
+    const top5Barang = Array.from(qtyPerBarang.entries())
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 5)
+        .map(t => t[0]);
+
+    // batasi maksimal 5 departemen teratas (berdasarkan total qty keseluruhan)
+    // supaya grafik tidak terlalu penuh kalau departemen banyak
+    const qtyPerDeptGlobal = new Map();
+
+    itemsKeluar.forEach(it => {
+        qtyPerDeptGlobal.set(it.departemen, (qtyPerDeptGlobal.get(it.departemen) || 0) + it.qty);
+    });
+
+    const topDepartemen = Array.from(qtyPerDeptGlobal.entries())
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 5)
+        .map(d => d[0]);
+
+    // matrix: barangDeptMap[barang][departemen] = qty
+    const barangDeptMap = new Map();
+
+    itemsKeluar.forEach(it => {
+
+        if(!top5Barang.includes(it.nama_barang)) return;
+        if(!topDepartemen.includes(it.departemen)) return;
+
+        if(!barangDeptMap.has(it.nama_barang)){
+            barangDeptMap.set(it.nama_barang, new Map());
+        }
+
+        const inner = barangDeptMap.get(it.nama_barang);
+
+        inner.set(it.departemen, (inner.get(it.departemen) || 0) + it.qty);
+
+    });
+
+    const datasets = topDepartemen.map((dept, i) => ({
+        label: dept,
+        data: top5Barang.map(barang => {
+            const inner = barangDeptMap.get(barang);
+            return inner ? (inner.get(dept) || 0) : 0;
+        }),
+        backgroundColor: PALET_WARNA[i % PALET_WARNA.length] + "cc",
+        borderColor: PALET_WARNA[i % PALET_WARNA.length],
+        borderWidth: 1,
+        borderRadius: 4
+    }));
+
+    const ctx = document.getElementById("chartBarangDepartemen").getContext("2d");
+
+    if(chartBarangDepartemenInstance) chartBarangDepartemenInstance.destroy();
+
+    if(top5Barang.length === 0){
+
+        chartBarangDepartemenInstance = null;
+        return;
+
+    }
+
+    chartBarangDepartemenInstance = new Chart(ctx, {
+        type: "bar",
+        data: {
+            labels: top5Barang,
+            datasets
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: "bottom",
+                    labels: { color: "#e2e8f0", boxWidth: 12, padding: 10 }
+                }
+            },
+            scales: {
+                x: {
+                    ticks: { color: "#94a3b8" },
+                    grid: { color: "rgba(148,163,184,.1)" }
+                },
+                y: {
+                    beginAtZero: true,
+                    ticks: { color: "#94a3b8" },
+                    grid: { color: "rgba(148,163,184,.1)" }
+                }
+            }
+        }
+    });
+
+}
+
+// =====================================
+// HIGHLIGHT: KOMBINASI BARANG + DEPARTEMEN DENGAN QTY TERTINGGI
+// =====================================
+
+function renderHighlightDepartemen(itemsKeluar){
+
+    const box = document.getElementById("highlightDepartemen");
+
+    if(!box) return;
+
+    if(itemsKeluar.length === 0){
+
+        box.innerHTML = "Tidak ada data Barang Keluar pada periode ini.";
+        return;
+
+    }
+
+    // qty per departemen (untuk departemen dengan pengeluaran terbanyak)
+    const qtyPerDept = new Map();
+
+    itemsKeluar.forEach(it => {
+        qtyPerDept.set(it.departemen, (qtyPerDept.get(it.departemen) || 0) + it.qty);
+    });
+
+    const topDeptEntry = Array.from(qtyPerDept.entries())
+        .sort((a, b) => b[1] - a[1])[0];
+
+    // kombinasi barang+departemen dengan qty tertinggi
+    const qtyPerBarangDept = new Map();
+
+    itemsKeluar.forEach(it => {
+
+        const key = `${it.nama_barang}||${it.departemen}`;
+
+        qtyPerBarangDept.set(key, (qtyPerBarangDept.get(key) || 0) + it.qty);
+
+    });
+
+    const topComboEntry = Array.from(qtyPerBarangDept.entries())
+        .sort((a, b) => b[1] - a[1])[0];
+
+    const [comboBarang, comboDept] = topComboEntry[0].split("||");
+    const comboQty = topComboEntry[1];
+
+    box.innerHTML = `
+        🏢 Departemen dengan pengeluaran barang terbanyak: <b>${topDeptEntry[0]}</b>
+        (total ${formatAngka(topDeptEntry[1])} unit).
+        <br>
+        📦 Barang yang paling banyak diambil: <b>${comboBarang}</b>,
+        paling sering diambil oleh departemen <b>${comboDept}</b>
+        (${formatAngka(comboQty)} unit pada periode ini).
+    `;
 
 }
 
@@ -598,6 +830,9 @@ async function muatLaporan(){
         renderRingkasan(ringkasan);
         renderChartTren(masukResult.items, keluarResult.items);
         renderChartTopKeluar(keluarResult.items);
+        renderChartDepartemen(keluarResult.items);
+        renderChartBarangDepartemen(keluarResult.items);
+        renderHighlightDepartemen(keluarResult.items);
 
         laporanTerakhir = {
             itemsMasuk : masukResult.items,
@@ -626,7 +861,7 @@ if(btnTerapkanFilterEl){
 }
 
 // =====================================
-// EXPORT LAPORAN EXCEL (Ringkasan + Tren Bulanan + Stok Saat Ini)
+// EXPORT LAPORAN EXCEL (Ringkasan + Tren Bulanan + Per Departemen + Stok Saat Ini)
 // =====================================
 
 async function exportLaporanExcel(){
@@ -689,7 +924,48 @@ async function exportLaporanExcel(){
             "Qty Keluar": keluarPerBulan.get(key) || 0
         }));
 
-        // ---------- SHEET 3: STOK SAAT INI ----------
+        // ---------- SHEET 3: PENGELUARAN PER DEPARTEMEN ----------
+
+        const qtyPerDept = new Map();
+
+        itemsKeluar.forEach(it => {
+            qtyPerDept.set(it.departemen, (qtyPerDept.get(it.departemen) || 0) + it.qty);
+        });
+
+        const departemenRows = Array.from(qtyPerDept.entries())
+            .sort((a, b) => b[1] - a[1])
+            .map(([dept, qty]) => ({
+                "Departemen": dept,
+                "Qty Keluar": qty
+            }));
+
+        // ---------- SHEET 4: TOP BARANG PER DEPARTEMEN (KOMBINASI) ----------
+
+        const qtyPerBarangDept = new Map();
+
+        itemsKeluar.forEach(it => {
+
+            const key = `${it.nama_barang}||${it.departemen}`;
+
+            qtyPerBarangDept.set(key, (qtyPerBarangDept.get(key) || 0) + it.qty);
+
+        });
+
+        const barangDeptRows = Array.from(qtyPerBarangDept.entries())
+            .sort((a, b) => b[1] - a[1])
+            .map(([key, qty]) => {
+
+                const [barang, dept] = key.split("||");
+
+                return {
+                    "Nama Barang": barang,
+                    "Departemen": dept,
+                    "Qty Keluar": qty
+                };
+
+            });
+
+        // ---------- SHEET 5: STOK SAAT INI ----------
 
         const stokRows = stokRowsCache.map(r => ({
             "Kode Barang": r.kode_barang,
@@ -709,6 +985,14 @@ async function exportLaporanExcel(){
 
         XLSX.utils.book_append_sheet(
             wb, XLSX.utils.json_to_sheet(trenRows), "Tren Bulanan"
+        );
+
+        XLSX.utils.book_append_sheet(
+            wb, XLSX.utils.json_to_sheet(departemenRows), "Per Departemen"
+        );
+
+        XLSX.utils.book_append_sheet(
+            wb, XLSX.utils.json_to_sheet(barangDeptRows), "Barang per Departemen"
         );
 
         XLSX.utils.book_append_sheet(
