@@ -371,6 +371,15 @@ function renderChartKategori(stokRows){
                 legend: {
                     position: "bottom",
                     labels: { color: "#e2e8f0", boxWidth: 12, padding: 12 }
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(ctx){
+                            const total = ctx.dataset.data.reduce((a,b)=>a+b, 0);
+                            const persen = total > 0 ? ((ctx.parsed / total) * 100).toFixed(1) : 0;
+                            return `${ctx.label}: ${formatAngka(ctx.parsed)} (${persen}%)`;
+                        }
+                    }
                 }
             }
         }
@@ -379,7 +388,7 @@ function renderChartKategori(stokRows){
 }
 
 // =====================================
-// RENDER GRAFIK TOP 5 BARANG KELUAR TERBANYAK
+// RENDER GRAFIK BARANG KELUAR TERBANYAK (SEMUA BARANG, TIDAK DIBATASI)
 // =====================================
 
 function renderChartTopKeluar(itemsKeluar){
@@ -395,12 +404,21 @@ function renderChartTopKeluar(itemsKeluar){
 
     });
 
-    const top5 = Array.from(qtyPerBarang.entries())
-        .sort((a, b) => b[1] - a[1])
-        .slice(0, 5);
+    const semuaBarang = Array.from(qtyPerBarang.entries())
+        .sort((a, b) => b[1] - a[1]);
 
-    const labels = top5.map(t => t[0]);
-    const data = top5.map(t => t[1]);
+    const labels = semuaBarang.map(t => t[0]);
+    const data = semuaBarang.map(t => t[1]);
+    const totalKeseluruhan = data.reduce((a, b) => a + b, 0);
+
+    // sesuaikan tinggi canvas mengikuti jumlah barang, supaya tidak
+    // terlalu padat kalau barangnya banyak (tidak dibatasi 5 lagi)
+    const wrap = document.getElementById("chartTopKeluar").closest(".chart-canvas-wrap");
+
+    if(wrap){
+        const tinggi = Math.max(280, labels.length * 26);
+        wrap.style.height = `${tinggi}px`;
+    }
 
     const ctx = document.getElementById("chartTopKeluar").getContext("2d");
 
@@ -431,7 +449,17 @@ function renderChartTopKeluar(itemsKeluar){
             responsive: true,
             maintainAspectRatio: false,
             plugins: {
-                legend: { display: false }
+                legend: { display: false },
+                tooltip: {
+                    callbacks: {
+                        label: function(ctx){
+                            const persen = totalKeseluruhan > 0
+                                ? ((ctx.parsed.x / totalKeseluruhan) * 100).toFixed(1)
+                                : 0;
+                            return `Qty: ${formatAngka(ctx.parsed.x)} (${persen}% dari total keluar)`;
+                        }
+                    }
+                }
             },
             scales: {
                 x: {
@@ -471,6 +499,7 @@ function renderChartDepartemen(itemsKeluar){
 
     const labels = sorted.map(s => s[0]);
     const data = sorted.map(s => s[1]);
+    const totalKeseluruhan = data.reduce((a, b) => a + b, 0);
 
     const ctx = document.getElementById("chartDepartemen").getContext("2d");
 
@@ -500,7 +529,17 @@ function renderChartDepartemen(itemsKeluar){
             responsive: true,
             maintainAspectRatio: false,
             plugins: {
-                legend: { display: false }
+                legend: { display: false },
+                tooltip: {
+                    callbacks: {
+                        label: function(ctx){
+                            const persen = totalKeseluruhan > 0
+                                ? ((ctx.parsed.y / totalKeseluruhan) * 100).toFixed(1)
+                                : 0;
+                            return `Qty: ${formatAngka(ctx.parsed.y)} (${persen}% dari total keluar)`;
+                        }
+                    }
+                }
             },
             scales: {
                 x: {
@@ -519,22 +558,23 @@ function renderChartDepartemen(itemsKeluar){
 }
 
 // =====================================
-// RENDER GRAFIK TOP 5 BARANG - RINCIAN PER DEPARTEMEN (GROUPED BAR)
+// RENDER GRAFIK BARANG KELUAR - RINCIAN PER DEPARTEMEN (GROUPED BAR)
+// Semua barang ditampilkan (tidak dibatasi 5), maksimal 5 departemen
+// teratas dipakai sebagai seri warna supaya grafik tetap terbaca.
 // Menjawab: "barang X paling banyak diambil oleh departemen apa"
 // =====================================
 
 function renderChartBarangDepartemen(itemsKeluar){
 
-    // total qty per barang (untuk tentukan top 5 barang)
+    // total qty per barang, diurutkan (tidak dibatasi lagi)
     const qtyPerBarang = new Map();
 
     itemsKeluar.forEach(it => {
         qtyPerBarang.set(it.nama_barang, (qtyPerBarang.get(it.nama_barang) || 0) + it.qty);
     });
 
-    const top5Barang = Array.from(qtyPerBarang.entries())
+    const semuaBarang = Array.from(qtyPerBarang.entries())
         .sort((a, b) => b[1] - a[1])
-        .slice(0, 5)
         .map(t => t[0]);
 
     // batasi maksimal 5 departemen teratas (berdasarkan total qty keseluruhan)
@@ -555,7 +595,6 @@ function renderChartBarangDepartemen(itemsKeluar){
 
     itemsKeluar.forEach(it => {
 
-        if(!top5Barang.includes(it.nama_barang)) return;
         if(!topDepartemen.includes(it.departemen)) return;
 
         if(!barangDeptMap.has(it.nama_barang)){
@@ -570,7 +609,7 @@ function renderChartBarangDepartemen(itemsKeluar){
 
     const datasets = topDepartemen.map((dept, i) => ({
         label: dept,
-        data: top5Barang.map(barang => {
+        data: semuaBarang.map(barang => {
             const inner = barangDeptMap.get(barang);
             return inner ? (inner.get(dept) || 0) : 0;
         }),
@@ -580,11 +619,23 @@ function renderChartBarangDepartemen(itemsKeluar){
         borderRadius: 4
     }));
 
+    // sesuaikan lebar canvas mengikuti jumlah barang supaya label
+    // tidak terlalu berdesakan kalau barangnya banyak
+    const wrap = document.getElementById("chartBarangDepartemen").closest(".chart-canvas-wrap");
+
+    if(wrap){
+        const lebarMinimal = Math.max(100, semuaBarang.length * 90);
+        wrap.style.overflowX = semuaBarang.length > 8 ? "auto" : "visible";
+        wrap.style.minWidth = "100%";
+        document.getElementById("chartBarangDepartemen").style.minWidth =
+            semuaBarang.length > 8 ? `${lebarMinimal}px` : "100%";
+    }
+
     const ctx = document.getElementById("chartBarangDepartemen").getContext("2d");
 
     if(chartBarangDepartemenInstance) chartBarangDepartemenInstance.destroy();
 
-    if(top5Barang.length === 0){
+    if(semuaBarang.length === 0){
 
         chartBarangDepartemenInstance = null;
         return;
@@ -594,7 +645,7 @@ function renderChartBarangDepartemen(itemsKeluar){
     chartBarangDepartemenInstance = new Chart(ctx, {
         type: "bar",
         data: {
-            labels: top5Barang,
+            labels: semuaBarang,
             datasets
         },
         options: {
@@ -604,6 +655,18 @@ function renderChartBarangDepartemen(itemsKeluar){
                 legend: {
                     position: "bottom",
                     labels: { color: "#e2e8f0", boxWidth: 12, padding: 10 }
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(ctx){
+                            const totalBarangIni = ctx.chart.data.datasets
+                                .reduce((s, ds) => s + (ds.data[ctx.dataIndex] || 0), 0);
+                            const persen = totalBarangIni > 0
+                                ? ((ctx.parsed.y / totalBarangIni) * 100).toFixed(1)
+                                : 0;
+                            return `${ctx.dataset.label}: ${formatAngka(ctx.parsed.y)} (${persen}% dari barang ini)`;
+                        }
+                    }
                 }
             },
             scales: {
@@ -639,6 +702,8 @@ function renderHighlightDepartemen(itemsKeluar){
 
     }
 
+    const totalQtyKeseluruhan = itemsKeluar.reduce((s, it) => s + it.qty, 0);
+
     // qty per departemen (untuk departemen dengan pengeluaran terbanyak)
     const qtyPerDept = new Map();
 
@@ -648,6 +713,10 @@ function renderHighlightDepartemen(itemsKeluar){
 
     const topDeptEntry = Array.from(qtyPerDept.entries())
         .sort((a, b) => b[1] - a[1])[0];
+
+    const persenDept = totalQtyKeseluruhan > 0
+        ? ((topDeptEntry[1] / totalQtyKeseluruhan) * 100).toFixed(1)
+        : 0;
 
     // kombinasi barang+departemen dengan qty tertinggi
     const qtyPerBarangDept = new Map();
@@ -666,19 +735,29 @@ function renderHighlightDepartemen(itemsKeluar){
     const [comboBarang, comboDept] = topComboEntry[0].split("||");
     const comboQty = topComboEntry[1];
 
+    // total qty barang ini (di semua departemen) -> persentase kontribusi departemen tsb
+    const totalQtyBarangIni = itemsKeluar
+        .filter(it => it.nama_barang === comboBarang)
+        .reduce((s, it) => s + it.qty, 0);
+
+    const persenCombo = totalQtyBarangIni > 0
+        ? ((comboQty / totalQtyBarangIni) * 100).toFixed(1)
+        : 0;
+
     box.innerHTML = `
         🏢 Departemen dengan pengeluaran barang terbanyak: <b>${topDeptEntry[0]}</b>
-        (total ${formatAngka(topDeptEntry[1])} unit).
+        (total ${formatAngka(topDeptEntry[1])} unit, <b>${persenDept}%</b> dari seluruh pengeluaran periode ini).
         <br>
         📦 Barang yang paling banyak diambil: <b>${comboBarang}</b>,
         paling sering diambil oleh departemen <b>${comboDept}</b>
-        (${formatAngka(comboQty)} unit pada periode ini).
+        (${formatAngka(comboQty)} unit, <b>${persenCombo}%</b> dari total barang ini yang keluar).
     `;
 
 }
 
 // =====================================
-// LOAD & RENDER TABEL STOK SAAT INI (tidak dipengaruhi filter tanggal)
+// AMBIL DATA STOK SAAT INI (dipakai untuk grafik distribusi kategori;
+// tabel "Stok Barang Saat Ini" sudah dihapus dari halaman ini)
 // =====================================
 
 let stokRowsCache = [];
@@ -708,8 +787,6 @@ async function loadTabelStok(){
 
         }).sort((a, b) => a.nama_barang.localeCompare(b.nama_barang));
 
-        tampilkanTabelStok(stokRowsCache);
-
         renderChartKategori(stokRowsCache);
 
     }
@@ -719,63 +796,6 @@ async function loadTabelStok(){
         alert(err.message);
 
     }
-
-}
-
-function tampilkanTabelStok(rows){
-
-    const tbody = document.querySelector("#tableStok tbody");
-
-    tbody.innerHTML = "";
-
-    if(rows.length === 0){
-
-        tbody.innerHTML = `
-        <tr>
-            <td colspan="6" class="stok-empty">Belum ada data stok.</td>
-        </tr>
-        `;
-
-        return;
-
-    }
-
-    let no = 1;
-
-    rows.forEach(r => {
-
-        tbody.innerHTML += `
-        <tr>
-            <td>${no++}</td>
-            <td>${r.kode_barang}</td>
-            <td>${r.nama_barang}</td>
-            <td>${r.kategori}</td>
-            <td>${r.satuan}</td>
-            <td><b>${formatAngka(r.stok)}</b></td>
-        </tr>
-        `;
-
-    });
-
-}
-
-const searchStokEl = document.getElementById("searchStok");
-
-if(searchStokEl){
-
-    searchStokEl.addEventListener("keyup", function(){
-
-        const kw = this.value.toLowerCase();
-
-        const filtered = stokRowsCache.filter(r =>
-            r.nama_barang.toLowerCase().includes(kw) ||
-            r.kode_barang.toLowerCase().includes(kw) ||
-            r.kategori.toLowerCase().includes(kw)
-        );
-
-        tampilkanTabelStok(filtered);
-
-    });
 
 }
 
@@ -932,22 +952,33 @@ async function exportLaporanExcel(){
             qtyPerDept.set(it.departemen, (qtyPerDept.get(it.departemen) || 0) + it.qty);
         });
 
+        const totalQtyKeluarSemua = itemsKeluar.reduce((s, it) => s + it.qty, 0);
+
         const departemenRows = Array.from(qtyPerDept.entries())
             .sort((a, b) => b[1] - a[1])
             .map(([dept, qty]) => ({
                 "Departemen": dept,
-                "Qty Keluar": qty
+                "Qty Keluar": qty,
+                "Persentase": totalQtyKeluarSemua > 0
+                    ? `${((qty / totalQtyKeluarSemua) * 100).toFixed(1)}%`
+                    : "0%"
             }));
 
         // ---------- SHEET 4: TOP BARANG PER DEPARTEMEN (KOMBINASI) ----------
 
         const qtyPerBarangDept = new Map();
+        const qtyPerBarangTotal = new Map();
 
         itemsKeluar.forEach(it => {
 
             const key = `${it.nama_barang}||${it.departemen}`;
 
             qtyPerBarangDept.set(key, (qtyPerBarangDept.get(key) || 0) + it.qty);
+
+            qtyPerBarangTotal.set(
+                it.nama_barang,
+                (qtyPerBarangTotal.get(it.nama_barang) || 0) + it.qty
+            );
 
         });
 
@@ -957,10 +988,15 @@ async function exportLaporanExcel(){
 
                 const [barang, dept] = key.split("||");
 
+                const totalBarangIni = qtyPerBarangTotal.get(barang) || 0;
+
                 return {
                     "Nama Barang": barang,
                     "Departemen": dept,
-                    "Qty Keluar": qty
+                    "Qty Keluar": qty,
+                    "Persentase dari Barang Ini": totalBarangIni > 0
+                        ? `${((qty / totalBarangIni) * 100).toFixed(1)}%`
+                        : "0%"
                 };
 
             });
