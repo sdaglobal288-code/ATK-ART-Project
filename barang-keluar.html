@@ -11,134 +11,518 @@
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script src="supabase/config.js"></script>
 <style>
-    .combo-wrapper{ position:relative; width:100%; }
-    .combo-input{ width:100%; padding:10px 12px; border-radius:8px; border:1px solid #334155; background:#0f172a; color:#e2e8f0; font-family:inherit; font-size:14px; box-sizing:border-box; transition:border-color .15s, box-shadow .15s; }
-    .combo-input::placeholder{ color:#64748b; }
-    .combo-input:focus{ outline:none; border-color:#3b82f6; box-shadow:0 0 0 3px rgba(59,130,246,.2); }
-    .combo-dropdown{ position:absolute; top:calc(100% + 6px); left:0; right:0; background:#111827; border:1px solid #334155; border-radius:10px; max-height:230px; overflow-y:auto; z-index:60; display:none; box-shadow:0 12px 28px rgba(0,0,0,.45); }
-    .combo-dropdown.show{ display:block; }
-    .combo-item{ padding:10px 14px; color:#e2e8f0; cursor:pointer; font-size:13.5px; border-bottom:1px solid #1f2937; }
-    .combo-item:last-child{ border-bottom:none; }
-    .combo-item:hover, .combo-item.active{ background:#1e293b; color:#60a5fa; }
-    .combo-empty{ padding:10px 14px; color:#64748b; font-size:13px; font-style:italic; }
-    .header-label{ display:grid; grid-template-columns:2.2fr 1.1fr 0.9fr 1fr 0.9fr 40px; gap:10px; font-size:12px; font-weight:600; letter-spacing:.03em; text-transform:uppercase; color:#64748b; margin-bottom:8px; padding:0 4px; }
-    .detail-wrapper{ border:1px solid #263041; border-radius:12px; padding:14px; margin-bottom:12px; background:rgba(255,255,255,.02); }
-    .detail-row{ display:grid; grid-template-columns:2.2fr 1.1fr 0.9fr 1fr 0.9fr 40px; gap:10px; align-items:center; margin-bottom:10px; position:relative; }
-    .detail-row:last-child{ margin-bottom:0; }
-    .input-readonly{ width:100%; padding:10px 12px; border-radius:8px; border:1px dashed #334155; background:#0b1220; color:#94a3b8; font-family:inherit; font-size:13.5px; box-sizing:border-box; }
-    .input-qty{ width:100%; padding:10px 12px; border-radius:8px; border:1px solid #334155; background:#0f172a; color:#e2e8f0; font-family:inherit; font-size:14px; box-sizing:border-box; }
-    .input-qty:focus{ outline:none; border-color:#3b82f6; box-shadow:0 0 0 3px rgba(59,130,246,.2); }
-    .stok-badge{ font-weight:600; font-size:13px; padding:9px 8px; border-radius:8px; text-align:center; background:rgba(34,197,94,.12); color:#4ade80; border:1px solid rgba(34,197,94,.35); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-    .stok-badge.warning{ background:rgba(239,68,68,.12); color:#f87171; border:1px solid rgba(239,68,68,.35); }
-    .detail-row.qty-invalid .input-qty{ border-color:#ef4444; background:rgba(239,68,68,.08); }
-    .btn-hapus-baris{ background:rgba(239,68,68,.12); color:#f87171; border:1px solid rgba(239,68,68,.35); border-radius:8px; cursor:pointer; font-weight:700; height:38px; width:100%; transition:background .15s; }
-    .btn-hapus-baris:hover{ background:rgba(239,68,68,.25); }
-    .btn-tambah-baris{ background:rgba(59,130,246,.12); color:#60a5fa; border:1px solid rgba(59,130,246,.35); border-radius:8px; padding:10px 16px; cursor:pointer; font-weight:600; font-size:13.5px; margin-top:2px; transition:background .15s; }
-    .btn-tambah-baris:hover{ background:rgba(59,130,246,.22); }
-    .modal-overlay{ position:fixed; inset:0; background:rgba(0,0,0,.65); display:none; align-items:center; justify-content:center; z-index:1000; padding:20px; overflow-y:auto; }
-    .modal-overlay.show{ display:flex; }
-    .modal-box{ background:#0f172a; border:1px solid #334155; border-radius:14px; padding:22px; width:100%; max-width:640px; max-height:82vh; overflow-y:auto; box-shadow:0 20px 50px rgba(0,0,0,.5); margin:auto; }
-    .modal-box-wide{ max-width:780px; }
-    .modal-header{ display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; }
-    .modal-header h3{ margin:0; color:#e2e8f0; }
-    .modal-close{ background:rgba(239,68,68,.12); color:#f87171; border:1px solid rgba(239,68,68,.35); border-radius:8px; width:32px; height:32px; cursor:pointer; font-weight:700; }
-    .modal-close:hover{ background:rgba(239,68,68,.25); }
-    #formEditKeluar{ display:grid; grid-template-columns:1fr 1fr; gap:16px; }
-    #formEditKeluar > div{ display:flex; flex-direction:column; gap:6px; }
-    #formEditKeluar label{ font-size:13px; color:#94a3b8; }
-    #formEditKeluar input[type="text"], #formEditKeluar input[type="date"]{ width:100%; padding:10px 12px; border-radius:8px; border:1px solid #334155; background:#0f172a; color:#e2e8f0; font-family:inherit; font-size:14px; box-sizing:border-box; }
-    #formEditKeluar input:focus{ outline:none; border-color:#3b82f6; box-shadow:0 0 0 3px rgba(59,130,246,.2); }
-    #btnSimpanEditKeluar{ background:#3b82f6; color:#ffffff; border:none; border-radius:10px; padding:14px 22px; cursor:pointer; font-weight:600; font-size:14.5px; font-family:inherit; transition:background .15s; }
-    #btnSimpanEditKeluar:hover{ background:#2563eb; }
+    /* ====================================================
+       TAMBAHAN: multi-item, pencarian (combobox), stok realtime
+       Semua elemen di bawah ini punya style sendiri (tidak
+       tergantung dashboard.css) supaya tampil rapi & gelap
+       senada dengan tema dashboard.
+       ==================================================== */
+
+    .combo-wrapper{
+        position:relative;
+        width:100%;
+    }
+
+    .combo-input{
+        width:100%;
+        padding:10px 12px;
+        border-radius:8px;
+        border:1px solid #334155;
+        background:#0f172a;
+        color:#e2e8f0;
+        font-family:inherit;
+        font-size:14px;
+        box-sizing:border-box;
+        transition:border-color .15s, box-shadow .15s;
+    }
+
+    .combo-input::placeholder{
+        color:#64748b;
+    }
+
+    .combo-input:focus{
+        outline:none;
+        border-color:#3b82f6;
+        box-shadow:0 0 0 3px rgba(59,130,246,.2);
+    }
+
+    .combo-dropdown{
+        position:absolute;
+        top:calc(100% + 6px);
+        left:0;
+        right:0;
+        background:#111827;
+        border:1px solid #334155;
+        border-radius:10px;
+        max-height:230px;
+        overflow-y:auto;
+        z-index:60;
+        display:none;
+        box-shadow:0 12px 28px rgba(0,0,0,.45);
+    }
+
+    .combo-dropdown.show{
+        display:block;
+    }
+
+    .combo-item{
+        padding:10px 14px;
+        color:#e2e8f0;
+        cursor:pointer;
+        font-size:13.5px;
+        border-bottom:1px solid #1f2937;
+    }
+
+    .combo-item:last-child{
+        border-bottom:none;
+    }
+
+    .combo-item:hover,
+    .combo-item.active{
+        background:#1e293b;
+        color:#60a5fa;
+    }
+
+    .combo-empty{
+        padding:10px 14px;
+        color:#64748b;
+        font-size:13px;
+        font-style:italic;
+    }
+
+    /* ---------- Detail baris barang ---------- */
+
+    .header-label{
+        display:grid;
+        grid-template-columns: 2.2fr 1.1fr 0.9fr 1fr 0.9fr 40px;
+        gap:10px;
+        font-size:12px;
+        font-weight:600;
+        letter-spacing:.03em;
+        text-transform:uppercase;
+        color:#64748b;
+        margin-bottom:8px;
+        padding:0 4px;
+    }
+
+    .detail-wrapper{
+        border:1px solid #263041;
+        border-radius:12px;
+        padding:14px;
+        margin-bottom:12px;
+        background:rgba(255,255,255,.02);
+    }
+
+    .detail-row{
+        display:grid;
+        grid-template-columns: 2.2fr 1.1fr 0.9fr 1fr 0.9fr 40px;
+        gap:10px;
+        align-items:center;
+        margin-bottom:10px;
+        position:relative;
+    }
+
+    .detail-row:last-child{
+        margin-bottom:0;
+    }
+
+    .input-readonly{
+        width:100%;
+        padding:10px 12px;
+        border-radius:8px;
+        border:1px dashed #334155;
+        background:#0b1220;
+        color:#94a3b8;
+        font-family:inherit;
+        font-size:13.5px;
+        box-sizing:border-box;
+    }
+
+    .input-qty{
+        width:100%;
+        padding:10px 12px;
+        border-radius:8px;
+        border:1px solid #334155;
+        background:#0f172a;
+        color:#e2e8f0;
+        font-family:inherit;
+        font-size:14px;
+        box-sizing:border-box;
+    }
+
+    .input-qty:focus{
+        outline:none;
+        border-color:#3b82f6;
+        box-shadow:0 0 0 3px rgba(59,130,246,.2);
+    }
+
+    .stok-badge{
+        font-weight:600;
+        font-size:13px;
+        padding:9px 8px;
+        border-radius:8px;
+        text-align:center;
+        background:rgba(34,197,94,.12);
+        color:#4ade80;
+        border:1px solid rgba(34,197,94,.35);
+        white-space:nowrap;
+        overflow:hidden;
+        text-overflow:ellipsis;
+    }
+
+    .stok-badge.warning{
+        background:rgba(239,68,68,.12);
+        color:#f87171;
+        border:1px solid rgba(239,68,68,.35);
+    }
+
+    .detail-row.qty-invalid .input-qty{
+        border-color:#ef4444;
+        background:rgba(239,68,68,.08);
+    }
+
+    .btn-hapus-baris{
+        background:rgba(239,68,68,.12);
+        color:#f87171;
+        border:1px solid rgba(239,68,68,.35);
+        border-radius:8px;
+        cursor:pointer;
+        font-weight:700;
+        height:38px;
+        width:100%;
+        transition:background .15s;
+    }
+
+    .btn-hapus-baris:hover{
+        background:rgba(239,68,68,.25);
+    }
+
+    .btn-tambah-baris{
+        background:rgba(59,130,246,.12);
+        color:#60a5fa;
+        border:1px solid rgba(59,130,246,.35);
+        border-radius:8px;
+        padding:10px 16px;
+        cursor:pointer;
+        font-weight:600;
+        font-size:13.5px;
+        margin-top:2px;
+        transition:background .15s;
+    }
+
+    .btn-tambah-baris:hover{
+        background:rgba(59,130,246,.22);
+    }
+
+    /* ---------- Modal Edit Barang Keluar ---------- */
+
+    .modal-overlay{
+        position:fixed;
+        inset:0;
+        background:rgba(0,0,0,.65);
+        display:none;
+        align-items:center;
+        justify-content:center;
+        z-index:1000;
+        padding:20px;
+        overflow-y:auto;
+    }
+
+    .modal-overlay.show{
+        display:flex;
+    }
+
+    .modal-box{
+        background:#0f172a;
+        border:1px solid #334155;
+        border-radius:14px;
+        padding:22px;
+        width:100%;
+        max-width:640px;
+        max-height:82vh;
+        overflow-y:auto;
+        box-shadow:0 20px 50px rgba(0,0,0,.5);
+        margin:auto;
+    }
+
+    .modal-box-wide{
+        max-width:780px;
+    }
+
+    .modal-header{
+        display:flex;
+        justify-content:space-between;
+        align-items:center;
+        margin-bottom:16px;
+    }
+
+    .modal-header h3{
+        margin:0;
+        color:#e2e8f0;
+    }
+
+    .modal-close{
+        background:rgba(239,68,68,.12);
+        color:#f87171;
+        border:1px solid rgba(239,68,68,.35);
+        border-radius:8px;
+        width:32px;
+        height:32px;
+        cursor:pointer;
+        font-weight:700;
+    }
+
+    .modal-close:hover{
+        background:rgba(239,68,68,.25);
+    }
+
+    #formEditKeluar{
+        display:grid;
+        grid-template-columns:1fr 1fr;
+        gap:16px;
+    }
+
+    #formEditKeluar > div{
+        display:flex;
+        flex-direction:column;
+        gap:6px;
+    }
+
+    #formEditKeluar label{
+        font-size:13px;
+        color:#94a3b8;
+    }
+
+    #formEditKeluar input[type="text"],
+    #formEditKeluar input[type="date"]{
+        width:100%;
+        padding:10px 12px;
+        border-radius:8px;
+        border:1px solid #334155;
+        background:#0f172a;
+        color:#e2e8f0;
+        font-family:inherit;
+        font-size:14px;
+        box-sizing:border-box;
+    }
+
+    #formEditKeluar input:focus{
+        outline:none;
+        border-color:#3b82f6;
+        box-shadow:0 0 0 3px rgba(59,130,246,.2);
+    }
+
+    #btnSimpanEditKeluar{
+        background:#3b82f6;
+        color:#ffffff;
+        border:none;
+        border-radius:10px;
+        padding:14px 22px;
+        cursor:pointer;
+        font-weight:600;
+        font-size:14.5px;
+        font-family:inherit;
+        transition:background .15s;
+    }
+
+    #btnSimpanEditKeluar:hover{
+        background:#2563eb;
+    }
 </style>
 </head>
 <body>
 <div class="content">
 <h2>📤 Barang Keluar</h2>
 <br>
+<!-- ================= TOOLBAR ================= -->
 <div class="toolbar">
-<button class="btn-dashboard" onclick="location.href='dashboard.html'">🏠 Dashboard</button>
+<button
+class="btn-dashboard"
+onclick="location.href='dashboard.html'">
+🏠 Dashboard
+</button>
 </div>
 <br>
+<!-- ================= FORM ================= -->
 <div class="panel">
-<h3 id="judulForm">➖ Barang Keluar</h3>
+<h3 id="judulForm">
+➖ Barang Keluar
+</h3>
 <br>
 <form id="formKeluar">
-<input type="date" id="tanggal" required>
+<input
+type="date"
+id="tanggal"
+required>
+
+<!-- ============ PENGAMBIL (SEARCHABLE) ============ -->
 <div class="combo-wrapper">
-    <input type="text" id="pengambilSearch" class="combo-input" placeholder="-- Cari Nama Pengambil --" autocomplete="off" required>
+    <input
+        type="text"
+        id="pengambilSearch"
+        class="combo-input"
+        placeholder="-- Cari Nama Pengambil --"
+        autocomplete="off"
+        required>
     <input type="hidden" id="pengambil">
     <div class="combo-dropdown" id="pengambilDropdown"></div>
 </div>
-<input type="text" id="departemen" placeholder="Departemen" readonly>
-<input type="text" id="jabatan" placeholder="Jabatan" readonly>
-<input type="text" id="keterangan" placeholder="Keterangan (opsional, berlaku untuk semua barang)" style="grid-column:1/3;">
+
+<input
+type="text"
+id="departemen"
+placeholder="Departemen"
+readonly>
+<input
+type="text"
+id="jabatan"
+placeholder="Jabatan"
+readonly>
+<input
+type="text"
+id="keterangan"
+placeholder="Keterangan (opsional, berlaku untuk semua barang)"
+style="grid-column:1/3;">
+
+<!-- ================= DETAIL BARANG (MULTI ITEM) ================= -->
 <div style="grid-column:1/3;">
     <div class="header-label">
-        <span>Barang</span><span>Kategori</span><span>Satuan</span>
-        <span>Sisa Stok</span><span>Qty Keluar</span><span></span>
+        <span>Barang</span>
+        <span>Kategori</span>
+        <span>Satuan</span>
+        <span>Sisa Stok</span>
+        <span>Qty Keluar</span>
+        <span></span>
     </div>
-    <div class="detail-wrapper" id="detailRows"></div>
-    <button type="button" class="btn-tambah-baris" id="btnTambahBaris">➕ Tambah Barang</button>
+    <div class="detail-wrapper" id="detailRows">
+        <!-- baris detail barang ditambahkan lewat JS -->
+    </div>
+    <button type="button" class="btn-tambah-baris" id="btnTambahBaris">
+        ➕ Tambah Barang
+    </button>
 </div>
+
 <div style="grid-column:1/3;display:flex;gap:10px;">
-<button type="submit" id="btnSimpan">💾 Simpan Barang Keluar</button>
+<button
+type="submit"
+id="btnSimpan">
+💾 Simpan Barang Keluar
+</button>
 </div>
 </form>
 </div>
 <br>
+<!-- ================= TABEL ================= -->
 <div class="panel">
 <h3>Histori Barang Keluar</h3>
 <br>
 <div class="toolbar" style="margin-bottom:14px;">
-<button class="btn-import" onclick="document.getElementById('fileImport').click()">📥 Import Excel</button>
-<input type="file" id="fileImport" accept=".xlsx,.xls" hidden>
-<button class="btn-export" onclick="exportExcel()">📤 Export Excel</button>
+<button
+class="btn-import"
+onclick="document.getElementById('fileImport').click()">
+📥 Import Excel
+</button>
+<input
+type="file"
+id="fileImport"
+accept=".xlsx,.xls"
+hidden>
+<button
+class="btn-export"
+onclick="exportExcel()">
+📤 Export Excel
+</button>
 </div>
-<input type="text" id="search" placeholder="🔍 Cari data barang keluar..." style="width:100%;padding:10px;margin-bottom:10px;border:1px solid #334155;border-radius:8px;background:#0f172a;color:#e2e8f0;box-sizing:border-box;">
+<input
+type="text"
+id="search"
+placeholder="🔍 Cari data barang keluar..."
+style="width:100%;padding:10px;margin-bottom:10px;border:1px solid #334155;border-radius:8px;background:#0f172a;color:#e2e8f0;box-sizing:border-box;">
 <table id="tableKeluar">
 <thead>
 <tr>
-<th width="60">No</th><th width="120">Tanggal</th><th width="220">Pengambil</th>
-<th width="160">Departemen</th><th width="150">Jabatan</th><th>Nama Barang</th>
-<th width="90">Qty</th><th width="90">Satuan</th><th width="180">Created By</th><th width="180">Aksi</th>
+<th width="60">No</th>
+<th width="120">Tanggal</th>
+<th width="220">Pengambil</th>
+<th width="160">Departemen</th>
+<th width="150">Jabatan</th>
+<th>Nama Barang</th>
+<th width="90">Qty</th>
+<th width="90">Satuan</th>
+<th width="180">Created By</th>
+<th width="180">Aksi</th>
 </tr>
 </thead>
-<tbody></tbody>
+<tbody>
+</tbody>
 </table>
 </div>
 </div>
 
+<!-- ================= MODAL EDIT BARANG KELUAR ================= -->
 <div class="modal-overlay" id="modalEditKeluar">
     <div class="modal-box modal-box-wide">
         <div class="modal-header">
             <h3>✏ Edit Barang Keluar</h3>
             <button type="button" class="modal-close" id="btnTutupModalEdit">✕</button>
         </div>
+
         <form id="formEditKeluar" onsubmit="return false;">
-        <div><label><b>Tanggal</b></label><input type="date" id="editTanggal" required></div>
+        <div>
+        <label><b>Tanggal</b></label>
+        <input type="date" id="editTanggal" required>
+        </div>
         <div>
         <label><b>Pengambil</b></label>
         <div class="combo-wrapper">
-            <input type="text" id="editPengambilSearch" class="combo-input" placeholder="-- Cari Nama Pengambil --" autocomplete="off" required>
+            <input
+                type="text"
+                id="editPengambilSearch"
+                class="combo-input"
+                placeholder="-- Cari Nama Pengambil --"
+                autocomplete="off"
+                required>
             <input type="hidden" id="editPengambil">
             <div class="combo-dropdown" id="editPengambilDropdown"></div>
         </div>
         </div>
-        <div><label><b>Departemen</b></label><input type="text" id="editDepartemen" readonly></div>
-        <div><label><b>Jabatan</b></label><input type="text" id="editJabatan" readonly></div>
-        <div style="grid-column:1/3;"><label><b>Keterangan</b></label><input type="text" id="editKeterangan" placeholder="Keterangan (opsional)"></div>
-        </form>
-        <br>
-        <h3><span>📦 Barang</span></h3><br>
-        <div class="header-label">
-            <span>Barang</span><span>Kategori</span><span>Satuan</span>
-            <span>Sisa Stok</span><span>Qty Keluar</span><span></span>
+        <div>
+        <label><b>Departemen</b></label>
+        <input type="text" id="editDepartemen" readonly>
         </div>
-        <div class="detail-wrapper" id="editDetailRows"></div>
+        <div>
+        <label><b>Jabatan</b></label>
+        <input type="text" id="editJabatan" readonly>
+        </div>
+        <div style="grid-column:1/3;">
+        <label><b>Keterangan</b></label>
+        <input type="text" id="editKeterangan" placeholder="Keterangan (opsional)">
+        </div>
+        </form>
+
         <br>
+
+        <h3><span>📦 Barang</span></h3>
+        <br>
+
+        <div class="header-label">
+            <span>Barang</span>
+            <span>Kategori</span>
+            <span>Satuan</span>
+            <span>Sisa Stok</span>
+            <span>Qty Keluar</span>
+            <span></span>
+        </div>
+        <div class="detail-wrapper" id="editDetailRows">
+            <!-- baris barang yang diedit diisi lewat JS -->
+        </div>
+
+        <br>
+
         <div style="display:flex;gap:10px;">
-        <button type="button" id="btnSimpanEditKeluar">💾 Simpan Perubahan</button>
+        <button type="button" id="btnSimpanEditKeluar">
+        💾 Simpan Perubahan
+        </button>
         </div>
     </div>
 </div>
