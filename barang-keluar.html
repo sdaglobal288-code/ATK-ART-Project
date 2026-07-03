@@ -214,6 +214,13 @@
         background:rgba(59,130,246,.22);
     }
 
+    .empty-state{
+        text-align:center;
+        color:#64748b;
+        font-style:italic;
+        padding:20px !important;
+    }
+
     /* ---------- Modal Edit Barang Keluar ---------- */
 
     .modal-overlay{
@@ -247,6 +254,10 @@
 
     .modal-box-wide{
         max-width:780px;
+    }
+
+    .modal-box-xwide{
+        max-width:960px;
     }
 
     .modal-header{
@@ -327,6 +338,76 @@
 
     #btnSimpanEditKeluar:hover{
         background:#2563eb;
+    }
+
+    /* ---------- Modal Hasil Import ---------- */
+
+    #importSummary{
+        background:rgba(255,255,255,.02);
+        border:1px solid #263041;
+        border-radius:10px;
+        padding:12px 14px;
+    }
+
+    .status-badge{
+        display:inline-block;
+        padding:4px 10px;
+        border-radius:999px;
+        font-size:12px;
+        font-weight:600;
+        white-space:nowrap;
+    }
+
+    .status-badge.sukses{
+        background:rgba(34,197,94,.15);
+        color:#4ade80;
+        border:1px solid rgba(34,197,94,.35);
+    }
+
+    .status-badge.gagal{
+        background:rgba(239,68,68,.15);
+        color:#f87171;
+        border:1px solid rgba(239,68,68,.35);
+    }
+
+    #tableHasilImport th,
+    #tableHasilImport td{
+        font-size:13px;
+    }
+
+    #btnDownloadGagalImport{
+        background:rgba(59,130,246,.12);
+        color:#60a5fa;
+        border:1px solid rgba(59,130,246,.35);
+        border-radius:8px;
+        padding:10px 16px;
+        cursor:pointer;
+        font-weight:600;
+        font-size:13.5px;
+        display:inline-flex;
+        align-items:center;
+        gap:6px;
+        transition:background .15s;
+    }
+
+    #btnDownloadGagalImport:hover{
+        background:rgba(59,130,246,.22);
+    }
+
+    #btnTutupHasilImport2{
+        background:rgba(255,255,255,.06);
+        color:#cbd5e1;
+        border:1px solid #334155;
+        border-radius:8px;
+        padding:10px 16px;
+        cursor:pointer;
+        font-weight:600;
+        font-size:13.5px;
+        transition:background .15s;
+    }
+
+    #btnTutupHasilImport2:hover{
+        background:rgba(255,255,255,.12);
     }
 </style>
 </head>
@@ -416,7 +497,7 @@ id="btnSimpan">
 <div class="panel">
 <h3>Histori Barang Keluar</h3>
 <br>
-<div class="toolbar" style="margin-bottom:14px;">
+<div class="toolbar" style="margin-bottom:14px;flex-wrap:wrap;">
 <button
 class="btn-import"
 onclick="document.getElementById('fileImport').click()">
@@ -427,6 +508,11 @@ type="file"
 id="fileImport"
 accept=".xlsx,.xls"
 hidden>
+<button
+class="btn-import"
+onclick="downloadTemplateImport()">
+📄 Template Import
+</button>
 <button
 class="btn-export"
 onclick="exportExcel()">
@@ -522,6 +608,44 @@ style="width:100%;padding:10px;margin-bottom:10px;border:1px solid #334155;borde
         <div style="display:flex;gap:10px;">
         <button type="button" id="btnSimpanEditKeluar">
         💾 Simpan Perubahan
+        </button>
+        </div>
+    </div>
+</div>
+
+<!-- ================= MODAL HASIL IMPORT ================= -->
+<div class="modal-overlay" id="modalHasilImport">
+    <div class="modal-box modal-box-xwide">
+        <div class="modal-header">
+            <h3>📋 Hasil Import Barang Keluar</h3>
+            <button type="button" class="modal-close" id="btnTutupModalHasilImport">✕</button>
+        </div>
+
+        <div id="importSummary" style="margin-bottom:14px;font-size:13.5px;color:#e2e8f0;"></div>
+
+        <table id="tableHasilImport">
+            <thead>
+                <tr>
+                    <th width="60">Baris</th>
+                    <th width="110">Tanggal</th>
+                    <th>NIK / Nama Pengambil</th>
+                    <th width="120">Kode Barang</th>
+                    <th width="60">Qty</th>
+                    <th width="90">Status</th>
+                    <th>Keterangan</th>
+                </tr>
+            </thead>
+            <tbody></tbody>
+        </table>
+
+        <br>
+
+        <div style="display:flex;gap:10px;flex-wrap:wrap;">
+        <button type="button" id="btnDownloadGagalImport" style="display:none;">
+        📥 Download Baris Gagal (untuk diperbaiki &amp; upload ulang)
+        </button>
+        <button type="button" id="btnTutupHasilImport2" onclick="tutupModalHasilImport()">
+        Tutup
         </button>
         </div>
     </div>
