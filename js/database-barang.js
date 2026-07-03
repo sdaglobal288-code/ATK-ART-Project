@@ -745,6 +745,95 @@ function exportExcel() {
 // yang tidak masuk semua.
 // =====================================
 
+// =====================================
+// OVERLAY PROGRESS IMPORT MASSAL
+// Dibuat lewat JS (tidak perlu ubah file HTML) supaya user tahu proses
+// masih berjalan, dan tidak menutup/pindah tab di tengah jalan.
+// =====================================
+
+let sedangImportStokAwal = false;
+
+function tampilkanOverlayImportProgress(totalBaris){
+
+    let overlay = document.getElementById("overlayImportStokAwal");
+
+    if(!overlay){
+
+        overlay = document.createElement("div");
+        overlay.id = "overlayImportStokAwal";
+        overlay.style.cssText = `
+            position:fixed; inset:0; background:rgba(8,9,15,.75);
+            z-index:2000; display:flex; align-items:center; justify-content:center;
+            padding:20px;
+        `;
+
+        overlay.innerHTML = `
+            <div style="
+                background:var(--db-surface,#171926); border:1px solid var(--db-border,#2a2d3d);
+                border-radius:14px; padding:26px 28px; width:380px; max-width:100%;
+                box-shadow:0 20px 50px rgba(0,0,0,.5); text-align:center;
+                font-family:'Inter',sans-serif; color:var(--db-text,#e9eaf2);
+            ">
+                <div style="font-size:15px; font-weight:700; margin-bottom:6px;">
+                    ⏳ Sedang Import Stok Awal...
+                </div>
+                <div id="overlayImportStokAwalTeks" style="font-size:13px; color:var(--db-muted,#9498ab); margin-bottom:14px;">
+                    Memproses 0 dari ${totalBaris} barang...
+                </div>
+                <div style="background:var(--db-surface-2,#1e2130); border-radius:999px; height:10px; overflow:hidden;">
+                    <div id="overlayImportStokAwalBar" style="
+                        height:100%; width:0%;
+                        background:linear-gradient(135deg,var(--db-purple,#6c5dd3),var(--db-purple-dark,#5a4cc0));
+                        transition:width .15s ease;
+                    "></div>
+                </div>
+                <div style="font-size:12px; color:var(--db-muted,#9498ab); margin-top:14px; line-height:1.5;">
+                    ⚠ Jangan tutup atau pindah tab sampai proses ini selesai,
+                    supaya tidak ada barang yang terlewat.
+                </div>
+            </div>
+        `;
+
+        document.body.appendChild(overlay);
+
+    }
+
+    overlay.style.display = "flex";
+
+}
+
+function updateOverlayImportProgress(sudahDiproses, totalBaris){
+
+    const teks = document.getElementById("overlayImportStokAwalTeks");
+    const bar  = document.getElementById("overlayImportStokAwalBar");
+
+    if(teks) teks.textContent = `Memproses ${sudahDiproses} dari ${totalBaris} barang...`;
+    if(bar)  bar.style.width  = `${totalBaris > 0 ? Math.round((sudahDiproses / totalBaris) * 100) : 0}%`;
+
+}
+
+function sembunyikanOverlayImportProgress(){
+
+    const overlay = document.getElementById("overlayImportStokAwal");
+
+    if(overlay) overlay.style.display = "none";
+
+}
+
+// Peringatan browser kalau user coba tutup/refresh/pindah tab
+// SELAGI proses import massal masih berjalan.
+window.addEventListener("beforeunload", function(e){
+
+    if(sedangImportStokAwal){
+
+        e.preventDefault();
+        e.returnValue = "";
+        return "";
+
+    }
+
+});
+
 document
 .getElementById("fileImportStok")
 .addEventListener("change", function(e){
@@ -850,7 +939,15 @@ document
             let tidakDitemukan = 0;
             let gagal = 0;
 
+            sedangImportStokAwal = true;
+            tampilkanOverlayImportProgress(dataValid.length);
+
+            let sudahDiproses = 0;
+
             for(const row of dataValid){
+
+                sudahDiproses++;
+                updateOverlayImportProgress(sudahDiproses, dataValid.length);
 
                 const item = dataBarang.find(b =>
                     b.kode_barang.trim().toLowerCase() === row.kode_barang.toLowerCase()
@@ -931,6 +1028,9 @@ document
 
             }
 
+            sedangImportStokAwal = false;
+            sembunyikanOverlayImportProgress();
+
             const totalDilewatiFormat = reportRows.length - berhasil - dilewatiSudahAdaTransaksi - tidakDitemukan - gagal;
 
             alert(
@@ -969,6 +1069,9 @@ document
 
         }
         finally{
+
+            sedangImportStokAwal = false;
+            sembunyikanOverlayImportProgress();
 
             e.target.value = "";
 
