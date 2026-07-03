@@ -213,8 +213,8 @@ async function loadStokGudang(){
 }
 
 // =====================================
-// UBAH STOK GUDANG (dipanggil saat simpan / edit BTB)
-// delta boleh positif (tambah) atau negatif (kurangi, saat edit).
+// UBAH STOK GUDANG (dipanggil saat simpan / edit / import BTB)
+// delta boleh positif (tambah) atau negatif (kurangi, saat edit/hapus).
 // Upsert manual: kalau baris (barang_id, gudang) sudah ada -> update,
 // kalau belum ada -> insert baru (hanya masuk akal untuk delta positif).
 // =====================================
@@ -1548,18 +1548,522 @@ async function exportExcel(){
 }
 
 // =====================================
-// IMPORT
+// IMPORT EXCEL (MEMBUAT BTB BARU + ITEM SEKALIGUS)
+// =====================================
+// Format kolom yang dibaca (fleksibel terhadap huruf besar/kecil dan
+// nama alternatif): No BTB, Tanggal, Supplier, Keterangan, Kode Barang, Qty
+// - SAMA seperti hasil Export Excel, jadi file hasil export bisa
+//   langsung dipakai sebagai template import.
+// - Beberapa baris dengan No BTB yang sama akan digabung jadi SATU BTB
+//   dengan banyak item (multi-item), persis seperti input manual.
 // =====================================
 
 const fileImportEl = document.getElementById("fileImport");
 
 if(fileImportEl){
 
-    fileImportEl.addEventListener("change",function(){
+    fileImportEl.addEventListener("change", handleImportExcelBTB);
 
-        alert("Fitur Import Excel akan dibuat pada tahap berikutnya.");
+}
 
-    });
+// ---------- helper: parse berbagai format tanggal dari Excel ----------
+
+function parseTanggalExcel(value){
+
+    if(value === null || value === undefined || value === "") return null;
+
+    if(value instanceof Date){
+
+        const y = value.getFullYear();
+        const m = String(value.getMonth() + 1).padStart(2, "0");
+        const d = String(value.getDate()).padStart(2, "0");
+
+        return `${y}-${m}-${d}`;
+
+    }
+
+    if(typeof value === "number"){
+
+        // serial date Excel (basis 1899-12-30)
+        const epoch = new Date(Math.round((value - 25569) * 86400 * 1000));
+
+        const y = epoch.getUTCFullYear();
+        const m = String(epoch.getUTCMonth() + 1).padStart(2, "0");
+        const d = String(epoch.getUTCDate()).padStart(2, "0");
+
+        return `${y}-${m}-${d}`;
+
+    }
+
+    if(typeof value === "string"){
+
+        const trimmed = value.trim();
+
+        if(/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) return trimmed;
+
+        // coba format D/M/YYYY atau D-M-YYYY
+        const match = trimmed.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
+
+        if(match){
+
+            const d = match[1].padStart(2, "0");
+            const m = match[2].padStart(2, "0");
+            const y = match[3];
+
+            return `${y}-${m}-${d}`;
+
+        }
+
+        const parsed = new Date(trimmed);
+
+        if(!isNaN(parsed.getTime())){
+
+            const y = parsed.getFullYear();
+            const m = String(parsed.getMonth() + 1).padStart(2, "0");
+            const d = String(parsed.getDate()).padStart(2, "0");
+
+            return `${y}-${m}-${d}`;
+
+        }
+
+    }
+
+    return null;
+
+}
+
+async function handleImportExcelBTB(e){
+
+    const file = e.target.files[0];
+
+    if(!file) return;
+
+    if(typeof XLSX === "undefined"){
+        alert("Library Excel belum termuat. Coba refresh halaman lalu ulangi.");
+        e.target.value = "";
+        return;
+    }
+
+    const reader = new FileReader();
+
+    reader.onload = async function(evt){
+
+        try{
+
+            const data = new Uint8Array(evt.target.result);
+            const workbook = XLSX.read(data, { type: "array", cellDates: true });
+
+            const sheetName = workbook.SheetNames[0];
+            const sheet = workbook.Sheets[sheetName];
+
+            const rows = XLSX.utils.sheet_to_json(sheet, { defval: "" });
+
+            if(rows.length === 0){
+                alert("File Excel kosong atau format tidak sesuai.");
+                return;
+            }
+
+            //---------------------------------
+            // NORMALISASI BARIS MENTAH
+            //---------------------------------
+
+            const rawRows = rows.map(row => ({
+                no_btb: String(
+                    row["No BTB"] ?? row["no_btb"] ?? row["NO BTB"] ?? ""
+                ).trim(),
+                tanggal_mentah:
+                    row["Tanggal"] ?? row["tanggal"] ?? row["TANGGAL"] ?? "",
+                supplier: String(
+                    row["Supplier"] ?? row["supplier"] ?? row["SUPPLIER"] ?? ""
+                ).trim(),
+                keterangan: String(
+                    row["Keterangan"] ?? row["keterangan"] ?? row["KETERANGAN"] ?? ""
+                ).trim(),
+                kode_barang: String(
+                    row["Kode Barang"] ?? row["kode_barang"] ?? row["KODE BARANG"] ?? ""
+                ).trim(),
+                qty_mentah:
+                    row["Qty"] ?? row["qty"] ?? row["QTY"] ?? ""
+            }));
+
+            //---------------------------------
+            // KELOMPOKKAN PER NO BTB
+            //---------------------------------
+
+            const grup = new Map();
+            const reportRows = [];
+
+            rawRows.forEach((row, idx) => {
+
+                const nomorBaris = idx + 2; // perkiraan nomor baris asli di Excel
+
+                if(row.no_btb === ""){
+
+                    reportRows.push({
+                        "Baris Excel": nomorBaris,
+                        "No BTB": "(kosong)",
+                        "Kode Barang": row.kode_barang || "-",
+                        "Status": "Dilewati",
+                        "Keterangan": "Baris tidak punya No BTB"
+                    });
+
+                    return;
+
+                }
+
+                const tanggal = parseTanggalExcel(row.tanggal_mentah);
+                const qty = Number(row.qty_mentah);
+
+                if(!grup.has(row.no_btb)){
+
+                    grup.set(row.no_btb, {
+                        tanggal: null,
+                        supplier: "",
+                        keterangan: "",
+                        items: [],
+                        masalahBaris: []
+                    });
+
+                }
+
+                const g = grup.get(row.no_btb);
+
+                if(!g.tanggal && tanggal) g.tanggal = tanggal;
+                if(!g.supplier && row.supplier) g.supplier = row.supplier;
+                if(!g.keterangan && row.keterangan) g.keterangan = row.keterangan;
+
+                if(row.kode_barang === ""){
+
+                    g.masalahBaris.push(`Baris ${nomorBaris}: Kode Barang kosong`);
+                    return;
+
+                }
+
+                if(isNaN(qty) || qty <= 0){
+
+                    g.masalahBaris.push(`Baris ${nomorBaris}: Qty "${row.qty_mentah}" tidak valid`);
+                    return;
+
+                }
+
+                g.items.push({
+                    kode_barang: row.kode_barang,
+                    qty,
+                    baris: nomorBaris
+                });
+
+            });
+
+            if(grup.size === 0){
+
+                alert("Tidak ditemukan baris valid (kolom No BTB kosong semua). Pastikan format kolom sesuai.");
+                return;
+
+            }
+
+            const totalBTB = grup.size;
+            const totalItem = Array.from(grup.values()).reduce((s, g) => s + g.items.length, 0);
+
+            if(!confirm(
+                `Ditemukan ${totalBTB} No BTB (${totalItem} baris item) dari file ini.\n\n` +
+                `Proses ini akan MEMBUAT transaksi Barang Masuk baru dan MENAMBAH Sisa Stok ` +
+                `di gudang ${user.gudang}.\n\n` +
+                `Lanjutkan import?`
+            )){
+                return;
+            }
+
+            //---------------------------------
+            // PROSES SETIAP BTB
+            //---------------------------------
+
+            let btbBerhasil = 0;
+            let btbDilewati = 0;
+            let btbGagal = 0;
+
+            for(const [noBTB, g] of grup.entries()){
+
+                // catat dulu baris item yang formatnya bermasalah (kode/qty invalid)
+                g.masalahBaris.forEach(pesan => {
+
+                    reportRows.push({
+                        "Baris Excel": "-",
+                        "No BTB": noBTB,
+                        "Kode Barang": "-",
+                        "Status": "Baris Dilewati",
+                        "Keterangan": pesan
+                    });
+
+                });
+
+                if(!g.tanggal){
+
+                    btbDilewati++;
+
+                    reportRows.push({
+                        "Baris Excel": "-",
+                        "No BTB": noBTB,
+                        "Kode Barang": "-",
+                        "Status": "BTB Dilewati",
+                        "Keterangan": "Tanggal kosong / format tidak dikenali"
+                    });
+
+                    continue;
+
+                }
+
+                if(!g.supplier){
+
+                    btbDilewati++;
+
+                    reportRows.push({
+                        "Baris Excel": "-",
+                        "No BTB": noBTB,
+                        "Kode Barang": "-",
+                        "Status": "BTB Dilewati",
+                        "Keterangan": "Supplier kosong"
+                    });
+
+                    continue;
+
+                }
+
+                if(g.items.length === 0){
+
+                    btbDilewati++;
+
+                    reportRows.push({
+                        "Baris Excel": "-",
+                        "No BTB": noBTB,
+                        "Kode Barang": "-",
+                        "Status": "BTB Dilewati",
+                        "Keterangan": "Tidak ada baris item yang valid untuk BTB ini"
+                    });
+
+                    continue;
+
+                }
+
+                // cek apakah No BTB sudah ada di database
+                const { data: cekBTB, error: cekErr } = await supabaseClient
+                    .from("barang_masuk")
+                    .select("id")
+                    .eq("no_btb", noBTB);
+
+                if(cekErr){
+
+                    btbGagal++;
+
+                    reportRows.push({
+                        "Baris Excel": "-",
+                        "No BTB": noBTB,
+                        "Kode Barang": "-",
+                        "Status": "BTB Gagal",
+                        "Keterangan": "Gagal cek duplikat: " + cekErr.message
+                    });
+
+                    continue;
+
+                }
+
+                if(cekBTB && cekBTB.length > 0){
+
+                    btbDilewati++;
+
+                    reportRows.push({
+                        "Baris Excel": "-",
+                        "No BTB": noBTB,
+                        "Kode Barang": "-",
+                        "Status": "BTB Dilewati",
+                        "Keterangan": "No BTB sudah ada di database (tidak diimport ulang)"
+                    });
+
+                    continue;
+
+                }
+
+                // cocokkan tiap item ke master barang
+                const itemSiap = [];
+                let adaItemTidakDitemukan = false;
+
+                for(const it of g.items){
+
+                    const barang = findBarangByKode(it.kode_barang);
+
+                    if(!barang){
+
+                        adaItemTidakDitemukan = true;
+
+                        reportRows.push({
+                            "Baris Excel": it.baris,
+                            "No BTB": noBTB,
+                            "Kode Barang": it.kode_barang,
+                            "Status": "Item Tidak Ditemukan",
+                            "Keterangan": "Kode barang tidak ada di master_barang"
+                        });
+
+                        continue;
+
+                    }
+
+                    itemSiap.push({ barang, qty: it.qty });
+
+                }
+
+                if(itemSiap.length === 0){
+
+                    btbDilewati++;
+
+                    reportRows.push({
+                        "Baris Excel": "-",
+                        "No BTB": noBTB,
+                        "Kode Barang": "-",
+                        "Status": "BTB Dilewati",
+                        "Keterangan": "Semua item pada BTB ini tidak ditemukan di master_barang"
+                    });
+
+                    continue;
+
+                }
+
+                // simpan header + detail + stok
+                try{
+
+                    const { data: header, error: headerErr } = await supabaseClient
+                        .from("barang_masuk")
+                        .insert([{
+                            no_btb: noBTB,
+                            tanggal: g.tanggal,
+                            supplier: g.supplier,
+                            keterangan: g.keterangan || "",
+                            gudang: user.gudang,
+                            created_by: user.nama
+                        }])
+                        .select()
+                        .single();
+
+                    if(headerErr) throw headerErr;
+
+                    for(const { barang, qty } of itemSiap){
+
+                        const { error: detailErr } = await supabaseClient
+                            .from("barang_masuk_detail")
+                            .insert([{
+                                barang_masuk_id: header.id,
+                                kode_barang: barang.kode_barang,
+                                nama_barang: barang.nama_barang,
+                                kategori: barang.kategori,
+                                satuan: barang.satuan,
+                                qty
+                            }]);
+
+                        if(detailErr) throw detailErr;
+
+                        await tambahStokGudang(barang.id, qty);
+
+                    }
+
+                    btbBerhasil++;
+
+                    reportRows.push({
+                        "Baris Excel": "-",
+                        "No BTB": noBTB,
+                        "Kode Barang": `${itemSiap.length} item tersimpan`,
+                        "Status": "BTB Berhasil",
+                        "Keterangan": adaItemTidakDitemukan
+                            ? "Sebagian item dilewati (lihat baris \"Item Tidak Ditemukan\")"
+                            : ""
+                    });
+
+                }
+                catch(err){
+
+                    console.error(`Gagal import BTB ${noBTB}:`, err);
+
+                    btbGagal++;
+
+                    reportRows.push({
+                        "Baris Excel": "-",
+                        "No BTB": noBTB,
+                        "Kode Barang": "-",
+                        "Status": "BTB Gagal",
+                        "Keterangan": err.message || "Kesalahan tidak diketahui"
+                    });
+
+                }
+
+            }
+
+            alert(
+                `Import Excel selesai.\n\n` +
+                `BTB berhasil dibuat : ${btbBerhasil}\n` +
+                `BTB dilewati        : ${btbDilewati}\n` +
+                `BTB gagal           : ${btbGagal}`
+            );
+
+            const adaMasalah = reportRows.some(r =>
+                r["Status"] !== "BTB Berhasil"
+            );
+
+            if(adaMasalah){
+
+                const mauLaporan = confirm(
+                    "Ada baris/BTB yang tidak masuk 100% sesuai rencana.\n\n" +
+                    "Download laporan detail (Excel) supaya bisa dicek satu-satu?"
+                );
+
+                if(mauLaporan){
+
+                    downloadLaporanImportBTB(reportRows);
+
+                }
+
+            }
+
+            await loadBarang();
+            await loadStokGudang();
+            refreshSemuaBarisStok();
+
+            loadBarangMasuk();
+
+        }
+        catch(err){
+
+            console.error(err);
+            alert("Gagal import Excel: " + err.message);
+
+        }
+        finally{
+
+            e.target.value = "";
+
+        }
+
+    };
+
+    reader.readAsArrayBuffer(file);
+
+}
+
+// =====================================
+// DOWNLOAD LAPORAN HASIL IMPORT
+// =====================================
+
+function downloadLaporanImportBTB(reportRows){
+
+    if(typeof XLSX === "undefined"){
+        alert("Library Excel belum termuat, tidak bisa membuat laporan.");
+        return;
+    }
+
+    const ws = XLSX.utils.json_to_sheet(reportRows);
+    const wb = XLSX.utils.book_new();
+
+    XLSX.utils.book_append_sheet(wb, ws, "Laporan Import Barang Masuk");
+
+    const tanggal = new Date().toISOString().slice(0, 10);
+
+    XLSX.writeFile(wb, `Laporan_Import_BarangMasuk_${user.gudang}_${tanggal}.xlsx`);
 
 }
 
