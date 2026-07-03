@@ -181,6 +181,22 @@
         }
     }
 
+    /* ---------- Highlight box ---------- */
+
+    .highlight-box{
+        border:1px solid rgba(59,130,246,.35);
+        background:rgba(59,130,246,.08);
+        border-radius:12px;
+        padding:14px 18px;
+        color:#e2e8f0;
+        font-size:14px;
+        line-height:1.6;
+    }
+
+    .highlight-box b{
+        color:#60a5fa;
+    }
+
     /* ---------- Tabel Stok ---------- */
 
     .stok-empty{
@@ -260,6 +276,31 @@ onclick="location.href='dashboard.html'">
 <h4>Top 5 Barang Keluar Terbanyak (periode ini)</h4>
 <div class="chart-canvas-wrap">
 <canvas id="chartTopKeluar"></canvas>
+</div>
+</div>
+</div>
+</div>
+<br>
+
+<!-- ================= GRAFIK PER DEPARTEMEN ================= -->
+<div class="panel">
+<h3><span>🏢 Pengeluaran Berdasarkan Departemen</span></h3>
+<br>
+<div class="highlight-box" id="highlightDepartemen">
+    Terapkan filter periode untuk melihat ringkasan.
+</div>
+<br>
+<div class="chart-grid">
+<div class="chart-box">
+<h4>Total Qty Keluar per Departemen (periode ini)</h4>
+<div class="chart-canvas-wrap">
+<canvas id="chartDepartemen"></canvas>
+</div>
+</div>
+<div class="chart-box">
+<h4>Top 5 Barang Keluar — Rincian per Departemen</h4>
+<div class="chart-canvas-wrap">
+<canvas id="chartBarangDepartemen"></canvas>
 </div>
 </div>
 </div>
