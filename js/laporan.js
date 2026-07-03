@@ -34,7 +34,6 @@ let chartTrenInstance = null;
 let chartKategoriInstance = null;
 let chartTopKeluarInstance = null;
 let chartDepartemenInstance = null;
-let chartBarangDepartemenInstance = null;
 
 // cache master barang (untuk join kategori pada tabel stok)
 let masterBarangList = [];
@@ -558,134 +557,6 @@ function renderChartDepartemen(itemsKeluar){
 }
 
 // =====================================
-// RENDER GRAFIK BARANG KELUAR - RINCIAN PER DEPARTEMEN (GROUPED BAR)
-// Semua barang ditampilkan (tidak dibatasi 5), maksimal 5 departemen
-// teratas dipakai sebagai seri warna supaya grafik tetap terbaca.
-// Menjawab: "barang X paling banyak diambil oleh departemen apa"
-// =====================================
-
-function renderChartBarangDepartemen(itemsKeluar){
-
-    // total qty per barang, diurutkan (tidak dibatasi lagi)
-    const qtyPerBarang = new Map();
-
-    itemsKeluar.forEach(it => {
-        qtyPerBarang.set(it.nama_barang, (qtyPerBarang.get(it.nama_barang) || 0) + it.qty);
-    });
-
-    const semuaBarang = Array.from(qtyPerBarang.entries())
-        .sort((a, b) => b[1] - a[1])
-        .map(t => t[0]);
-
-    // batasi maksimal 5 departemen teratas (berdasarkan total qty keseluruhan)
-    // supaya grafik tidak terlalu penuh kalau departemen banyak
-    const qtyPerDeptGlobal = new Map();
-
-    itemsKeluar.forEach(it => {
-        qtyPerDeptGlobal.set(it.departemen, (qtyPerDeptGlobal.get(it.departemen) || 0) + it.qty);
-    });
-
-    const topDepartemen = Array.from(qtyPerDeptGlobal.entries())
-        .sort((a, b) => b[1] - a[1])
-        .slice(0, 5)
-        .map(d => d[0]);
-
-    // matrix: barangDeptMap[barang][departemen] = qty
-    const barangDeptMap = new Map();
-
-    itemsKeluar.forEach(it => {
-
-        if(!topDepartemen.includes(it.departemen)) return;
-
-        if(!barangDeptMap.has(it.nama_barang)){
-            barangDeptMap.set(it.nama_barang, new Map());
-        }
-
-        const inner = barangDeptMap.get(it.nama_barang);
-
-        inner.set(it.departemen, (inner.get(it.departemen) || 0) + it.qty);
-
-    });
-
-    const datasets = topDepartemen.map((dept, i) => ({
-        label: dept,
-        data: semuaBarang.map(barang => {
-            const inner = barangDeptMap.get(barang);
-            return inner ? (inner.get(dept) || 0) : 0;
-        }),
-        backgroundColor: PALET_WARNA[i % PALET_WARNA.length] + "cc",
-        borderColor: PALET_WARNA[i % PALET_WARNA.length],
-        borderWidth: 1,
-        borderRadius: 4
-    }));
-
-    // sesuaikan lebar canvas mengikuti jumlah barang supaya label
-    // tidak terlalu berdesakan kalau barangnya banyak
-    const wrap = document.getElementById("chartBarangDepartemen").closest(".chart-canvas-wrap");
-
-    if(wrap){
-        const lebarMinimal = Math.max(100, semuaBarang.length * 90);
-        wrap.style.overflowX = semuaBarang.length > 8 ? "auto" : "visible";
-        wrap.style.minWidth = "100%";
-        document.getElementById("chartBarangDepartemen").style.minWidth =
-            semuaBarang.length > 8 ? `${lebarMinimal}px` : "100%";
-    }
-
-    const ctx = document.getElementById("chartBarangDepartemen").getContext("2d");
-
-    if(chartBarangDepartemenInstance) chartBarangDepartemenInstance.destroy();
-
-    if(semuaBarang.length === 0){
-
-        chartBarangDepartemenInstance = null;
-        return;
-
-    }
-
-    chartBarangDepartemenInstance = new Chart(ctx, {
-        type: "bar",
-        data: {
-            labels: semuaBarang,
-            datasets
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-                legend: {
-                    position: "bottom",
-                    labels: { color: "#e2e8f0", boxWidth: 12, padding: 10 }
-                },
-                tooltip: {
-                    callbacks: {
-                        label: function(ctx){
-                            const totalBarangIni = ctx.chart.data.datasets
-                                .reduce((s, ds) => s + (ds.data[ctx.dataIndex] || 0), 0);
-                            const persen = totalBarangIni > 0
-                                ? ((ctx.parsed.y / totalBarangIni) * 100).toFixed(1)
-                                : 0;
-                            return `${ctx.dataset.label}: ${formatAngka(ctx.parsed.y)} (${persen}% dari barang ini)`;
-                        }
-                    }
-                }
-            },
-            scales: {
-                x: {
-                    ticks: { color: "#94a3b8" },
-                    grid: { color: "rgba(148,163,184,.1)" }
-                },
-                y: {
-                    beginAtZero: true,
-                    ticks: { color: "#94a3b8" },
-                    grid: { color: "rgba(148,163,184,.1)" }
-                }
-            }
-        }
-    });
-
-}
-
-// =====================================
 // HIGHLIGHT: KOMBINASI BARANG + DEPARTEMEN DENGAN QTY TERTINGGI
 // =====================================
 
@@ -851,7 +722,6 @@ async function muatLaporan(){
         renderChartTren(masukResult.items, keluarResult.items);
         renderChartTopKeluar(keluarResult.items);
         renderChartDepartemen(keluarResult.items);
-        renderChartBarangDepartemen(keluarResult.items);
         renderHighlightDepartemen(keluarResult.items);
 
         laporanTerakhir = {
