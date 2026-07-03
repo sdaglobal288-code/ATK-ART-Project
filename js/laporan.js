@@ -261,7 +261,14 @@ function renderChartTren(itemsMasuk, itemsKeluar){
     const dataMasuk = semuaBulan.map(b => masukPerBulan.get(b) || 0);
     const dataKeluar = semuaBulan.map(b => keluarPerBulan.get(b) || 0);
 
-    const ctx = document.getElementById("chartTren").getContext("2d");
+    const canvasTren = document.getElementById("chartTren");
+
+    if(!canvasTren){
+        console.error("Elemen #chartTren tidak ditemukan di halaman.");
+        return;
+    }
+
+    const ctx = canvasTren.getContext("2d");
 
     if(chartTrenInstance) chartTrenInstance.destroy();
 
@@ -341,7 +348,14 @@ function renderChartKategori(stokRows){
     const labels = Array.from(stokPerKategori.keys());
     const data = Array.from(stokPerKategori.values());
 
-    const ctx = document.getElementById("chartKategori").getContext("2d");
+    const canvasKategori = document.getElementById("chartKategori");
+
+    if(!canvasKategori){
+        console.error("Elemen #chartKategori tidak ditemukan di halaman.");
+        return;
+    }
+
+    const ctx = canvasKategori.getContext("2d");
 
     if(chartKategoriInstance) chartKategoriInstance.destroy();
 
@@ -412,14 +426,20 @@ function renderChartTopKeluar(itemsKeluar){
 
     // sesuaikan tinggi canvas mengikuti jumlah barang, supaya tidak
     // terlalu padat kalau barangnya banyak (tidak dibatasi 5 lagi)
-    const wrap = document.getElementById("chartTopKeluar").closest(".chart-canvas-wrap");
+    const canvasTopKeluar = document.getElementById("chartTopKeluar");
+    const wrap = canvasTopKeluar ? canvasTopKeluar.closest(".chart-canvas-wrap") : null;
 
     if(wrap){
         const tinggi = Math.max(280, labels.length * 26);
         wrap.style.height = `${tinggi}px`;
     }
 
-    const ctx = document.getElementById("chartTopKeluar").getContext("2d");
+    if(!canvasTopKeluar){
+        console.error("Elemen #chartTopKeluar tidak ditemukan di halaman.");
+        return;
+    }
+
+    const ctx = canvasTopKeluar.getContext("2d");
 
     if(chartTopKeluarInstance) chartTopKeluarInstance.destroy();
 
@@ -500,7 +520,14 @@ function renderChartDepartemen(itemsKeluar){
     const data = sorted.map(s => s[1]);
     const totalKeseluruhan = data.reduce((a, b) => a + b, 0);
 
-    const ctx = document.getElementById("chartDepartemen").getContext("2d");
+    const canvasDepartemen = document.getElementById("chartDepartemen");
+
+    if(!canvasDepartemen){
+        console.error("Elemen #chartDepartemen tidak ditemukan di halaman.");
+        return;
+    }
+
+    const ctx = canvasDepartemen.getContext("2d");
 
     if(chartDepartemenInstance) chartDepartemenInstance.destroy();
 
