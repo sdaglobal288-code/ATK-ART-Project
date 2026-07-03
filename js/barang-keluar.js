@@ -63,6 +63,26 @@ function findKaryawanById(id){
 
 }
 
+function findKaryawanByNik(nik){
+
+    if(!nik) return null;
+
+    return masterKaryawanList.find(k =>
+        String(k.nik).trim().toLowerCase() === String(nik).trim().toLowerCase()
+    );
+
+}
+
+function findKaryawanByNama(nama){
+
+    if(!nama) return null;
+
+    return masterKaryawanList.find(k =>
+        k.nama.trim().toLowerCase() === String(nama).trim().toLowerCase()
+    );
+
+}
+
 // =====================================
 // PENGAMBIL - COMBOBOX PENCARIAN (GENERIK, DIPAKAI FORM UTAMA & FORM EDIT)
 // =====================================
@@ -971,10 +991,6 @@ form.addEventListener("submit", async function(e){
 
             kodeSudahDipakai.add(barang.kode_barang);
 
-            // cek ulang stok realtime saat submit (bukan hanya dari cache),
-            // otomatis sudah khusus gudang user karena ambilStokLive()
-            // difilter dengan user.gudang
-
             const stokSaatIni = await ambilStokLive(barang.id);
 
             if(qty > stokSaatIni){
@@ -1332,9 +1348,6 @@ async function simpanEditKeluar(){
 
         const stokLiveBaru = await ambilStokLive(barang.id);
 
-        // Jika barang tidak berubah, qty lama sebenarnya masih "milik"
-        // transaksi ini (sudah dikurangi sebelumnya), jadi stok yang
-        // tersedia untuk perubahan = stok saat ini + qty lama.
         const stokTersedia = (String(barang.id) === String(barangIdLama))
             ? stokLiveBaru + qtyLama
             : stokLiveBaru;
@@ -1433,8 +1446,6 @@ async function hapusBarangKeluar(id){
 
     try{
 
-        // ambil dulu datanya supaya bisa kembalikan (kredit balik) stoknya
-
         const { data:dataLama, error: getErr } = await supabaseClient
 
         .from("barang_keluar")
@@ -1456,8 +1467,6 @@ async function hapusBarangKeluar(id){
         .eq("id",id);
 
         if(error) throw error;
-
-        // kembalikan stok yang tadinya dikurangi
 
         if(dataLama){
 
@@ -1492,9 +1501,6 @@ async function hapusBarangKeluar(id){
 
 // =====================================
 // EXPORT EXCEL
-// =====================================
-// Mengekspor seluruh histori Barang Keluar untuk gudang yang sedang
-// login, satu baris per transaksi.
 // =====================================
 
 async function exportExcel(){
@@ -1542,7 +1548,6 @@ async function exportExcel(){
 
         const ws = XLSX.utils.json_to_sheet(rows);
 
-        // lebar kolom biar enak dibaca
         ws["!cols"] = [
             {wch:12}, {wch:12}, {wch:22}, {wch:18}, {wch:16},
             {wch:14}, {wch:26}, {wch:16}, {wch:8}, {wch:10},
@@ -1569,16 +1574,247 @@ async function exportExcel(){
 }
 
 // =====================================
-// IMPORT
+// IMPORT EXCEL (BULK, SATU BARIS EXCEL = SATU TRANSAKSI KELUAR)
 // =====================================
+// Kolom yang dibaca (fleksibel, boleh huruf besar/kecil beda):
+//   - "Tanggal"        (format YYYY-MM-DD, DD/MM/YYYY, atau serial Excel)
+//   - "NIK"             -> dipakai utama untuk mencocokkan pengambil
+//   - "Pengambil"       -> fallback kalau NIK kosong/tidak cocok, cocokkan by nama
+//   - "Kode Barang"     -> wajib, dicocokkan ke master_barang.kode_barang
+//   - "Qty"             -> wajib, angka > 0
+//   - "Keterangan"      -> opsional
+// Departemen/Jabatan/Kategori/Satuan/Nama Barang selalu diambil dari
+// data master (karyawan & barang) yang sudah ada, BUKAN dari file,
+// supaya datanya tetap konsisten.
+// =====================================
+
+function parseTanggalExcel(nilai){
+
+    if(nilai === "" || nilai === null || nilai === undefined) return "";
+
+    if(typeof nilai === "number"){
+
+        const tgl = XLSX.SSF.parse_date_code(nilai);
+
+        if(!tgl) return "";
+
+        const mm = String(tgl.m).padStart(2, "0");
+        const dd = String(tgl.d).padStart(2, "0");
+
+        return `${tgl.y}-${mm}-${dd}`;
+
+    }
+
+    const str = String(nilai).trim();
+
+    if(/^\d{4}-\d{2}-\d{2}$/.test(str)) return str;
+
+    const cocok = str.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
+
+    if(cocok){
+
+        const [, dd, mm, yyyy] = cocok;
+
+        return `${yyyy}-${mm.padStart(2,"0")}-${dd.padStart(2,"0")}`;
+
+    }
+
+    return str;
+
+}
 
 const fileImportEl = document.getElementById("fileImport");
 
 if(fileImportEl){
 
-    fileImportEl.addEventListener("change",function(){
+    fileImportEl.addEventListener("change", function(e){
 
-        alert("Fitur Import Excel akan dibuat pada tahap berikutnya.");
+        const file = e.target.files[0];
+
+        if(!file) return;
+
+        if(typeof XLSX === "undefined"){
+
+            alert("Library Excel belum termuat. Coba refresh halaman lalu ulangi.");
+            e.target.value = "";
+            return;
+
+        }
+
+        const reader = new FileReader();
+
+        reader.onload = async function(evt){
+
+            try{
+
+                const data = new Uint8Array(evt.target.result);
+                const workbook = XLSX.read(data, { type: "array" });
+
+                const sheetName = workbook.SheetNames[0];
+                const sheet = workbook.Sheets[sheetName];
+
+                const rows = XLSX.utils.sheet_to_json(sheet, { defval: "" });
+
+                if(rows.length === 0){
+                    alert("File Excel kosong atau format tidak sesuai.");
+                    return;
+                }
+
+                const dataMasuk = rows.map((row, idx) => ({
+                    baris: idx + 2,
+                    tanggal: parseTanggalExcel(
+                        row["Tanggal"] ?? row["tanggal"] ?? ""
+                    ),
+                    nik: String(row["NIK"] ?? row["nik"] ?? "").trim(),
+                    pengambil: String(
+                        row["Pengambil"] ?? row["pengambil"] ?? row["Nama Pengambil"] ?? ""
+                    ).trim(),
+                    kode_barang: String(
+                        row["Kode Barang"] ?? row["kode_barang"] ?? row["Kode"] ?? ""
+                    ).trim(),
+                    qty: Number(row["Qty"] ?? row["qty"] ?? ""),
+                    keterangan: String(row["Keterangan"] ?? row["keterangan"] ?? "").trim()
+                }));
+
+                if(!confirm(
+                    `Ditemukan ${dataMasuk.length} baris di file Excel.\n\n` +
+                    `Import akan membuat transaksi Barang Keluar baru dan langsung ` +
+                    `mengurangi stok di gudang ${user.gudang}.\n\nLanjutkan?`
+                )){
+                    e.target.value = "";
+                    return;
+                }
+
+                let berhasil = 0;
+                const gagalList = [];
+
+                for(const row of dataMasuk){
+
+                    try{
+
+                        if(row.tanggal === ""){
+                            gagalList.push(`Baris ${row.baris}: tanggal kosong/format salah`);
+                            continue;
+                        }
+
+                        if(row.kode_barang === ""){
+                            gagalList.push(`Baris ${row.baris}: kode barang kosong`);
+                            continue;
+                        }
+
+                        if(!row.qty || isNaN(row.qty) || row.qty <= 0){
+                            gagalList.push(`Baris ${row.baris}: qty tidak valid`);
+                            continue;
+                        }
+
+                        let karyawan = findKaryawanByNik(row.nik);
+
+                        if(!karyawan) karyawan = findKaryawanByNama(row.pengambil);
+
+                        if(!karyawan){
+                            gagalList.push(
+                                `Baris ${row.baris}: pengambil "${row.nik || row.pengambil}" tidak ditemukan di Master Karyawan`
+                            );
+                            continue;
+                        }
+
+                        const barang = findBarangByKode(row.kode_barang);
+
+                        if(!barang){
+                            gagalList.push(
+                                `Baris ${row.baris}: kode barang "${row.kode_barang}" tidak ditemukan di Master Barang`
+                            );
+                            continue;
+                        }
+
+                        const stokSaatIni = await ambilStokLive(barang.id);
+
+                        if(row.qty > stokSaatIni){
+                            gagalList.push(
+                                `Baris ${row.baris}: stok "${barang.nama_barang}" tidak cukup ` +
+                                `(tersedia ${stokSaatIni}, diminta ${row.qty})`
+                            );
+                            continue;
+                        }
+
+                        const { error: insErr } = await supabaseClient
+                            .from("barang_keluar")
+                            .insert([{
+                                tanggal: row.tanggal,
+                                nik: karyawan.nik,
+                                nama_pengambil: karyawan.nama,
+                                departemen: karyawan.departemen,
+                                jabatan: karyawan.jabatan,
+                                kode_barang: barang.kode_barang,
+                                nama_barang: barang.nama_barang,
+                                kategori: barang.kategori,
+                                satuan: barang.satuan,
+                                qty: row.qty,
+                                keterangan: row.keterangan,
+                                gudang: user.gudang,
+                                created_by: user.nama
+                            }]);
+
+                        if(insErr){
+                            gagalList.push(`Baris ${row.baris}: gagal insert - ${insErr.message}`);
+                            continue;
+                        }
+
+                        await kurangiStokGudang(barang.id, row.qty);
+
+                        berhasil++;
+
+                    }
+                    catch(errBaris){
+
+                        console.error(`Error baris ${row.baris}:`, errBaris);
+                        gagalList.push(`Baris ${row.baris}: ${errBaris.message}`);
+
+                    }
+
+                }
+
+                let pesan =
+                    `Import selesai.\n\n` +
+                    `Berhasil : ${berhasil}\n` +
+                    `Gagal    : ${gagalList.length}`;
+
+                if(gagalList.length > 0){
+
+                    const contoh = gagalList.slice(0, 10).join("\n");
+
+                    pesan += `\n\nContoh baris gagal:\n${contoh}`;
+
+                    if(gagalList.length > 10){
+                        pesan += `\n...dan ${gagalList.length - 10} baris lain (lihat Console/F12 untuk daftar lengkap).`;
+                    }
+
+                    console.warn("Daftar lengkap baris gagal import:", gagalList);
+
+                }
+
+                alert(pesan);
+
+                await loadStokGudang();
+                refreshSemuaBarisStok();
+                await loadBarangKeluar();
+
+            }
+            catch(err){
+
+                console.error(err);
+                alert("Gagal membaca file Excel: " + err.message);
+
+            }
+            finally{
+
+                e.target.value = "";
+
+            }
+
+        };
+
+        reader.readAsArrayBuffer(file);
 
     });
 
