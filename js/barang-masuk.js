@@ -29,6 +29,10 @@ let masterSupplier = [];
 // stok per barang UNTUK GUDANG YANG SEDANG LOGIN (key: barang_id -> stok)
 let stokGudangMap = new Map();
 
+// hasil proses import excel terakhir (dipakai modal hasil import & download
+// baris bermasalah)
+let importResultsBTB = [];
+
 // =====================================
 // LOAD SUPPLIER
 // =====================================
@@ -1552,10 +1556,14 @@ async function exportExcel(){
 // =====================================
 // Format kolom yang dibaca (fleksibel terhadap huruf besar/kecil dan
 // nama alternatif): No BTB, Tanggal, Supplier, Keterangan, Kode Barang, Qty
-// - SAMA seperti hasil Export Excel, jadi file hasil export bisa
-//   langsung dipakai sebagai template import.
+// - SAMA seperti hasil Export Excel / Template Import, jadi file hasil
+//   export atau template bisa langsung dipakai sebagai acuan import.
 // - Beberapa baris dengan No BTB yang sama akan digabung jadi SATU BTB
 //   dengan banyak item (multi-item), persis seperti input manual.
+// - Setelah selesai, hasilnya ditampilkan di MODAL (bukan alert) berisi
+//   status per baris/BTB (Berhasil / Dilewati / Gagal) beserta alasannya,
+//   dan baris yang bermasalah bisa langsung didownload untuk diperbaiki
+//   lalu diimport ulang.
 // =====================================
 
 const fileImportEl = document.getElementById("fileImport");
@@ -1756,7 +1764,7 @@ async function handleImportExcelBTB(e){
 
             if(grup.size === 0){
 
-                alert("Tidak ditemukan baris valid (kolom No BTB kosong semua). Pastikan format kolom sesuai.");
+                alert("Tidak ditemukan baris valid (kolom No BTB kosong semua). Pastikan format kolom sesuai (klik 'Template Import' untuk contoh).");
                 return;
 
             }
@@ -1994,37 +2002,15 @@ async function handleImportExcelBTB(e){
 
             }
 
-            alert(
-                `Import Excel selesai.\n\n` +
-                `BTB berhasil dibuat : ${btbBerhasil}\n` +
-                `BTB dilewati        : ${btbDilewati}\n` +
-                `BTB gagal           : ${btbGagal}`
-            );
-
-            const adaMasalah = reportRows.some(r =>
-                r["Status"] !== "BTB Berhasil"
-            );
-
-            if(adaMasalah){
-
-                const mauLaporan = confirm(
-                    "Ada baris/BTB yang tidak masuk 100% sesuai rencana.\n\n" +
-                    "Download laporan detail (Excel) supaya bisa dicek satu-satu?"
-                );
-
-                if(mauLaporan){
-
-                    downloadLaporanImportBTB(reportRows);
-
-                }
-
-            }
+            importResultsBTB = reportRows;
 
             await loadBarang();
             await loadStokGudang();
             refreshSemuaBarisStok();
 
             loadBarangMasuk();
+
+            tampilkanHasilImportBTB(btbBerhasil, btbDilewati, btbGagal, reportRows);
 
         }
         catch(err){
@@ -2046,24 +2032,192 @@ async function handleImportExcelBTB(e){
 }
 
 // =====================================
-// DOWNLOAD LAPORAN HASIL IMPORT
+// MODAL HASIL IMPORT (tampilan status per baris/BTB, alasan gagal,
+// dan tombol download baris bermasalah)
 // =====================================
 
-function downloadLaporanImportBTB(reportRows){
+function tampilkanHasilImportBTB(berhasil, dilewati, gagal, reportRows){
+
+    const tbody = document.querySelector("#tableHasilImportBTB tbody");
+
+    tbody.innerHTML = "";
+
+    reportRows.forEach(r=>{
+
+        const sukses = r["Status"] === "BTB Berhasil";
+
+        const badge = sukses
+            ? `<span class="status-badge sukses">✔ ${r["Status"]}</span>`
+            : `<span class="status-badge gagal">✕ ${r["Status"]}</span>`;
+
+        tbody.innerHTML += `
+        <tr>
+            <td>${r["Baris Excel"]}</td>
+            <td>${r["No BTB"]}</td>
+            <td>${r["Kode Barang"]}</td>
+            <td>${badge}</td>
+            <td>${r["Keterangan"] || "-"}</td>
+        </tr>
+        `;
+
+    });
+
+    document.getElementById("importSummaryBTB").innerHTML =
+        `Total <b>${totalBTBUnik(reportRows)}</b> No BTB diproses — ` +
+        `<span style="color:#4ade80;">${berhasil} berhasil</span>, ` +
+        `<span style="color:#f87171;">${dilewati + gagal} bermasalah</span>.` +
+        ((dilewati + gagal) > 0
+            ? ` Perbaiki baris pada file yang didownload di bawah, lalu import ulang.`
+            : ``);
+
+    const btnDownloadGagal = document.getElementById("btnDownloadGagalImportBTB");
+
+    if(btnDownloadGagal){
+
+        btnDownloadGagal.style.display = (dilewati + gagal) > 0 ? "inline-flex" : "none";
+
+    }
+
+    document.getElementById("modalHasilImportBTB").classList.add("show");
+
+}
+
+function totalBTBUnik(reportRows){
+
+    const set = new Set(
+        reportRows
+            .filter(r => r["No BTB"] && r["No BTB"] !== "(kosong)")
+            .map(r => r["No BTB"])
+    );
+
+    return set.size;
+
+}
+
+function tutupModalHasilImportBTB(){
+
+    document.getElementById("modalHasilImportBTB").classList.remove("show");
+
+}
+
+const btnTutupModalHasilImportBTBEl = document.getElementById("btnTutupModalHasilImportBTB");
+
+if(btnTutupModalHasilImportBTBEl){
+
+    btnTutupModalHasilImportBTBEl.addEventListener("click", tutupModalHasilImportBTB);
+
+}
+
+const btnTutupHasilImportBTB2El = document.getElementById("btnTutupHasilImportBTB2");
+
+if(btnTutupHasilImportBTB2El){
+
+    btnTutupHasilImportBTB2El.addEventListener("click", tutupModalHasilImportBTB);
+
+}
+
+const modalHasilImportBTBEl = document.getElementById("modalHasilImportBTB");
+
+if(modalHasilImportBTBEl){
+
+    modalHasilImportBTBEl.addEventListener("click", function(e){
+
+        if(e.target === modalHasilImportBTBEl) tutupModalHasilImportBTB();
+
+    });
+
+}
+
+// =====================================
+// DOWNLOAD BARIS/BTB YANG BERMASALAH SAJA (supaya gampang diperbaiki
+// lalu diimport ulang)
+// =====================================
+
+const btnDownloadGagalImportBTBEl = document.getElementById("btnDownloadGagalImportBTB");
+
+if(btnDownloadGagalImportBTBEl){
+
+    btnDownloadGagalImportBTBEl.addEventListener("click", downloadBarisBermasalahBTB);
+
+}
+
+function downloadBarisBermasalahBTB(){
 
     if(typeof XLSX === "undefined"){
         alert("Library Excel belum termuat, tidak bisa membuat laporan.");
         return;
     }
 
-    const ws = XLSX.utils.json_to_sheet(reportRows);
+    const bermasalah = importResultsBTB.filter(r => r["Status"] !== "BTB Berhasil");
+
+    if(bermasalah.length === 0){
+
+        alert("Tidak ada baris yang bermasalah.");
+        return;
+
+    }
+
+    const ws = XLSX.utils.json_to_sheet(bermasalah);
+
+    ws["!cols"] = [
+        {wch:10}, {wch:22}, {wch:20}, {wch:18}, {wch:44}
+    ];
+
     const wb = XLSX.utils.book_new();
 
-    XLSX.utils.book_append_sheet(wb, ws, "Laporan Import Barang Masuk");
+    XLSX.utils.book_append_sheet(wb, ws, "Baris Bermasalah");
 
     const tanggal = new Date().toISOString().slice(0, 10);
 
-    XLSX.writeFile(wb, `Laporan_Import_BarangMasuk_${user.gudang}_${tanggal}.xlsx`);
+    XLSX.writeFile(wb, `Barang-Masuk-Bermasalah-Import-${user.gudang}-${tanggal}.xlsx`);
+
+}
+
+// =====================================
+// TEMPLATE IMPORT (supaya format kolom selalu sesuai)
+// =====================================
+
+function downloadTemplateImportBTB(){
+
+    if(typeof XLSX === "undefined"){
+        alert("Library Excel belum termuat, silakan refresh halaman lalu coba lagi.");
+        return;
+    }
+
+    const tanggalContoh = new Date().toISOString().split("T")[0];
+
+    // contoh 1 BTB dengan 2 item, supaya terlihat cara menggabungkan
+    // beberapa baris jadi satu BTB multi-item
+    const contoh = [
+        {
+            "No BTB": "0001/BTB-U-GI-R/VII/2026",
+            "Tanggal": tanggalContoh,
+            "Supplier": "",
+            "Keterangan": "",
+            "Kode Barang": "",
+            "Qty": ""
+        },
+        {
+            "No BTB": "0001/BTB-U-GI-R/VII/2026",
+            "Tanggal": tanggalContoh,
+            "Supplier": "",
+            "Keterangan": "",
+            "Kode Barang": "",
+            "Qty": ""
+        }
+    ];
+
+    const ws = XLSX.utils.json_to_sheet(contoh);
+
+    ws["!cols"] = [
+        {wch:24}, {wch:12}, {wch:22}, {wch:24}, {wch:14}, {wch:8}
+    ];
+
+    const wb = XLSX.utils.book_new();
+
+    XLSX.utils.book_append_sheet(wb, ws, "Template Import");
+
+    XLSX.writeFile(wb, "Template-Import-Barang-Masuk.xlsx");
 
 }
 
