@@ -306,6 +306,10 @@
         max-width:840px;
     }
 
+    .modal-box-xwide{
+        max-width:960px;
+    }
+
     .modal-header{
         display:flex;
         justify-content:space-between;
@@ -353,6 +357,76 @@
     #tableDetailBTB th,
     #tableDetailBTB td{
         font-size:13px;
+    }
+
+    /* ---------- Modal Hasil Import ---------- */
+
+    #importSummaryBTB{
+        background:rgba(255,255,255,.02);
+        border:1px solid #263041;
+        border-radius:10px;
+        padding:12px 14px;
+    }
+
+    .status-badge{
+        display:inline-block;
+        padding:4px 10px;
+        border-radius:999px;
+        font-size:12px;
+        font-weight:600;
+        white-space:nowrap;
+    }
+
+    .status-badge.sukses{
+        background:rgba(34,197,94,.15);
+        color:#4ade80;
+        border:1px solid rgba(34,197,94,.35);
+    }
+
+    .status-badge.gagal{
+        background:rgba(239,68,68,.15);
+        color:#f87171;
+        border:1px solid rgba(239,68,68,.35);
+    }
+
+    #tableHasilImportBTB th,
+    #tableHasilImportBTB td{
+        font-size:13px;
+    }
+
+    #btnDownloadGagalImportBTB{
+        background:rgba(59,130,246,.12);
+        color:#60a5fa;
+        border:1px solid rgba(59,130,246,.35);
+        border-radius:8px;
+        padding:10px 16px;
+        cursor:pointer;
+        font-weight:600;
+        font-size:13.5px;
+        display:inline-flex;
+        align-items:center;
+        gap:6px;
+        transition:background .15s;
+    }
+
+    #btnDownloadGagalImportBTB:hover{
+        background:rgba(59,130,246,.22);
+    }
+
+    #btnTutupHasilImportBTB2{
+        background:rgba(255,255,255,.06);
+        color:#cbd5e1;
+        border:1px solid #334155;
+        border-radius:8px;
+        padding:10px 16px;
+        cursor:pointer;
+        font-weight:600;
+        font-size:13.5px;
+        transition:background .15s;
+    }
+
+    #btnTutupHasilImportBTB2:hover{
+        background:rgba(255,255,255,.12);
     }
 </style>
 </head>
@@ -452,11 +526,11 @@ id="btnSimpanBTB">
 <div class="panel">
 <h3><span>📋 Histori Barang Masuk</span></h3>
 <br>
-<div class="toolbar" style="margin-bottom:14px;">
+<div class="toolbar" style="margin-bottom:14px;flex-wrap:wrap;">
 <button
 class="btn-import"
 onclick="document.getElementById('fileImport').click()"
-title="Format kolom: No BTB, Tanggal (YYYY-MM-DD), Supplier, Keterangan, Kode Barang, Qty. Beberapa baris dengan No BTB sama akan digabung jadi 1 BTB multi-item (seperti hasil Export Excel).">
+title="Format kolom: No BTB, Tanggal (YYYY-MM-DD), Supplier, Keterangan, Kode Barang, Qty. Beberapa baris dengan No BTB sama akan digabung jadi 1 BTB multi-item (seperti hasil Export Excel). Klik 'Template Import' untuk contoh formatnya.">
 📥 Import Excel
 </button>
 <input
@@ -464,6 +538,11 @@ type="file"
 id="fileImport"
 accept=".xlsx,.xls"
 hidden>
+<button
+class="btn-import"
+onclick="downloadTemplateImportBTB()">
+📄 Template Import
+</button>
 <button
 class="btn-export"
 onclick="exportExcel()">
@@ -596,6 +675,42 @@ style="width:100%;padding:10px;border:1px solid #334155;border-radius:8px;backgr
         <div style="display:flex;gap:10px;">
         <button type="button" id="btnSimpanEditBTB">
         💾 Simpan Perubahan
+        </button>
+        </div>
+    </div>
+</div>
+
+<!-- ================= MODAL HASIL IMPORT BTB ================= -->
+<div class="modal-overlay" id="modalHasilImportBTB">
+    <div class="modal-box modal-box-xwide">
+        <div class="modal-header">
+            <h3>📋 Hasil Import Barang Masuk</h3>
+            <button type="button" class="modal-close" id="btnTutupModalHasilImportBTB">✕</button>
+        </div>
+
+        <div id="importSummaryBTB" style="margin-bottom:14px;font-size:13.5px;color:#e2e8f0;"></div>
+
+        <table id="tableHasilImportBTB">
+            <thead>
+                <tr>
+                    <th width="70">Baris</th>
+                    <th width="170">No BTB</th>
+                    <th width="140">Kode Barang</th>
+                    <th width="130">Status</th>
+                    <th>Keterangan</th>
+                </tr>
+            </thead>
+            <tbody></tbody>
+        </table>
+
+        <br>
+
+        <div style="display:flex;gap:10px;flex-wrap:wrap;">
+        <button type="button" id="btnDownloadGagalImportBTB" style="display:none;">
+        📥 Download Baris Bermasalah (untuk diperbaiki &amp; upload ulang)
+        </button>
+        <button type="button" id="btnTutupHasilImportBTB2">
+        Tutup
         </button>
         </div>
     </div>
