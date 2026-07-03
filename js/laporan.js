@@ -424,6 +424,33 @@ function renderChartTopKeluar(itemsKeluar){
     const data = semuaBarang.map(t => t[1]);
     const totalKeseluruhan = data.reduce((a, b) => a + b, 0);
 
+    // cari departemen dengan qty terbanyak untuk masing-masing barang,
+    // supaya bisa ditampilkan di tooltip ("diambil paling banyak oleh...")
+    const deptPerBarang = new Map();
+
+    itemsKeluar.forEach(it => {
+
+        if(!deptPerBarang.has(it.nama_barang)){
+            deptPerBarang.set(it.nama_barang, new Map());
+        }
+
+        const inner = deptPerBarang.get(it.nama_barang);
+
+        inner.set(it.departemen, (inner.get(it.departemen) || 0) + it.qty);
+
+    });
+
+    const topDeptPerBarang = new Map();
+
+    deptPerBarang.forEach((deptMap, barang) => {
+
+        const top = Array.from(deptMap.entries())
+            .sort((a, b) => b[1] - a[1])[0];
+
+        topDeptPerBarang.set(barang, { departemen: top[0], qty: top[1] });
+
+    });
+
     // sesuaikan tinggi canvas mengikuti jumlah barang, supaya tidak
     // terlalu padat kalau barangnya banyak (tidak dibatasi 5 lagi)
     const canvasTopKeluar = document.getElementById("chartTopKeluar");
@@ -472,10 +499,28 @@ function renderChartTopKeluar(itemsKeluar){
                 tooltip: {
                     callbacks: {
                         label: function(ctx){
+
                             const persen = totalKeseluruhan > 0
                                 ? ((ctx.parsed.x / totalKeseluruhan) * 100).toFixed(1)
                                 : 0;
-                            return `Qty: ${formatAngka(ctx.parsed.x)} (${persen}% dari total keluar)`;
+
+                            const baris1 = `Qty: ${formatAngka(ctx.parsed.x)} (${persen}% dari total keluar)`;
+
+                            const namaBarang = ctx.label;
+                            const infoDept = topDeptPerBarang.get(namaBarang);
+
+                            if(!infoDept){
+                                return baris1;
+                            }
+
+                            const persenDept = ctx.parsed.x > 0
+                                ? ((infoDept.qty / ctx.parsed.x) * 100).toFixed(1)
+                                : 0;
+
+                            const baris2 = `Diambil paling banyak oleh: ${infoDept.departemen} (${formatAngka(infoDept.qty)} unit, ${persenDept}%)`;
+
+                            return [baris1, baris2];
+
                         }
                     }
                 }
