@@ -1,5 +1,5 @@
 // =====================================
-// DATABASE BARANG (Rekap Stok + Foto + Set Stok Awal + Reset Stok)
+// DATABASE BARANG (Rekap Stok + Foto + Set Stok Awal + Reset Stok + Sinkron Ulang)
 // =====================================
 //
 // master_barang -> katalog barang BERSAMA (dipakai Margomulyo & Raden Saleh)
@@ -15,13 +15,22 @@
 //                  MELEWATI barang tersebut (lihat catatan di bagian
 //                  "IMPORT STOK AWAL (MASSAL)" di bawah).
 //
-// PENTING: stok_awal dan stok_gudang adalah DUA TABEL TERPISAH.
-// Menghapus baris di stok_awal (misalnya lewat Supabase Table Editor)
-// TIDAK otomatis mereset stok_gudang. Kalau ingin benar-benar reset
-// Sisa Stok ke 0 (misalnya karena import sebelumnya cuma masuk
-// sebagian), gunakan tombol "Reset Stok (gudang ini)" di halaman ini -
-// itu akan menghapus KEDUANYA sekaligus, khusus untuk gudang yang
-// sedang login.
+// PENTING: stok_awal dan stok_gudang adalah DUA TABEL TERPISAH. Begitu juga,
+// kolom MASUK dan KELUAR di tabel ini SELALU dihitung ulang dari histori
+// barang_masuk_detail / barang_keluar yang MASIH ADA saat ini - sedangkan
+// SISA STOK cuma "mengingat" angka terakhir yang pernah ditulis ke
+// stok_gudang. Konsekuensinya:
+//   - Kalau Barang Masuk/Keluar dihapus lewat tombol Hapus di halamannya,
+//     stok_gudang ikut di-rollback otomatis -> semua tetap sinkron.
+//   - Kalau data dihapus LANGSUNG dari Supabase (Table Editor / SQL), atau
+//     lewat cara lain di luar tombol Hapus aplikasi, stok_gudang TIDAK ikut
+//     berubah -> Sisa Stok bisa "nyangkut" tidak sesuai histori yang tersisa.
+//   - Tombol "Reset Stok" MEMANG SENGAJA cuma menghapus stok_awal +
+//     stok_gudang jadi 0, TIDAK menghitung ulang dari histori yang tersisa.
+// Kalau Sisa Stok pernah nyangkut seperti di atas, pakai tombol
+// "🔄 Sinkronkan Ulang Sisa Stok" di halaman ini untuk menghitung ulang
+// Sisa Stok = Stok Awal + Total Masuk - Total Keluar, KHUSUS untuk gudang
+// yang sedang login (gudang lain tidak tersentuh).
 //
 // barang_masuk / barang_masuk_detail -> histori masuk, difilter via header.gudang
 // barang_keluar -> histori keluar, punya kolom gudang sendiri per baris
@@ -345,7 +354,10 @@ document
 
         alert(
             `Stok gudang ${user.gudang} berhasil direset ke 0.\n\n` +
-            `Silakan import ulang Stok Awal, atau input ulang transaksi sesuai kebutuhan.`
+            `Silakan import ulang Stok Awal, atau input ulang transaksi sesuai kebutuhan.\n\n` +
+            `Kalau di gudang ini masih ada histori Barang Masuk/Keluar yang tersisa dan kamu ` +
+            `ingin Sisa Stok langsung mengikuti histori tersebut (bukan mulai dari 0), pakai ` +
+            `tombol "🔄 Sinkronkan Ulang Sisa Stok" setelah ini.`
         );
 
         tutupModalReset();
@@ -391,6 +403,153 @@ async function resetStokGudangIni(){
         .eq("gudang", user.gudang);
 
     if(delStokErr) throw delStokErr;
+
+}
+
+// =====================================
+// SINKRONKAN ULANG SISA STOK (KHUSUS GUDANG YANG SEDANG LOGIN)
+// =====================================
+// Menghitung ulang Sisa Stok setiap barang dengan rumus:
+//
+//     Sisa Stok = Stok Awal + Total Masuk - Total Keluar
+//
+// lalu menimpa stok_gudang.stok dengan hasilnya - HANYA untuk baris
+// dengan gudang = user.gudang, jadi gudang lain (mis. Raden Saleh)
+// TIDAK PERNAH tersentuh oleh fungsi ini.
+//
+// Berguna untuk memperbaiki Sisa Stok yang "nyangkut" karena data Barang
+// Masuk/Keluar sebelumnya dihapus di luar tombol Hapus aplikasi (misalnya
+// langsung lewat Supabase Table Editor), sehingga stok_gudang tidak ikut
+// ter-rollback otomatis.
+// =====================================
+
+async function sinkronkanUlangSisaStok(){
+
+    if(!dataBarang || dataBarang.length === 0){
+        alert("Data belum termuat, coba muat ulang halaman dulu.");
+        return;
+    }
+
+    const konfirmasi = confirm(
+        `Ini akan menghitung ulang SISA STOK setiap barang di gudang ${user.gudang} dengan rumus:\n\n` +
+        `Sisa Stok = Stok Awal + Total Masuk − Total Keluar\n\n` +
+        `Berguna kalau Sisa Stok "nyangkut" tidak sesuai histori - misalnya karena data Barang ` +
+        `Masuk/Keluar pernah dihapus langsung dari Supabase (bukan lewat tombol Hapus di halaman ` +
+        `Barang Masuk / Barang Keluar).\n\n` +
+        `Gudang lain (mis. Raden Saleh) TIDAK akan terpengaruh sama sekali, karena hanya barang ` +
+        `di gudang ${user.gudang} yang diproses.\n\n` +
+        `Lanjutkan?`
+    );
+
+    if(!konfirmasi) return;
+
+    const btn = document.getElementById("btnSinkronStok");
+    const teksAsliBtn = btn ? btn.innerHTML : null;
+
+    if(btn){
+        btn.disabled = true;
+        btn.innerHTML = "⏳ Menyinkronkan...";
+    }
+
+    sedangImportStokAwal = true; // pinjam flag yang sama supaya tab tidak ditutup di tengah proses
+    tampilkanOverlayImportProgress(
+        dataBarang.length,
+        "🔄 Sedang Menyinkronkan Ulang Sisa Stok..."
+    );
+
+    let sudahDiproses = 0;
+    let diperbarui = 0;
+    let dilewatiSudahSesuai = 0;
+    let gagal = 0;
+
+    try{
+
+        for(const item of dataBarang){
+
+            sudahDiproses++;
+            updateOverlayImportProgress(sudahDiproses, dataBarang.length);
+
+            const nilaiSeharusnya = item.stok_awal + item.masuk - item.keluar;
+
+            if(nilaiSeharusnya === item.sisa){
+
+                dilewatiSudahSesuai++;
+                continue;
+
+            }
+
+            try{
+
+                const { data: existingStok, error: selErr } = await supabaseClient
+                    .from("stok_gudang")
+                    .select("id")
+                    .eq("barang_id", item.id)
+                    .eq("gudang", user.gudang)
+                    .maybeSingle();
+
+                if(selErr) throw selErr;
+
+                if(existingStok){
+
+                    const { error: updErr } = await supabaseClient
+                        .from("stok_gudang")
+                        .update({
+                            stok: nilaiSeharusnya,
+                            updated_at: new Date().toISOString()
+                        })
+                        .eq("id", existingStok.id);
+
+                    if(updErr) throw updErr;
+
+                } else {
+
+                    const { error: insErr } = await supabaseClient
+                        .from("stok_gudang")
+                        .insert([{
+                            barang_id: item.id,
+                            gudang: user.gudang,
+                            stok: nilaiSeharusnya,
+                            updated_at: new Date().toISOString()
+                        }]);
+
+                    if(insErr) throw insErr;
+
+                }
+
+                diperbarui++;
+
+            }
+            catch(err){
+
+                console.error(`Gagal sinkron stok untuk ${item.kode_barang}:`, err);
+                gagal++;
+
+            }
+
+        }
+
+        alert(
+            `Sinkronisasi Sisa Stok selesai untuk gudang ${user.gudang}.\n\n` +
+            `Diperbarui        : ${diperbarui}\n` +
+            `Sudah sesuai (dilewati) : ${dilewatiSudahSesuai}\n` +
+            `Gagal             : ${gagal}\n` +
+            `Total barang      : ${dataBarang.length}`
+        );
+
+        await loadBarang();
+
+    }
+    finally{
+
+        sedangImportStokAwal = false;
+        sembunyikanOverlayImportProgress();
+
+        if(btn){
+            btn.disabled = false;
+            btn.innerHTML = teksAsliBtn;
+        }
+
+    }
 
 }
 
@@ -586,6 +745,8 @@ async function loadBarang() {
             // Sisa Stok = angka aktual dari stok_gudang (sumber kebenaran),
             // BUKAN hasil hitung ulang stokAwal + masuk - keluar, supaya
             // selalu konsisten dengan halaman Barang Masuk / Barang Keluar.
+            // (Kalau angka ini "nyangkut" tidak sesuai histori, gunakan
+            // tombol "🔄 Sinkronkan Ulang Sisa Stok".)
             const sisa = stokMap.get(String(item.id)) || 0;
             return { ...item, stok_awal: stokAwal, masuk, keluar, sisa };
         });
@@ -746,14 +907,16 @@ function exportExcel() {
 // =====================================
 
 // =====================================
-// OVERLAY PROGRESS IMPORT MASSAL
-// Dibuat lewat JS (tidak perlu ubah file HTML) supaya user tahu proses
-// masih berjalan, dan tidak menutup/pindah tab di tengah jalan.
+// OVERLAY PROGRESS (dipakai Import Stok Awal Massal & Sinkronkan Ulang
+// Sisa Stok). Dibuat lewat JS (tidak perlu ubah file HTML) supaya user
+// tahu proses masih berjalan, dan tidak menutup/pindah tab di tengah jalan.
 // =====================================
 
 let sedangImportStokAwal = false;
 
-function tampilkanOverlayImportProgress(totalBaris){
+function tampilkanOverlayImportProgress(totalBaris, judul){
+
+    const judulTampil = judul || "⏳ Sedang Import Stok Awal...";
 
     let overlay = document.getElementById("overlayImportStokAwal");
 
@@ -774,8 +937,8 @@ function tampilkanOverlayImportProgress(totalBaris){
                 box-shadow:0 20px 50px rgba(0,0,0,.5); text-align:center;
                 font-family:'Inter',sans-serif; color:var(--db-text,#e9eaf2);
             ">
-                <div style="font-size:15px; font-weight:700; margin-bottom:6px;">
-                    ⏳ Sedang Import Stok Awal...
+                <div id="overlayImportStokAwalJudul" style="font-size:15px; font-weight:700; margin-bottom:6px;">
+                    ${judulTampil}
                 </div>
                 <div id="overlayImportStokAwalTeks" style="font-size:13px; color:var(--db-muted,#9498ab); margin-bottom:14px;">
                     Memproses 0 dari ${totalBaris} barang...
@@ -795,6 +958,17 @@ function tampilkanOverlayImportProgress(totalBaris){
         `;
 
         document.body.appendChild(overlay);
+
+    } else {
+
+        const judulEl = document.getElementById("overlayImportStokAwalJudul");
+        if(judulEl) judulEl.textContent = judulTampil;
+
+        const tekxEl = document.getElementById("overlayImportStokAwalTeks");
+        if(tekxEl) tekxEl.textContent = `Memproses 0 dari ${totalBaris} barang...`;
+
+        const barEl = document.getElementById("overlayImportStokAwalBar");
+        if(barEl) barEl.style.width = "0%";
 
     }
 
@@ -821,7 +995,7 @@ function sembunyikanOverlayImportProgress(){
 }
 
 // Peringatan browser kalau user coba tutup/refresh/pindah tab
-// SELAGI proses import massal masih berjalan.
+// SELAGI proses import massal / sinkronisasi masih berjalan.
 window.addEventListener("beforeunload", function(e){
 
     if(sedangImportStokAwal){
@@ -940,7 +1114,7 @@ document
             let gagal = 0;
 
             sedangImportStokAwal = true;
-            tampilkanOverlayImportProgress(dataValid.length);
+            tampilkanOverlayImportProgress(dataValid.length, "⏳ Sedang Import Stok Awal...");
 
             let sudahDiproses = 0;
 
