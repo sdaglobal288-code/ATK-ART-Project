@@ -1,26 +1,43 @@
 // =====================================
-// TRANSFER BARANG (DENGAN APPROVAL & RETUR)
+// TRANSFER BARANG (DENGAN APPROVAL & RETUR + APPROVAL RETUR)
 // =====================================
 //
-// SKEMA TABEL YANG DIBUTUHKAN (lihat transfer-barang-schema.sql):
-//   - stok_gudang          (barang_id, gudang, stok, updated_at)
-//   - master_gudang        (nama_gudang)            [opsional, ada fallback]
-//   - barang_transfer      (header transfer)
-//   - barang_transfer_detail (item per transfer)
+// SKEMA TABEL YANG DIBUTUHKAN (lihat transfer-barang-schema.sql
+// dan retur-schema.sql):
+//   - stok_gudang                 (barang_id, gudang, stok, updated_at)
+//   - master_gudang               (nama_gudang)            [opsional, ada fallback]
+//   - barang_transfer             (header transfer)
+//   - barang_transfer_detail      (item per transfer)
+//   - barang_transfer_retur       (header permintaan retur)
+//   - barang_transfer_retur_detail(item per permintaan retur)
 //
-// ALUR:
+// ALUR TRANSFER:
 //   1. Buat transfer  -> stok gudang asal langsung berkurang, status = "Pending"
 //   2. Approve        -> stok gudang tujuan bertambah, status = "Approved"
 //   3. Reject          -> stok kembali ke gudang asal, status = "Rejected"
-//   4. Retur (setelah Approved) -> stok gudang tujuan berkurang,
-//                                   stok gudang asal bertambah lagi, status = "Retur"
+//
+// ALUR RETUR (BARU - dengan approval, mendukung retur sebagian/partial):
+//   1. Gudang TUJUAN (peminjam) klik "Retur" pada transfer berstatus Approved
+//      -> muncul modal, pilih qty per item yang mau diretur (bisa sebagian,
+//         bisa dicicil beberapa kali retur), tanggal bisa diedit, nomor
+//         retur otomatis -> tersimpan dengan status "Menunggu Approval".
+//      -> STOK BELUM BERUBAH di tahap ini.
+//   2. Gudang ASAL (pemilik awal barang) melihat permintaan ini di panel
+//      "Retur Masuk - Menunggu Approval" dan bisa Approve / Reject.
+//   3. Approve -> stok gudang tujuan berkurang, stok gudang asal bertambah,
+//      status = "Disetujui".
+//      Reject  -> status = "Ditolak", stok tidak berubah (barang dianggap
+//      tetap dipakai gudang tujuan).
+//   Transfer aslinya TETAP berstatus "Approved" walau sudah ada retur
+//   (mendukung retur bertahap/sebagian); riwayat retur bisa dilihat di
+//   modal Detail Transfer.
 //
 // NOMOR TRANSFER OTOMATIS:
 //   Format  : TRF-0001/VII/2026  (urut 4 digit / bulan romawi / tahun,
 //             bulan & tahun mengikuti tanggal sistem saat ini)
 //   Urut    : global lintas gudang, RESET ke 0001 setiap bulan baru
-//             (dihitung dari no_transfer yang polanya cocok bulan+tahun berjalan)
-//   Field no_transfer bersifat readonly, diisi otomatis oleh sistem.
+// NOMOR RETUR OTOMATIS:
+//   Format  : RTR-0001/VII/2026  (pola & reset sama seperti No Transfer)
 // =====================================
 
 const user = JSON.parse(sessionStorage.getItem("user"));
@@ -32,7 +49,7 @@ if (!user) {
 // Daftar gudang default kalau tabel master_gudang belum ada / kosong
 const DAFTAR_GUDANG_FALLBACK = ["Raden Saleh", "Margomulyo"];
 
-// Bulan romawi untuk format nomor transfer
+// Bulan romawi untuk format nomor transfer / retur
 const BULAN_ROMAWI = ["I","II","III","IV","V","VI","VII","VIII","IX","X","XI","XII"];
 
 // cache master data
@@ -41,6 +58,12 @@ let daftarGudang = [];
 
 // counter id unik baris detail
 let rowCounter = 0;
+
+// transfer yang sedang diajukan returnya lewat modal (null jika modal tertutup)
+let returTransferId = null;
+
+// item + sisa qty yang bisa diretur untuk transfer yang sedang dibuka di modal retur
+let returItemsState = [];
 
 // =====================================
 // NOMOR TRANSFER OTOMATIS
@@ -109,6 +132,58 @@ async function isiNomorTransferOtomatis(){
 }
 
 // =====================================
+// NOMOR RETUR OTOMATIS
+// =====================================
+
+async function generateNoRetur(){
+
+    const now = new Date();
+
+    const bulanRomawi = BULAN_ROMAWI[now.getMonth()];
+    const tahun = now.getFullYear();
+
+    const pattern = `%/${bulanRomawi}/${tahun}`;
+
+    let urutTerbesar = 0;
+
+    try{
+
+        const { data, error } = await supabaseClient
+            .from("barang_transfer_retur")
+            .select("no_retur")
+            .ilike("no_retur", pattern);
+
+        if(error) throw error;
+
+        (data || []).forEach(row=>{
+
+            const match = (row.no_retur || "").match(/^RTR-(\d{4})\//);
+
+            if(match){
+
+                const angka = parseInt(match[1], 10);
+
+                if(angka > urutTerbesar) urutTerbesar = angka;
+
+            }
+
+        });
+
+    }
+    catch(err){
+
+        console.error("Gagal menghitung nomor retur otomatis:", err);
+
+    }
+
+    const urutBaru = urutTerbesar + 1;
+    const urutStr = String(urutBaru).padStart(4, "0");
+
+    return `RTR-${urutStr}/${bulanRomawi}/${tahun}`;
+
+}
+
+// =====================================
 // LOAD DAFTAR GUDANG
 // =====================================
 
@@ -168,6 +243,14 @@ function isiDropdownGudang(){
     if(labelGudangUser){
 
         labelGudangUser.textContent = (user && user.gudang) ? user.gudang : "-";
+
+    }
+
+    const labelGudangUserRetur = document.getElementById("labelGudangUserRetur");
+
+    if(labelGudangUserRetur){
+
+        labelGudangUserRetur.textContent = (user && user.gudang) ? user.gudang : "-";
 
     }
 
@@ -1038,19 +1121,104 @@ async function rejectTransfer(id){
 }
 
 // =====================================
-// RETUR TRANSFER (setelah Approved, kembalikan ke gudang asal)
+// HITUNG SISA YANG BISA DIRETUR PER ITEM TRANSFER
+// (qty transfer - qty yang sudah diminta retur / disetujui retur)
 // =====================================
 
-async function returTransfer(id){
+async function ambilDetailTransfer(transferId){
 
-    if(!confirm("Kembalikan seluruh barang di transfer ini ke gudang asal (peminjam)?")) return;
+    const { data, error } = await supabaseClient
+        .from("barang_transfer_detail")
+        .select("*")
+        .eq("transfer_id", transferId)
+        .order("id");
+
+    if(error) throw error;
+
+    return data || [];
+
+}
+
+async function hitungSisaRetur(transferId, detailTransfer){
+
+    // retur yang masih "menahan kuota": sudah disetujui ATAU masih menunggu
+    // approval (supaya tidak bisa diajukan dobel melebihi sisa yang ada)
+    const { data: returHeaders, error: errHeader } = await supabaseClient
+        .from("barang_transfer_retur")
+        .select("id")
+        .eq("transfer_id", transferId)
+        .in("status", ["Menunggu Approval", "Disetujui"]);
+
+    if(errHeader) throw errHeader;
+
+    const returIds = (returHeaders || []).map(r => r.id);
+
+    let returDetails = [];
+
+    if(returIds.length > 0){
+
+        const { data, error } = await supabaseClient
+            .from("barang_transfer_retur_detail")
+            .select("*")
+            .in("retur_id", returIds);
+
+        if(error) throw error;
+
+        returDetails = data || [];
+
+    }
+
+    const sudahDiretur = new Map();
+
+    returDetails.forEach(d=>{
+
+        const key = d.kode_barang;
+        sudahDiretur.set(key, (sudahDiretur.get(key) || 0) + Number(d.qty));
+
+    });
+
+    return detailTransfer.map(item => ({
+        ...item,
+        sudahDiretur: sudahDiretur.get(item.kode_barang) || 0,
+        sisa: Number(item.qty) - (sudahDiretur.get(item.kode_barang) || 0)
+    }));
+
+}
+
+async function adaSisaRetur(transferId){
 
     try{
 
-        const { data:header, error:errHeader } = await supabaseClient
+        const detail = await ambilDetailTransfer(transferId);
+
+        if(detail.length === 0) return false;
+
+        const withSisa = await hitungSisaRetur(transferId, detail);
+
+        return withSisa.some(d => d.sisa > 0);
+
+    }
+    catch(err){
+
+        console.error(err);
+        return false;
+
+    }
+
+}
+
+// =====================================
+// MODAL PERMINTAAN RETUR (dibuka oleh Gudang Tujuan / peminjam)
+// =====================================
+
+async function bukaModalRetur(transferId){
+
+    try{
+
+        const { data: header, error: errHeader } = await supabaseClient
             .from("barang_transfer")
             .select("*")
-            .eq("id", id)
+            .eq("id", transferId)
             .single();
 
         if(errHeader) throw errHeader;
@@ -1060,10 +1228,365 @@ async function returTransfer(id){
             return;
         }
 
-        const { data:detail, error:errDetail } = await supabaseClient
-            .from("barang_transfer_detail")
+        if(user.gudang !== header.gudang_tujuan){
+            alert("Hanya gudang tujuan (peminjam) yang bisa mengajukan retur.");
+            return;
+        }
+
+        const detail = await ambilDetailTransfer(transferId);
+
+        const withSisa = await hitungSisaRetur(transferId, detail);
+
+        const adaSisa = withSisa.filter(d => d.sisa > 0);
+
+        if(adaSisa.length === 0){
+
+            alert("Semua item pada transfer ini sudah diretur / sedang menunggu approval retur.");
+            return;
+
+        }
+
+        returTransferId = transferId;
+        returItemsState = adaSisa;
+
+        document.getElementById("returHeaderInfo").innerHTML = `
+            <div>No. Transfer : <b>${header.no_transfer}</b></div>
+            <div>Gudang Asal : <b>${header.gudang_asal}</b></div>
+            <div>Gudang Tujuan : <b>${header.gudang_tujuan}</b></div>
+        `;
+
+        document.getElementById("returTanggal").value =
+            new Date().toISOString().split("T")[0];
+
+        document.getElementById("returKeterangan").value = "";
+
+        const noReturInput = document.getElementById("returNoRetur");
+
+        noReturInput.value = "Memuat nomor...";
+        noReturInput.value = await generateNoRetur();
+
+        renderReturItemsTable();
+
+        document.getElementById("modalRetur").classList.add("show");
+
+    }
+    catch(err){
+
+        console.error(err);
+        alert(err.message);
+
+    }
+
+}
+
+function renderReturItemsTable(){
+
+    const tbody = document.getElementById("returItemsBody");
+
+    tbody.innerHTML = returItemsState.map((item, idx) => `
+        <tr>
+            <td><span class="kode-pill">${item.kode_barang}</span></td>
+            <td>${item.nama_barang}</td>
+            <td>${item.satuan ?? "-"}</td>
+            <td>${item.qty}</td>
+            <td>${item.sudahDiretur}</td>
+            <td><b>${item.sisa}</b></td>
+            <td>
+                <input type="number" class="input-qty retur-qty-input"
+                    data-idx="${idx}" min="0" max="${item.sisa}" value="${item.sisa}">
+            </td>
+        </tr>
+    `).join("");
+
+}
+
+function tutupModalRetur(){
+
+    const modal = document.getElementById("modalRetur");
+
+    if(modal) modal.classList.remove("show");
+
+    returTransferId = null;
+    returItemsState = [];
+
+}
+
+const btnSimpanReturEl = document.getElementById("btnSimpanRetur");
+
+if(btnSimpanReturEl){
+
+    btnSimpanReturEl.addEventListener("click", submitRetur);
+
+}
+
+async function submitRetur(e){
+
+    if(e) e.preventDefault();
+
+    try{
+
+        if(returTransferId === null){
+            alert("Tidak ada transfer yang sedang diretur.");
+            return;
+        }
+
+        const tanggal = document.getElementById("returTanggal").value;
+        const noRetur = document.getElementById("returNoRetur").value.trim();
+        const keterangan = document.getElementById("returKeterangan").value.trim();
+
+        if(!tanggal){
+            alert("Tanggal retur wajib diisi.");
+            return;
+        }
+
+        if(!noRetur || noRetur === "Memuat nomor..."){
+            alert("Nomor Retur belum siap, coba tunggu sebentar.");
+            return;
+        }
+
+        //---------------------------------
+        // AMBIL QTY RETUR DARI INPUT
+        //---------------------------------
+
+        const qtyInputs = document.querySelectorAll(".retur-qty-input");
+
+        const itemDipilih = [];
+
+        for(const input of qtyInputs){
+
+            const idx = parseInt(input.dataset.idx);
+            const item = returItemsState[idx];
+            const qty = parseInt(input.value);
+
+            if(!qty) continue;
+
+            if(qty < 0){
+
+                alert(`Qty retur "${item.nama_barang}" tidak boleh negatif.`);
+                return;
+
+            }
+
+            if(qty > item.sisa){
+
+                alert(
+                    `Qty retur "${item.nama_barang}" melebihi sisa yang bisa diretur (${item.sisa}).`
+                );
+                return;
+
+            }
+
+            if(qty > 0){
+
+                itemDipilih.push({ ...item, qtyRetur: qty });
+
+            }
+
+        }
+
+        if(itemDipilih.length === 0){
+            alert("Isi minimal 1 qty retur lebih dari 0.");
+            return;
+        }
+
+        //---------------------------------
+        // CEK ULANG NOMOR RETUR (jaga race condition)
+        //---------------------------------
+
+        const { data: cekNomor } = await supabaseClient
+            .from("barang_transfer_retur")
+            .select("id")
+            .eq("no_retur", noRetur);
+
+        if(cekNomor && cekNomor.length > 0){
+
+            alert("Nomor Retur sudah digunakan (kemungkinan dibuat bersamaan). Silakan tutup lalu buka ulang modal Retur untuk nomor baru.");
+            return;
+
+        }
+
+        const { data: header, error: errHeader } = await supabaseClient
+            .from("barang_transfer")
             .select("*")
-            .eq("transfer_id", id);
+            .eq("id", returTransferId)
+            .single();
+
+        if(errHeader) throw errHeader;
+
+        //---------------------------------
+        // SIMPAN HEADER RETUR (status Menunggu Approval, stok BELUM berubah)
+        //---------------------------------
+
+        const { data: returHeader, error: returHeaderErr } = await supabaseClient
+            .from("barang_transfer_retur")
+            .insert([{
+                transfer_id: returTransferId,
+                no_retur: noRetur,
+                tanggal,
+                gudang_asal: header.gudang_asal,
+                gudang_tujuan: header.gudang_tujuan,
+                keterangan,
+                status: "Menunggu Approval",
+                created_by: user.nama
+            }])
+            .select()
+            .single();
+
+        if(returHeaderErr) throw returHeaderErr;
+
+        for(const item of itemDipilih){
+
+            const { error: detailErr } = await supabaseClient
+                .from("barang_transfer_retur_detail")
+                .insert([{
+                    retur_id: returHeader.id,
+                    kode_barang: item.kode_barang,
+                    nama_barang: item.nama_barang,
+                    kategori: item.kategori,
+                    satuan: item.satuan,
+                    qty: item.qtyRetur
+                }]);
+
+            if(detailErr) throw detailErr;
+
+        }
+
+        alert(`Permintaan Retur berhasil dibuat (${noRetur}), menunggu approval dari ${header.gudang_asal}.`);
+
+        tutupModalRetur();
+
+        await loadRiwayatTransfer();
+        await loadPendingReturApproval();
+
+    }
+    catch(err){
+
+        console.error(err);
+        alert(err.message);
+
+    }
+
+}
+
+// =====================================
+// PANEL RETUR MASUK - MENUNGGU APPROVAL (dilihat oleh Gudang Asal)
+// =====================================
+
+async function loadPendingReturApproval(){
+
+    try{
+
+        if(!user || !user.gudang) return;
+
+        const { data, error } = await supabaseClient
+            .from("barang_transfer_retur")
+            .select("*")
+            .eq("gudang_asal", user.gudang)
+            .eq("status", "Menunggu Approval")
+            .order("tanggal", { ascending:false })
+            .order("id", { ascending:false });
+
+        if(error) throw error;
+
+        await tampilkanPendingReturApproval(data || []);
+
+    }
+    catch(err){
+
+        console.error(err);
+        alert(err.message);
+
+    }
+
+}
+
+async function hitungJumlahItemRetur(returId){
+
+    const { data } = await supabaseClient
+        .from("barang_transfer_retur_detail")
+        .select("id")
+        .eq("retur_id", returId);
+
+    return data ? data.length : 0;
+
+}
+
+async function tampilkanPendingReturApproval(data){
+
+    const tbody = document.querySelector("#tablePendingRetur tbody");
+
+    if(!tbody) return;
+
+    tbody.innerHTML = "";
+
+    if(data.length === 0){
+
+        tbody.innerHTML = `
+        <tr>
+            <td colspan="7" class="empty-state">
+                Tidak ada retur yang menunggu approval.
+            </td>
+        </tr>
+        `;
+
+        return;
+
+    }
+
+    let no = 1;
+
+    for(const item of data){
+
+        const jumlahItem = await hitungJumlahItemRetur(item.id);
+
+        tbody.innerHTML += `
+        <tr>
+            <td>${no++}</td>
+            <td><b>${item.no_retur}</b></td>
+            <td>${item.tanggal}</td>
+            <td>${item.gudang_tujuan}</td>
+            <td>
+                <button class="btn-edit" onclick="lihatDetailRetur(${item.id})">📦 ${jumlahItem} item</button>
+            </td>
+            <td>${item.created_by ?? "-"}</td>
+            <td>
+                <button class="btn-approve" onclick="approveRetur(${item.id})">✅ Approve</button>
+                <button class="btn-reject" onclick="rejectRetur(${item.id})">❌ Reject</button>
+            </td>
+        </tr>
+        `;
+
+    }
+
+}
+
+// =====================================
+// APPROVE / REJECT RETUR
+// =====================================
+
+async function approveRetur(id){
+
+    if(!confirm("Approve retur ini? Stok akan berpindah kembali ke gudang Anda.")) return;
+
+    try{
+
+        const { data: header, error: errHeader } = await supabaseClient
+            .from("barang_transfer_retur")
+            .select("*")
+            .eq("id", id)
+            .single();
+
+        if(errHeader) throw errHeader;
+
+        if(header.status !== "Menunggu Approval"){
+            alert("Retur ini sudah tidak berstatus Menunggu Approval.");
+            return;
+        }
+
+        const { data: detail, error: errDetail } = await supabaseClient
+            .from("barang_transfer_retur_detail")
+            .select("*")
+            .eq("retur_id", id);
 
         if(errDetail) throw errDetail;
 
@@ -1076,27 +1599,73 @@ async function returTransfer(id){
                 continue;
             }
 
-            // stok berkurang di gudang tujuan (yang sekarang punya barang)
+            // stok berkurang di gudang tujuan (yang mengembalikan)
             await tambahStokGudang(barangId, header.gudang_tujuan, -item.qty);
 
-            // stok bertambah kembali di gudang asal (yang meminjami)
+            // stok bertambah kembali di gudang asal (pemilik awal)
             await tambahStokGudang(barangId, header.gudang_asal, item.qty);
 
         }
 
-        const { error:errUpdate } = await supabaseClient
-            .from("barang_transfer")
+        const { error: errUpdate } = await supabaseClient
+            .from("barang_transfer_retur")
             .update({
-                status: "Retur",
-                retur_by: user.nama,
-                retur_at: new Date().toISOString()
+                status: "Disetujui",
+                approved_by: user.nama,
+                approved_at: new Date().toISOString()
             })
             .eq("id", id);
 
         if(errUpdate) throw errUpdate;
 
-        alert(`Barang berhasil diretur ke gudang ${header.gudang_asal}.`);
+        alert("Retur disetujui. Stok sudah berpindah kembali.");
 
+        await loadPendingReturApproval();
+        await loadRiwayatTransfer();
+
+    }
+    catch(err){
+
+        console.error(err);
+        alert(err.message);
+
+    }
+
+}
+
+async function rejectRetur(id){
+
+    if(!confirm("Tolak permintaan retur ini? Barang dianggap tetap berada di gudang tujuan.")) return;
+
+    try{
+
+        const { data: header, error: errHeader } = await supabaseClient
+            .from("barang_transfer_retur")
+            .select("*")
+            .eq("id", id)
+            .single();
+
+        if(errHeader) throw errHeader;
+
+        if(header.status !== "Menunggu Approval"){
+            alert("Retur ini sudah tidak berstatus Menunggu Approval.");
+            return;
+        }
+
+        const { error: errUpdate } = await supabaseClient
+            .from("barang_transfer_retur")
+            .update({
+                status: "Ditolak",
+                approved_by: user.nama,
+                approved_at: new Date().toISOString()
+            })
+            .eq("id", id);
+
+        if(errUpdate) throw errUpdate;
+
+        alert("Permintaan retur ditolak.");
+
+        await loadPendingReturApproval();
         await loadRiwayatTransfer();
 
     }
@@ -1150,6 +1719,18 @@ function badgeStatus(status){
 
 }
 
+function badgeStatusRetur(status){
+
+    const map = {
+        "Menunggu Approval": `<span class="status-badge status-pending">⏳ Menunggu Approval</span>`,
+        "Disetujui"        : `<span class="status-badge status-approved">✅ Disetujui</span>`,
+        "Ditolak"          : `<span class="status-badge status-rejected">❌ Ditolak</span>`
+    };
+
+    return map[status] || `<span class="status-badge">${status}</span>`;
+
+}
+
 async function tampilkanRiwayatTransfer(data){
 
     const tbody = document.querySelector("#tableTransfer tbody");
@@ -1176,8 +1757,13 @@ async function tampilkanRiwayatTransfer(data){
 
         const jumlahItem = await hitungJumlahItem(item.id);
 
-        const bisaRetur = (item.status === "Approved") &&
-                           user && user.gudang === item.gudang_tujuan;
+        let bisaRetur = false;
+
+        if(item.status === "Approved" && user && user.gudang === item.gudang_tujuan){
+
+            bisaRetur = await adaSisaRetur(item.id);
+
+        }
 
         tbody.innerHTML += `
         <tr>
@@ -1192,7 +1778,7 @@ async function tampilkanRiwayatTransfer(data){
             <td>${badgeStatus(item.status)}</td>
             <td>${item.created_by ?? "-"}</td>
             <td>
-                ${bisaRetur ? `<button class="btn-retur" onclick="returTransfer(${item.id})">↩ Retur</button>` : "-"}
+                ${bisaRetur ? `<button class="btn-retur" onclick="bukaModalRetur(${item.id})">↩ Retur</button>` : "-"}
             </td>
         </tr>
         `;
@@ -1202,7 +1788,7 @@ async function tampilkanRiwayatTransfer(data){
 }
 
 // =====================================
-// LIHAT DETAIL ITEM TRANSFER
+// LIHAT DETAIL ITEM TRANSFER (+ riwayat retur transfer ini)
 // =====================================
 
 async function lihatDetailTransfer(id){
@@ -1225,7 +1811,7 @@ async function lihatDetailTransfer(id){
 
         if(errDetail) throw errDetail;
 
-        tampilkanModalDetailTransfer(header, detail || []);
+        await tampilkanModalDetailTransfer(header, detail || []);
 
     }
     catch(err){
@@ -1237,10 +1823,14 @@ async function lihatDetailTransfer(id){
 
 }
 
-function tampilkanModalDetailTransfer(header, detail){
+async function tampilkanModalDetailTransfer(header, detail){
 
     const info = document.getElementById("modalDetailInfo");
     const body = document.getElementById("modalDetailBody");
+    const titleEl = document.getElementById("modalDetailTitle");
+    const returWrap = document.getElementById("modalReturHistoryWrap");
+
+    if(titleEl) titleEl.textContent = "🔁 Detail Transfer Barang";
 
     info.innerHTML = `
         <div>No. Transfer : <b>${header.no_transfer}</b></div>
@@ -1274,7 +1864,124 @@ function tampilkanModalDetailTransfer(header, detail){
 
     }
 
+    // riwayat retur untuk transfer ini (kalau ada)
+    if(returWrap){
+
+        try{
+
+            const { data: returList, error: errRetur } = await supabaseClient
+                .from("barang_transfer_retur")
+                .select("*")
+                .eq("transfer_id", header.id)
+                .order("id", { ascending: false });
+
+            if(errRetur) throw errRetur;
+
+            if(!returList || returList.length === 0){
+
+                returWrap.innerHTML = "";
+
+            } else {
+
+                returWrap.innerHTML = `
+                    <h4 style="margin:18px 0 8px;color:#94a3b8;font-size:12px;text-transform:uppercase;letter-spacing:.03em;">↩ Riwayat Retur</h4>
+                    <div class="modal-table-wrap">
+                    <table class="modal-table">
+                        <thead>
+                            <tr><th>No Retur</th><th>Tanggal</th><th>Status</th></tr>
+                        </thead>
+                        <tbody>
+                            ${returList.map(r => `
+                                <tr>
+                                    <td><b>${r.no_retur}</b></td>
+                                    <td>${r.tanggal}</td>
+                                    <td>${badgeStatusRetur(r.status)}</td>
+                                </tr>
+                            `).join("")}
+                        </tbody>
+                    </table>
+                    </div>
+                `;
+
+            }
+
+        }
+        catch(err){
+
+            console.error(err);
+            returWrap.innerHTML = "";
+
+        }
+
+    }
+
     document.getElementById("modalDetailTransfer").classList.add("show");
+
+}
+
+// =====================================
+// LIHAT DETAIL PERMINTAAN RETUR (dari panel approval retur)
+// =====================================
+
+async function lihatDetailRetur(id){
+
+    try{
+
+        const { data: header, error: errHeader } = await supabaseClient
+            .from("barang_transfer_retur")
+            .select("*")
+            .eq("id", id)
+            .single();
+
+        if(errHeader) throw errHeader;
+
+        const { data: detail, error: errDetail } = await supabaseClient
+            .from("barang_transfer_retur_detail")
+            .select("*")
+            .eq("retur_id", id)
+            .order("id");
+
+        if(errDetail) throw errDetail;
+
+        const info = document.getElementById("modalDetailInfo");
+        const body = document.getElementById("modalDetailBody");
+        const titleEl = document.getElementById("modalDetailTitle");
+        const returWrap = document.getElementById("modalReturHistoryWrap");
+
+        if(titleEl) titleEl.textContent = "↩ Detail Permintaan Retur";
+        if(returWrap) returWrap.innerHTML = "";
+
+        info.innerHTML = `
+            <div>No. Retur : <b>${header.no_retur}</b></div>
+            <div>Tanggal : <b>${header.tanggal}</b></div>
+            <div>Dari Gudang : <b>${header.gudang_tujuan}</b></div>
+            <div>Ke Gudang : <b>${header.gudang_asal}</b></div>
+            <div>Status : <b>${badgeStatusRetur(header.status)}</b></div>
+            <div>Keterangan : <b>${header.keterangan ? header.keterangan : "-"}</b></div>
+        `;
+
+        body.innerHTML = (detail && detail.length > 0)
+            ? detail.map((d,i) => `
+                <tr>
+                    <td>${i+1}</td>
+                    <td><span class="kode-pill">${d.kode_barang}</span></td>
+                    <td><strong>${d.nama_barang}</strong></td>
+                    <td>${d.kategori ?? "-"}</td>
+                    <td>${d.satuan ?? "-"}</td>
+                    <td>${d.qty}</td>
+                </tr>
+              `).join("")
+            : `<tr><td colspan="6" class="empty-state">Tidak ada item pada retur ini.</td></tr>`;
+
+        document.getElementById("modalDetailTransfer").classList.add("show");
+
+    }
+    catch(err){
+
+        console.error(err);
+        alert(err.message);
+
+    }
 
 }
 
@@ -1288,7 +1995,12 @@ function tutupDetailTransfer(){
 
 document.addEventListener("keydown", function(e){
 
-    if(e.key === "Escape") tutupDetailTransfer();
+    if(e.key === "Escape"){
+
+        tutupDetailTransfer();
+        tutupModalRetur();
+
+    }
 
 });
 
@@ -1319,7 +2031,7 @@ if(searchEl){
 }
 
 // =====================================
-// REALTIME STOK & STATUS TRANSFER
+// REALTIME STOK & STATUS TRANSFER / RETUR
 // =====================================
 
 function aktifkanRealtime(){
@@ -1349,6 +2061,19 @@ function aktifkanRealtime(){
 
     )
 
+    .on("postgres_changes",
+
+        { event: "*", schema: "public", table: "barang_transfer_retur" },
+
+        () => {
+
+            loadPendingReturApproval();
+            loadRiwayatTransfer();
+
+        }
+
+    )
+
     .subscribe();
 
 }
@@ -1370,7 +2095,28 @@ document.addEventListener("DOMContentLoaded", async ()=>{
     tambahBarisBarang();
 
     await loadPendingApproval();
+    await loadPendingReturApproval();
     await loadRiwayatTransfer();
+
+    const modalReturEl = document.getElementById("modalRetur");
+
+    if(modalReturEl){
+
+        modalReturEl.addEventListener("click", function(e){
+
+            if(e.target === modalReturEl) tutupModalRetur();
+
+        });
+
+    }
+
+    const btnTutupModalReturEl = document.getElementById("btnTutupModalRetur");
+
+    if(btnTutupModalReturEl){
+
+        btnTutupModalReturEl.addEventListener("click", tutupModalRetur);
+
+    }
 
     aktifkanRealtime();
 
