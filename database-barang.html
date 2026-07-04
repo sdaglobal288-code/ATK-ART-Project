@@ -66,6 +66,11 @@
   }
   .btn-danger-outline:hover{ background:var(--db-danger-soft); border-color:var(--db-danger); }
 
+  .btn-warning-outline{
+    background:transparent; color:var(--db-warning); border:1px solid #6b5216;
+  }
+  .btn-warning-outline:hover{ background:var(--db-warning-soft); border-color:var(--db-warning); }
+
   .panel{
     background:var(--db-surface); border:1px solid var(--db-border);
     border-radius:14px; padding:20px 22px; box-shadow:0 4px 16px rgba(0,0,0,.18);
@@ -332,6 +337,10 @@
     <button class="btn-import" onclick="document.getElementById('fileImportStok').click()">📥 Import Stok Awal</button>
     <input type="file" id="fileImportStok" accept=".xlsx,.xls,.csv" hidden>
     <button class="btn-export" onclick="exportExcel()">📤 Export Excel</button>
+    <button class="btn-warning-outline" id="btnSinkronStok" onclick="sinkronkanUlangSisaStok()"
+      title="Menghitung ulang Sisa Stok = Stok Awal + Total Masuk - Total Keluar, khusus untuk gudang yang sedang login. Berguna kalau Sisa Stok 'nyangkut' akibat data dihapus langsung dari Supabase.">
+      🔄 Sinkronkan Ulang Sisa Stok
+    </button>
     <button class="btn-danger-outline" id="btnResetStok" onclick="bukaModalReset()">🗑️ Reset Stok (gudang ini)</button>
   </div>
   <br>
