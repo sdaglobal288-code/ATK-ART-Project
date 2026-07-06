@@ -767,7 +767,7 @@ function tampilBarangKeluar(data){
 
         tbody.innerHTML = `
         <tr>
-            <td colspan="10" class="empty-state">
+            <td colspan="11" class="empty-state">
                 Belum ada data Barang Keluar.
             </td>
         </tr>
@@ -820,6 +820,8 @@ function tampilBarangKeluar(data){
                 </span>
 
             </td>
+
+            <td>${item.keterangan ?? "-"}</td>
 
             <td>${item.created_by}</td>
 
@@ -1477,12 +1479,81 @@ async function hapusBarangKeluar(id){
 // =====================================
 // EXPORT EXCEL
 // =====================================
-// Mengekspor seluruh histori Barang Keluar untuk gudang yang sedang
-// login. Karena tabel "barang_keluar" flat (satu baris = satu item),
-// setiap baris histori langsung jadi satu baris di Excel.
+// Mengekspor histori Barang Keluar untuk gudang yang sedang login.
+// Bisa dibatasi rentang tanggal (dariTanggal / sampaiTanggal), atau
+// dikosongkan untuk export tanpa batas tanggal (semua histori).
+// Karena tabel "barang_keluar" flat (satu baris = satu item), setiap
+// baris histori langsung jadi satu baris di Excel.
 // =====================================
 
-async function exportExcel(){
+function bukaModalExportRange(){
+
+    document.getElementById("exportDari").value = "";
+    document.getElementById("exportSampai").value = "";
+
+    document.getElementById("modalExportRange").classList.add("show");
+
+}
+
+function tutupModalExportRange(){
+
+    document.getElementById("modalExportRange").classList.remove("show");
+
+}
+
+const btnTutupModalExportRangeEl = document.getElementById("btnTutupModalExportRange");
+
+if(btnTutupModalExportRangeEl){
+
+    btnTutupModalExportRangeEl.addEventListener("click", tutupModalExportRange);
+
+}
+
+const btnBatalExportRangeEl = document.getElementById("btnBatalExportRange");
+
+if(btnBatalExportRangeEl){
+
+    btnBatalExportRangeEl.addEventListener("click", tutupModalExportRange);
+
+}
+
+const modalExportRangeEl = document.getElementById("modalExportRange");
+
+if(modalExportRangeEl){
+
+    modalExportRangeEl.addEventListener("click", function(e){
+
+        if(e.target === modalExportRangeEl) tutupModalExportRange();
+
+    });
+
+}
+
+const btnJalankanExportRangeEl = document.getElementById("btnJalankanExportRange");
+
+if(btnJalankanExportRangeEl){
+
+    btnJalankanExportRangeEl.addEventListener("click", async function(){
+
+        const dariTanggal = document.getElementById("exportDari").value;
+        const sampaiTanggal = document.getElementById("exportSampai").value;
+
+        if(dariTanggal && sampaiTanggal && dariTanggal > sampaiTanggal){
+
+            alert("Tanggal Dari tidak boleh lebih besar dari Tanggal Sampai.");
+            return;
+
+        }
+
+        await exportExcel(dariTanggal, sampaiTanggal);
+
+        tutupModalExportRange();
+
+    });
+
+}
+
+async function exportExcel(dariTanggal, sampaiTanggal){
 
     try{
 
@@ -1493,18 +1564,25 @@ async function exportExcel(){
 
         }
 
-        const { data, error } = await supabaseClient
+        let query = supabaseClient
             .from("barang_keluar")
             .select("*")
-            .eq("gudang", user.gudang)
+            .eq("gudang", user.gudang);
+
+        if(dariTanggal) query = query.gte("tanggal", dariTanggal);
+        if(sampaiTanggal) query = query.lte("tanggal", sampaiTanggal);
+
+        query = query
             .order("tanggal", {ascending:false})
             .order("id", {ascending:false});
+
+        const { data, error } = await query;
 
         if(error) throw error;
 
         if(!data || data.length === 0){
 
-            alert("Tidak ada data Barang Keluar untuk diexport.");
+            alert("Tidak ada data Barang Keluar untuk diexport pada rentang tanggal tersebut.");
             return;
 
         }
@@ -1541,7 +1619,12 @@ async function exportExcel(){
         XLSX.utils.book_append_sheet(wb, ws, "Barang Keluar");
 
         const tanggalFile = new Date().toISOString().split("T")[0];
-        const namaFile = `Barang-Keluar-${user.gudang}-${tanggalFile}.xlsx`;
+
+        const labelRentang = (dariTanggal || sampaiTanggal)
+            ? `_${dariTanggal || "awal"}_sd_${sampaiTanggal || "akhir"}`
+            : "";
+
+        const namaFile = `Barang-Keluar-${user.gudang}${labelRentang}-${tanggalFile}.xlsx`;
 
         XLSX.writeFile(wb, namaFile);
 
