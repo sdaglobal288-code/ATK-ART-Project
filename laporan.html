@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Laporan</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="css/dashboard.css">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -13,16 +13,152 @@
 <script src="supabase/config.js"></script>
 <style>
     /* ====================================================
-       Style disamakan dengan tema gelap halaman lain
-       (Barang Masuk / Barang Keluar).
+       DESAIN: "Ledger" - laporan bergaya buku besar gudang.
+       Setiap seksi punya kode warna sendiri (seperti tab
+       pembatas pada buku besar fisik) supaya mata langsung
+       tahu sedang membaca bagian apa tanpa perlu membaca judul.
        ==================================================== */
+
+    :root{
+        --lp-bg-card: rgba(255,255,255,.02);
+        --lp-border: #263041;
+        --lp-text: #e2e8f0;
+        --lp-muted: #94a3b8;
+        --lp-muted-2: #64748b;
+
+        --lp-accent-filter: #3b82f6;   /* periode & aksi utama */
+        --lp-accent-masuk: #4ade80;    /* barang masuk */
+        --lp-accent-keluar: #f87171;   /* barang keluar */
+        --lp-accent-dist: #a78bfa;     /* distribusi / kategori */
+        --lp-accent-dept: #2dd4bf;     /* departemen */
+    }
+
+    .content{
+        max-width:1180px;
+    }
+
+    /* ---------- Header halaman ---------- */
+
+    .lp-header{
+        display:flex;
+        align-items:flex-start;
+        justify-content:space-between;
+        gap:20px;
+        flex-wrap:wrap;
+        margin-bottom:22px;
+    }
+
+    .lp-header-text h2{
+        margin:0 0 6px 0;
+        font-size:24px;
+        font-weight:800;
+        letter-spacing:-.01em;
+        color:var(--lp-text);
+    }
+
+    .lp-header-text p{
+        margin:0;
+        font-size:13.5px;
+        color:var(--lp-muted);
+        max-width:520px;
+        line-height:1.5;
+    }
+
+    .lp-gudang-pill{
+        display:inline-flex;
+        align-items:center;
+        gap:8px;
+        background:rgba(59,130,246,.1);
+        border:1px solid rgba(59,130,246,.3);
+        color:#93c5fd;
+        padding:8px 14px;
+        border-radius:999px;
+        font-size:12.5px;
+        font-weight:600;
+        white-space:nowrap;
+        margin-top:2px;
+    }
+
+    .lp-gudang-pill .dot{
+        width:7px;
+        height:7px;
+        border-radius:50%;
+        background:#4ade80;
+        box-shadow:0 0 0 3px rgba(74,222,128,.2);
+        flex-shrink:0;
+    }
+
+    /* ---------- Kartu seksi ("ledger tab") ---------- */
+
+    .lp-panel{
+        position:relative;
+        border:1px solid var(--lp-border);
+        border-left:3px solid var(--accent, var(--lp-accent-filter));
+        border-radius:12px;
+        background:var(--lp-bg-card);
+        padding:22px 24px;
+        margin-bottom:20px;
+    }
+
+    .lp-panel.accent-filter{ --accent: var(--lp-accent-filter); }
+    .lp-panel.accent-masuk{  --accent: var(--lp-accent-masuk); }
+    .lp-panel.accent-dist{   --accent: var(--lp-accent-dist); }
+    .lp-panel.accent-dept{   --accent: var(--lp-accent-dept); }
+
+    .lp-section-head{
+        display:flex;
+        align-items:center;
+        gap:12px;
+        margin-bottom:6px;
+    }
+
+    .lp-icon-chip{
+        width:34px;
+        height:34px;
+        border-radius:9px;
+        display:flex;
+        align-items:center;
+        justify-content:center;
+        font-size:16px;
+        background:color-mix(in srgb, var(--accent, var(--lp-accent-filter)) 16%, transparent);
+        border:1px solid color-mix(in srgb, var(--accent, var(--lp-accent-filter)) 35%, transparent);
+        flex-shrink:0;
+    }
+
+    .lp-section-titles{
+        display:flex;
+        flex-direction:column;
+        gap:2px;
+        min-width:0;
+    }
+
+    .lp-eyebrow{
+        font-size:10.5px;
+        font-weight:700;
+        letter-spacing:.09em;
+        text-transform:uppercase;
+        color:var(--accent, var(--lp-accent-filter));
+    }
+
+    .lp-section-title{
+        font-size:15.5px;
+        font-weight:700;
+        color:var(--lp-text);
+    }
+
+    .lp-section-sub{
+        font-size:12.5px;
+        color:var(--lp-muted-2);
+        margin:8px 0 18px 0;
+        line-height:1.5;
+    }
 
     /* ---------- Filter Periode ---------- */
 
     #formFilter{
         display:grid;
-        grid-template-columns: 1fr 1fr auto auto;
-        gap:16px;
+        grid-template-columns: 1fr 1fr auto auto auto;
+        gap:14px;
         align-items:end;
     }
 
@@ -33,80 +169,95 @@
     }
 
     #formFilter label{
-        font-size:13px;
-        color:#94a3b8;
+        font-size:12px;
+        font-weight:600;
+        color:var(--lp-muted);
+        text-transform:uppercase;
+        letter-spacing:.04em;
     }
 
     #formFilter input[type="date"]{
         width:100%;
-        padding:10px 12px;
-        border-radius:8px;
+        padding:11px 12px;
+        border-radius:9px;
         border:1px solid #334155;
         background:#0f172a;
         color:#e2e8f0;
         font-family:inherit;
         font-size:14px;
         box-sizing:border-box;
+        transition:border-color .15s, box-shadow .15s;
     }
 
-    #formFilter input:focus{
+    #formFilter input[type="date"]:focus{
         outline:none;
-        border-color:#3b82f6;
+        border-color:var(--lp-accent-filter);
         box-shadow:0 0 0 3px rgba(59,130,246,.2);
     }
 
-    #btnTerapkanFilter{
-        background:#3b82f6;
-        color:#ffffff;
+    #btnTerapkanFilter,
+    #btnExportLaporan,
+    #btnExportRekapATK{
+        display:inline-flex;
+        align-items:center;
+        justify-content:center;
+        gap:7px;
         border:none;
-        border-radius:10px;
-        padding:11px 20px;
+        border-radius:9px;
+        padding:11px 18px;
         cursor:pointer;
         font-weight:600;
-        font-size:14px;
+        font-size:13.5px;
         font-family:inherit;
-        transition:background .15s;
         white-space:nowrap;
+        transition:filter .15s ease, background .15s ease, transform .05s ease;
+    }
+
+    #btnTerapkanFilter:active,
+    #btnExportLaporan:active,
+    #btnExportRekapATK:active{
+        transform:translateY(1px);
+    }
+
+    #btnTerapkanFilter{
+        background:var(--lp-accent-filter);
+        color:#ffffff;
+        box-shadow:0 4px 12px rgba(59,130,246,.28);
     }
 
     #btnTerapkanFilter:hover{
-        background:#2563eb;
+        filter:brightness(1.08);
     }
 
     #btnExportLaporan{
         background:rgba(59,130,246,.12);
         color:#60a5fa;
         border:1px solid rgba(59,130,246,.35);
-        border-radius:10px;
-        padding:11px 20px;
-        cursor:pointer;
-        font-weight:600;
-        font-size:14px;
-        font-family:inherit;
-        transition:background .15s;
-        white-space:nowrap;
     }
 
     #btnExportLaporan:hover{
-        background:rgba(59,130,246,.22);
+        background:rgba(59,130,246,.2);
     }
 
     #btnExportRekapATK{
         background:rgba(74,222,128,.12);
         color:#4ade80;
         border:1px solid rgba(74,222,128,.35);
-        border-radius:10px;
-        padding:11px 20px;
-        cursor:pointer;
-        font-weight:600;
-        font-size:14px;
-        font-family:inherit;
-        transition:background .15s;
-        white-space:nowrap;
     }
 
     #btnExportRekapATK:hover{
-        background:rgba(74,222,128,.22);
+        background:rgba(74,222,128,.2);
+    }
+
+    @media (max-width: 900px){
+        #formFilter{
+            grid-template-columns:1fr;
+        }
+        #btnTerapkanFilter,
+        #btnExportLaporan,
+        #btnExportRekapATK{
+            width:100%;
+        }
     }
 
     /* ---------- Ringkasan (summary cards) ---------- */
@@ -118,46 +269,66 @@
     }
 
     .summary-card{
-        border:1px solid #263041;
+        position:relative;
+        overflow:hidden;
+        border:1px solid var(--lp-border);
         border-radius:12px;
-        padding:16px 18px;
-        background:rgba(255,255,255,.02);
+        padding:17px 18px;
+        background:rgba(255,255,255,.015);
+        transition:border-color .15s ease, background .15s ease;
+    }
+
+    .summary-card::before{
+        content:"";
+        position:absolute;
+        top:0; left:0; right:0;
+        height:2px;
+        background:var(--card-accent, #334155);
+        opacity:.9;
+    }
+
+    .summary-card:hover{
+        border-color:#334155;
+        background:rgba(255,255,255,.03);
     }
 
     .summary-card .label{
-        font-size:12.5px;
-        color:#94a3b8;
+        font-size:11.5px;
+        font-weight:600;
+        color:var(--lp-muted);
         text-transform:uppercase;
-        letter-spacing:.03em;
-        margin-bottom:8px;
+        letter-spacing:.05em;
+        margin-bottom:10px;
     }
 
     .summary-card .value{
-        font-size:24px;
-        font-weight:700;
-        color:#e2e8f0;
+        font-size:25px;
+        font-weight:800;
+        letter-spacing:-.01em;
+        color:var(--lp-text);
+        font-variant-numeric:tabular-nums;
     }
 
     .summary-card .value.masuk{
-        color:#4ade80;
+        color:var(--lp-accent-masuk);
     }
 
     .summary-card .value.keluar{
-        color:#f87171;
+        color:var(--lp-accent-keluar);
     }
 
     .summary-card .value.selisih-positif{
-        color:#4ade80;
+        color:var(--lp-accent-masuk);
     }
 
     .summary-card .value.selisih-negatif{
-        color:#f87171;
+        color:var(--lp-accent-keluar);
     }
 
     .summary-card .sub{
-        margin-top:6px;
-        font-size:12.5px;
-        color:#64748b;
+        margin-top:7px;
+        font-size:12px;
+        color:var(--lp-muted-2);
     }
 
     /* ---------- Grafik ---------- */
@@ -165,20 +336,27 @@
     .chart-grid{
         display:grid;
         grid-template-columns:1fr 1fr;
-        gap:20px;
+        gap:18px;
     }
 
     .chart-box{
-        border:1px solid #263041;
-        border-radius:12px;
-        padding:16px;
-        background:rgba(255,255,255,.02);
+        border:1px solid var(--lp-border);
+        border-radius:11px;
+        padding:16px 16px 18px;
+        background:rgba(255,255,255,.015);
     }
 
     .chart-box h4{
+        margin:0 0 3px 0;
+        color:var(--lp-text);
+        font-size:13.5px;
+        font-weight:700;
+    }
+
+    .chart-box .chart-box-sub{
         margin:0 0 14px 0;
-        color:#e2e8f0;
-        font-size:14.5px;
+        font-size:11.5px;
+        color:var(--lp-muted-2);
     }
 
     .chart-canvas-wrap{
@@ -194,41 +372,67 @@
         .chart-grid{
             grid-template-columns:1fr;
         }
-        #formFilter{
-            grid-template-columns:1fr;
-        }
     }
 
-    /* ---------- Highlight box ---------- */
+    /* ---------- Highlight / insight box ---------- */
 
     .highlight-box{
-        border:1px solid rgba(59,130,246,.35);
-        background:rgba(59,130,246,.08);
-        border-radius:12px;
-        padding:14px 18px;
-        color:#e2e8f0;
-        font-size:14px;
-        line-height:1.6;
+        display:flex;
+        align-items:flex-start;
+        gap:12px;
+        border:1px solid rgba(45,212,191,.3);
+        background:rgba(45,212,191,.06);
+        border-radius:11px;
+        padding:16px 18px;
+        color:var(--lp-text);
+        font-size:13.5px;
+        line-height:1.65;
+    }
+
+    .highlight-box .hl-icon{
+        font-size:18px;
+        line-height:1;
+        margin-top:1px;
+        flex-shrink:0;
     }
 
     .highlight-box b{
-        color:#60a5fa;
+        color:#5eead4;
     }
 
     /* ---------- Tabel Stok ---------- */
 
     .stok-empty{
         text-align:center;
-        color:#64748b;
+        color:var(--lp-muted-2);
         padding:18px;
         font-style:italic;
+    }
+
+    /* ---------- Footer note ---------- */
+
+    .lp-footnote{
+        text-align:center;
+        font-size:11.5px;
+        color:#475569;
+        margin:26px 0 6px;
     }
 </style>
 </head>
 <body>
 <div class="content">
-<h2>📊 Laporan</h2>
-<br>
+
+<!-- ================= HEADER ================= -->
+<div class="lp-header">
+    <div class="lp-header-text">
+        <h2>📊 Laporan</h2>
+        <p>Ringkasan pergerakan stok, tren bulanan, dan pengeluaran barang berdasarkan periode yang dipilih.</p>
+    </div>
+    <span class="lp-gudang-pill" id="lpGudangPill">
+        <span class="dot"></span>
+        <span id="lpGudangNama">Memuat gudang...</span>
+    </span>
+</div>
 
 <!-- ================= TOOLBAR ================= -->
 <div class="toolbar">
@@ -241,84 +445,133 @@ onclick="location.href='dashboard.html'">
 <br>
 
 <!-- ================= FILTER PERIODE ================= -->
-<div class="panel">
-<h3><span>🗓️ Filter Periode</span></h3>
-<br>
+<div class="lp-panel accent-filter">
+<div class="lp-section-head">
+    <span class="lp-icon-chip">🗓️</span>
+    <span class="lp-section-titles">
+        <span class="lp-eyebrow">Periode</span>
+        <span class="lp-section-title">Filter Periode Laporan</span>
+    </span>
+</div>
+<p class="lp-section-sub">Pilih rentang tanggal, lalu terapkan untuk memuat ringkasan dan grafik di bawah.</p>
 <form id="formFilter" onsubmit="return false;">
 <div>
-<label><b>Dari Tanggal</b></label>
+<label>Dari Tanggal</label>
 <input type="date" id="filterDari" required>
 </div>
 <div>
-<label><b>Sampai Tanggal</b></label>
+<label>Sampai Tanggal</label>
 <input type="date" id="filterSampai" required>
 </div>
 <button type="button" id="btnTerapkanFilter">🔎 Terapkan Filter</button>
-<button type="button" id="btnExportLaporan">📤 Export Laporan Excel</button>
-<button type="button" id="btnExportRekapATK">📋 Export Rekap ATK/ART (Semua Gudang)</button>
+<button type="button" id="btnExportLaporan">📤 Export Laporan</button>
+<button type="button" id="btnExportRekapATK">📋 Rekap ATK/ART (Semua Gudang)</button>
 </form>
 </div>
-<br>
 
 <!-- ================= RINGKASAN ================= -->
-<div class="panel">
-<h3><span>📈 Ringkasan Periode</span></h3>
-<br>
+<div class="lp-panel accent-filter">
+<div class="lp-section-head">
+    <span class="lp-icon-chip">📈</span>
+    <span class="lp-section-titles">
+        <span class="lp-eyebrow">Ringkasan</span>
+        <span class="lp-section-title">Ringkasan Periode</span>
+    </span>
+</div>
+<p class="lp-section-sub">Angka total transaksi dan pergerakan stok untuk rentang tanggal yang sedang diterapkan.</p>
 <div class="summary-grid" id="summaryGrid">
     <!-- kartu ringkasan diisi lewat JS -->
 </div>
 </div>
-<br>
 
 <!-- ================= GRAFIK TREN ================= -->
-<div class="panel">
-<h3><span>📊 Tren Barang Masuk vs Keluar per Bulan</span></h3>
-<br>
+<div class="lp-panel accent-masuk">
+<div class="lp-section-head">
+    <span class="lp-icon-chip">📊</span>
+    <span class="lp-section-titles">
+        <span class="lp-eyebrow">Tren Bulanan</span>
+        <span class="lp-section-title">Barang Masuk vs Barang Keluar</span>
+    </span>
+</div>
+<p class="lp-section-sub">Perbandingan jumlah unit masuk dan keluar per bulan, untuk melihat arah pergerakan stok dari waktu ke waktu.</p>
 <div class="chart-canvas-wrap tall">
 <canvas id="chartTren"></canvas>
 </div>
 </div>
-<br>
 
 <!-- ================= GRAFIK KATEGORI & TOP BARANG ================= -->
-<div class="panel">
-<h3><span>🥧 Distribusi & Barang Teratas</span></h3>
-<br>
+<div class="lp-panel accent-dist">
+<div class="lp-section-head">
+    <span class="lp-icon-chip">🥧</span>
+    <span class="lp-section-titles">
+        <span class="lp-eyebrow">Distribusi</span>
+        <span class="lp-section-title">Distribusi & Barang Teratas</span>
+    </span>
+</div>
+<p class="lp-section-sub">Komposisi stok saat ini per kategori, dan barang mana yang paling banyak keluar pada periode ini.</p>
 <div class="chart-grid">
 <div class="chart-box">
 <h4>Distribusi Stok Saat Ini per Kategori</h4>
+<p class="chart-box-sub">Berdasarkan sisa stok terkini, tidak terpengaruh filter tanggal.</p>
 <div class="chart-canvas-wrap">
 <canvas id="chartKategori"></canvas>
 </div>
 </div>
 <div class="chart-box">
-<h4>Barang Keluar Terbanyak (periode ini)</h4>
+<h4>Barang Keluar Terbanyak</h4>
+<p class="chart-box-sub">Diurutkan dari yang paling banyak diambil pada periode ini.</p>
 <div class="chart-canvas-wrap">
 <canvas id="chartTopKeluar"></canvas>
 </div>
 </div>
 </div>
 </div>
-<br>
 
 <!-- ================= GRAFIK PER DEPARTEMEN ================= -->
-<div class="panel">
-<h3><span>🏢 Pengeluaran Berdasarkan Departemen</span></h3>
-<br>
-<div class="highlight-box" id="highlightDepartemen">
-    Terapkan filter periode untuk melihat ringkasan.
+<div class="lp-panel accent-dept">
+<div class="lp-section-head">
+    <span class="lp-icon-chip">🏢</span>
+    <span class="lp-section-titles">
+        <span class="lp-eyebrow">Departemen</span>
+        <span class="lp-section-title">Pengeluaran Berdasarkan Departemen</span>
+    </span>
+</div>
+<p class="lp-section-sub">Departemen mana yang paling banyak mengambil barang, dan barang apa yang paling sering diambilnya.</p>
+<div class="highlight-box">
+    <span class="hl-icon">💡</span>
+    <span id="highlightDepartemen">Terapkan filter periode untuk melihat ringkasan.</span>
 </div>
 <br>
 <div class="chart-box">
-<h4>Total Qty Keluar per Departemen (periode ini)</h4>
+<h4>Total Qty Keluar per Departemen</h4>
+<p class="chart-box-sub">Total unit yang diambil tiap departemen pada periode ini.</p>
 <div class="chart-canvas-wrap">
 <canvas id="chartDepartemen"></canvas>
 </div>
 </div>
 </div>
-<br>
+
+<p class="lp-footnote">Semua data pada halaman ini khusus gudang yang sedang login, kecuali bagian "Rekap ATK/ART" yang menggabungkan seluruh gudang.</p>
 
 </div>
+<script>
+    // Menampilkan nama gudang akun yang sedang login di pojok kanan atas.
+    // Murni tampilan - tidak mengubah/menggantikan logika apapun di js/laporan.js.
+    (function(){
+        try{
+            const u = JSON.parse(sessionStorage.getItem("user"));
+            const el = document.getElementById("lpGudangNama");
+            if(u && u.gudang && el){
+                el.textContent = `Gudang ${u.gudang}`;
+            } else if(el){
+                el.textContent = "Gudang tidak diketahui";
+            }
+        }catch(e){
+            const el = document.getElementById("lpGudangNama");
+            if(el) el.textContent = "Gudang tidak diketahui";
+        }
+    })();
+</script>
 <script src="js/laporan.js"></script>
 </body>
 </html>
