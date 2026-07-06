@@ -10,6 +10,10 @@
 // - barang_keluar (flat, 1 baris = 1 item keluar)         -> untuk tren keluar
 //   & untuk grafik per departemen (kolom "departemen" per baris)
 // - stok_gudang + master_barang                            -> untuk stok saat ini
+//
+// KHUSUS "Export Rekap ATK/ART (Semua Gudang)": laporan ini SENGAJA
+// TIDAK difilter ke user.gudang, karena memang menggabungkan Raden Saleh
+// & Margomulyo sekaligus (lihat bagian exportRekapATKART di bawah).
 // =====================================
 
 const user = JSON.parse(sessionStorage.getItem("user"));
@@ -1008,6 +1012,7 @@ if(btnExportLaporanEl){
 //              REKAPAN PENGELUARAN ATK/ART SDA GLOBAL
 //   PERIODE   : 01-30 JUNI 2026
 //   NAMA BARANG | RADEN SALEH | MARGOMULYO | JUMLAH QTY | HARGA | JUMLAH HARGA
+//   TOTAL       | <jumlah RS> | <jumlah MG>| <jumlah>   |       | <jumlah>
 //
 // CATATAN: kolom HARGA diambil dari master_barang.harga. Kalau kolom
 // "harga" belum ada di tabel master_barang, nilainya akan tampil 0 -
@@ -1017,6 +1022,19 @@ if(btnExportLaporanEl){
 // Laporan ini menggabungkan data dari SEMUA gudang (Raden Saleh +
 // Margomulyo), berbeda dengan laporan lain di halaman ini yang
 // selalu difilter khusus gudang yang sedang login.
+//
+// FILE INI TERDIRI DARI 5 SHEET:
+//   1. "Rekap ATK-ART"                  -> rekap gabungan (format contoh)
+//   2. "Histori Keluar - Raden Saleh"   -> histori Barang Keluar Raden
+//                                          Saleh sesuai filter tanggal
+//   3. "Histori Keluar - Margomulyo"    -> histori Barang Keluar
+//                                          Margomulyo sesuai filter tanggal
+//   4. "Stok Saat Ini - Raden Saleh"    -> stok REALTIME (saat export
+//                                          dijalankan) gudang Raden Saleh,
+//                                          TIDAK dipengaruhi filter tanggal
+//   5. "Stok Saat Ini - Margomulyo"     -> stok REALTIME (saat export
+//                                          dijalankan) gudang Margomulyo,
+//                                          TIDAK dipengaruhi filter tanggal
 // =====================================
 
 const NAMA_BULAN_PANJANG = [
@@ -1062,6 +1080,82 @@ async function ambilItemKeluarSemuaGudang(tanggalDari, tanggalSampai){
         gudang : d.gudang || "-",
         qty : Number(d.qty) || 0
     }));
+
+}
+
+// =====================================
+// AMBIL HISTORI BARANG KELUAR LENGKAP UNTUK SATU GUDANG TERTENTU
+// (dipakai untuk sheet "Histori Keluar - <gudang>")
+// =====================================
+
+async function ambilHistoriKeluarLengkapPerGudang(gudang, tanggalDari, tanggalSampai){
+
+    const { data, error } = await supabaseClient
+        .from("barang_keluar")
+        .select("*")
+        .eq("gudang", gudang)
+        .gte("tanggal", tanggalDari)
+        .lte("tanggal", tanggalSampai)
+        .order("tanggal", { ascending: true })
+        .order("id", { ascending: true });
+
+    if(error) throw error;
+
+    return (data || []).map(item => ({
+        "Tanggal": item.tanggal,
+        "NIK": item.nik,
+        "Nama Pengambil": item.nama_pengambil,
+        "Departemen": item.departemen,
+        "Jabatan": item.jabatan,
+        "Kode Barang": item.kode_barang,
+        "Nama Barang": item.nama_barang,
+        "Kategori": item.kategori,
+        "Satuan": item.satuan,
+        "Qty": item.qty,
+        "Keterangan": item.keterangan || "",
+        "Created By": item.created_by
+    }));
+
+}
+
+// =====================================
+// AMBIL STOK REALTIME UNTUK SATU GUDANG TERTENTU
+// (dipakai untuk sheet "Stok Saat Ini - <gudang>")
+// Diambil langsung dari stok_gudang PADA SAAT export dijalankan, jadi
+// selalu mencerminkan angka realtime, TIDAK dipengaruhi filter tanggal.
+// =====================================
+
+async function ambilStokRealtimePerGudang(gudang){
+
+    const { data, error } = await supabaseClient
+        .from("stok_gudang")
+        .select("barang_id, stok")
+        .eq("gudang", gudang);
+
+    if(error) throw error;
+
+    // pastikan master_barang sudah termuat untuk join kode/nama/kategori/satuan
+    if(masterBarangList.length === 0){
+
+        await loadMasterBarang();
+
+    }
+
+    return (data || [])
+        .map(row => {
+
+            const barang = findBarangById(row.barang_id);
+
+            return {
+                "Kode Barang": barang ? barang.kode_barang : "-",
+                "Nama Barang": barang ? barang.nama_barang : "(barang tidak ditemukan)",
+                "Kategori": barang ? barang.kategori : "-",
+                "Satuan": barang ? barang.satuan : "-",
+                "Stok": Number(row.stok) || 0
+            };
+
+        })
+        .sort((a, b) => a["Nama Barang"].localeCompare(b["Nama Barang"]));
 
 }
 
@@ -1202,11 +1296,16 @@ async function exportRekapATKART(){
 
         });
 
-        // baris total keseluruhan
-        const totalSemuaQty = dataRekap.reduce((sum, entri) => {
-            const qtyPerGudang = kolomGudang.map(g => entri.per_gudang.get(g) || 0);
-            return sum + qtyPerGudang.reduce((a, b) => a + b, 0);
-        }, 0);
+        // ---------- BARIS TOTAL (sekarang ikut menjumlah tiap kolom gudang) ----------
+
+        const totalPerGudangArr = kolomGudang.map(g =>
+            dataRekap.reduce(
+                (sum, entri) => sum + (entri.per_gudang.get(g) || 0),
+                0
+            )
+        );
+
+        const totalSemuaQty = totalPerGudangArr.reduce((a, b) => a + b, 0);
 
         const totalSemuaHarga = dataRekap.reduce((sum, entri) => {
 
@@ -1224,11 +1323,16 @@ async function exportRekapATKART(){
 
         const barisTotal = new Array(totalKolom).fill("");
         barisTotal[0] = "TOTAL";
+
+        kolomGudang.forEach((g, idx) => {
+            barisTotal[1 + idx] = totalPerGudangArr[idx];
+        });
+
         barisTotal[totalKolom - 3] = totalSemuaQty;
         barisTotal[totalKolom - 1] = totalSemuaHarga;
         aoa.push(barisTotal);
 
-        // ---------- BUAT SHEET ----------
+        // ---------- BUAT SHEET 1: REKAP GABUNGAN ----------
 
         const ws = XLSX.utils.aoa_to_sheet(aoa);
 
@@ -1250,6 +1354,51 @@ async function exportRekapATKART(){
         const wb = XLSX.utils.book_new();
 
         XLSX.utils.book_append_sheet(wb, ws, "Rekap ATK-ART");
+
+        // ---------- SHEET 2 & 3: HISTORI KELUAR PER GUDANG ----------
+
+        const [historiRadenSaleh, historiMargomulyo] = await Promise.all([
+            ambilHistoriKeluarLengkapPerGudang("Raden Saleh", tanggalDari, tanggalSampai),
+            ambilHistoriKeluarLengkapPerGudang("Margomulyo", tanggalDari, tanggalSampai)
+        ]);
+
+        const wsHistoriRS = XLSX.utils.json_to_sheet(historiRadenSaleh);
+        wsHistoriRS["!cols"] = [
+            {wch:12}, {wch:14}, {wch:22}, {wch:18}, {wch:16},
+            {wch:14}, {wch:26}, {wch:16}, {wch:10}, {wch:8},
+            {wch:24}, {wch:18}
+        ];
+        XLSX.utils.book_append_sheet(wb, wsHistoriRS, "Histori Keluar - Raden Saleh");
+
+        const wsHistoriMG = XLSX.utils.json_to_sheet(historiMargomulyo);
+        wsHistoriMG["!cols"] = [
+            {wch:12}, {wch:14}, {wch:22}, {wch:18}, {wch:16},
+            {wch:14}, {wch:26}, {wch:16}, {wch:10}, {wch:8},
+            {wch:24}, {wch:18}
+        ];
+        XLSX.utils.book_append_sheet(wb, wsHistoriMG, "Histori Keluar - Margomulyo");
+
+        // ---------- SHEET 4 & 5: STOK REALTIME PER GUDANG ----------
+        // (diambil saat export dijalankan, TIDAK dipengaruhi filter tanggal)
+
+        const [stokRadenSaleh, stokMargomulyo] = await Promise.all([
+            ambilStokRealtimePerGudang("Raden Saleh"),
+            ambilStokRealtimePerGudang("Margomulyo")
+        ]);
+
+        const wsStokRS = XLSX.utils.json_to_sheet(stokRadenSaleh);
+        wsStokRS["!cols"] = [
+            {wch:14}, {wch:30}, {wch:18}, {wch:12}, {wch:10}
+        ];
+        XLSX.utils.book_append_sheet(wb, wsStokRS, "Stok Saat Ini - Raden Saleh");
+
+        const wsStokMG = XLSX.utils.json_to_sheet(stokMargomulyo);
+        wsStokMG["!cols"] = [
+            {wch:14}, {wch:30}, {wch:18}, {wch:12}, {wch:10}
+        ];
+        XLSX.utils.book_append_sheet(wb, wsStokMG, "Stok Saat Ini - Margomulyo");
+
+        // ---------- SIMPAN FILE ----------
 
         const namaFile = `Rekap-Pengeluaran-ATK-ART-${tanggalDari}_sd_${tanggalSampai}.xlsx`;
 
