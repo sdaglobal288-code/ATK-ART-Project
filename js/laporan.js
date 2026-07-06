@@ -1001,6 +1001,279 @@ if(btnExportLaporanEl){
 }
 
 // =====================================
+// EXPORT REKAP ATK/ART (SEMUA GUDANG DIGABUNG)
+// =====================================
+// Format mengikuti contoh:
+//
+//              REKAPAN PENGELUARAN ATK/ART SDA GLOBAL
+//   PERIODE   : 01-30 JUNI 2026
+//   NAMA BARANG | RADEN SALEH | MARGOMULYO | JUMLAH QTY | HARGA | JUMLAH HARGA
+//
+// CATATAN: kolom HARGA diambil dari master_barang.harga. Kalau kolom
+// "harga" belum ada di tabel master_barang, nilainya akan tampil 0 -
+// tambahkan kolom "harga" (angka) di tabel master_barang dulu supaya
+// kolom HARGA & JUMLAH HARGA di laporan ini terisi benar.
+//
+// Laporan ini menggabungkan data dari SEMUA gudang (Raden Saleh +
+// Margomulyo), berbeda dengan laporan lain di halaman ini yang
+// selalu difilter khusus gudang yang sedang login.
+// =====================================
+
+const NAMA_BULAN_PANJANG = [
+    "JANUARI","FEBRUARI","MARET","APRIL","MEI","JUNI",
+    "JULI","AGUSTUS","SEPTEMBER","OKTOBER","NOVEMBER","DESEMBER"
+];
+
+function formatPeriodeRekap(tanggalDari, tanggalSampai){
+
+    const [yD, mD, dD] = tanggalDari.split("-").map(Number);
+    const [yS, mS, dS] = tanggalSampai.split("-").map(Number);
+
+    const namaBulanDari = NAMA_BULAN_PANJANG[mD - 1];
+    const namaBulanSampai = NAMA_BULAN_PANJANG[mS - 1];
+
+    if(yD === yS && mD === mS){
+
+        // contoh: 01-30 JUNI 2026
+        return `${String(dD).padStart(2,"0")}-${String(dS).padStart(2,"0")} ${namaBulanDari} ${yD}`;
+
+    }
+
+    // beda bulan/tahun -> tampilkan lengkap dua-duanya
+    return `${String(dD).padStart(2,"0")} ${namaBulanDari} ${yD} - ${String(dS).padStart(2,"0")} ${namaBulanSampai} ${yS}`;
+
+}
+
+async function ambilItemKeluarSemuaGudang(tanggalDari, tanggalSampai){
+
+    // TIDAK difilter .eq("gudang", ...) karena laporan ini memang
+    // menggabungkan seluruh gudang, beda dari fungsi lain di halaman ini.
+    const { data, error } = await supabaseClient
+        .from("barang_keluar")
+        .select("*")
+        .gte("tanggal", tanggalDari)
+        .lte("tanggal", tanggalSampai);
+
+    if(error) throw error;
+
+    return (data || []).map(d => ({
+        nama_barang : d.nama_barang,
+        kode_barang : d.kode_barang,
+        gudang : d.gudang || "-",
+        qty : Number(d.qty) || 0
+    }));
+
+}
+
+async function exportRekapATKART(){
+
+    try{
+
+        if(typeof XLSX === "undefined"){
+
+            alert("Library Excel belum termuat, silakan refresh halaman lalu coba lagi.");
+            return;
+
+        }
+
+        const tanggalDari = document.getElementById("filterDari").value;
+        const tanggalSampai = document.getElementById("filterSampai").value;
+
+        if(!tanggalDari || !tanggalSampai){
+
+            alert("Isi dulu Dari Tanggal dan Sampai Tanggal di atas.");
+            return;
+
+        }
+
+        if(tanggalDari > tanggalSampai){
+
+            alert("Tanggal Dari tidak boleh lebih besar dari Tanggal Sampai.");
+            return;
+
+        }
+
+        const items = await ambilItemKeluarSemuaGudang(tanggalDari, tanggalSampai);
+
+        if(items.length === 0){
+
+            alert("Tidak ada data Barang Keluar pada rentang tanggal tersebut (semua gudang).");
+            return;
+
+        }
+
+        // pastikan master_barang sudah termuat (untuk kode_barang -> harga)
+        if(masterBarangList.length === 0){
+
+            await loadMasterBarang();
+
+        }
+
+        // rekap per nama_barang: qty per gudang + total
+        const rekapMap = new Map();
+
+        items.forEach(it => {
+
+            if(!rekapMap.has(it.nama_barang)){
+
+                rekapMap.set(it.nama_barang, {
+                    nama_barang: it.nama_barang,
+                    kode_barang: it.kode_barang,
+                    per_gudang: new Map()
+                });
+
+            }
+
+            const entri = rekapMap.get(it.nama_barang);
+
+            entri.per_gudang.set(
+                it.gudang,
+                (entri.per_gudang.get(it.gudang) || 0) + it.qty
+            );
+
+        });
+
+        const daftarGudangDitemukan = Array.from(
+            new Set(items.map(it => it.gudang))
+        );
+
+        // urutan kolom gudang: prioritaskan "Raden Saleh" & "Margomulyo" dulu
+        // (sesuai format contoh), lalu gudang lain (kalau ada) menyusul.
+        const urutanUtama = ["Raden Saleh", "Margomulyo"];
+
+        const kolomGudang = [
+            ...urutanUtama.filter(g => daftarGudangDitemukan.includes(g)),
+            ...daftarGudangDitemukan.filter(g => !urutanUtama.includes(g)).sort()
+        ];
+
+        const dataRekap = Array.from(rekapMap.values())
+            .sort((a, b) => a.nama_barang.localeCompare(b.nama_barang));
+
+        // ---------- SUSUN BARIS EXCEL (array of array, biar bisa merge cell) ----------
+
+        const periodeText = formatPeriodeRekap(tanggalDari, tanggalSampai);
+
+        const aoa = [];
+
+        // baris 1: judul (nanti di-merge full lebar)
+        const totalKolom = 1 + kolomGudang.length + 3;
+        const barisJudul = new Array(totalKolom).fill("");
+        barisJudul[0] = "REKAPAN PENGELUARAN ATK/ART SDA GLOBAL";
+        aoa.push(barisJudul);
+
+        // baris 2: PERIODE
+        const barisPeriode = new Array(totalKolom).fill("");
+        barisPeriode[0] = "PERIODE";
+        barisPeriode[1] = `: ${periodeText}`;
+        aoa.push(barisPeriode);
+
+        // baris 3: header kolom
+        const barisHeader = [
+            "NAMA BARANG",
+            ...kolomGudang.map(g => g.toUpperCase()),
+            "JUMLAH QTY",
+            "HARGA",
+            "JUMLAH HARGA"
+        ];
+        aoa.push(barisHeader);
+
+        // baris data
+        dataRekap.forEach(entri => {
+
+            const barangMaster = masterBarangList.find(
+                b => b.kode_barang === entri.kode_barang
+            );
+
+            const harga = Number(barangMaster?.harga) || 0;
+
+            const qtyPerGudang = kolomGudang.map(g => entri.per_gudang.get(g) || 0);
+
+            const jumlahQty = qtyPerGudang.reduce((a, b) => a + b, 0);
+
+            const jumlahHarga = jumlahQty * harga;
+
+            aoa.push([
+                entri.nama_barang,
+                ...qtyPerGudang,
+                jumlahQty,
+                harga,
+                jumlahHarga
+            ]);
+
+        });
+
+        // baris total keseluruhan
+        const totalSemuaQty = dataRekap.reduce((sum, entri) => {
+            const qtyPerGudang = kolomGudang.map(g => entri.per_gudang.get(g) || 0);
+            return sum + qtyPerGudang.reduce((a, b) => a + b, 0);
+        }, 0);
+
+        const totalSemuaHarga = dataRekap.reduce((sum, entri) => {
+
+            const barangMaster = masterBarangList.find(
+                b => b.kode_barang === entri.kode_barang
+            );
+
+            const harga = Number(barangMaster?.harga) || 0;
+            const qtyPerGudang = kolomGudang.map(g => entri.per_gudang.get(g) || 0);
+            const jumlahQty = qtyPerGudang.reduce((a, b) => a + b, 0);
+
+            return sum + (jumlahQty * harga);
+
+        }, 0);
+
+        const barisTotal = new Array(totalKolom).fill("");
+        barisTotal[0] = "TOTAL";
+        barisTotal[totalKolom - 3] = totalSemuaQty;
+        barisTotal[totalKolom - 1] = totalSemuaHarga;
+        aoa.push(barisTotal);
+
+        // ---------- BUAT SHEET ----------
+
+        const ws = XLSX.utils.aoa_to_sheet(aoa);
+
+        // merge judul & periode (baris 1 & 2) selebar seluruh kolom
+        ws["!merges"] = [
+            { s: { r: 0, c: 0 }, e: { r: 0, c: totalKolom - 1 } },
+            { s: { r: 1, c: 1 }, e: { r: 1, c: totalKolom - 1 } }
+        ];
+
+        // lebar kolom
+        ws["!cols"] = [
+            { wch: 30 },
+            ...kolomGudang.map(() => ({ wch: 14 })),
+            { wch: 12 },
+            { wch: 14 },
+            { wch: 16 }
+        ];
+
+        const wb = XLSX.utils.book_new();
+
+        XLSX.utils.book_append_sheet(wb, ws, "Rekap ATK-ART");
+
+        const namaFile = `Rekap-Pengeluaran-ATK-ART-${tanggalDari}_sd_${tanggalSampai}.xlsx`;
+
+        XLSX.writeFile(wb, namaFile);
+
+    }
+    catch(err){
+
+        console.error(err);
+        alert(err.message);
+
+    }
+
+}
+
+const btnExportRekapATKEl = document.getElementById("btnExportRekapATK");
+
+if(btnExportRekapATKEl){
+
+    btnExportRekapATKEl.addEventListener("click", exportRekapATKART);
+
+}
+
+// =====================================
 // LOAD AWAL
 // =====================================
 
