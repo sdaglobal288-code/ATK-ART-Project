@@ -587,6 +587,41 @@ function renderChartDepartemen(itemsKeluar){
 
     }
 
+    // Plugin kecil (khusus dipakai di chart ini saja, tidak didaftarkan
+    // secara global) untuk menampilkan label persentase di atas tiap batang.
+    const labelPersenDiAtasBatang = {
+        id: "labelPersenDiAtasBatang",
+        afterDatasetsDraw(chart){
+
+            const { ctx } = chart;
+
+            chart.data.datasets.forEach((dataset, datasetIndex) => {
+
+                const meta = chart.getDatasetMeta(datasetIndex);
+
+                meta.data.forEach((bar, index) => {
+
+                    const nilai = dataset.data[index];
+
+                    const persen = totalKeseluruhan > 0
+                        ? ((nilai / totalKeseluruhan) * 100).toFixed(1)
+                        : 0;
+
+                    ctx.save();
+                    ctx.fillStyle = "#e2e8f0";
+                    ctx.font = "700 12px Inter, sans-serif";
+                    ctx.textAlign = "center";
+                    ctx.textBaseline = "bottom";
+                    ctx.fillText(`${persen}%`, bar.x, bar.y - 6);
+                    ctx.restore();
+
+                });
+
+            });
+
+        }
+    };
+
     chartDepartemenInstance = new Chart(ctx, {
         type: "bar",
         data: {
@@ -600,9 +635,13 @@ function renderChartDepartemen(itemsKeluar){
                 borderRadius: 6
             }]
         },
+        plugins: [labelPersenDiAtasBatang],
         options: {
             responsive: true,
             maintainAspectRatio: false,
+            layout: {
+                padding: { top: 22 }
+            },
             plugins: {
                 legend: { display: false },
                 tooltip: {
