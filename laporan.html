@@ -91,6 +91,24 @@
         background:rgba(59,130,246,.22);
     }
 
+    #btnExportRekapATK{
+        background:rgba(74,222,128,.12);
+        color:#4ade80;
+        border:1px solid rgba(74,222,128,.35);
+        border-radius:10px;
+        padding:11px 20px;
+        cursor:pointer;
+        font-weight:600;
+        font-size:14px;
+        font-family:inherit;
+        transition:background .15s;
+        white-space:nowrap;
+    }
+
+    #btnExportRekapATK:hover{
+        background:rgba(74,222,128,.22);
+    }
+
     /* ---------- Ringkasan (summary cards) ---------- */
 
     .summary-grid{
@@ -237,6 +255,7 @@ onclick="location.href='dashboard.html'">
 </div>
 <button type="button" id="btnTerapkanFilter">🔎 Terapkan Filter</button>
 <button type="button" id="btnExportLaporan">📤 Export Laporan Excel</button>
+<button type="button" id="btnExportRekapATK">📋 Export Rekap ATK/ART (Semua Gudang)</button>
 </form>
 </div>
 <br>
