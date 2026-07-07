@@ -390,22 +390,22 @@ img{ max-width: 100%; display: block; }
 ========================================================== */
 
 body.theme-blue-raden-saleh{
-    --color-bg:            #5379a6;
-    --color-surface:       #4b6f9c;
-    --color-surface-2:     #6389b7;
-    --color-sidebar:       #38598a;
+    --color-bg:            #0d3568;
+    --color-surface:       #12447f;
+    --color-surface-2:     #175490;
+    --color-sidebar:       #082347;
     --color-sidebar-soft:  rgba(255,255,255,.08);
     --color-text:          #ffffff;
-    --color-text-soft:     #dde8f5;
-    --color-text-faint:    #b9cde8;
-    --color-border:        #8bacd4;
-    --color-border-strong: #a8c3e3;
+    --color-text-soft:     #bcd2ef;
+    --color-text-faint:    #8fb3d9;
+    --color-border:        #2f66a4;
+    --color-border-strong: #3f79bb;
 }
 
 body.theme-blue-raden-saleh .btn-dashboard:hover,
 body.theme-blue-raden-saleh .btn-import:hover,
 body.theme-blue-raden-saleh .btn-export:hover{
-    background: #567cab;
+    background: #1c4d8c;
 }
 
 /* ==========================================================
