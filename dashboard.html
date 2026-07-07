@@ -11,12 +11,15 @@
 <script src="supabase/config.js"></script>
 <style>
   :root{
-    --dsh-bg:#5379a6;
-    --dsh-surface:#4b6f9c;
-    --dsh-surface-2:#6389b7;
-    --dsh-border:#8bacd4;
-    --dsh-text:#ffffff;
-    --dsh-muted:#dde8f5;
+    --dsh-bg:#0f1018;
+    --dsh-surface:#171926;
+    --dsh-surface-2:#1e2130;
+    --dsh-border:#2a2d3d;
+    --dsh-text:#e9eaf2;
+    --dsh-muted:#9498ab;
+    --dsh-sidebar-bg:#0b0d14;
+    --dsh-menu-title:#3d4258;
+    --dsh-menu-btn:#8b8fa8;
     --dsh-purple:#6c5dd3;
     --dsh-purple-dark:#5a4cc0;
     --dsh-purple-soft:rgba(108,93,211,.15);
@@ -29,6 +32,22 @@
     --dsh-info:#38bdf8;
     --dsh-info-soft:rgba(56,189,248,.10);
     --sidebar-w:260px;
+  }
+
+  /* ===========================
+     TEMA BIRU — KHUSUS GUDANG RADEN SALEH
+     Aktif otomatis lewat class body.theme-blue-raden-saleh
+  =========================== */
+  body.theme-blue-raden-saleh{
+    --dsh-bg:#5379a6;
+    --dsh-surface:#4b6f9c;
+    --dsh-surface-2:#6389b7;
+    --dsh-border:#8bacd4;
+    --dsh-text:#ffffff;
+    --dsh-muted:#dde8f5;
+    --dsh-sidebar-bg:#38598a;
+    --dsh-menu-title:#b9cde8;
+    --dsh-menu-btn:#e3ecf8;
   }
 
   *, *::before, *::after{ box-sizing:border-box; margin:0; padding:0; }
@@ -47,7 +66,7 @@
   .sidebar{
     width:var(--sidebar-w);
     min-height:100vh;
-    background:#38598a;
+    background:var(--dsh-sidebar-bg);
     border-right:1px solid var(--dsh-border);
     display:flex;
     flex-direction:column;
@@ -129,7 +148,7 @@
   .menu-title{
     font-size:10.5px;
     font-weight:700;
-    color:#b9cde8;
+    color:var(--dsh-menu-title);
     text-transform:uppercase;
     letter-spacing:.1em;
     padding:16px 10px 6px;
@@ -142,7 +161,7 @@
     width:100%;
     background:none;
     border:none;
-    color:#e3ecf8;
+    color:var(--dsh-menu-btn);
     padding:10px 12px;
     border-radius:10px;
     text-align:left;
@@ -497,6 +516,19 @@
 </style>
 </head>
 <body>
+<script>
+// Aktifkan tema biru hanya untuk gudang Raden Saleh.
+// Gudang lain (mis. Margomulyo) tetap pakai tema gelap default.
+(function(){
+    try{
+        var u = JSON.parse(sessionStorage.getItem("user"));
+        var gudang = (u && u.gudang ? String(u.gudang) : "").toLowerCase();
+        if (gudang.indexOf("raden saleh") !== -1){
+            document.body.classList.add("theme-blue-raden-saleh");
+        }
+    }catch(e){}
+})();
+</script>
 
 <!-- ===========================
      SIDEBAR
