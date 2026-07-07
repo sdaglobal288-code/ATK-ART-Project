@@ -10,6 +10,8 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script src="supabase/config.js"></script>
+<!-- Tema warna otomatis sesuai gudang yang login (dipakai di SEMUA halaman) -->
+<script src="js/theme.js"></script>
 <style>
     /* ====================================================
        TAMBAHAN: multi-item, pencarian (combobox), stok realtime
@@ -455,23 +457,6 @@
 </style>
 </head>
 <body>
-<script>
-// Aktifkan tema warna sesuai gudang:
-// - Raden Saleh -> biru
-// - Margomulyo  -> merah maroon
-// - Gudang lain -> tetap tema gelap default
-(function(){
-    try{
-        var u = JSON.parse(sessionStorage.getItem("user"));
-        var gudang = (u && u.gudang ? String(u.gudang) : "").toLowerCase();
-        if (gudang.indexOf("raden saleh") !== -1){
-            document.body.classList.add("theme-blue-raden-saleh");
-        } else if (gudang.indexOf("margomulyo") !== -1){
-            document.body.classList.add("theme-red-margomulyo");
-        }
-    }catch(e){}
-})();
-</script>
 <div class="content">
 <h2>📤 Barang Keluar</h2>
 <br>
