@@ -409,6 +409,31 @@ body.theme-blue-raden-saleh .btn-export:hover{
 }
 
 /* ==========================================================
+   TEMA MERAH MAROON — KHUSUS GUDANG MARGOMULYO
+   Aktif otomatis lewat class body.theme-red-margomulyo
+   (ditambahkan oleh script deteksi user.gudang di tiap halaman)
+========================================================== */
+
+body.theme-red-margomulyo{
+    --color-bg:            #8a2332;
+    --color-surface:       #7a1f2c;
+    --color-surface-2:     #9e2a3b;
+    --color-sidebar:       #5c1a22;
+    --color-sidebar-soft:  rgba(255,255,255,.08);
+    --color-text:          #ffffff;
+    --color-text-soft:     #f0d9dc;
+    --color-text-faint:    #e3b3ba;
+    --color-border:        #b5626f;
+    --color-border-strong: #c98a95;
+}
+
+body.theme-red-margomulyo .btn-dashboard:hover,
+body.theme-red-margomulyo .btn-import:hover,
+body.theme-red-margomulyo .btn-export:hover{
+    background: #a5384a;
+}
+
+/* ==========================================================
    FORM
 ========================================================== */
 
