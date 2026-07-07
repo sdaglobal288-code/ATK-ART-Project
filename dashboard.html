@@ -9,6 +9,8 @@
 <link rel="stylesheet" href="css/dashboard.css">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
 <script src="supabase/config.js"></script>
+<!-- Tema warna otomatis sesuai gudang yang login (dipakai di SEMUA halaman) -->
+<script src="js/theme.js"></script>
 <style>
   :root{
     --dsh-bg:#0f1018;
@@ -76,9 +78,6 @@
     display:flex;
   }
 
-  /* ===========================
-     SIDEBAR
-  =========================== */
   .sidebar{
     width:var(--sidebar-w);
     min-height:100vh;
@@ -154,7 +153,6 @@
     color:var(--dsh-muted);
   }
 
-  /* Menu */
   .menu{
     flex:1;
     padding:12px 10px 20px;
@@ -220,9 +218,6 @@
     margin:12px 0;
   }
 
-  /* ===========================
-     MAIN CONTENT
-  =========================== */
   .main{
     margin-left:var(--sidebar-w);
     flex:1;
@@ -231,7 +226,6 @@
     flex-direction:column;
   }
 
-  /* Topbar */
   .topbar{
     background:var(--dsh-surface);
     border-bottom:1px solid var(--dsh-border);
@@ -272,15 +266,11 @@
     border-radius:8px;
   }
 
-  /* Content area */
   .content{
     padding:28px;
     flex:1;
   }
 
-  /* ===========================
-     STAT CARDS
-  =========================== */
   .stats-grid{
     display:grid;
     grid-template-columns:repeat(4, 1fr);
@@ -341,7 +331,6 @@
     color:var(--dsh-muted);
   }
 
-  /* Card color variants */
   .stat-card.purple .stat-icon{ background:var(--dsh-purple-soft); }
   .stat-card.purple .stat-value{ color:#bcb2f5; }
 
@@ -354,9 +343,6 @@
   .stat-card.amber .stat-icon{ background:var(--dsh-warning-soft); }
   .stat-card.amber .stat-value{ color:var(--dsh-warning); }
 
-  /* ===========================
-     QUICK ACCESS
-  =========================== */
   .section-title{
     font-size:15px;
     font-weight:700;
@@ -414,9 +400,6 @@
     margin-top:2px;
   }
 
-  /* ===========================
-     BOTTOM GRID (2 panels)
-  =========================== */
   .bottom-grid{
     display:grid;
     grid-template-columns:1fr 1fr;
@@ -454,7 +437,6 @@
     border-radius:999px;
   }
 
-  /* Recent list */
   .recent-list{ display:flex; flex-direction:column; gap:10px; }
 
   .recent-item{
@@ -532,23 +514,6 @@
 </style>
 </head>
 <body>
-<script>
-// Aktifkan tema warna sesuai gudang:
-// - Raden Saleh -> biru
-// - Margomulyo  -> merah maroon
-// - Gudang lain -> tetap tema gelap default
-(function(){
-    try{
-        var u = JSON.parse(sessionStorage.getItem("user"));
-        var gudang = (u && u.gudang ? String(u.gudang) : "").toLowerCase();
-        if (gudang.indexOf("raden saleh") !== -1){
-            document.body.classList.add("theme-blue-raden-saleh");
-        } else if (gudang.indexOf("margomulyo") !== -1){
-            document.body.classList.add("theme-red-margomulyo");
-        }
-    }catch(e){}
-})();
-</script>
 
 <!-- ===========================
      SIDEBAR
@@ -740,7 +705,6 @@ function goPage(page) { location.href = page; }
 // ===========================
 // USER INFO
 // ===========================
-// Fallback aman jika properti tidak ada
 const userName   = user?.nama   || user?.name  || user?.username || "User";
 const userGudang = user?.gudang || user?.role  || user?.jabatan  || "—";
 
