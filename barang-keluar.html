@@ -47,6 +47,20 @@
         --pg-soft-bg-2:rgba(255,255,255,.1);
     }
 
+    body.theme-red-margomulyo{
+        --pg-border:#b5626f;
+        --pg-bg-1:#7a1f2c;
+        --pg-text:#fdf2f3;
+        --pg-faint:#e3b3ba;
+        --pg-bg-2:#5c1a22;
+        --pg-border-2:#6e2029;
+        --pg-hover-bg:#9e2a3b;
+        --pg-label:#f0d9dc;
+        --pg-bg-3:#611b23;
+        --pg-soft-bg:rgba(255,255,255,.05);
+        --pg-soft-bg-2:rgba(255,255,255,.1);
+    }
+
     .combo-wrapper{
         position:relative;
         width:100%;
@@ -442,14 +456,18 @@
 </head>
 <body>
 <script>
-// Aktifkan tema biru hanya untuk gudang Raden Saleh.
-// Gudang lain (mis. Margomulyo) tetap pakai tema gelap default.
+// Aktifkan tema warna sesuai gudang:
+// - Raden Saleh -> biru
+// - Margomulyo  -> merah maroon
+// - Gudang lain -> tetap tema gelap default
 (function(){
     try{
         var u = JSON.parse(sessionStorage.getItem("user"));
         var gudang = (u && u.gudang ? String(u.gudang) : "").toLowerCase();
         if (gudang.indexOf("raden saleh") !== -1){
             document.body.classList.add("theme-blue-raden-saleh");
+        } else if (gudang.indexOf("margomulyo") !== -1){
+            document.body.classList.add("theme-red-margomulyo");
         }
     }catch(e){}
 })();
