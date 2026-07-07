@@ -50,6 +50,22 @@
     --dsh-menu-btn:#e3ecf8;
   }
 
+  /* ===========================
+     TEMA MERAH MAROON — KHUSUS GUDANG MARGOMULYO
+     Aktif otomatis lewat class body.theme-red-margomulyo
+  =========================== */
+  body.theme-red-margomulyo{
+    --dsh-bg:#8a2332;
+    --dsh-surface:#7a1f2c;
+    --dsh-surface-2:#9e2a3b;
+    --dsh-border:#b5626f;
+    --dsh-text:#ffffff;
+    --dsh-muted:#f0d9dc;
+    --dsh-sidebar-bg:#5c1a22;
+    --dsh-menu-title:#e3b3ba;
+    --dsh-menu-btn:#f5dde0;
+  }
+
   *, *::before, *::after{ box-sizing:border-box; margin:0; padding:0; }
 
   body{
@@ -517,14 +533,18 @@
 </head>
 <body>
 <script>
-// Aktifkan tema biru hanya untuk gudang Raden Saleh.
-// Gudang lain (mis. Margomulyo) tetap pakai tema gelap default.
+// Aktifkan tema warna sesuai gudang:
+// - Raden Saleh -> biru
+// - Margomulyo  -> merah maroon
+// - Gudang lain -> tetap tema gelap default
 (function(){
     try{
         var u = JSON.parse(sessionStorage.getItem("user"));
         var gudang = (u && u.gudang ? String(u.gudang) : "").toLowerCase();
         if (gudang.indexOf("raden saleh") !== -1){
             document.body.classList.add("theme-blue-raden-saleh");
+        } else if (gudang.indexOf("margomulyo") !== -1){
+            document.body.classList.add("theme-red-margomulyo");
         }
     }catch(e){}
 })();
