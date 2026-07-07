@@ -1,21 +1,21 @@
 /* ==========================================================
-   DESIGN TOKENS — DARK THEME
+   DESIGN TOKENS — BLUE THEME (SACHIO)
    Disinkronkan dengan tampilan Master Barang
 ========================================================== */
 
 :root{
 
-    /* Warna utama (dark) */
-    --color-bg:            #0b1220;
-    --color-surface:       #131c2e;
-    --color-surface-2:     #1a2438;
-    --color-sidebar:       #0a0f1c;
-    --color-sidebar-soft:  rgba(255,255,255,.06);
-    --color-text:          #f1f5f9;
-    --color-text-soft:     #94a3b8;
-    --color-text-faint:    #64748b;
-    --color-border:        #232e44;
-    --color-border-strong: #2f3b54;
+    /* Warna utama (blue) */
+    --color-bg:            #5379a6;
+    --color-surface:       #4b6f9c;
+    --color-surface-2:     #6389b7;
+    --color-sidebar:       #38598a;
+    --color-sidebar-soft:  rgba(255,255,255,.08);
+    --color-text:          #ffffff;
+    --color-text-soft:     #dde8f5;
+    --color-text-faint:    #b9cde8;
+    --color-border:        #8bacd4;
+    --color-border-strong: #a8c3e3;
 
     /* Warna aksen */
     --color-primary:       #6366f1;
@@ -175,7 +175,7 @@ img{ max-width: 100%; display: block; }
     width: 100%;
     border: none;
     background: none;
-    color: #cbd5e1;
+    color: #e3ecf8;
     padding: 11px 14px;
     border-radius: var(--radius-md);
     text-align: left;
@@ -380,7 +380,7 @@ img{ max-width: 100%; display: block; }
 .btn-dashboard:hover,
 .btn-import:hover,
 .btn-export:hover{
-    background: #212c44;
+    background: #567cab;
 }
 
 /* ==========================================================
