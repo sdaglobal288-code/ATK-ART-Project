@@ -14,7 +14,7 @@
     /* ====================================================
        TAMBAHAN: multi-item, pencarian (combobox), stok realtime
        Semua elemen di bawah ini punya style sendiri (tidak
-       tergantung dashboard.css) supaya tampil rapi & gelap
+       tergantung dashboard.css) supaya tampil rapi & biru
        senada dengan tema dashboard.
        ==================================================== */
 
@@ -27,9 +27,9 @@
         width:100%;
         padding:10px 12px;
         border-radius:8px;
-        border:1px solid #334155;
-        background:#0f172a;
-        color:#e2e8f0;
+        border:1px solid #6f93bf;
+        background:#3f5f8c;
+        color:#f3f7fd;
         font-family:inherit;
         font-size:14px;
         box-sizing:border-box;
@@ -37,7 +37,7 @@
     }
 
     .combo-input::placeholder{
-        color:#64748b;
+        color:#a9c4e3;
     }
 
     .combo-input:focus{
@@ -51,8 +51,8 @@
         top:calc(100% + 6px);
         left:0;
         right:0;
-        background:#111827;
-        border:1px solid #334155;
+        background:#2f4d78;
+        border:1px solid #6f93bf;
         border-radius:10px;
         max-height:230px;
         overflow-y:auto;
@@ -67,10 +67,10 @@
 
     .combo-item{
         padding:10px 14px;
-        color:#e2e8f0;
+        color:#f3f7fd;
         cursor:pointer;
         font-size:13.5px;
-        border-bottom:1px solid #1f2937;
+        border-bottom:1px solid #375a89;
     }
 
     .combo-item:last-child{
@@ -79,13 +79,13 @@
 
     .combo-item:hover,
     .combo-item.active{
-        background:#1e293b;
+        background:#4a6f9c;
         color:#60a5fa;
     }
 
     .combo-empty{
         padding:10px 14px;
-        color:#64748b;
+        color:#a9c4e3;
         font-size:13px;
         font-style:italic;
     }
@@ -100,17 +100,17 @@
         font-weight:600;
         letter-spacing:.03em;
         text-transform:uppercase;
-        color:#64748b;
+        color:#cfe0f3;
         margin-bottom:8px;
         padding:0 4px;
     }
 
     .detail-wrapper{
-        border:1px solid #263041;
+        border:1px solid #6f93bf;
         border-radius:12px;
         padding:14px;
         margin-bottom:12px;
-        background:rgba(255,255,255,.02);
+        background:rgba(255,255,255,.05);
     }
 
     .detail-row{
@@ -130,9 +130,9 @@
         width:100%;
         padding:10px 12px;
         border-radius:8px;
-        border:1px dashed #334155;
-        background:#0b1220;
-        color:#94a3b8;
+        border:1px dashed #6f93bf;
+        background:#395887;
+        color:#cfe0f3;
         font-family:inherit;
         font-size:13.5px;
         box-sizing:border-box;
@@ -142,9 +142,9 @@
         width:100%;
         padding:10px 12px;
         border-radius:8px;
-        border:1px solid #334155;
-        background:#0f172a;
-        color:#e2e8f0;
+        border:1px solid #6f93bf;
+        background:#3f5f8c;
+        color:#f3f7fd;
         font-family:inherit;
         font-size:14px;
         box-sizing:border-box;
@@ -216,7 +216,7 @@
 
     .empty-state{
         text-align:center;
-        color:#64748b;
+        color:#a9c4e3;
         font-style:italic;
         padding:20px !important;
     }
@@ -240,8 +240,8 @@
     }
 
     .modal-box{
-        background:#0f172a;
-        border:1px solid #334155;
+        background:#3f5f8c;
+        border:1px solid #6f93bf;
         border-radius:14px;
         padding:22px;
         width:100%;
@@ -269,7 +269,7 @@
 
     .modal-header h3{
         margin:0;
-        color:#e2e8f0;
+        color:#f3f7fd;
     }
 
     .modal-close{
@@ -301,7 +301,7 @@
 
     #formEditKeluar label{
         font-size:13px;
-        color:#94a3b8;
+        color:#cfe0f3;
     }
 
     #formEditKeluar input[type="text"],
@@ -309,9 +309,9 @@
         width:100%;
         padding:10px 12px;
         border-radius:8px;
-        border:1px solid #334155;
-        background:#0f172a;
-        color:#e2e8f0;
+        border:1px solid #6f93bf;
+        background:#3f5f8c;
+        color:#f3f7fd;
         font-family:inherit;
         font-size:14px;
         box-sizing:border-box;
@@ -343,8 +343,8 @@
     /* ---------- Modal Hasil Import ---------- */
 
     #importSummary{
-        background:rgba(255,255,255,.02);
-        border:1px solid #263041;
+        background:rgba(255,255,255,.05);
+        border:1px solid #6f93bf;
         border-radius:10px;
         padding:12px 14px;
     }
@@ -395,9 +395,9 @@
     }
 
     #btnTutupHasilImport2{
-        background:rgba(255,255,255,.06);
-        color:#cbd5e1;
-        border:1px solid #334155;
+        background:rgba(255,255,255,.1);
+        color:#f3f7fd;
+        border:1px solid #6f93bf;
         border-radius:8px;
         padding:10px 16px;
         cursor:pointer;
@@ -407,7 +407,7 @@
     }
 
     #btnTutupHasilImport2:hover{
-        background:rgba(255,255,255,.12);
+        background:rgba(255,255,255,.18);
     }
 </style>
 </head>
@@ -523,7 +523,7 @@ onclick="bukaModalExportRange()">
 type="text"
 id="search"
 placeholder="🔍 Cari data barang keluar..."
-style="width:100%;padding:10px;margin-bottom:10px;border:1px solid #334155;border-radius:8px;background:#0f172a;color:#e2e8f0;box-sizing:border-box;">
+style="width:100%;padding:10px;margin-bottom:10px;border:1px solid #6f93bf;border-radius:8px;background:#3f5f8c;color:#f3f7fd;box-sizing:border-box;">
 <table id="tableKeluar">
 <thead>
 <tr>
@@ -622,7 +622,7 @@ style="width:100%;padding:10px;margin-bottom:10px;border:1px solid #334155;borde
             <button type="button" class="modal-close" id="btnTutupModalHasilImport">✕</button>
         </div>
 
-        <div id="importSummary" style="margin-bottom:14px;font-size:13.5px;color:#e2e8f0;"></div>
+        <div id="importSummary" style="margin-bottom:14px;font-size:13.5px;color:#f3f7fd;"></div>
 
         <table id="tableHasilImport">
             <thead>
@@ -662,18 +662,18 @@ style="width:100%;padding:10px;margin-bottom:10px;border:1px solid #334155;borde
 
         <div style="display:flex;flex-direction:column;gap:14px;">
 
-            <p style="margin:0;color:#94a3b8;font-size:13.5px;">
+            <p style="margin:0;color:#cfe0f3;font-size:13.5px;">
                 Pilih rentang tanggal yang mau diexport. Kosongkan salah satu / semua
                 untuk export tanpa batas tanggal (semua histori).
             </p>
 
             <div>
-                <label style="font-size:13px;color:#94a3b8;display:block;margin-bottom:6px;">Dari Tanggal</label>
+                <label style="font-size:13px;color:#cfe0f3;display:block;margin-bottom:6px;">Dari Tanggal</label>
                 <input type="date" id="exportDari" class="combo-input">
             </div>
 
             <div>
-                <label style="font-size:13px;color:#94a3b8;display:block;margin-bottom:6px;">Sampai Tanggal</label>
+                <label style="font-size:13px;color:#cfe0f3;display:block;margin-bottom:6px;">Sampai Tanggal</label>
                 <input type="date" id="exportSampai" class="combo-input">
             </div>
 
