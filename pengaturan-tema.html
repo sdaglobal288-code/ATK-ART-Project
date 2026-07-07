@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pengaturan Tema</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/dashboard.css">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
+<script src="supabase/config.js"></script>
+<script src="js/theme.js"></script>
+<style>
+
+    .tema-wrap{
+        max-width:720px;
+    }
+
+    .swatch-grid{
+        display:grid;
+        grid-template-columns:repeat(auto-fill, minmax(90px, 1fr));
+        gap:14px;
+        margin:18px 0 26px;
+    }
+
+    .swatch{
+        border:2px solid transparent;
+        border-radius:14px;
+        padding:14px 8px;
+        cursor:pointer;
+        text-align:center;
+        transition:transform .15s ease, border-color .15s ease;
+        background:var(--color-surface-2);
+    }
+
+    .swatch:hover{
+        transform:translateY(-2px);
+    }
+
+    .swatch.active{
+        border-color:#fff;
+        box-shadow:0 0 0 3px rgba(255,255,255,.15);
+    }
+
+    .swatch-color{
+        width:100%;
+        height:44px;
+        border-radius:10px;
+        margin-bottom:8px;
+        box-shadow:inset 0 0 0 1px rgba(255,255,255,.15);
+    }
+
+    .swatch-label{
+        font-size:12px;
+        font-weight:600;
+        color:var(--color-text-soft);
+    }
+
+    .custom-row{
+        display:flex;
+        align-items:center;
+        gap:14px;
+        flex-wrap:wrap;
+        margin-bottom:26px;
+        padding:18px;
+        border:1px solid var(--color-border);
+        border-radius:12px;
+        background:var(--color-surface-2);
+    }
+
+    .custom-row input[type="color"]{
+        width:56px;
+        height:44px;
+        border:1px solid var(--color-border-strong);
+        border-radius:10px;
+        background:none;
+        cursor:pointer;
+        padding:2px;
+    }
+
+    .custom-row input[type="text"]{
+        width:120px;
+        text-transform:uppercase;
+    }
+
+    .preview-box{
+        border:1px solid var(--color-border);
+        border-radius:14px;
+        padding:22px;
+        margin-bottom:26px;
+        background:var(--color-surface);
+    }
+
+    .preview-box h4{
+        margin-bottom:6px;
+    }
+
+    .preview-box p{
+        color:var(--color-text-soft);
+        font-size:13.5px;
+        margin-bottom:14px;
+    }
+
+    .preview-cards{
+        display:grid;
+        grid-template-columns:repeat(auto-fit, minmax(140px, 1fr));
+        gap:12px;
+    }
+
+    .preview-card{
+        background:var(--color-surface-2);
+        border:1px solid var(--color-border);
+        border-radius:10px;
+        padding:14px;
+    }
+
+    .preview-card b{
+        display:block;
+        font-size:20px;
+        margin-top:6px;
+    }
+
+    #btnSimpanTema{
+        background:var(--color-primary);
+        color:#fff;
+        border:none;
+        border-radius:10px;
+        padding:13px 26px;
+        cursor:pointer;
+        font-weight:700;
+        font-size:14.5px;
+        font-family:inherit;
+    }
+
+    #btnSimpanTema:hover{
+        background:var(--color-primary-dark);
+    }
+
+    #statusSimpan{
+        margin-top:12px;
+        font-size:13.5px;
+        font-weight:600;
+    }
+
+    #statusSimpan.sukses{ color:var(--color-green-text); }
+    #statusSimpan.gagal{ color:var(--color-red-text); }
+
+</style>
+</head>
+<body>
+
+<div class="content">
+
+    <div class="page-header">
+        <h1>🎨 Pengaturan Tema</h1>
+        <p>Pilih warna latar sesuai selera akunmu. Warna ini tersimpan permanen dan otomatis berlaku di semua menu.</p>
+    </div>
+
+    <div class="toolbar">
+        <button class="btn-dashboard" onclick="location.href='dashboard.html'">🏠 Kembali ke Dashboard</button>
+    </div>
+
+    <br>
+
+    <div class="tema-wrap">
+
+        <div class="panel">
+
+            <h3>Pilihan Warna</h3>
+            <br>
+
+            <div class="swatch-grid" id="swatchGrid">
+                <!-- swatch dibuat lewat JS -->
+            </div>
+
+            <h3>Atau Pilih Warna Sendiri</h3>
+            <div class="custom-row">
+                <input type="color" id="customColor" value="#171926">
+                <input type="text" id="customColorText" placeholder="#171926" maxlength="7">
+                <button type="button" class="btn-add" id="btnPakaiCustom" style="padding:12px 18px;border-radius:8px;">
+                    Pakai Warna Ini
+                </button>
+            </div>
+
+            <h3>Preview</h3>
+            <div class="preview-box" id="previewBox">
+                <h4>Contoh Tampilan Card</h4>
+                <p>Beginilah kira-kira tampilan dashboard dengan warna ini.</p>
+                <div class="preview-cards">
+                    <div class="preview-card">Total Barang<b>199</b></div>
+                    <div class="preview-card">Total Karyawan<b>77</b></div>
+                    <div class="preview-card">Total Supplier<b>8</b></div>
+                </div>
+            </div>
+
+            <button type="button" id="btnSimpanTema">💾 Simpan Tema Ini</button>
+            <p id="statusSimpan"></p>
+
+        </div>
+
+    </div>
+
+</div>
+
+<script>
+
+// =====================================================
+// DATA WARNA PILIHAN (silakan tambah/ubah sesuai selera)
+// =====================================================
+const paletPilihan = [
+    { nama: "Gelap Default", warna: "#171926" },
+    { nama: "Biru Laut",     warna: "#12447f" },
+    { nama: "Merah Maroon",  warna: "#7a1f2c" },
+    { nama: "Hijau Tosca",   warna: "#12523f" },
+    { nama: "Ungu",          warna: "#4c1d7a" },
+    { nama: "Oranye Tua",    warna: "#7a3a12" },
+    { nama: "Abu Kebiruan",  warna: "#2b3448" },
+    { nama: "Merah Bata",    warna: "#6b2a1a" }
+];
+
+const user = JSON.parse(sessionStorage.getItem("user"));
+
+if(!user){
+    location.href = "login.html";
+}
+
+let warnaTerpilih = user.warna_tema || "#171926";
+
+// =====================================================
+// RENDER SWATCH
+// =====================================================
+function renderSwatch(){
+
+    const grid = document.getElementById("swatchGrid");
+    grid.innerHTML = "";
+
+    paletPilihan.forEach(item => {
+
+        const div = document.createElement("div");
+        div.className = "swatch" + (item.warna.toLowerCase() === warnaTerpilih.toLowerCase() ? " active" : "");
+
+        div.innerHTML = `
+            <div class="swatch-color" style="background:${item.warna};"></div>
+            <div class="swatch-label">${item.nama}</div>
+        `;
+
+        div.addEventListener("click", () => {
+            warnaTerpilih = item.warna;
+            document.getElementById("customColor").value = item.warna;
+            document.getElementById("customColorText").value = item.warna;
+            renderSwatch();
+            pratinjau(item.warna);
+        });
+
+        grid.appendChild(div);
+
+    });
+
+}
+
+// =====================================================
+// PRATINJAU LANGSUNG (belum disimpan ke database)
+// =====================================================
+function pratinjau(hex){
+
+    if(typeof window.terapkanTemaCustom === "function"){
+        window.terapkanTemaCustom(hex);
+    }
+
+}
+
+// =====================================================
+// INPUT CUSTOM COLOR
+// =====================================================
+const inputColor = document.getElementById("customColor");
+const inputColorText = document.getElementById("customColorText");
+
+inputColor.value = warnaTerpilih;
+inputColorText.value = warnaTerpilih;
+
+inputColor.addEventListener("input", function(){
+    inputColorText.value = this.value;
+});
+
+document.getElementById("btnPakaiCustom").addEventListener("click", function(){
+
+    let hex = inputColorText.value.trim();
+
+    if(!/^#([0-9a-fA-F]{6})$/.test(hex)){
+        alert("Format warna tidak valid. Gunakan format hex, contoh: #7a1f2c");
+        return;
+    }
+
+    warnaTerpilih = hex;
+    renderSwatch();
+    pratinjau(hex);
+
+});
+
+// =====================================================
+// SIMPAN KE SUPABASE (permanen untuk akun ini)
+// =====================================================
+document.getElementById("btnSimpanTema").addEventListener("click", async function(){
+
+    const status = document.getElementById("statusSimpan");
+    status.textContent = "";
+    status.className = "";
+
+    try{
+
+        const { error } = await supabaseClient
+            .from("users")
+            .update({ warna_tema: warnaTerpilih })
+            .eq("id", user.id);
+
+        if(error) throw error;
+
+        // update juga di sesi yang sedang aktif, supaya tidak perlu logout
+        user.warna_tema = warnaTerpilih;
+        sessionStorage.setItem("user", JSON.stringify(user));
+
+        pratinjau(warnaTerpilih);
+
+        status.textContent = "✔ Tema berhasil disimpan. Berlaku otomatis di semua menu.";
+        status.className = "sukses";
+
+    }
+    catch(err){
+
+        console.error(err);
+        status.textContent = "✕ Gagal menyimpan tema: " + err.message;
+        status.className = "gagal";
+
+    }
+
+});
+
+// =====================================================
+// INIT
+// =====================================================
+renderSwatch();
+pratinjau(warnaTerpilih);
+
+</script>
+
+</body>
+</html>
