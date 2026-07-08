@@ -33,6 +33,10 @@ let stokGudangMap = new Map();
 // baris bermasalah)
 let importResultsBTB = [];
 
+// nama-nama barang per BTB (key: barang_masuk id -> array nama_barang),
+// dipakai supaya pencarian histori bisa berdasarkan nama barang juga
+let barangMasukItemsMap = new Map();
+
 // =====================================
 // LOAD SUPPLIER
 // =====================================
@@ -835,6 +839,11 @@ function resetFormMasuk(){
 // Histori difilter sesuai gudang akun yang sedang login (user.gudang),
 // jadi akun Margomulyo hanya melihat transaksi Margomulyo, dan akun
 // Raden Saleh hanya melihat transaksi Raden Saleh.
+//
+// Selain data header, nama-nama barang pada tiap BTB juga dimuat
+// (barangMasukItemsMap) supaya kotak pencarian bisa mencari
+// berdasarkan Nama Barang juga, walau kolom itu tidak ditampilkan
+// langsung di tabel histori.
 // =====================================
 
 async function loadBarangMasuk(){
@@ -849,6 +858,32 @@ async function loadBarangMasuk(){
             .order("id",{ascending:false});
 
         if(error) throw error;
+
+        // muat nama barang per BTB (untuk kebutuhan pencarian nama barang)
+        barangMasukItemsMap = new Map();
+
+        const ids = (data || []).map(h => h.id);
+
+        if(ids.length > 0){
+
+            const { data: details, error: detErr } = await supabaseClient
+                .from("barang_masuk_detail")
+                .select("barang_masuk_id, nama_barang")
+                .in("barang_masuk_id", ids);
+
+            if(detErr) throw detErr;
+
+            (details || []).forEach(d=>{
+
+                const key = String(d.barang_masuk_id);
+
+                if(!barangMasukItemsMap.has(key)) barangMasukItemsMap.set(key, []);
+
+                barangMasukItemsMap.get(key).push(d.nama_barang);
+
+            });
+
+        }
 
         tampilBarangMasuk(data);
 
@@ -890,8 +925,14 @@ function tampilBarangMasuk(data){
 
     data.forEach(item=>{
 
+        // daftar nama barang milik BTB ini, dipakai sebagai data pencarian
+        // tambahan (tidak ditampilkan sebagai kolom baru di tabel)
+        const namaBarangList = barangMasukItemsMap.get(String(item.id)) || [];
+        const namaBarangGabung = namaBarangList.join(", ")
+            .replace(/"/g, "&quot;");
+
         tbody.innerHTML += `
-        <tr>
+        <tr data-nama-barang="${namaBarangGabung}">
             <td>${no++}</td>
             <td><b>${item.no_btb}</b></td>
             <td>${item.tanggal}</td>
@@ -915,6 +956,10 @@ function tampilBarangMasuk(data){
 // =====================================
 // SEARCH
 // =====================================
+// Mencari berdasarkan teks yang tampil di baris tabel (No BTB, Tanggal,
+// Supplier, Gudang, Created By) DAN juga berdasarkan Nama Barang yang
+// tersimpan pada atribut data-nama-barang di tiap baris.
+// =====================================
 
 function cariBarangMasuk(){
 
@@ -924,7 +969,12 @@ function cariBarangMasuk(){
 
     rows.forEach(row=>{
 
-        row.style.display = row.innerText.toLowerCase().includes(keyword) ? "" : "none";
+        const teksBaris = row.innerText.toLowerCase();
+        const namaBarang = (row.dataset.namaBarang || "").toLowerCase();
+
+        const cocok = teksBaris.includes(keyword) || namaBarang.includes(keyword);
+
+        row.style.display = cocok ? "" : "none";
 
     });
 
