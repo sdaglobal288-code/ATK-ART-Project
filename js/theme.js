@@ -1,6 +1,13 @@
 // =====================================================
 // THEME ENGINE — warna custom per akun
-// File ini dipanggil di SEMUA halaman.
+// File ini dipanggil di SEMUA halaman, dari <head>.
+//
+// PENTING: warna dipasang ke document.documentElement (<html>),
+// BUKAN document.body — karena saat script ini jalan (dari <head>),
+// elemen <body> belum tentu sudah dibuat oleh browser. <html>
+// sudah pasti ada sejak awal, jadi aman dipanggil dari <head>
+// (ini juga yang bikin tema langsung aktif tanpa kedip warna
+// salah sebentar sebelum berubah).
 //
 // Sumber warna:
 //   1) user.warna_tema (hex, contoh "#7a1f2c") -> kalau sudah diisi
@@ -76,15 +83,16 @@
 
     }
 
-    // ---------- terapkan palet ke elemen (body) ----------
-    // dipasang di body.style supaya menang dibanding class lama
-    // (theme-blue-raden-saleh / theme-red-margomulyo) kalau masih
-    // tersisa di beberapa halaman.
+    // ---------- terapkan palet ----------
+    // dipasang di document.documentElement (<html>), BUKAN body,
+    // supaya aman dipanggil dari <head> sebelum <body> ada,
+    // dan tetap menang dibanding class lama di body kalau masih
+    // tersisa (theme-blue-raden-saleh / theme-red-margomulyo).
 
     function terapkanPalet(base){
 
         const p = buatPalet(base);
-        const el = document.body.style;
+        const el = document.documentElement.style;
 
         // dipakai oleh css/dashboard.css (Master Barang, Barang Masuk, dll)
         el.setProperty("--color-bg", p.bg);
