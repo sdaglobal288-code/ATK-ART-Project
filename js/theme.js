@@ -26,6 +26,9 @@
 //   - barang-keluar/masuk/transfer.html pakai --pg-*
 //   - database-barang.html pakai --db-*
 //   - master-barang.html pakai --mb-*
+//   - master-karyawan.html pakai --mk-*
+//   - mutasi-karyawan.html pakai --mu-*
+//   - master-departemen.html pakai --md-*
 // =====================================================
 
 (function(){
@@ -146,6 +149,30 @@
         el.setProperty("--mb-border", p.border);
         el.setProperty("--mb-text", p.text);
         el.setProperty("--mb-muted", p.textSoft);
+
+        // dipakai oleh master-karyawan.html
+        el.setProperty("--mk-bg", p.bg);
+        el.setProperty("--mk-surface", p.surface);
+        el.setProperty("--mk-surface-2", p.surface2);
+        el.setProperty("--mk-border", p.border);
+        el.setProperty("--mk-text", p.text);
+        el.setProperty("--mk-muted", p.textSoft);
+
+        // dipakai oleh mutasi-karyawan.html
+        el.setProperty("--mu-bg", p.bg);
+        el.setProperty("--mu-surface", p.surface);
+        el.setProperty("--mu-surface-2", p.surface2);
+        el.setProperty("--mu-border", p.border);
+        el.setProperty("--mu-text", p.text);
+        el.setProperty("--mu-muted", p.textSoft);
+
+        // dipakai oleh master-departemen.html
+        el.setProperty("--md-bg", p.bg);
+        el.setProperty("--md-surface", p.surface);
+        el.setProperty("--md-surface-2", p.surface2);
+        el.setProperty("--md-border", p.border);
+        el.setProperty("--md-text", p.text);
+        el.setProperty("--md-muted", p.textSoft);
 
     }
 
