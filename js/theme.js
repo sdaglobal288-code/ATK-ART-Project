@@ -20,9 +20,11 @@
 // Dari SATU warna dasar (base), fungsi ini menghitung otomatis:
 // background, surface (card/panel), surface-2, sidebar, border,
 // teks pudar, dll — supaya kontras & rapi tanpa perlu atur manual
-// satu-satu, dan konsisten di SEMUA halaman (dashboard.css pakai
-// --color-*, dashboard.html pakai --dsh-*, barang-keluar.html
-// pakai --pg-*, dstnya).
+// satu-satu, dan konsisten di SEMUA halaman:
+//   - dashboard.css pakai --color-*
+//   - dashboard.html pakai --dsh-*
+//   - barang-keluar/masuk/transfer.html pakai --pg-*
+//   - database-barang.html pakai --db-*
 // =====================================================
 
 (function(){
@@ -117,7 +119,7 @@
         el.setProperty("--dsh-menu-title", p.textSoft);
         el.setProperty("--dsh-menu-btn", lighten(base, 85));
 
-        // dipakai oleh barang-keluar.html / barang-masuk.html dll
+        // dipakai oleh barang-keluar.html / barang-masuk.html / barang-transfer.html
         el.setProperty("--pg-border", p.border);
         el.setProperty("--pg-bg-1", p.surface);
         el.setProperty("--pg-text", p.text);
@@ -127,6 +129,14 @@
         el.setProperty("--pg-hover-bg", p.surface2);
         el.setProperty("--pg-label", p.textSoft);
         el.setProperty("--pg-bg-3", p.bg3);
+
+        // dipakai oleh database-barang.html
+        el.setProperty("--db-bg", p.bg);
+        el.setProperty("--db-surface", p.surface);
+        el.setProperty("--db-surface-2", p.surface2);
+        el.setProperty("--db-border", p.border);
+        el.setProperty("--db-text", p.text);
+        el.setProperty("--db-muted", p.textSoft);
 
     }
 
