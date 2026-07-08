@@ -10,12 +10,34 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script src="supabase/config.js"></script>
+<!-- Tema warna otomatis sesuai gudang / pilihan akun yang login (dipakai di SEMUA halaman) -->
+<script src="js/theme.js"></script>
 <style>
     /* ====================================================
        Style ini disamakan PERSIS dengan halaman Barang Keluar
        (combobox pencarian, baris detail grid, badge stok,
        tombol tambah/hapus baris).
+
+       Warna diganti dari kode hex tetap menjadi CSS variable
+       --pg-* supaya bisa ikut berubah otomatis lewat theme.js
+       (sama seperti halaman Barang Keluar). Nilai default di
+       bawah persis sama dengan warna aslinya, jadi tampilan
+       awal tidak berubah.
        ==================================================== */
+
+    :root{
+        --pg-border:#334155;
+        --pg-bg-1:#0f172a;
+        --pg-text:#e2e8f0;
+        --pg-faint:#64748b;
+        --pg-bg-2:#111827;
+        --pg-border-2:#1f2937;
+        --pg-hover-bg:#1e293b;
+        --pg-label:#94a3b8;
+        --pg-bg-3:#0b1220;
+        --pg-soft-bg:rgba(255,255,255,.02);
+        --pg-soft-bg-2:rgba(255,255,255,.06);
+    }
 
     .combo-wrapper{
         position:relative !important;
@@ -26,9 +48,9 @@
         width:100%;
         padding:10px 12px;
         border-radius:8px;
-        border:1px solid #334155;
-        background:#0f172a;
-        color:#e2e8f0;
+        border:1px solid var(--pg-border);
+        background:var(--pg-bg-1);
+        color:var(--pg-text);
         font-family:inherit;
         font-size:14px;
         box-sizing:border-box;
@@ -36,7 +58,7 @@
     }
 
     .combo-input::placeholder{
-        color:#64748b;
+        color:var(--pg-faint);
     }
 
     .combo-input:focus{
@@ -50,8 +72,8 @@
         top:calc(100% + 6px) !important;
         left:0 !important;
         right:0 !important;
-        background:#111827;
-        border:1px solid #334155;
+        background:var(--pg-bg-2);
+        border:1px solid var(--pg-border);
         border-radius:10px;
         max-height:230px;
         overflow-y:auto;
@@ -67,10 +89,10 @@
 
     .combo-item{
         padding:10px 14px;
-        color:#e2e8f0;
+        color:var(--pg-text);
         cursor:pointer;
         font-size:13.5px;
-        border-bottom:1px solid #1f2937;
+        border-bottom:1px solid var(--pg-border-2);
     }
 
     .combo-item:last-child{
@@ -79,13 +101,13 @@
 
     .combo-item:hover,
     .combo-item.active{
-        background:#1e293b;
+        background:var(--pg-hover-bg);
         color:#60a5fa;
     }
 
     .combo-empty{
         padding:10px 14px;
-        color:#64748b;
+        color:var(--pg-faint);
         font-size:13px;
         font-style:italic;
     }
@@ -109,7 +131,7 @@
     #formMasukHeader label,
     #formEditHeader label{
         font-size:13px;
-        color:#94a3b8;
+        color:var(--pg-label);
     }
 
     #formMasukHeader input[type="text"],
@@ -119,9 +141,9 @@
         width:100%;
         padding:10px 12px;
         border-radius:8px;
-        border:1px solid #334155;
-        background:#0f172a;
-        color:#e2e8f0;
+        border:1px solid var(--pg-border);
+        background:var(--pg-bg-1);
+        color:var(--pg-text);
         font-family:inherit;
         font-size:14px;
         box-sizing:border-box;
@@ -144,17 +166,17 @@
         font-weight:600;
         letter-spacing:.03em;
         text-transform:uppercase;
-        color:#64748b;
+        color:var(--pg-faint);
         margin-bottom:8px;
         padding:0 4px;
     }
 
     .detail-wrapper{
-        border:1px solid #263041;
+        border:1px solid var(--pg-border);
         border-radius:12px;
         padding:14px;
         margin-bottom:12px;
-        background:rgba(255,255,255,.02);
+        background:var(--pg-soft-bg);
     }
 
     .detail-row{
@@ -174,9 +196,9 @@
         width:100%;
         padding:10px 12px;
         border-radius:8px;
-        border:1px dashed #334155;
-        background:#0b1220;
-        color:#94a3b8;
+        border:1px dashed var(--pg-border);
+        background:var(--pg-bg-3);
+        color:var(--pg-label);
         font-family:inherit;
         font-size:13.5px;
         box-sizing:border-box;
@@ -186,9 +208,9 @@
         width:100%;
         padding:10px 12px;
         border-radius:8px;
-        border:1px solid #334155;
-        background:#0f172a;
-        color:#e2e8f0;
+        border:1px solid var(--pg-border);
+        background:var(--pg-bg-1);
+        color:var(--pg-text);
         font-family:inherit;
         font-size:14px;
         box-sizing:border-box;
@@ -290,8 +312,8 @@
     }
 
     .modal-box{
-        background:#0f172a;
-        border:1px solid #334155;
+        background:var(--pg-bg-1);
+        border:1px solid var(--pg-border);
         border-radius:14px;
         padding:22px;
         width:100%;
@@ -319,7 +341,7 @@
 
     .modal-header h3{
         margin:0;
-        color:#e2e8f0;
+        color:var(--pg-text);
     }
 
     .modal-close{
@@ -342,16 +364,16 @@
         grid-template-columns:1fr 1fr;
         gap:8px 20px;
         margin-bottom:18px;
-        color:#e2e8f0;
+        color:var(--pg-text);
         font-size:13.5px;
-        background:rgba(255,255,255,.02);
-        border:1px solid #263041;
+        background:var(--pg-soft-bg);
+        border:1px solid var(--pg-border);
         border-radius:10px;
         padding:12px 14px;
     }
 
     .modal-info span{
-        color:#94a3b8;
+        color:var(--pg-label);
     }
 
     #tableDetailBTB th,
@@ -362,8 +384,8 @@
     /* ---------- Modal Hasil Import ---------- */
 
     #importSummaryBTB{
-        background:rgba(255,255,255,.02);
-        border:1px solid #263041;
+        background:var(--pg-soft-bg);
+        border:1px solid var(--pg-border);
         border-radius:10px;
         padding:12px 14px;
     }
@@ -414,9 +436,9 @@
     }
 
     #btnTutupHasilImportBTB2{
-        background:rgba(255,255,255,.06);
-        color:#cbd5e1;
-        border:1px solid #334155;
+        background:var(--pg-soft-bg-2);
+        color:var(--pg-text);
+        border:1px solid var(--pg-border);
         border-radius:8px;
         padding:10px 16px;
         cursor:pointer;
@@ -462,7 +484,7 @@ type="text"
 id="no_btb"
 placeholder="Contoh : 0064/BTB-U-GI-R/VI/2026"
 required>
-<small style="color:#64748B;">
+<small style="color:var(--pg-faint);">
 Format : XXXX/BTB-U-GI-R/VI/2026
 </small>
 </div>
@@ -554,7 +576,7 @@ onclick="exportExcel()">
 type="text"
 id="search"
 placeholder="🔍 Cari No BTB / Supplier"
-style="width:100%;padding:10px;border:1px solid #334155;border-radius:8px;background:#0f172a;color:#e2e8f0;box-sizing:border-box;">
+style="width:100%;padding:10px;border:1px solid var(--pg-border);border-radius:8px;background:var(--pg-bg-1);color:var(--pg-text);box-sizing:border-box;">
 </div>
 <br>
 <div class="table-responsive">
@@ -688,7 +710,7 @@ style="width:100%;padding:10px;border:1px solid #334155;border-radius:8px;backgr
             <button type="button" class="modal-close" id="btnTutupModalHasilImportBTB">✕</button>
         </div>
 
-        <div id="importSummaryBTB" style="margin-bottom:14px;font-size:13.5px;color:#e2e8f0;"></div>
+        <div id="importSummaryBTB" style="margin-bottom:14px;font-size:13.5px;color:var(--pg-text);"></div>
 
         <table id="tableHasilImportBTB">
             <thead>
