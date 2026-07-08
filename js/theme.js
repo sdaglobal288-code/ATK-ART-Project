@@ -25,6 +25,7 @@
 //   - dashboard.html pakai --dsh-*
 //   - barang-keluar/masuk/transfer.html pakai --pg-*
 //   - database-barang.html pakai --db-*
+//   - master-barang.html pakai --mb-*
 // =====================================================
 
 (function(){
@@ -96,7 +97,7 @@
         const p = buatPalet(base);
         const el = document.documentElement.style;
 
-        // dipakai oleh css/dashboard.css (Master Barang, Barang Masuk, dll)
+        // dipakai oleh css/dashboard.css (Barang Masuk, Barang Keluar, dll)
         el.setProperty("--color-bg", p.bg);
         el.setProperty("--color-surface", p.surface);
         el.setProperty("--color-surface-2", p.surface2);
@@ -137,6 +138,14 @@
         el.setProperty("--db-border", p.border);
         el.setProperty("--db-text", p.text);
         el.setProperty("--db-muted", p.textSoft);
+
+        // dipakai oleh master-barang.html
+        el.setProperty("--mb-bg", p.bg);
+        el.setProperty("--mb-surface", p.surface);
+        el.setProperty("--mb-surface-2", p.surface2);
+        el.setProperty("--mb-border", p.border);
+        el.setProperty("--mb-text", p.text);
+        el.setProperty("--mb-muted", p.textSoft);
 
     }
 
