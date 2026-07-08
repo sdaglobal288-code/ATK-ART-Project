@@ -9,10 +9,33 @@
 <link rel="stylesheet" href="css/dashboard.css">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
 <script src="supabase/config.js"></script>
+<!-- Tema warna otomatis sesuai gudang / pilihan akun yang login (dipakai di SEMUA halaman) -->
+<script src="js/theme.js"></script>
 <style>
     /* ====================================================
        Style disamakan dengan pola Barang Keluar / Barang Masuk
+
+       Warna diganti dari kode hex tetap menjadi CSS variable
+       --pg-* supaya bisa ikut berubah otomatis lewat theme.js.
+       Nilai default di bawah persis sama dengan warna aslinya,
+       jadi tampilan awal tidak berubah. Warna semantik (biru
+       tombol, hijau/merah/kuning status, ungu kode) TIDAK diubah
+       karena itu bukan bagian dari tema latar.
        ==================================================== */
+
+    :root{
+        --pg-border:#334155;
+        --pg-bg-1:#0f172a;
+        --pg-text:#e2e8f0;
+        --pg-faint:#64748b;
+        --pg-bg-2:#111827;
+        --pg-border-2:#1f2937;
+        --pg-hover-bg:#1e293b;
+        --pg-label:#94a3b8;
+        --pg-bg-3:#0b1220;
+        --pg-soft-bg:rgba(255,255,255,.02);
+        --pg-soft-bg-2:rgba(255,255,255,.06);
+    }
 
     .combo-wrapper{
         position:relative !important;
@@ -23,9 +46,9 @@
         width:100%;
         padding:10px 12px;
         border-radius:8px;
-        border:1px solid #334155;
-        background:#0f172a;
-        color:#e2e8f0;
+        border:1px solid var(--pg-border);
+        background:var(--pg-bg-1);
+        color:var(--pg-text);
         font-family:inherit;
         font-size:14px;
         box-sizing:border-box;
@@ -33,7 +56,7 @@
     }
 
     .combo-input::placeholder{
-        color:#64748b;
+        color:var(--pg-faint);
     }
 
     .combo-input:focus{
@@ -51,8 +74,8 @@
         top:calc(100% + 6px) !important;
         left:0 !important;
         right:0 !important;
-        background:#111827;
-        border:1px solid #334155;
+        background:var(--pg-bg-2);
+        border:1px solid var(--pg-border);
         border-radius:10px;
         max-height:230px;
         overflow-y:auto;
@@ -68,10 +91,10 @@
 
     .combo-item{
         padding:10px 14px;
-        color:#e2e8f0;
+        color:var(--pg-text);
         cursor:pointer;
         font-size:13.5px;
-        border-bottom:1px solid #1f2937;
+        border-bottom:1px solid var(--pg-border-2);
     }
 
     .combo-item:last-child{
@@ -80,13 +103,13 @@
 
     .combo-item:hover,
     .combo-item.active{
-        background:#1e293b;
+        background:var(--pg-hover-bg);
         color:#60a5fa;
     }
 
     .combo-empty{
         padding:10px 14px;
-        color:#64748b;
+        color:var(--pg-faint);
         font-size:13px;
         font-style:italic;
     }
@@ -107,7 +130,7 @@
 
     #formTransferHeader label{
         font-size:13px;
-        color:#94a3b8;
+        color:var(--pg-label);
     }
 
     #formTransferHeader input[type="text"],
@@ -116,9 +139,9 @@
         width:100%;
         padding:10px 12px;
         border-radius:8px;
-        border:1px solid #334155;
-        background:#0f172a;
-        color:#e2e8f0;
+        border:1px solid var(--pg-border);
+        background:var(--pg-bg-1);
+        color:var(--pg-text);
         font-family:inherit;
         font-size:14px;
         box-sizing:border-box;
@@ -132,9 +155,9 @@
     }
 
     #formTransferHeader input[readonly]{
-        color:#94a3b8;
+        color:var(--pg-label);
         border-style:dashed;
-        background:#0b1220;
+        background:var(--pg-bg-3);
         cursor:not-allowed;
     }
 
@@ -148,17 +171,17 @@
         font-weight:600;
         letter-spacing:.03em;
         text-transform:uppercase;
-        color:#64748b;
+        color:var(--pg-faint);
         margin-bottom:8px;
         padding:0 4px;
     }
 
     .detail-wrapper{
-        border:1px solid #263041;
+        border:1px solid var(--pg-border);
         border-radius:12px;
         padding:14px;
         margin-bottom:12px;
-        background:rgba(255,255,255,.02);
+        background:var(--pg-soft-bg);
     }
 
     .detail-row{
@@ -178,9 +201,9 @@
         width:100%;
         padding:10px 12px;
         border-radius:8px;
-        border:1px dashed #334155;
-        background:#0b1220;
-        color:#94a3b8;
+        border:1px dashed var(--pg-border);
+        background:var(--pg-bg-3);
+        color:var(--pg-label);
         font-family:inherit;
         font-size:13.5px;
         box-sizing:border-box;
@@ -190,9 +213,9 @@
         width:100%;
         padding:10px 12px;
         border-radius:8px;
-        border:1px solid #334155;
-        background:#0f172a;
-        color:#e2e8f0;
+        border:1px solid var(--pg-border);
+        background:var(--pg-bg-1);
+        color:var(--pg-text);
         font-family:inherit;
         font-size:14px;
         box-sizing:border-box;
@@ -363,7 +386,7 @@
     }
 
     .detail-expand{
-        background:rgba(255,255,255,.02);
+        background:var(--pg-soft-bg);
     }
 
     .detail-expand td{
@@ -379,13 +402,13 @@
         text-align:left;
         font-size:11px;
         text-transform:uppercase;
-        color:#64748b;
+        color:var(--pg-faint);
         padding:4px 8px;
     }
 
     .detail-expand td.item-cell{
         padding:6px 8px !important;
-        color:#e2e8f0;
+        color:var(--pg-text);
         font-size:13px;
     }
 
@@ -407,8 +430,8 @@
     }
 
     .modal-box{
-        background:#131722;
-        border:1px solid #263041;
+        background:var(--pg-bg-2);
+        border:1px solid var(--pg-border);
         border-radius:14px;
         max-width:720px;
         width:100%;
@@ -428,7 +451,7 @@
     .modal-header h3{
         margin:0;
         font-size:17px;
-        color:#e2e8f0;
+        color:var(--pg-text);
         display:flex;
         align-items:center;
         gap:8px;
@@ -455,22 +478,22 @@
         display:grid;
         grid-template-columns:1fr 1fr;
         gap:10px 20px;
-        background:rgba(255,255,255,.02);
-        border:1px solid #263041;
+        background:var(--pg-soft-bg);
+        border:1px solid var(--pg-border);
         border-radius:10px;
         padding:14px 16px;
         margin-bottom:16px;
         font-size:13.5px;
-        color:#94a3b8;
+        color:var(--pg-label);
     }
 
     .modal-info b{
-        color:#e2e8f0;
+        color:var(--pg-text);
     }
 
     .modal-table-wrap{
         overflow-x:auto;
-        border:1px solid #263041;
+        border:1px solid var(--pg-border);
         border-radius:10px;
     }
 
@@ -481,21 +504,21 @@
     }
 
     .modal-table thead th{
-        background:#1a1f2e;
-        color:#64748b;
+        background:var(--pg-bg-2);
+        color:var(--pg-faint);
         text-transform:uppercase;
         font-size:11px;
         letter-spacing:.03em;
         text-align:left;
         padding:10px 12px;
-        border-bottom:1px solid #263041;
+        border-bottom:1px solid var(--pg-border);
         white-space:nowrap;
     }
 
     .modal-table tbody td{
         padding:10px 12px;
-        border-bottom:1px solid #1f2937;
-        color:#e2e8f0;
+        border-bottom:1px solid var(--pg-border-2);
+        color:var(--pg-text);
     }
 
     .modal-table tbody tr:last-child td{
@@ -517,7 +540,7 @@
     .modal-table .empty-state{
         text-align:center;
         padding:24px 10px;
-        color:#64748b;
+        color:var(--pg-faint);
         font-size:13.5px;
     }
 
@@ -542,7 +565,7 @@
 
     #formRetur label{
         font-size:13px;
-        color:#94a3b8;
+        color:var(--pg-label);
     }
 
     #formRetur input[type="text"],
@@ -550,9 +573,9 @@
         width:100%;
         padding:10px 12px;
         border-radius:8px;
-        border:1px solid #334155;
-        background:#0f172a;
-        color:#e2e8f0;
+        border:1px solid var(--pg-border);
+        background:var(--pg-bg-1);
+        color:var(--pg-text);
         font-family:inherit;
         font-size:14px;
         box-sizing:border-box;
@@ -565,9 +588,9 @@
     }
 
     #formRetur input[readonly]{
-        color:#94a3b8;
+        color:var(--pg-label);
         border-style:dashed;
-        background:#0b1220;
+        background:var(--pg-bg-3);
         cursor:not-allowed;
     }
 
@@ -575,9 +598,9 @@
         width:100%;
         padding:8px 10px;
         border-radius:8px;
-        border:1px solid #334155;
-        background:#0f172a;
-        color:#e2e8f0;
+        border:1px solid var(--pg-border);
+        background:var(--pg-bg-1);
+        color:var(--pg-text);
         font-family:inherit;
         font-size:14px;
         box-sizing:border-box;
@@ -607,9 +630,9 @@
     }
 
     #btnBatalRetur{
-        background:rgba(255,255,255,.06);
-        color:#cbd5e1;
-        border:1px solid #334155;
+        background:var(--pg-soft-bg-2);
+        color:var(--pg-text);
+        border:1px solid var(--pg-border);
         border-radius:10px;
         padding:12px 20px;
         cursor:pointer;
@@ -657,7 +680,7 @@ id="no_transfer"
 placeholder="Memuat nomor..."
 readonly
 required>
-<small style="color:#64748B;">
+<small style="color:var(--pg-faint);">
 Otomatis : TRF-0001/bulan/tahun berjalan, urut &amp; reset tiap bulan
 </small>
 </div>
@@ -668,7 +691,7 @@ type="text"
 id="gudangAsal"
 readonly
 required>
-<small style="color:#64748B;">
+<small style="color:var(--pg-faint);">
 Otomatis sesuai gudang akun Anda, tidak bisa diubah
 </small>
 </div>
@@ -723,7 +746,7 @@ id="btnSimpanTransfer">
 <div class="panel">
 <h3><span>⏳ Transfer Masuk - Menunggu Approval</span></h3>
 <br>
-<p style="color:#64748b;font-size:13px;margin:0 0 12px;">
+<p style="color:var(--pg-faint);font-size:13px;margin:0 0 12px;">
 Daftar transfer yang ditujukan ke gudang Anda (<b id="labelGudangUser">-</b>) dan masih menunggu persetujuan.
 </p>
 <div class="table-responsive">
@@ -748,7 +771,7 @@ Daftar transfer yang ditujukan ke gudang Anda (<b id="labelGudangUser">-</b>) da
 <div class="panel">
 <h3><span>↩ Retur Masuk - Menunggu Approval</span></h3>
 <br>
-<p style="color:#64748b;font-size:13px;margin:0 0 12px;">
+<p style="color:var(--pg-faint);font-size:13px;margin:0 0 12px;">
 Permintaan retur barang yang diajukan ke gudang Anda (<b id="labelGudangUserRetur">-</b>) sebagai pemilik awal barang, dan masih menunggu persetujuan.
 </p>
 <div class="table-responsive">
@@ -777,7 +800,7 @@ Permintaan retur barang yang diajukan ke gudang Anda (<b id="labelGudangUserRetu
 type="text"
 id="search"
 placeholder="🔍 Cari No Transfer / Gudang..."
-style="width:100%;padding:10px;margin-bottom:12px;border:1px solid #334155;border-radius:8px;background:#0f172a;color:#e2e8f0;box-sizing:border-box;">
+style="width:100%;padding:10px;margin-bottom:12px;border:1px solid var(--pg-border);border-radius:8px;background:var(--pg-bg-1);color:var(--pg-text);box-sizing:border-box;">
 <div class="table-responsive">
 <table id="tableTransfer">
 <thead>
@@ -849,7 +872,7 @@ style="width:100%;padding:10px;margin-bottom:12px;border:1px solid #334155;borde
 <div>
 <label><b>No. Retur</b></label>
 <input type="text" id="returNoRetur" placeholder="Memuat nomor..." readonly required>
-<small style="color:#64748B;">
+<small style="color:var(--pg-faint);">
 Otomatis : RTR-0001/bulan/tahun berjalan
 </small>
 </div>
@@ -859,7 +882,7 @@ Otomatis : RTR-0001/bulan/tahun berjalan
 </div>
 </form>
 
-<p style="color:#64748b;font-size:13px;margin:0 0 10px;">
+<p style="color:var(--pg-faint);font-size:13px;margin:0 0 10px;">
 Isi Qty Retur untuk barang yang mau dikembalikan. Boleh sebagian (tidak harus semua sekaligus) — sisa yang belum diretur tetap bisa diretur lagi lain waktu.
 </p>
 
