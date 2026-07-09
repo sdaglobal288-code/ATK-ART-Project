@@ -11,6 +11,8 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script src="supabase/config.js"></script>
+<!-- Tema warna otomatis sesuai gudang / pilihan akun yang login (dipakai di SEMUA halaman) -->
+<script src="js/theme.js"></script>
 <style>
     /* ====================================================
        DESAIN: "Ledger" - laporan bergaya buku besar gudang.
@@ -25,6 +27,8 @@
         --lp-text: #e2e8f0;
         --lp-muted: #94a3b8;
         --lp-muted-2: #64748b;
+        --lp-input-bg: #0f172a;
+        --lp-input-border: #334155;
 
         --lp-accent-filter: #3b82f6;   /* periode & aksi utama */
         --lp-accent-masuk: #4ade80;    /* barang masuk */
@@ -180,9 +184,9 @@
         width:100%;
         padding:11px 12px;
         border-radius:9px;
-        border:1px solid #334155;
-        background:#0f172a;
-        color:#e2e8f0;
+        border:1px solid var(--lp-input-border);
+        background:var(--lp-input-bg);
+        color:var(--lp-text);
         font-family:inherit;
         font-size:14px;
         box-sizing:border-box;
