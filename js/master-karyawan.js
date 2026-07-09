@@ -291,10 +291,18 @@ if (form) {
                 return;
             }
 
-            // ===== INSERT =====
+            // ===== INSERT — gudang otomatis dari akun yang login =====
             const { error } = await supabaseClient
                 .from("master_karyawan")
-                .insert([{ nik, nama, departemen, jabatan, status, created_by: user.nama }]);
+                .insert([{
+                    nik,
+                    nama,
+                    departemen,
+                    jabatan,
+                    status,
+                    gudang     : user.gudang,   // ← otomatis sesuai akun
+                    created_by : user.nama
+                }]);
 
             if (error) throw error;
 
@@ -403,6 +411,7 @@ function exportExcel() {
         "DEPARTEMEN" : item.departemen ?? "-",
         "JABATAN"    : item.jabatan ?? "-",
         "STATUS"     : item.status,
+        "GUDANG"     : item.gudang ?? "-",
         "DIBUAT OLEH": item.created_by ?? "-"
     }));
 
@@ -416,7 +425,7 @@ function exportExcel() {
 }
 
 // =====================================
-// IMPORT EXCEL
+// IMPORT EXCEL — gudang otomatis dari akun yang login
 // =====================================
 
 const fileImport = document.getElementById("fileImport");
@@ -452,6 +461,7 @@ if (fileImport) {
                 departemen : String(row.DEPARTEMEN ?? row.departemen ?? "").trim(),
                 jabatan    : String(row.JABATAN ?? row.jabatan ?? "").trim(),
                 status     : String(row.STATUS ?? row.status ?? "Aktif").trim(),
+                gudang     : user.gudang,   // ← otomatis sesuai akun, abaikan kolom gudang di file
                 created_by : user.nama
             })).filter(item => item.nik && item.nama);
 
@@ -466,7 +476,7 @@ if (fileImport) {
 
             if (error) throw error;
 
-            alert(`${payload.length} karyawan berhasil diimport.`);
+            alert(`${payload.length} karyawan berhasil diimport ke gudang ${user.gudang}.`);
             await loadKaryawan();
 
         } catch (err) {
