@@ -47,6 +47,29 @@ function findKaryawanById(id){
 }
 
 // =====================================
+// NAVIGASI KEYBOARD UNTUK COMBOBOX (helper umum)
+// =====================================
+
+function highlightComboItem(dropdown, activeIndex){
+    const items = dropdown.querySelectorAll(".combo-item");
+    items.forEach((el, idx)=>{
+        if(idx === activeIndex){
+            el.classList.add("combo-active");
+            el.style.background = "rgba(255,255,255,0.15)";
+            el.scrollIntoView({ block: "nearest" });
+        } else {
+            el.classList.remove("combo-active");
+            el.style.background = "";
+        }
+    });
+}
+
+function getComboActiveIndex(dropdown){
+    const items = Array.from(dropdown.querySelectorAll(".combo-item"));
+    return items.findIndex(el => el.classList.contains("combo-active"));
+}
+
+// =====================================
 // PENGAMBIL - COMBOBOX PENCARIAN
 // =====================================
 
@@ -88,6 +111,35 @@ function setupPengambilCombo(searchInput, hiddenInput, dropdown, departemenInput
     });
 
     searchInput.addEventListener("focus", function(){ render(this.value); });
+
+    // Navigasi keyboard: panah bawah/atas untuk pindah pilihan, Enter untuk pilih, Esc untuk tutup
+    searchInput.addEventListener("keydown", function(e){
+
+        if(!dropdown.classList.contains("show")) return;
+
+        const items = dropdown.querySelectorAll(".combo-item");
+        if(items.length === 0) return;
+
+        let activeIndex = getComboActiveIndex(dropdown);
+
+        if(e.key === "ArrowDown"){
+            e.preventDefault();
+            activeIndex = (activeIndex + 1) % items.length;
+            highlightComboItem(dropdown, activeIndex);
+        } else if(e.key === "ArrowUp"){
+            e.preventDefault();
+            activeIndex = (activeIndex - 1 + items.length) % items.length;
+            highlightComboItem(dropdown, activeIndex);
+        } else if(e.key === "Enter"){
+            if(activeIndex >= 0 && activeIndex < items.length){
+                e.preventDefault();
+                items[activeIndex].click();
+            }
+        } else if(e.key === "Escape"){
+            dropdown.classList.remove("show");
+        }
+
+    });
 
     dropdown.addEventListener("click", function(e){
         const item = e.target.closest(".combo-item");
@@ -359,6 +411,41 @@ function setupDetailRowsDelegation(containerId){
             const row = e.target.closest(".detail-row");
             if(row) renderBarangDropdown(row, e.target.value);
         }
+    });
+
+    // Navigasi keyboard untuk dropdown pencarian barang (panah bawah/atas, Enter, Esc)
+    container.addEventListener("keydown", function(e){
+
+        if(!e.target.classList.contains("input-barang-search")) return;
+
+        const row = e.target.closest(".detail-row");
+        if(!row) return;
+
+        const dropdown = row.querySelector(".input-barang-dropdown");
+        if(!dropdown || !dropdown.classList.contains("show")) return;
+
+        const items = dropdown.querySelectorAll(".combo-item");
+        if(items.length === 0) return;
+
+        let activeIndex = getComboActiveIndex(dropdown);
+
+        if(e.key === "ArrowDown"){
+            e.preventDefault();
+            activeIndex = (activeIndex + 1) % items.length;
+            highlightComboItem(dropdown, activeIndex);
+        } else if(e.key === "ArrowUp"){
+            e.preventDefault();
+            activeIndex = (activeIndex - 1 + items.length) % items.length;
+            highlightComboItem(dropdown, activeIndex);
+        } else if(e.key === "Enter"){
+            if(activeIndex >= 0 && activeIndex < items.length){
+                e.preventDefault();
+                items[activeIndex].click();
+            }
+        } else if(e.key === "Escape"){
+            dropdown.classList.remove("show");
+        }
+
     });
 
     container.addEventListener("click", function(e){
