@@ -1,5 +1,6 @@
 // =====================================
-// TRANSFER BARANG (DENGAN APPROVAL & RETUR + APPROVAL RETUR)
+// TRANSFER BARANG (DENGAN APPROVAL, RETUR + APPROVAL RETUR,
+// DAN PERMANENKAN + APPROVAL PERMANENKAN)
 // =====================================
 //
 // SKEMA TABEL YANG DIBUTUHKAN (lihat transfer-barang-schema.sql
@@ -11,12 +12,17 @@
 //   - barang_transfer_retur       (header permintaan retur)
 //   - barang_transfer_retur_detail(item per permintaan retur)
 //
+// SKEMA TAMBAHAN UNTUK PERMANENKAN (BARU - lihat catatan SQL di bagian
+// bawah pada file ini, bagian "PERMANENKAN"):
+//   - barang_transfer_permanenkan        (header permintaan permanenkan)
+//   - barang_transfer_permanenkan_detail (item per permintaan permanenkan)
+//
 // ALUR TRANSFER:
 //   1. Buat transfer  -> stok gudang asal langsung berkurang, status = "Pending"
 //   2. Approve        -> stok gudang tujuan bertambah, status = "Approved"
 //   3. Reject          -> stok kembali ke gudang asal, status = "Rejected"
 //
-// ALUR RETUR (BARU - dengan approval, mendukung retur sebagian/partial):
+// ALUR RETUR (dengan approval, mendukung retur sebagian/partial):
 //   1. Gudang TUJUAN (peminjam) klik "Retur" pada transfer berstatus Approved
 //      -> muncul modal, pilih qty per item yang mau diretur (bisa sebagian,
 //         bisa dicicil beberapa kali retur), tanggal bisa diedit, nomor
@@ -28,16 +34,42 @@
 //      status = "Disetujui".
 //      Reject  -> status = "Ditolak", stok tidak berubah (barang dianggap
 //      tetap dipakai gudang tujuan).
-//   Transfer aslinya TETAP berstatus "Approved" walau sudah ada retur
-//   (mendukung retur bertahap/sebagian); riwayat retur bisa dilihat di
-//   modal Detail Transfer.
 //
-// NOMOR TRANSFER OTOMATIS:
-//   Format  : TRF-0001/VII/2026  (urut 4 digit / bulan romawi / tahun,
-//             bulan & tahun mengikuti tanggal sistem saat ini)
-//   Urut    : global lintas gudang, RESET ke 0001 setiap bulan baru
-// NOMOR RETUR OTOMATIS:
-//   Format  : RTR-0001/VII/2026  (pola & reset sama seperti No Transfer)
+// ALUR PERMANENKAN (BARU - kebalikan dari Retur, TIDAK ADA perpindahan stok):
+//   1. Gudang TUJUAN (pemegang barang saat ini) klik "🔒 Permanenkan" pada
+//      transfer berstatus Approved -> muncul modal, pilih qty per item yang
+//      MEMANG tidak akan dikembalikan lagi (bisa sebagian, bisa dicicil).
+//      -> tersimpan dengan status "Menunggu Approval". STOK TIDAK BERUBAH
+//      sama sekali (barang memang sudah ada secara fisik di gudang tujuan
+//      sejak transfer di-approve; permanenkan ini murni mengunci status
+//      supaya bagian tsb tidak bisa diretur lagi).
+//   2. Gudang ASAL (pengirim / pemilik awal barang) melihat permintaan ini
+//      di panel "Permanenkan Masuk - Menunggu Approval" dan bisa
+//      Approve / Reject.
+//   3. Approve -> status = "Disetujui", qty tsb resmi tidak bisa diretur lagi.
+//      Reject  -> status = "Ditolak", qty tsb kembali bisa diretur / diajukan
+//      permanenkan lagi.
+//
+//   Kuota "sisa" antara Retur dan Permanenkan DIBAGI dari qty transfer yang
+//   sama: total (sudah diretur + sudah/diminta dipermanenkan) tidak akan
+//   pernah melebihi qty transfer aslinya untuk tiap barang.
+//
+//   Transfer aslinya TETAP berstatus "Approved" walau sudah ada retur/
+//   permanenkan (mendukung tindakan bertahap/sebagian); riwayat retur &
+//   riwayat permanenkan bisa dilihat di modal Detail Transfer.
+//
+// NOMOR TRANSFER / RETUR / PERMANENKAN OTOMATIS:
+//   Format Transfer     : TRF-0001/VII/2026
+//   Format Retur        : RTR-0001/VII/2026
+//   Format Permanenkan  : PRM-0001/VII/2026
+//   (urut 4 digit / bulan romawi / tahun)
+//
+//   PENTING: bulan & tahun pada nomor mengikuti TANGGAL YANG DIINPUT di
+//   form (bukan tanggal sistem hari ini), dan nomor urutnya dihitung ulang
+//   berdasarkan data yang sudah ada di bulan tersebut. Nomor otomatis
+//   dibuat ulang setiap kali field tanggalnya diubah.
+//   Urut : global lintas gudang, RESET ke 0001 setiap bulan (mengikuti
+//          bulan pada tanggal yang diinput, bukan bulan sistem)
 // =====================================
 
 const user = JSON.parse(sessionStorage.getItem("user"));
@@ -49,7 +81,7 @@ if (!user) {
 // Daftar gudang default kalau tabel master_gudang belum ada / kosong
 const DAFTAR_GUDANG_FALLBACK = ["Raden Saleh", "Margomulyo"];
 
-// Bulan romawi untuk format nomor transfer / retur
+// Bulan romawi untuk format nomor transfer / retur / permanenkan
 const BULAN_ROMAWI = ["I","II","III","IV","V","VI","VII","VIII","IX","X","XI","XII"];
 
 // cache master data
@@ -65,18 +97,68 @@ let returTransferId = null;
 // item + sisa qty yang bisa diretur untuk transfer yang sedang dibuka di modal retur
 let returItemsState = [];
 
+// transfer yang sedang diajukan permanenkan-nya lewat modal (null jika modal tertutup)
+let permanenkanTransferId = null;
+
+// item + sisa qty yang bisa dipermanenkan untuk transfer yang sedang dibuka di modal
+let permanenkanItemsState = [];
+
 // =====================================
-// NOMOR TRANSFER OTOMATIS
+// NAVIGASI KEYBOARD UNTUK COMBOBOX (helper umum)
 // =====================================
 
-async function generateNoTransfer(){
+function highlightComboItem(dropdown, activeIndex){
+    const items = dropdown.querySelectorAll(".combo-item");
+    items.forEach((el, idx)=>{
+        if(idx === activeIndex){
+            el.classList.add("combo-active");
+            el.style.background = "rgba(255,255,255,0.15)";
+            el.scrollIntoView({ block: "nearest" });
+        } else {
+            el.classList.remove("combo-active");
+            el.style.background = "";
+        }
+    });
+}
 
+function getComboActiveIndex(dropdown){
+    const items = Array.from(dropdown.querySelectorAll(".combo-item"));
+    return items.findIndex(el => el.classList.contains("combo-active"));
+}
+
+// =====================================
+// NOMOR OTOMATIS (GENERIK) - dipakai untuk Transfer, Retur, & Permanenkan
+// Nomor & urutnya mengikuti BULAN/TAHUN dari tanggal yang diinput di form,
+// bukan tanggal sistem hari ini.
+// =====================================
+
+function getBulanTahunDariTanggal(tanggalStr){
+
+    if(tanggalStr && /^\d{4}-\d{2}-\d{2}$/.test(tanggalStr)){
+
+        const [y, m] = tanggalStr.split("-").map(Number);
+
+        return {
+            bulanRomawi: BULAN_ROMAWI[m - 1],
+            tahun: y
+        };
+
+    }
+
+    // fallback ke tanggal sistem kalau input kosong / belum valid
     const now = new Date();
 
-    const bulanRomawi = BULAN_ROMAWI[now.getMonth()];
-    const tahun = now.getFullYear();
+    return {
+        bulanRomawi: BULAN_ROMAWI[now.getMonth()],
+        tahun: now.getFullYear()
+    };
 
-    // pola nomor bulan+tahun berjalan, contoh: "%/VII/2026"
+}
+
+async function generateNomorOtomatis(prefix, tableName, kolomNomor, tanggalStr){
+
+    const { bulanRomawi, tahun } = getBulanTahunDariTanggal(tanggalStr);
+
     const pattern = `%/${bulanRomawi}/${tahun}`;
 
     let urutTerbesar = 0;
@@ -84,15 +166,17 @@ async function generateNoTransfer(){
     try{
 
         const { data, error } = await supabaseClient
-            .from("barang_transfer")
-            .select("no_transfer")
-            .ilike("no_transfer", pattern);
+            .from(tableName)
+            .select(kolomNomor)
+            .ilike(kolomNomor, pattern);
 
         if(error) throw error;
 
+        const regex = new RegExp(`^${prefix}-(\\d{4})\\/`);
+
         (data || []).forEach(row=>{
 
-            const match = (row.no_transfer || "").match(/^TRF-(\d{4})\//);
+            const match = (row[kolomNomor] || "").match(regex);
 
             if(match){
 
@@ -107,14 +191,32 @@ async function generateNoTransfer(){
     }
     catch(err){
 
-        console.error("Gagal menghitung nomor transfer otomatis:", err);
+        console.error(`Gagal menghitung nomor otomatis (${prefix}):`, err);
 
     }
 
     const urutBaru = urutTerbesar + 1;
     const urutStr = String(urutBaru).padStart(4, "0");
 
-    return `TRF-${urutStr}/${bulanRomawi}/${tahun}`;
+    return `${prefix}-${urutStr}/${bulanRomawi}/${tahun}`;
+
+}
+
+async function generateNoTransfer(tanggalStr){
+
+    return generateNomorOtomatis("TRF", "barang_transfer", "no_transfer", tanggalStr);
+
+}
+
+async function generateNoRetur(tanggalStr){
+
+    return generateNomorOtomatis("RTR", "barang_transfer_retur", "no_retur", tanggalStr);
+
+}
+
+async function generateNoPermanenkan(tanggalStr){
+
+    return generateNomorOtomatis("PRM", "barang_transfer_permanenkan", "no_permanen", tanggalStr);
 
 }
 
@@ -127,59 +229,9 @@ async function isiNomorTransferOtomatis(){
     noTransferInput.readOnly = true;
     noTransferInput.value = "Memuat nomor...";
 
-    noTransferInput.value = await generateNoTransfer();
+    const tanggalInput = document.getElementById("tanggal");
 
-}
-
-// =====================================
-// NOMOR RETUR OTOMATIS
-// =====================================
-
-async function generateNoRetur(){
-
-    const now = new Date();
-
-    const bulanRomawi = BULAN_ROMAWI[now.getMonth()];
-    const tahun = now.getFullYear();
-
-    const pattern = `%/${bulanRomawi}/${tahun}`;
-
-    let urutTerbesar = 0;
-
-    try{
-
-        const { data, error } = await supabaseClient
-            .from("barang_transfer_retur")
-            .select("no_retur")
-            .ilike("no_retur", pattern);
-
-        if(error) throw error;
-
-        (data || []).forEach(row=>{
-
-            const match = (row.no_retur || "").match(/^RTR-(\d{4})\//);
-
-            if(match){
-
-                const angka = parseInt(match[1], 10);
-
-                if(angka > urutTerbesar) urutTerbesar = angka;
-
-            }
-
-        });
-
-    }
-    catch(err){
-
-        console.error("Gagal menghitung nomor retur otomatis:", err);
-
-    }
-
-    const urutBaru = urutTerbesar + 1;
-    const urutStr = String(urutBaru).padStart(4, "0");
-
-    return `RTR-${urutStr}/${bulanRomawi}/${tahun}`;
+    noTransferInput.value = await generateNoTransfer(tanggalInput ? tanggalInput.value : "");
 
 }
 
@@ -251,6 +303,14 @@ function isiDropdownGudang(){
     if(labelGudangUserRetur){
 
         labelGudangUserRetur.textContent = (user && user.gudang) ? user.gudang : "-";
+
+    }
+
+    const labelGudangUserPermanenkan = document.getElementById("labelGudangUserPermanenkan");
+
+    if(labelGudangUserPermanenkan){
+
+        labelGudangUserPermanenkan.textContent = (user && user.gudang) ? user.gudang : "-";
 
     }
 
@@ -557,6 +617,7 @@ function renderBarangDropdown(row, keyword){
 
 // =====================================
 // EVENT DELEGATION UNTUK SEMUA BARIS DI #detailRows
+// Termasuk navigasi keyboard: panah bawah/atas, Enter, Esc.
 // =====================================
 
 const detailRowsContainer = document.getElementById("detailRows");
@@ -600,6 +661,44 @@ detailRowsContainer.addEventListener("focusin", function(e){
 
         if(row) renderBarangDropdown(row, e.target.value);
 
+    }
+
+});
+
+// Navigasi keyboard untuk dropdown pencarian barang
+detailRowsContainer.addEventListener("keydown", function(e){
+
+    if(!e.target.classList.contains("input-barang-search")) return;
+
+    const row = e.target.closest(".detail-row");
+
+    if(!row) return;
+
+    const dropdown = row.querySelector(".input-barang-dropdown");
+
+    if(!dropdown || !dropdown.classList.contains("show")) return;
+
+    const items = dropdown.querySelectorAll(".combo-item");
+
+    if(items.length === 0) return;
+
+    let activeIndex = getComboActiveIndex(dropdown);
+
+    if(e.key === "ArrowDown"){
+        e.preventDefault();
+        activeIndex = (activeIndex + 1) % items.length;
+        highlightComboItem(dropdown, activeIndex);
+    } else if(e.key === "ArrowUp"){
+        e.preventDefault();
+        activeIndex = (activeIndex - 1 + items.length) % items.length;
+        highlightComboItem(dropdown, activeIndex);
+    } else if(e.key === "Enter"){
+        if(activeIndex >= 0 && activeIndex < items.length){
+            e.preventDefault();
+            items[activeIndex].click();
+        }
+    } else if(e.key === "Escape"){
+        dropdown.classList.remove("show");
     }
 
 });
@@ -1121,8 +1220,9 @@ async function rejectTransfer(id){
 }
 
 // =====================================
-// HITUNG SISA YANG BISA DIRETUR PER ITEM TRANSFER
-// (qty transfer - qty yang sudah diminta retur / disetujui retur)
+// HITUNG SISA YANG BISA DIRETUR / DIPERMANENKAN PER ITEM TRANSFER
+// (qty transfer - qty yang sudah retur - qty yang sudah/diminta permanenkan)
+// Kuota ini DIBAGI antara Retur dan Permanenkan.
 // =====================================
 
 async function ambilDetailTransfer(transferId){
@@ -1139,17 +1239,16 @@ async function ambilDetailTransfer(transferId){
 
 }
 
-async function hitungSisaRetur(transferId, detailTransfer){
+async function hitungSisaTindakan(transferId, detailTransfer){
 
-    // retur yang masih "menahan kuota": sudah disetujui ATAU masih menunggu
-    // approval (supaya tidak bisa diajukan dobel melebihi sisa yang ada)
-    const { data: returHeaders, error: errHeader } = await supabaseClient
+    // retur yang masih "menahan kuota": sudah disetujui ATAU masih menunggu approval
+    const { data: returHeaders, error: errReturHeader } = await supabaseClient
         .from("barang_transfer_retur")
         .select("id")
         .eq("transfer_id", transferId)
         .in("status", ["Menunggu Approval", "Disetujui"]);
 
-    if(errHeader) throw errHeader;
+    if(errReturHeader) throw errReturHeader;
 
     const returIds = (returHeaders || []).map(r => r.id);
 
@@ -1168,6 +1267,32 @@ async function hitungSisaRetur(transferId, detailTransfer){
 
     }
 
+    // permanenkan yang masih "menahan kuota": sudah disetujui ATAU masih menunggu approval
+    const { data: permHeaders, error: errPermHeader } = await supabaseClient
+        .from("barang_transfer_permanenkan")
+        .select("id")
+        .eq("transfer_id", transferId)
+        .in("status", ["Menunggu Approval", "Disetujui"]);
+
+    if(errPermHeader) throw errPermHeader;
+
+    const permIds = (permHeaders || []).map(r => r.id);
+
+    let permDetails = [];
+
+    if(permIds.length > 0){
+
+        const { data, error } = await supabaseClient
+            .from("barang_transfer_permanenkan_detail")
+            .select("*")
+            .in("permanen_id", permIds);
+
+        if(error) throw error;
+
+        permDetails = data || [];
+
+    }
+
     const sudahDiretur = new Map();
 
     returDetails.forEach(d=>{
@@ -1177,15 +1302,32 @@ async function hitungSisaRetur(transferId, detailTransfer){
 
     });
 
-    return detailTransfer.map(item => ({
-        ...item,
-        sudahDiretur: sudahDiretur.get(item.kode_barang) || 0,
-        sisa: Number(item.qty) - (sudahDiretur.get(item.kode_barang) || 0)
-    }));
+    const sudahDipermanenkan = new Map();
+
+    permDetails.forEach(d=>{
+
+        const key = d.kode_barang;
+        sudahDipermanenkan.set(key, (sudahDipermanenkan.get(key) || 0) + Number(d.qty));
+
+    });
+
+    return detailTransfer.map(item => {
+
+        const dr = sudahDiretur.get(item.kode_barang) || 0;
+        const dp = sudahDipermanenkan.get(item.kode_barang) || 0;
+
+        return {
+            ...item,
+            sudahDiretur: dr,
+            sudahDipermanenkan: dp,
+            sisa: Number(item.qty) - dr - dp
+        };
+
+    });
 
 }
 
-async function adaSisaRetur(transferId){
+async function adaSisaTindakan(transferId){
 
     try{
 
@@ -1193,7 +1335,7 @@ async function adaSisaRetur(transferId){
 
         if(detail.length === 0) return false;
 
-        const withSisa = await hitungSisaRetur(transferId, detail);
+        const withSisa = await hitungSisaTindakan(transferId, detail);
 
         return withSisa.some(d => d.sisa > 0);
 
@@ -1235,13 +1377,13 @@ async function bukaModalRetur(transferId){
 
         const detail = await ambilDetailTransfer(transferId);
 
-        const withSisa = await hitungSisaRetur(transferId, detail);
+        const withSisa = await hitungSisaTindakan(transferId, detail);
 
         const adaSisa = withSisa.filter(d => d.sisa > 0);
 
         if(adaSisa.length === 0){
 
-            alert("Semua item pada transfer ini sudah diretur / sedang menunggu approval retur.");
+            alert("Semua item pada transfer ini sudah diretur / dipermanenkan / sedang menunggu approval.");
             return;
 
         }
@@ -1263,7 +1405,7 @@ async function bukaModalRetur(transferId){
         const noReturInput = document.getElementById("returNoRetur");
 
         noReturInput.value = "Memuat nomor...";
-        noReturInput.value = await generateNoRetur();
+        noReturInput.value = await generateNoRetur(document.getElementById("returTanggal").value);
 
         renderReturItemsTable();
 
@@ -1289,7 +1431,7 @@ function renderReturItemsTable(){
             <td>${item.nama_barang}</td>
             <td>${item.satuan ?? "-"}</td>
             <td>${item.qty}</td>
-            <td>${item.sudahDiretur}</td>
+            <td>${item.sudahDiretur + item.sudahDipermanenkan}</td>
             <td><b>${item.sisa}</b></td>
             <td>
                 <input type="number" class="input-qty retur-qty-input"
@@ -1678,6 +1820,559 @@ async function rejectRetur(id){
 
 }
 
+// =====================================================================
+// PERMANENKAN (BARU)
+// =====================================================================
+//
+// SQL yang perlu dijalankan sekali di Supabase (silakan jalankan manual
+// di SQL Editor Supabase - lihat juga file transfer-permanenkan-schema.sql):
+//
+// create table if not exists barang_transfer_permanenkan (
+//     id bigint generated always as identity primary key,
+//     transfer_id bigint not null references barang_transfer(id) on delete cascade,
+//     no_permanen text not null unique,
+//     tanggal date not null,
+//     gudang_asal text not null,
+//     gudang_tujuan text not null,
+//     status text not null default 'Menunggu Approval',
+//     keterangan text,
+//     created_by text,
+//     approved_by text,
+//     approved_at timestamptz,
+//     created_at timestamptz not null default now()
+// );
+//
+// create table if not exists barang_transfer_permanenkan_detail (
+//     id bigint generated always as identity primary key,
+//     permanen_id bigint not null references barang_transfer_permanenkan(id) on delete cascade,
+//     kode_barang text not null,
+//     nama_barang text not null,
+//     kategori text,
+//     satuan text,
+//     qty numeric not null
+// );
+//
+// (Aktifkan Realtime untuk tabel barang_transfer_permanenkan kalau mau
+//  panel approval-nya update otomatis tanpa refresh.)
+// =====================================================================
+
+// =====================================
+// MODAL PERMINTAAN PERMANENKAN (dibuka oleh Gudang Tujuan / pemegang barang)
+// TIDAK ADA perpindahan stok di alur ini sama sekali - barang memang sudah
+// ada secara fisik di gudang tujuan sejak transfer di-approve.
+// =====================================
+
+async function bukaModalPermanenkan(transferId){
+
+    try{
+
+        const { data: header, error: errHeader } = await supabaseClient
+            .from("barang_transfer")
+            .select("*")
+            .eq("id", transferId)
+            .single();
+
+        if(errHeader) throw errHeader;
+
+        if(header.status !== "Approved"){
+            alert("Hanya transfer berstatus Approved yang bisa dipermanenkan.");
+            return;
+        }
+
+        if(user.gudang !== header.gudang_tujuan){
+            alert("Hanya gudang tujuan (pemegang barang saat ini) yang bisa mengajukan Permanenkan.");
+            return;
+        }
+
+        const detail = await ambilDetailTransfer(transferId);
+
+        const withSisa = await hitungSisaTindakan(transferId, detail);
+
+        const adaSisa = withSisa.filter(d => d.sisa > 0);
+
+        if(adaSisa.length === 0){
+
+            alert("Semua item pada transfer ini sudah diretur / dipermanenkan / sedang menunggu approval.");
+            return;
+
+        }
+
+        permanenkanTransferId = transferId;
+        permanenkanItemsState = adaSisa;
+
+        document.getElementById("permanenkanHeaderInfo").innerHTML = `
+            <div>No. Transfer : <b>${header.no_transfer}</b></div>
+            <div>Gudang Asal (Pengirim) : <b>${header.gudang_asal}</b></div>
+            <div>Gudang Tujuan (Anda) : <b>${header.gudang_tujuan}</b></div>
+        `;
+
+        document.getElementById("permanenkanTanggal").value =
+            new Date().toISOString().split("T")[0];
+
+        document.getElementById("permanenkanKeterangan").value = "";
+
+        const noPermanenInput = document.getElementById("permanenkanNoPermanen");
+
+        noPermanenInput.value = "Memuat nomor...";
+        noPermanenInput.value = await generateNoPermanenkan(document.getElementById("permanenkanTanggal").value);
+
+        renderPermanenkanItemsTable();
+
+        document.getElementById("modalPermanenkan").classList.add("show");
+
+    }
+    catch(err){
+
+        console.error(err);
+        alert(err.message);
+
+    }
+
+}
+
+function renderPermanenkanItemsTable(){
+
+    const tbody = document.getElementById("permanenkanItemsBody");
+
+    tbody.innerHTML = permanenkanItemsState.map((item, idx) => `
+        <tr>
+            <td><span class="kode-pill">${item.kode_barang}</span></td>
+            <td>${item.nama_barang}</td>
+            <td>${item.satuan ?? "-"}</td>
+            <td>${item.qty}</td>
+            <td>${item.sudahDiretur + item.sudahDipermanenkan}</td>
+            <td><b>${item.sisa}</b></td>
+            <td>
+                <input type="number" class="input-qty permanenkan-qty-input"
+                    data-idx="${idx}" min="0" max="${item.sisa}" value="${item.sisa}">
+            </td>
+        </tr>
+    `).join("");
+
+}
+
+function tutupModalPermanenkan(){
+
+    const modal = document.getElementById("modalPermanenkan");
+
+    if(modal) modal.classList.remove("show");
+
+    permanenkanTransferId = null;
+    permanenkanItemsState = [];
+
+}
+
+const btnSimpanPermanenkanEl = document.getElementById("btnSimpanPermanenkan");
+
+if(btnSimpanPermanenkanEl){
+
+    btnSimpanPermanenkanEl.addEventListener("click", submitPermanenkan);
+
+}
+
+async function submitPermanenkan(e){
+
+    if(e) e.preventDefault();
+
+    try{
+
+        if(permanenkanTransferId === null){
+            alert("Tidak ada transfer yang sedang dipermanenkan.");
+            return;
+        }
+
+        const tanggal = document.getElementById("permanenkanTanggal").value;
+        const noPermanen = document.getElementById("permanenkanNoPermanen").value.trim();
+        const keterangan = document.getElementById("permanenkanKeterangan").value.trim();
+
+        if(!tanggal){
+            alert("Tanggal wajib diisi.");
+            return;
+        }
+
+        if(!noPermanen || noPermanen === "Memuat nomor..."){
+            alert("Nomor Permanenkan belum siap, coba tunggu sebentar.");
+            return;
+        }
+
+        //---------------------------------
+        // AMBIL QTY PERMANENKAN DARI INPUT
+        //---------------------------------
+
+        const qtyInputs = document.querySelectorAll(".permanenkan-qty-input");
+
+        const itemDipilih = [];
+
+        for(const input of qtyInputs){
+
+            const idx = parseInt(input.dataset.idx);
+            const item = permanenkanItemsState[idx];
+            const qty = parseInt(input.value);
+
+            if(!qty) continue;
+
+            if(qty < 0){
+
+                alert(`Qty permanenkan "${item.nama_barang}" tidak boleh negatif.`);
+                return;
+
+            }
+
+            if(qty > item.sisa){
+
+                alert(
+                    `Qty permanenkan "${item.nama_barang}" melebihi sisa yang bisa dipermanenkan (${item.sisa}).`
+                );
+                return;
+
+            }
+
+            if(qty > 0){
+
+                itemDipilih.push({ ...item, qtyPermanen: qty });
+
+            }
+
+        }
+
+        if(itemDipilih.length === 0){
+            alert("Isi minimal 1 qty permanenkan lebih dari 0.");
+            return;
+        }
+
+        //---------------------------------
+        // CEK ULANG NOMOR (jaga race condition)
+        //---------------------------------
+
+        const { data: cekNomor } = await supabaseClient
+            .from("barang_transfer_permanenkan")
+            .select("id")
+            .eq("no_permanen", noPermanen);
+
+        if(cekNomor && cekNomor.length > 0){
+
+            alert("Nomor Permanenkan sudah digunakan (kemungkinan dibuat bersamaan). Silakan tutup lalu buka ulang modal untuk nomor baru.");
+            return;
+
+        }
+
+        const { data: header, error: errHeader } = await supabaseClient
+            .from("barang_transfer")
+            .select("*")
+            .eq("id", permanenkanTransferId)
+            .single();
+
+        if(errHeader) throw errHeader;
+
+        //---------------------------------
+        // SIMPAN HEADER PERMANENKAN (status Menunggu Approval, TIDAK ADA
+        // perubahan stok di tahap manapun untuk fitur ini)
+        //---------------------------------
+
+        const { data: permHeader, error: permHeaderErr } = await supabaseClient
+            .from("barang_transfer_permanenkan")
+            .insert([{
+                transfer_id: permanenkanTransferId,
+                no_permanen: noPermanen,
+                tanggal,
+                gudang_asal: header.gudang_asal,
+                gudang_tujuan: header.gudang_tujuan,
+                keterangan,
+                status: "Menunggu Approval",
+                created_by: user.nama
+            }])
+            .select()
+            .single();
+
+        if(permHeaderErr) throw permHeaderErr;
+
+        for(const item of itemDipilih){
+
+            const { error: detailErr } = await supabaseClient
+                .from("barang_transfer_permanenkan_detail")
+                .insert([{
+                    permanen_id: permHeader.id,
+                    kode_barang: item.kode_barang,
+                    nama_barang: item.nama_barang,
+                    kategori: item.kategori,
+                    satuan: item.satuan,
+                    qty: item.qtyPermanen
+                }]);
+
+            if(detailErr) throw detailErr;
+
+        }
+
+        alert(`Permintaan Permanenkan berhasil dibuat (${noPermanen}), menunggu approval dari ${header.gudang_asal}.`);
+
+        tutupModalPermanenkan();
+
+        await loadRiwayatTransfer();
+        await loadPendingPermanenkanApproval();
+
+    }
+    catch(err){
+
+        console.error(err);
+        alert(err.message);
+
+    }
+
+}
+
+// =====================================
+// PANEL PERMANENKAN MASUK - MENUNGGU APPROVAL (dilihat oleh Gudang Asal)
+// =====================================
+
+async function loadPendingPermanenkanApproval(){
+
+    try{
+
+        if(!user || !user.gudang) return;
+
+        const { data, error } = await supabaseClient
+            .from("barang_transfer_permanenkan")
+            .select("*")
+            .eq("gudang_asal", user.gudang)
+            .eq("status", "Menunggu Approval")
+            .order("tanggal", { ascending:false })
+            .order("id", { ascending:false });
+
+        if(error) throw error;
+
+        await tampilkanPendingPermanenkanApproval(data || []);
+
+    }
+    catch(err){
+
+        console.error(err);
+        alert(err.message);
+
+    }
+
+}
+
+async function hitungJumlahItemPermanenkan(permanenId){
+
+    const { data } = await supabaseClient
+        .from("barang_transfer_permanenkan_detail")
+        .select("id")
+        .eq("permanen_id", permanenId);
+
+    return data ? data.length : 0;
+
+}
+
+async function tampilkanPendingPermanenkanApproval(data){
+
+    const tbody = document.querySelector("#tablePendingPermanenkan tbody");
+
+    if(!tbody) return;
+
+    tbody.innerHTML = "";
+
+    if(data.length === 0){
+
+        tbody.innerHTML = `
+        <tr>
+            <td colspan="7" class="empty-state">
+                Tidak ada permintaan Permanenkan yang menunggu approval.
+            </td>
+        </tr>
+        `;
+
+        return;
+
+    }
+
+    let no = 1;
+
+    for(const item of data){
+
+        const jumlahItem = await hitungJumlahItemPermanenkan(item.id);
+
+        tbody.innerHTML += `
+        <tr>
+            <td>${no++}</td>
+            <td><b>${item.no_permanen}</b></td>
+            <td>${item.tanggal}</td>
+            <td>${item.gudang_tujuan}</td>
+            <td>
+                <button class="btn-edit" onclick="lihatDetailPermanenkan(${item.id})">📦 ${jumlahItem} item</button>
+            </td>
+            <td>${item.created_by ?? "-"}</td>
+            <td>
+                <button class="btn-approve" onclick="approvePermanenkan(${item.id})">✅ Approve</button>
+                <button class="btn-reject" onclick="rejectPermanenkan(${item.id})">❌ Reject</button>
+            </td>
+        </tr>
+        `;
+
+    }
+
+}
+
+// =====================================
+// APPROVE / REJECT PERMANENKAN
+// (TIDAK ADA perubahan stok - murni mengunci status boleh/tidaknya diretur)
+// =====================================
+
+async function approvePermanenkan(id){
+
+    if(!confirm("Approve permintaan Permanenkan ini? Barang ini akan RESMI tidak bisa diretur lagi.")) return;
+
+    try{
+
+        const { data: header, error: errHeader } = await supabaseClient
+            .from("barang_transfer_permanenkan")
+            .select("*")
+            .eq("id", id)
+            .single();
+
+        if(errHeader) throw errHeader;
+
+        if(header.status !== "Menunggu Approval"){
+            alert("Permintaan ini sudah tidak berstatus Menunggu Approval.");
+            return;
+        }
+
+        const { error: errUpdate } = await supabaseClient
+            .from("barang_transfer_permanenkan")
+            .update({
+                status: "Disetujui",
+                approved_by: user.nama,
+                approved_at: new Date().toISOString()
+            })
+            .eq("id", id);
+
+        if(errUpdate) throw errUpdate;
+
+        alert("Permanenkan disetujui. Barang tersebut tidak bisa diretur lagi.");
+
+        await loadPendingPermanenkanApproval();
+        await loadRiwayatTransfer();
+
+    }
+    catch(err){
+
+        console.error(err);
+        alert(err.message);
+
+    }
+
+}
+
+async function rejectPermanenkan(id){
+
+    if(!confirm("Tolak permintaan Permanenkan ini? Barang tetap berstatus bisa diretur.")) return;
+
+    try{
+
+        const { data: header, error: errHeader } = await supabaseClient
+            .from("barang_transfer_permanenkan")
+            .select("*")
+            .eq("id", id)
+            .single();
+
+        if(errHeader) throw errHeader;
+
+        if(header.status !== "Menunggu Approval"){
+            alert("Permintaan ini sudah tidak berstatus Menunggu Approval.");
+            return;
+        }
+
+        const { error: errUpdate } = await supabaseClient
+            .from("barang_transfer_permanenkan")
+            .update({
+                status: "Ditolak",
+                approved_by: user.nama,
+                approved_at: new Date().toISOString()
+            })
+            .eq("id", id);
+
+        if(errUpdate) throw errUpdate;
+
+        alert("Permintaan Permanenkan ditolak.");
+
+        await loadPendingPermanenkanApproval();
+        await loadRiwayatTransfer();
+
+    }
+    catch(err){
+
+        console.error(err);
+        alert(err.message);
+
+    }
+
+}
+
+// =====================================
+// LIHAT DETAIL PERMINTAAN PERMANENKAN (dari panel approval permanenkan)
+// =====================================
+
+async function lihatDetailPermanenkan(id){
+
+    try{
+
+        const { data: header, error: errHeader } = await supabaseClient
+            .from("barang_transfer_permanenkan")
+            .select("*")
+            .eq("id", id)
+            .single();
+
+        if(errHeader) throw errHeader;
+
+        const { data: detail, error: errDetail } = await supabaseClient
+            .from("barang_transfer_permanenkan_detail")
+            .select("*")
+            .eq("permanen_id", id)
+            .order("id");
+
+        if(errDetail) throw errDetail;
+
+        const info = document.getElementById("modalDetailInfo");
+        const body = document.getElementById("modalDetailBody");
+        const titleEl = document.getElementById("modalDetailTitle");
+        const returWrap = document.getElementById("modalReturHistoryWrap");
+
+        if(titleEl) titleEl.textContent = "🔒 Detail Permintaan Permanenkan";
+        if(returWrap) returWrap.innerHTML = "";
+
+        info.innerHTML = `
+            <div>No. Permanenkan : <b>${header.no_permanen}</b></div>
+            <div>Tanggal : <b>${header.tanggal}</b></div>
+            <div>Dari Gudang : <b>${header.gudang_tujuan}</b></div>
+            <div>Ke Gudang : <b>${header.gudang_asal}</b></div>
+            <div>Status : <b>${badgeStatusRetur(header.status)}</b></div>
+            <div>Keterangan : <b>${header.keterangan ? header.keterangan : "-"}</b></div>
+        `;
+
+        body.innerHTML = (detail && detail.length > 0)
+            ? detail.map((d,i) => `
+                <tr>
+                    <td>${i+1}</td>
+                    <td><span class="kode-pill">${d.kode_barang}</span></td>
+                    <td><strong>${d.nama_barang}</strong></td>
+                    <td>${d.kategori ?? "-"}</td>
+                    <td>${d.satuan ?? "-"}</td>
+                    <td>${d.qty}</td>
+                </tr>
+              `).join("")
+            : `<tr><td colspan="6" class="empty-state">Tidak ada item pada permintaan ini.</td></tr>`;
+
+        document.getElementById("modalDetailTransfer").classList.add("show");
+
+    }
+    catch(err){
+
+        console.error(err);
+        alert(err.message);
+
+    }
+
+}
+
 // =====================================
 // LOAD RIWAYAT TRANSFER (SEMUA STATUS)
 // =====================================
@@ -1757,11 +2452,11 @@ async function tampilkanRiwayatTransfer(data){
 
         const jumlahItem = await hitungJumlahItem(item.id);
 
-        let bisaRetur = false;
+        let bisaTindakan = false;
 
         if(item.status === "Approved" && user && user.gudang === item.gudang_tujuan){
 
-            bisaRetur = await adaSisaRetur(item.id);
+            bisaTindakan = await adaSisaTindakan(item.id);
 
         }
 
@@ -1778,7 +2473,10 @@ async function tampilkanRiwayatTransfer(data){
             <td>${badgeStatus(item.status)}</td>
             <td>${item.created_by ?? "-"}</td>
             <td>
-                ${bisaRetur ? `<button class="btn-retur" onclick="bukaModalRetur(${item.id})">↩ Retur</button>` : "-"}
+                ${bisaTindakan ? `
+                    <button class="btn-retur" onclick="bukaModalRetur(${item.id})">↩ Retur</button>
+                    <button class="btn-permanenkan" onclick="bukaModalPermanenkan(${item.id})">🔒 Permanenkan</button>
+                ` : "-"}
             </td>
         </tr>
         `;
@@ -1788,7 +2486,7 @@ async function tampilkanRiwayatTransfer(data){
 }
 
 // =====================================
-// LIHAT DETAIL ITEM TRANSFER (+ riwayat retur transfer ini)
+// LIHAT DETAIL ITEM TRANSFER (+ riwayat retur & riwayat permanenkan transfer ini)
 // =====================================
 
 async function lihatDetailTransfer(id){
@@ -1864,8 +2562,10 @@ async function tampilkanModalDetailTransfer(header, detail){
 
     }
 
-    // riwayat retur untuk transfer ini (kalau ada)
+    // riwayat retur & riwayat permanenkan untuk transfer ini (kalau ada)
     if(returWrap){
+
+        let html = "";
 
         try{
 
@@ -1877,13 +2577,9 @@ async function tampilkanModalDetailTransfer(header, detail){
 
             if(errRetur) throw errRetur;
 
-            if(!returList || returList.length === 0){
+            if(returList && returList.length > 0){
 
-                returWrap.innerHTML = "";
-
-            } else {
-
-                returWrap.innerHTML = `
+                html += `
                     <h4 style="margin:18px 0 8px;color:#94a3b8;font-size:12px;text-transform:uppercase;letter-spacing:.03em;">↩ Riwayat Retur</h4>
                     <div class="modal-table-wrap">
                     <table class="modal-table">
@@ -1909,9 +2605,51 @@ async function tampilkanModalDetailTransfer(header, detail){
         catch(err){
 
             console.error(err);
-            returWrap.innerHTML = "";
 
         }
+
+        try{
+
+            const { data: permList, error: errPerm } = await supabaseClient
+                .from("barang_transfer_permanenkan")
+                .select("*")
+                .eq("transfer_id", header.id)
+                .order("id", { ascending: false });
+
+            if(errPerm) throw errPerm;
+
+            if(permList && permList.length > 0){
+
+                html += `
+                    <h4 style="margin:18px 0 8px;color:#94a3b8;font-size:12px;text-transform:uppercase;letter-spacing:.03em;">🔒 Riwayat Permanenkan</h4>
+                    <div class="modal-table-wrap">
+                    <table class="modal-table">
+                        <thead>
+                            <tr><th>No Permanenkan</th><th>Tanggal</th><th>Status</th></tr>
+                        </thead>
+                        <tbody>
+                            ${permList.map(p => `
+                                <tr>
+                                    <td><b>${p.no_permanen}</b></td>
+                                    <td>${p.tanggal}</td>
+                                    <td>${badgeStatusRetur(p.status)}</td>
+                                </tr>
+                            `).join("")}
+                        </tbody>
+                    </table>
+                    </div>
+                `;
+
+            }
+
+        }
+        catch(err){
+
+            console.error(err);
+
+        }
+
+        returWrap.innerHTML = html;
 
     }
 
@@ -1999,6 +2737,7 @@ document.addEventListener("keydown", function(e){
 
         tutupDetailTransfer();
         tutupModalRetur();
+        tutupModalPermanenkan();
 
     }
 
@@ -2031,7 +2770,7 @@ if(searchEl){
 }
 
 // =====================================
-// REALTIME STOK & STATUS TRANSFER / RETUR
+// REALTIME STOK & STATUS TRANSFER / RETUR / PERMANENKAN
 // =====================================
 
 function aktifkanRealtime(){
@@ -2074,6 +2813,19 @@ function aktifkanRealtime(){
 
     )
 
+    .on("postgres_changes",
+
+        { event: "*", schema: "public", table: "barang_transfer_permanenkan" },
+
+        () => {
+
+            loadPendingPermanenkanApproval();
+            loadRiwayatTransfer();
+
+        }
+
+    )
+
     .subscribe();
 
 }
@@ -2089,6 +2841,31 @@ document.addEventListener("DOMContentLoaded", async ()=>{
 
     await isiNomorTransferOtomatis();
 
+    const tanggalEl = document.getElementById("tanggal");
+    if(tanggalEl){
+        tanggalEl.addEventListener("change", isiNomorTransferOtomatis);
+    }
+
+    const returTanggalEl = document.getElementById("returTanggal");
+    if(returTanggalEl){
+        returTanggalEl.addEventListener("change", async function(){
+            if(returTransferId === null) return;
+            const noReturInput = document.getElementById("returNoRetur");
+            noReturInput.value = "Memuat nomor...";
+            noReturInput.value = await generateNoRetur(this.value);
+        });
+    }
+
+    const permanenkanTanggalEl = document.getElementById("permanenkanTanggal");
+    if(permanenkanTanggalEl){
+        permanenkanTanggalEl.addEventListener("change", async function(){
+            if(permanenkanTransferId === null) return;
+            const noPermanenInput = document.getElementById("permanenkanNoPermanen");
+            noPermanenInput.value = "Memuat nomor...";
+            noPermanenInput.value = await generateNoPermanenkan(this.value);
+        });
+    }
+
     await loadGudang();
     await loadBarang();
 
@@ -2096,6 +2873,7 @@ document.addEventListener("DOMContentLoaded", async ()=>{
 
     await loadPendingApproval();
     await loadPendingReturApproval();
+    await loadPendingPermanenkanApproval();
     await loadRiwayatTransfer();
 
     const modalReturEl = document.getElementById("modalRetur");
@@ -2115,6 +2893,26 @@ document.addEventListener("DOMContentLoaded", async ()=>{
     if(btnTutupModalReturEl){
 
         btnTutupModalReturEl.addEventListener("click", tutupModalRetur);
+
+    }
+
+    const modalPermanenkanEl = document.getElementById("modalPermanenkan");
+
+    if(modalPermanenkanEl){
+
+        modalPermanenkanEl.addEventListener("click", function(e){
+
+            if(e.target === modalPermanenkanEl) tutupModalPermanenkan();
+
+        });
+
+    }
+
+    const btnTutupModalPermanenkanEl = document.getElementById("btnTutupModalPermanenkan");
+
+    if(btnTutupModalPermanenkanEl){
+
+        btnTutupModalPermanenkanEl.addEventListener("click", tutupModalPermanenkan);
 
     }
 
