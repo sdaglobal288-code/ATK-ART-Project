@@ -379,10 +379,27 @@
         cursor:pointer;
         font-weight:600;
         font-size:12.5px;
+        margin-bottom:4px;
     }
 
     .btn-retur:hover{
         background:rgba(148,163,184,.25);
+    }
+
+    .btn-permanenkan{
+        background:rgba(168,85,247,.12);
+        color:#c4b5fd;
+        border:1px solid rgba(168,85,247,.35);
+        border-radius:6px;
+        padding:6px 10px;
+        cursor:pointer;
+        font-weight:600;
+        font-size:12.5px;
+        margin-bottom:4px;
+    }
+
+    .btn-permanenkan:hover{
+        background:rgba(168,85,247,.25);
     }
 
     .detail-expand{
@@ -544,32 +561,37 @@
         font-size:13.5px;
     }
 
-    /* ---------- Modal Permintaan Retur ---------- */
+    /* ---------- Modal Permintaan Retur & Permanenkan ---------- */
 
     .modal-box-wide{
         max-width:900px;
     }
 
-    #formRetur{
+    #formRetur,
+    #formPermanenkan{
         display:grid;
         grid-template-columns:1fr 1fr;
         gap:16px;
         margin-bottom:16px;
     }
 
-    #formRetur > div{
+    #formRetur > div,
+    #formPermanenkan > div{
         display:flex;
         flex-direction:column;
         gap:6px;
     }
 
-    #formRetur label{
+    #formRetur label,
+    #formPermanenkan label{
         font-size:13px;
         color:var(--pg-label);
     }
 
     #formRetur input[type="text"],
-    #formRetur input[type="date"]{
+    #formRetur input[type="date"],
+    #formPermanenkan input[type="text"],
+    #formPermanenkan input[type="date"]{
         width:100%;
         padding:10px 12px;
         border-radius:8px;
@@ -581,20 +603,23 @@
         box-sizing:border-box;
     }
 
-    #formRetur input:focus{
+    #formRetur input:focus,
+    #formPermanenkan input:focus{
         outline:none;
         border-color:#3b82f6;
         box-shadow:0 0 0 3px rgba(59,130,246,.2);
     }
 
-    #formRetur input[readonly]{
+    #formRetur input[readonly],
+    #formPermanenkan input[readonly]{
         color:var(--pg-label);
         border-style:dashed;
         background:var(--pg-bg-3);
         cursor:not-allowed;
     }
 
-    .retur-qty-input{
+    .retur-qty-input,
+    .permanenkan-qty-input{
         width:100%;
         padding:8px 10px;
         border-radius:8px;
@@ -606,13 +631,15 @@
         box-sizing:border-box;
     }
 
-    .retur-qty-input:focus{
+    .retur-qty-input:focus,
+    .permanenkan-qty-input:focus{
         outline:none;
         border-color:#3b82f6;
         box-shadow:0 0 0 3px rgba(59,130,246,.2);
     }
 
-    #btnSimpanRetur{
+    #btnSimpanRetur,
+    #btnSimpanPermanenkan{
         background:#3b82f6;
         color:#ffffff;
         border:none;
@@ -625,11 +652,13 @@
         transition:background .15s;
     }
 
-    #btnSimpanRetur:hover{
+    #btnSimpanRetur:hover,
+    #btnSimpanPermanenkan:hover{
         background:#2563eb;
     }
 
-    #btnBatalRetur{
+    #btnBatalRetur,
+    #btnBatalPermanenkan{
         background:var(--pg-soft-bg-2);
         color:var(--pg-text);
         border:1px solid var(--pg-border);
@@ -642,7 +671,8 @@
         transition:background .15s;
     }
 
-    #btnBatalRetur:hover{
+    #btnBatalRetur:hover,
+    #btnBatalPermanenkan:hover{
         background:rgba(255,255,255,.12);
     }
 </style>
@@ -681,7 +711,7 @@ placeholder="Memuat nomor..."
 readonly
 required>
 <small style="color:var(--pg-faint);">
-Otomatis : TRF-0001/bulan/tahun berjalan, urut &amp; reset tiap bulan
+Otomatis : TRF-0001/bulan/tahun MENGIKUTI TANGGAL DI ATAS, urut &amp; reset tiap bulan
 </small>
 </div>
 <div>
@@ -742,7 +772,7 @@ id="btnSimpanTransfer">
 </div>
 </div>
 
-<!-- ================= MENUNGGU APPROVAL ================= -->
+<!-- ================= MENUNGGU APPROVAL (TRANSFER) ================= -->
 <div class="panel">
 <h3><span>⏳ Transfer Masuk - Menunggu Approval</span></h3>
 <br>
@@ -792,6 +822,31 @@ Permintaan retur barang yang diajukan ke gudang Anda (<b id="labelGudangUserRetu
 </div>
 </div>
 
+<!-- ================= PERMANENKAN MASUK - MENUNGGU APPROVAL ================= -->
+<div class="panel">
+<h3><span>🔒 Permanenkan Masuk - Menunggu Approval</span></h3>
+<br>
+<p style="color:var(--pg-faint);font-size:13px;margin:0 0 12px;">
+Permintaan untuk MENGUNCI barang menjadi permanen (tidak akan diretur lagi), diajukan oleh gudang penerima terhadap barang yang aslinya milik gudang Anda (<b id="labelGudangUserPermanenkan">-</b>). Approve hanya kalau barang tersebut memang tidak perlu dikembalikan.
+</p>
+<div class="table-responsive">
+<table id="tablePendingPermanenkan">
+<thead>
+<tr>
+<th width="60">No</th>
+<th width="150">No Permanenkan</th>
+<th width="110">Tanggal</th>
+<th width="150">Dari Gudang</th>
+<th width="90">Item</th>
+<th width="150">Diajukan Oleh</th>
+<th width="180">Aksi</th>
+</tr>
+</thead>
+<tbody></tbody>
+</table>
+</div>
+</div>
+
 <!-- ================= HISTORI ================= -->
 <div class="panel">
 <h3><span>📋 Riwayat Transfer Barang</span></h3>
@@ -813,17 +868,20 @@ style="width:100%;padding:10px;margin-bottom:12px;border:1px solid var(--pg-bord
 <th width="90">Item</th>
 <th width="110">Status</th>
 <th width="150">Dibuat Oleh</th>
-<th width="150">Aksi</th>
+<th width="200">Aksi</th>
 </tr>
 </thead>
 <tbody></tbody>
 </table>
 </div>
+<p style="color:var(--pg-faint);font-size:12.5px;margin:10px 0 0;">
+Tombol <b>↩ Retur</b> dan <b>🔒 Permanenkan</b> muncul di transfer berstatus Approved selama masih ada sisa qty yang belum diretur / dipermanenkan. Kuota sisa dibagi antara kedua tindakan tersebut untuk barang yang sama.
+</p>
 </div>
 
 </div>
 
-<!-- ================= MODAL DETAIL TRANSFER / RETUR ================= -->
+<!-- ================= MODAL DETAIL TRANSFER / RETUR / PERMANENKAN ================= -->
 <div class="modal-overlay" id="modalDetailTransfer" onclick="if(event.target===this) tutupDetailTransfer()">
 <div class="modal-box">
 <div class="modal-header">
@@ -873,7 +931,7 @@ style="width:100%;padding:10px;margin-bottom:12px;border:1px solid var(--pg-bord
 <label><b>No. Retur</b></label>
 <input type="text" id="returNoRetur" placeholder="Memuat nomor..." readonly required>
 <small style="color:var(--pg-faint);">
-Otomatis : RTR-0001/bulan/tahun berjalan
+Otomatis : RTR-0001/bulan/tahun MENGIKUTI TANGGAL RETUR DI ATAS
 </small>
 </div>
 <div style="grid-column:1/3;">
@@ -883,7 +941,7 @@ Otomatis : RTR-0001/bulan/tahun berjalan
 </form>
 
 <p style="color:var(--pg-faint);font-size:13px;margin:0 0 10px;">
-Isi Qty Retur untuk barang yang mau dikembalikan. Boleh sebagian (tidak harus semua sekaligus) — sisa yang belum diretur tetap bisa diretur lagi lain waktu.
+Isi Qty Retur untuk barang yang mau dikembalikan. Boleh sebagian (tidak harus semua sekaligus) — sisa yang belum diretur/dipermanenkan tetap bisa diretur lagi lain waktu.
 </p>
 
 <div class="modal-table-wrap">
@@ -894,7 +952,7 @@ Isi Qty Retur untuk barang yang mau dikembalikan. Boleh sebagian (tidak harus se
 <th>Nama Barang</th>
 <th width="90">Satuan</th>
 <th width="90">Qty Transfer</th>
-<th width="100">Sudah Diretur</th>
+<th width="100">Terpakai</th>
 <th width="90">Sisa</th>
 <th width="120">Qty Retur</th>
 </tr>
@@ -910,6 +968,70 @@ Isi Qty Retur untuk barang yang mau dikembalikan. Boleh sebagian (tidak harus se
 💾 Ajukan Retur
 </button>
 <button type="button" id="btnBatalRetur" onclick="tutupModalRetur()">
+Batal
+</button>
+</div>
+</div>
+</div>
+
+<!-- ================= MODAL PERMINTAAN PERMANENKAN ================= -->
+<div class="modal-overlay" id="modalPermanenkan" onclick="if(event.target===this) tutupModalPermanenkan()">
+<div class="modal-box modal-box-wide">
+<div class="modal-header">
+<h3>🔒 Ajukan Permanenkan Barang</h3>
+<button class="modal-close" id="btnTutupModalPermanenkan">✕</button>
+</div>
+
+<div class="modal-info" id="permanenkanHeaderInfo">
+<!-- diisi lewat JS: No Transfer, Gudang Asal, Gudang Tujuan -->
+</div>
+
+<form id="formPermanenkan" onsubmit="return false;">
+<div>
+<label><b>Tanggal</b></label>
+<input type="date" id="permanenkanTanggal" required>
+</div>
+<div>
+<label><b>No. Permanenkan</b></label>
+<input type="text" id="permanenkanNoPermanen" placeholder="Memuat nomor..." readonly required>
+<small style="color:var(--pg-faint);">
+Otomatis : PRM-0001/bulan/tahun MENGIKUTI TANGGAL DI ATAS
+</small>
+</div>
+<div style="grid-column:1/3;">
+<label><b>Keterangan</b></label>
+<input type="text" id="permanenkanKeterangan" placeholder="Keterangan (opsional)">
+</div>
+</form>
+
+<p style="color:var(--pg-faint);font-size:13px;margin:0 0 10px;">
+Isi Qty Permanenkan untuk barang yang MEMANG tidak akan dikembalikan lagi. Boleh sebagian, dan harus di-approve oleh gudang pengirim (pemilik awal barang) sebelum resmi berlaku. Tidak ada perpindahan stok pada proses ini.
+</p>
+
+<div class="modal-table-wrap">
+<table class="modal-table">
+<thead>
+<tr>
+<th width="90">Kode</th>
+<th>Nama Barang</th>
+<th width="90">Satuan</th>
+<th width="90">Qty Transfer</th>
+<th width="100">Terpakai</th>
+<th width="90">Sisa</th>
+<th width="130">Qty Permanenkan</th>
+</tr>
+</thead>
+<tbody id="permanenkanItemsBody"></tbody>
+</table>
+</div>
+
+<br>
+
+<div style="display:flex;gap:10px;">
+<button type="button" id="btnSimpanPermanenkan">
+💾 Ajukan Permanenkan
+</button>
+<button type="button" id="btnBatalPermanenkan" onclick="tutupModalPermanenkan()">
 Batal
 </button>
 </div>
