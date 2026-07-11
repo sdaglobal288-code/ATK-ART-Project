@@ -160,6 +160,24 @@
   .stok-badge.mid{ background:var(--db-warning-soft); color:var(--db-warning); }
   .stok-badge.low{ background:var(--db-danger-soft);  color:var(--db-danger);  }
 
+  /* Kolom TRANSFER (Permanen / Sementara) */
+  .transfer-cell{
+    display:flex; flex-direction:column; gap:4px; align-items:flex-start;
+  }
+  .transfer-badge{
+    display:inline-flex; align-items:center; gap:4px;
+    padding:3px 9px; border-radius:999px; font-size:12px; font-weight:700; white-space:nowrap;
+  }
+  .transfer-badge.permanen{
+    background:rgba(168,85,247,.15); color:#c4b5fd;
+  }
+  .transfer-badge.sementara{
+    background:rgba(148,163,184,.15); color:#cbd5e1;
+  }
+  .transfer-none{
+    color:var(--db-muted);
+  }
+
   .btn-set-stok{
     display:inline-flex; align-items:center; gap:5px;
     border-radius:8px; padding:7px 12px; font-size:12.5px; font-weight:600;
@@ -330,7 +348,7 @@
 <div class="content">
 
   <h2>📦 Database Barang</h2>
-  <p class="page-subtitle">Rekap stok seluruh barang: stok awal, masuk, keluar, dan sisa stok terkini.</p>
+  <p class="page-subtitle">Rekap stok seluruh barang: stok awal, masuk, keluar, transfer, dan sisa stok terkini.</p>
   <br>
 
   <!-- TOOLBAR -->
@@ -376,13 +394,14 @@
             <th width="100" class="num">STOK AWAL</th>
             <th width="90"  class="num">MASUK</th>
             <th width="90"  class="num">KELUAR</th>
+            <th width="140">TRANSFER</th>
             <th width="140" class="num">SISA STOK</th>
             <th width="130">AKSI</th>
           </tr>
         </thead>
         <tbody>
           <tr>
-            <td colspan="10" class="loading-state">
+            <td colspan="11" class="loading-state">
               <span class="spinner"></span> Memuat data...
             </td>
           </tr>
