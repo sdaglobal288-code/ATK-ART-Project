@@ -32,6 +32,21 @@
 // Sisa Stok = Stok Awal + Total Masuk - Total Keluar, KHUSUS untuk gudang
 // yang sedang login (gudang lain tidak tersentuh).
 //
+// CATATAN TAMBAHAN (kolom TRANSFER):
+// Kolom MASUK/KELUAR di atas TIDAK memperhitungkan barang yang datang dari
+// menu Transfer Barang (barang_transfer), karena stok dari Transfer masuk
+// langsung ke stok_gudang tanpa lewat tabel barang_masuk_detail. Supaya
+// tetap kelihatan asal-usulnya, ditambahkan kolom "TRANSFER" yang
+// menghitung, khusus untuk gudang yang sedang login sebagai PENERIMA
+// transfer (gudang_tujuan):
+//   🔒 Permanen  = qty yang sudah di-approve lewat menu "Permanenkan"
+//                  (barang_transfer_permanenkan, status Disetujui) -
+//                  tidak bisa diretur lagi.
+//   🔁 Sementara = qty transfer (status Approved) dikurangi qty yang sudah
+//                  diretur (barang_transfer_retur, status Disetujui) dan
+//                  dikurangi qty yang sudah dipermanenkan - masih berupa
+//                  pinjaman, masih bisa diretur ke gudang asal.
+//
 // barang_masuk / barang_masuk_detail -> histori masuk, difilter via header.gudang
 // barang_keluar -> histori keluar, punya kolom gudang sendiri per baris
 // =====================================
@@ -709,6 +724,126 @@ async function sumKeluarPerKode() {
 }
 
 // =====================================
+// TOTAL BARANG DARI TRANSFER, KHUSUS GUDANG YANG SEDANG LOGIN SEBAGAI
+// PENERIMA (gudang_tujuan). Dipecah jadi 2 map per kode_barang:
+//   permanenMap  -> qty yang sudah di-approve permanen (tidak bisa diretur)
+//   sementaraMap -> qty yang masih berupa pinjaman (masih bisa diretur)
+// =====================================
+
+async function loadTransferMasukMap() {
+
+    const permanenMap = new Map();
+    const sementaraMap = new Map();
+
+    try {
+
+        // transfer yang statusnya Approved & masuk ke gudang ini
+        const { data: transferHeaders, error: errHeader } = await supabaseClient
+            .from("barang_transfer")
+            .select("id")
+            .eq("gudang_tujuan", user.gudang)
+            .eq("status", "Approved");
+
+        if (errHeader) throw errHeader;
+
+        const transferIds = (transferHeaders || []).map(t => t.id);
+
+        if (transferIds.length === 0) return { permanenMap, sementaraMap };
+
+        // total qty per kode barang dari semua transfer tsb
+        const { data: transferDetails, error: errDetail } = await supabaseClient
+            .from("barang_transfer_detail")
+            .select("kode_barang, qty")
+            .in("transfer_id", transferIds);
+
+        if (errDetail) throw errDetail;
+
+        const totalTransferMap = new Map();
+
+        (transferDetails || []).forEach(d => {
+            totalTransferMap.set(d.kode_barang, (totalTransferMap.get(d.kode_barang) || 0) + Number(d.qty));
+        });
+
+        // retur yang sudah Disetujui (qty tsb sudah kembali ke gudang asal,
+        // jadi tidak lagi dihitung sebagai "dipegang" oleh gudang ini)
+        const { data: returHeaders, error: errReturHeader } = await supabaseClient
+            .from("barang_transfer_retur")
+            .select("id")
+            .in("transfer_id", transferIds)
+            .eq("status", "Disetujui");
+
+        if (errReturHeader) throw errReturHeader;
+
+        const returIds = (returHeaders || []).map(r => r.id);
+        const totalReturMap = new Map();
+
+        if (returIds.length > 0) {
+
+            const { data: returDetails, error: errReturDetail } = await supabaseClient
+                .from("barang_transfer_retur_detail")
+                .select("kode_barang, qty")
+                .in("retur_id", returIds);
+
+            if (errReturDetail) throw errReturDetail;
+
+            (returDetails || []).forEach(d => {
+                totalReturMap.set(d.kode_barang, (totalReturMap.get(d.kode_barang) || 0) + Number(d.qty));
+            });
+
+        }
+
+        // permanenkan yang sudah Disetujui (qty tsb resmi tidak bisa diretur lagi)
+        const { data: permHeaders, error: errPermHeader } = await supabaseClient
+            .from("barang_transfer_permanenkan")
+            .select("id")
+            .in("transfer_id", transferIds)
+            .eq("status", "Disetujui");
+
+        if (errPermHeader) throw errPermHeader;
+
+        const permIds = (permHeaders || []).map(p => p.id);
+        const totalPermMap = new Map();
+
+        if (permIds.length > 0) {
+
+            const { data: permDetails, error: errPermDetail } = await supabaseClient
+                .from("barang_transfer_permanenkan_detail")
+                .select("kode_barang, qty")
+                .in("permanen_id", permIds);
+
+            if (errPermDetail) throw errPermDetail;
+
+            (permDetails || []).forEach(d => {
+                totalPermMap.set(d.kode_barang, (totalPermMap.get(d.kode_barang) || 0) + Number(d.qty));
+            });
+
+        }
+
+        // gabungkan: sisa yang masih dipegang gudang ini dari Transfer,
+        // lalu pisahkan mana yang sudah permanen & mana yang masih sementara
+        totalTransferMap.forEach((totalMasuk, kode) => {
+
+            const totalRetur = totalReturMap.get(kode) || 0;
+            const totalPerm  = totalPermMap.get(kode) || 0;
+
+            const totalMasihDipegang = Math.max(0, totalMasuk - totalRetur);
+            const permanen  = Math.min(totalPerm, totalMasihDipegang);
+            const sementara = Math.max(0, totalMasihDipegang - permanen);
+
+            if (permanen > 0)  permanenMap.set(kode, permanen);
+            if (sementara > 0) sementaraMap.set(kode, sementara);
+
+        });
+
+    } catch (err) {
+        console.warn("Gagal menghitung data Transfer:", err.message);
+    }
+
+    return { permanenMap, sementaraMap };
+
+}
+
+// =====================================
 // LOAD & GABUNGKAN DATA
 // =====================================
 
@@ -717,7 +852,7 @@ async function loadBarang() {
 
     tbody.innerHTML = `
         <tr>
-            <td colspan="10" class="loading-state">
+            <td colspan="11" class="loading-state">
                 <span class="spinner"></span> Memuat data...
             </td>
         </tr>
@@ -731,24 +866,27 @@ async function loadBarang() {
 
         if (error) throw error;
 
-        const [masukMap, keluarMap, stokMap, stokAwalMap] = await Promise.all([
+        const [masukMap, keluarMap, stokMap, stokAwalMap, transferMap] = await Promise.all([
             sumMasukPerKode(),
             sumKeluarPerKode(),
             loadStokGudangMap(),
-            loadStokAwalMap()
+            loadStokAwalMap(),
+            loadTransferMasukMap()
         ]);
 
         dataBarang = (master || []).map(item => {
             const stokAwal = stokAwalMap.get(String(item.id)) || 0;
             const masuk    = masukMap.get(item.kode_barang)  || 0;
             const keluar   = keluarMap.get(item.kode_barang) || 0;
+            const transferPermanen  = transferMap.permanenMap.get(item.kode_barang)  || 0;
+            const transferSementara = transferMap.sementaraMap.get(item.kode_barang) || 0;
             // Sisa Stok = angka aktual dari stok_gudang (sumber kebenaran),
             // BUKAN hasil hitung ulang stokAwal + masuk - keluar, supaya
             // selalu konsisten dengan halaman Barang Masuk / Barang Keluar.
             // (Kalau angka ini "nyangkut" tidak sesuai histori, gunakan
             // tombol "🔄 Sinkronkan Ulang Sisa Stok".)
             const sisa = stokMap.get(String(item.id)) || 0;
-            return { ...item, stok_awal: stokAwal, masuk, keluar, sisa };
+            return { ...item, stok_awal: stokAwal, masuk, keluar, transferPermanen, transferSementara, sisa };
         });
 
         applyFilter();
@@ -757,7 +895,7 @@ async function loadBarang() {
         console.error(err);
         tbody.innerHTML = `
             <tr>
-                <td colspan="10" class="empty-state">
+                <td colspan="11" class="empty-state">
                     ⚠ Gagal memuat data: ${err.message}
                 </td>
             </tr>
@@ -778,7 +916,7 @@ function renderBarang(list) {
     if (list.length === 0) {
         tbody.innerHTML = `
             <tr>
-                <td colspan="10" class="empty-state">
+                <td colspan="11" class="empty-state">
                     Tidak ada data barang yang cocok.
                 </td>
             </tr>
@@ -804,6 +942,25 @@ function renderBarang(list) {
 
         const sisaHtml = `<span class="stok-badge ${sisaClass}">${item.sisa.toLocaleString("id-ID")}</span>`;
 
+        // Kolom Transfer (Permanen / Sementara)
+        let transferHtml = `<span class="transfer-none">-</span>`;
+
+        if((item.transferPermanen || 0) > 0 || (item.transferSementara || 0) > 0){
+
+            transferHtml = `<div class="transfer-cell">`;
+
+            if(item.transferPermanen > 0){
+                transferHtml += `<span class="transfer-badge permanen" title="Sudah dipermanenkan, tidak bisa diretur lagi">🔒 ${item.transferPermanen.toLocaleString("id-ID")}</span>`;
+            }
+
+            if(item.transferSementara > 0){
+                transferHtml += `<span class="transfer-badge sementara" title="Masih berupa pinjaman dari transfer, masih bisa diretur ke gudang asal">🔁 ${item.transferSementara.toLocaleString("id-ID")}</span>`;
+            }
+
+            transferHtml += `</div>`;
+
+        }
+
         tbody.innerHTML += `
             <tr>
                 <td>${fotoHtml}</td>
@@ -814,6 +971,7 @@ function renderBarang(list) {
                 <td class="num">${item.stok_awal.toLocaleString("id-ID")}</td>
                 <td class="num val-masuk">+${item.masuk.toLocaleString("id-ID")}</td>
                 <td class="num val-keluar">-${item.keluar.toLocaleString("id-ID")}</td>
+                <td>${transferHtml}</td>
                 <td class="num">${sisaHtml}</td>
                 <td>
                     <button class="btn-set-stok" onclick="bukaModalStok(${item.id})">
@@ -871,6 +1029,8 @@ function exportExcel() {
         "STOK AWAL" : item.stok_awal,
         "MASUK"     : item.masuk,
         "KELUAR"    : item.keluar,
+        "TRANSFER (PERMANEN)"  : item.transferPermanen || 0,
+        "TRANSFER (SEMENTARA)" : item.transferSementara || 0,
         "SISA STOK" : item.sisa
     }));
 
