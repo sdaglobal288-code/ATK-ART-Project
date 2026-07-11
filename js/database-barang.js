@@ -950,11 +950,11 @@ function renderBarang(list) {
             transferHtml = `<div class="transfer-cell">`;
 
             if(item.transferPermanen > 0){
-                transferHtml += `<span class="transfer-badge permanen" title="Sudah dipermanenkan, tidak bisa diretur lagi">🔒 ${item.transferPermanen.toLocaleString("id-ID")}</span>`;
+                transferHtml += `<span class="transfer-badge permanen" title="Permanen, tidak bisa diretur">🔒 ${item.transferPermanen.toLocaleString("id-ID")}</span>`;
             }
 
             if(item.transferSementara > 0){
-                transferHtml += `<span class="transfer-badge sementara" title="Masih berupa pinjaman dari transfer, masih bisa diretur ke gudang asal">🔁 ${item.transferSementara.toLocaleString("id-ID")}</span>`;
+                transferHtml += `<span class="transfer-badge sementara" title="Pinjaman transfer, masih bisa diretur">🔁 ${item.transferSementara.toLocaleString("id-ID")}</span>`;
             }
 
             transferHtml += `</div>`;
@@ -971,7 +971,7 @@ function renderBarang(list) {
                 <td class="num">${item.stok_awal.toLocaleString("id-ID")}</td>
                 <td class="num val-masuk">+${item.masuk.toLocaleString("id-ID")}</td>
                 <td class="num val-keluar">-${item.keluar.toLocaleString("id-ID")}</td>
-                <td>${transferHtml}</td>
+                <td class="center">${transferHtml}</td>
                 <td class="num">${sisaHtml}</td>
                 <td>
                     <button class="btn-set-stok" onclick="bukaModalStok(${item.id})">
