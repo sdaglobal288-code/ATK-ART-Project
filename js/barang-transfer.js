@@ -1427,6 +1427,9 @@ function renderReturItemsTable(){
 
     tbody.innerHTML = returItemsState.map((item, idx) => `
         <tr>
+            <td style="text-align:center;">
+                <input type="checkbox" class="retur-select-checkbox" data-idx="${idx}" checked>
+            </td>
             <td><span class="kode-pill">${item.kode_barang}</span></td>
             <td>${item.nama_barang}</td>
             <td>${item.satuan ?? "-"}</td>
@@ -1439,6 +1442,91 @@ function renderReturItemsTable(){
             </td>
         </tr>
     `).join("");
+
+    // setiap kali tabel di-render ulang (modal dibuka), pastikan
+    // checkbox "pilih semua" ikut ter-centang dari awal
+    const checkAllEl = document.getElementById("returCheckAll");
+
+    if(checkAllEl) checkAllEl.checked = true;
+
+}
+
+// =====================================
+// CENTANG PILIH BARANG PER BARIS (RETUR)
+// Barang yang centangnya dilepas akan DIABAIKAN saat submit, walaupun
+// Qty Retur-nya masih terisi. Ini memudahkan pengembalian sebagian
+// barang saja (misal pinjam 3 barang, baru retur 2, sisanya menyusul).
+// =====================================
+
+const returItemsBodyEl = document.getElementById("returItemsBody");
+
+if(returItemsBodyEl){
+
+    returItemsBodyEl.addEventListener("change", function(e){
+
+        if(!e.target.classList.contains("retur-select-checkbox")) return;
+
+        const row = e.target.closest("tr");
+
+        if(!row) return;
+
+        const qtyInput = row.querySelector(".retur-qty-input");
+
+        if(!qtyInput) return;
+
+        if(e.target.checked){
+
+            // dicentang lagi -> kembalikan Qty Retur ke nilai sebelumnya
+            // (atau ke sisa maksimal kalau belum pernah diisi)
+            qtyInput.disabled = false;
+            qtyInput.value = qtyInput.dataset.prevValue || qtyInput.max;
+
+        } else {
+
+            // dilepas centangnya -> simpan Qty Retur saat ini, lalu kosongkan
+            // supaya baris ini otomatis diabaikan saat "Ajukan Retur"
+            qtyInput.dataset.prevValue = qtyInput.value;
+            qtyInput.value = 0;
+            qtyInput.disabled = true;
+
+        }
+
+        // sinkronkan status checkbox "pilih semua" di header
+        const checkAllEl = document.getElementById("returCheckAll");
+
+        if(checkAllEl){
+
+            const semuaCheckbox = returItemsBodyEl.querySelectorAll(".retur-select-checkbox");
+            const semuaTercentang = Array.from(semuaCheckbox).every(cb => cb.checked);
+
+            checkAllEl.checked = semuaTercentang;
+
+        }
+
+    });
+
+}
+
+const returCheckAllEl = document.getElementById("returCheckAll");
+
+if(returCheckAllEl){
+
+    returCheckAllEl.addEventListener("change", function(){
+
+        const checkboxes = document.querySelectorAll(".retur-select-checkbox");
+
+        checkboxes.forEach(cb=>{
+
+            if(cb.checked !== this.checked){
+
+                cb.checked = this.checked;
+                cb.dispatchEvent(new Event("change", { bubbles:true }));
+
+            }
+
+        });
+
+    });
 
 }
 
@@ -1498,6 +1586,16 @@ async function submitRetur(e){
 
             const idx = parseInt(input.dataset.idx);
             const item = returItemsState[idx];
+
+            // baris yang centangnya dilepas dianggap TIDAK diretur sekarang,
+            // walaupun input Qty Retur-nya masih ada nilai tersimpan
+            const checkboxEl = document.querySelector(
+                `.retur-select-checkbox[data-idx="${idx}"]`
+            );
+            const dipilih = checkboxEl ? checkboxEl.checked : true;
+
+            if(!dipilih) continue;
+
             const qty = parseInt(input.value);
 
             if(!qty) continue;
@@ -1527,7 +1625,7 @@ async function submitRetur(e){
         }
 
         if(itemDipilih.length === 0){
-            alert("Isi minimal 1 qty retur lebih dari 0.");
+            alert("Pilih (centang) minimal 1 barang dan isi qty retur lebih dari 0.");
             return;
         }
 
