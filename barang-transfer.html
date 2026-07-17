@@ -638,6 +638,19 @@
         box-shadow:0 0 0 3px rgba(59,130,246,.2);
     }
 
+    .retur-qty-input:disabled{
+        opacity:.45;
+        cursor:not-allowed;
+    }
+
+    #returCheckAll,
+    .retur-select-checkbox{
+        width:17px;
+        height:17px;
+        cursor:pointer;
+        accent-color:#3b82f6;
+    }
+
     #btnSimpanRetur,
     #btnSimpanPermanenkan{
         background:#3b82f6;
@@ -941,13 +954,16 @@ Otomatis : RTR-0001/bulan/tahun MENGIKUTI TANGGAL RETUR DI ATAS
 </form>
 
 <p style="color:var(--pg-faint);font-size:13px;margin:0 0 10px;">
-Isi Qty Retur untuk barang yang mau dikembalikan. Boleh sebagian (tidak harus semua sekaligus) — sisa yang belum diretur/dipermanenkan tetap bisa diretur lagi lain waktu.
+Centang barang yang mau diretur sekarang (kosongkan centang untuk barang yang belum mau dikembalikan), lalu isi Qty Retur-nya. Boleh sebagian saja, tidak harus semua barang / semua qty sekaligus — sisa yang belum diretur/dipermanenkan tetap bisa diretur lagi lain waktu.
 </p>
 
 <div class="modal-table-wrap">
 <table class="modal-table">
 <thead>
 <tr>
+<th width="46" style="text-align:center;">
+<input type="checkbox" id="returCheckAll" title="Pilih / batalkan semua barang" checked>
+</th>
 <th width="90">Kode</th>
 <th>Nama Barang</th>
 <th width="90">Satuan</th>
