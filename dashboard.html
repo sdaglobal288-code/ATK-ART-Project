@@ -511,6 +511,217 @@
   }
 
   @keyframes spin{ to{ transform:rotate(360deg); } }
+
+  /* ===========================
+     LONCENG NOTIFIKASI APPROVAL
+  =========================== */
+
+  .notif-wrapper{
+    position:relative;
+  }
+
+  .notif-bell{
+    position:relative;
+    width:38px;
+    height:38px;
+    border-radius:10px;
+    background:var(--dsh-surface-2);
+    border:1px solid var(--dsh-border);
+    color:var(--dsh-text);
+    font-size:17px;
+    cursor:pointer;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    transition:background .15s ease, border-color .15s ease;
+  }
+
+  .notif-bell:hover{
+    background:var(--dsh-purple-soft);
+    border-color:var(--dsh-purple);
+  }
+
+  .notif-badge{
+    position:absolute;
+    top:-5px;
+    right:-5px;
+    min-width:18px;
+    height:18px;
+    padding:0 4px;
+    border-radius:999px;
+    background:var(--dsh-danger);
+    color:#fff;
+    font-size:10.5px;
+    font-weight:700;
+    display:none;
+    align-items:center;
+    justify-content:center;
+    line-height:1;
+    border:2px solid var(--dsh-surface);
+  }
+
+  .notif-dropdown{
+    display:none;
+    position:absolute;
+    top:calc(100% + 10px);
+    right:0;
+    width:330px;
+    max-height:380px;
+    overflow-y:auto;
+    background:var(--dsh-surface);
+    border:1px solid var(--dsh-border);
+    border-radius:12px;
+    box-shadow:0 16px 40px rgba(0,0,0,.45);
+    z-index:200;
+    padding:14px;
+  }
+
+  .notif-dropdown.show{
+    display:block;
+  }
+
+  .notif-dropdown-head{
+    font-size:13px;
+    color:var(--dsh-text);
+    margin-bottom:10px;
+    padding-bottom:10px;
+    border-bottom:1px solid var(--dsh-border);
+  }
+
+  .notif-list{
+    display:flex;
+    flex-direction:column;
+    gap:8px;
+  }
+
+  .notif-item{
+    display:flex;
+    align-items:center;
+    gap:10px;
+    padding:10px;
+    border-radius:10px;
+    background:var(--dsh-surface-2);
+    border:1px solid var(--dsh-border);
+    cursor:pointer;
+    transition:border-color .15s ease;
+  }
+
+  .notif-item:hover{
+    border-color:var(--dsh-purple);
+  }
+
+  .notif-item-icon{
+    width:32px;
+    height:32px;
+    border-radius:8px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    font-size:15px;
+    flex-shrink:0;
+  }
+
+  .notif-item-text{
+    font-size:12.5px;
+    color:var(--dsh-text);
+    line-height:1.4;
+  }
+
+  /* ===========================
+     POPUP NOTIFIKASI (muncul sekali tiap awal login kalau ada approval)
+  =========================== */
+
+  .notif-modal-overlay{
+    display:none;
+    position:fixed;
+    inset:0;
+    background:rgba(0,0,0,.6);
+    z-index:1000;
+    align-items:center;
+    justify-content:center;
+    padding:20px;
+  }
+
+  .notif-modal-overlay.show{
+    display:flex;
+  }
+
+  .notif-modal-box{
+    background:var(--dsh-surface);
+    border:1px solid var(--dsh-border);
+    border-radius:16px;
+    max-width:420px;
+    width:100%;
+    padding:28px 26px;
+    text-align:center;
+    box-shadow:0 20px 50px rgba(0,0,0,.5);
+  }
+
+  .notif-modal-icon{
+    width:56px;
+    height:56px;
+    margin:0 auto 14px;
+    border-radius:50%;
+    background:var(--dsh-purple-soft);
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    font-size:26px;
+  }
+
+  .notif-modal-box h3{
+    font-size:16px;
+    color:var(--dsh-text);
+    margin-bottom:8px;
+  }
+
+  .notif-modal-box p{
+    font-size:13.5px;
+    color:var(--dsh-muted);
+    line-height:1.5;
+    margin-bottom:20px;
+  }
+
+  .notif-modal-actions{
+    display:flex;
+    gap:10px;
+  }
+
+  .notif-modal-btn-primary{
+    flex:1;
+    background:var(--dsh-purple);
+    color:#fff;
+    border:none;
+    border-radius:10px;
+    padding:11px 16px;
+    cursor:pointer;
+    font-weight:600;
+    font-size:13.5px;
+    font-family:inherit;
+    transition:background .15s;
+  }
+
+  .notif-modal-btn-primary:hover{
+    background:var(--dsh-purple-dark);
+  }
+
+  .notif-modal-btn-secondary{
+    flex:1;
+    background:var(--dsh-surface-2);
+    color:var(--dsh-text);
+    border:1px solid var(--dsh-border);
+    border-radius:10px;
+    padding:11px 16px;
+    cursor:pointer;
+    font-weight:600;
+    font-size:13.5px;
+    font-family:inherit;
+    transition:background .15s;
+  }
+
+  .notif-modal-btn-secondary:hover{
+    background:rgba(255,255,255,.08);
+  }
 </style>
 </head>
 <body>
@@ -574,6 +785,18 @@
       <p>Selamat datang kembali 👋</p>
     </div>
     <div class="topbar-right">
+      <div class="notif-wrapper" id="notifWrapper">
+        <button class="notif-bell" id="notifBellBtn" title="Notifikasi Approval" type="button">
+          🔔
+          <span class="notif-badge" id="notifBadge">0</span>
+        </button>
+        <div class="notif-dropdown" id="notifDropdown">
+          <div class="notif-dropdown-head"><b>🔔 Notifikasi Approval</b></div>
+          <div class="notif-list" id="notifList">
+            <div class="empty-panel">Tidak ada notifikasi.</div>
+          </div>
+        </div>
+      </div>
       <div class="topbar-date" id="topbarDate">—</div>
     </div>
   </div>
@@ -689,6 +912,19 @@
 
   </div><!-- /content -->
 </div><!-- /main -->
+
+<!-- ================= POPUP NOTIFIKASI APPROVAL ================= -->
+<div class="notif-modal-overlay" id="notifModalOverlay" onclick="if(event.target===this) tutupPopupNotifikasi()">
+  <div class="notif-modal-box">
+    <div class="notif-modal-icon">🔔</div>
+    <h3>Ada Persetujuan Menunggu</h3>
+    <p id="notifModalText">-</p>
+    <div class="notif-modal-actions">
+      <button class="notif-modal-btn-primary" onclick="location.href='barang-transfer.html'">Lihat Sekarang</button>
+      <button class="notif-modal-btn-secondary" onclick="tutupPopupNotifikasi()">Nanti Saja</button>
+    </div>
+  </div>
+</div>
 
 <script>
 // ===========================
@@ -845,12 +1081,240 @@ async function loadKeluar() {
 }
 
 // ===========================
+// NOTIFIKASI APPROVAL (Transfer / Retur / Permanenkan)
+// Menghitung permintaan yang menunggu approval DARI gudang user yang
+// sedang login, lalu menampilkannya di lonceng + popup sekali di awal
+// sesi login kalau memang ada yang menunggu.
+// ===========================
+
+async function cekNotifikasiApproval() {
+
+    try {
+
+        const gudang = user?.gudang;
+
+        if (!gudang) return;
+
+        const [
+            { count: cTransfer },
+            { count: cRetur },
+            { count: cPermanenkan }
+        ] = await Promise.all([
+            supabaseClient.from("barang_transfer")
+                .select("*", { count:"exact", head:true })
+                .eq("gudang_tujuan", gudang)
+                .eq("status", "Pending"),
+            supabaseClient.from("barang_transfer_retur")
+                .select("*", { count:"exact", head:true })
+                .eq("gudang_asal", gudang)
+                .eq("status", "Menunggu Approval"),
+            supabaseClient.from("barang_transfer_permanenkan")
+                .select("*", { count:"exact", head:true })
+                .eq("gudang_asal", gudang)
+                .eq("status", "Menunggu Approval")
+        ]);
+
+        const totalTransfer     = cTransfer ?? 0;
+        const totalRetur        = cRetur ?? 0;
+        const totalPermanenkan  = cPermanenkan ?? 0;
+        const total             = totalTransfer + totalRetur + totalPermanenkan;
+
+        updateNotifBadge(total);
+        renderNotifDropdown({ totalTransfer, totalRetur, totalPermanenkan });
+
+        // Popup otomatis hanya sekali per sesi login (bukan tiap kali
+        // halaman dashboard dibuka ulang selama sesi yang sama)
+        const sudahTampil = sessionStorage.getItem("notifPopupShown");
+
+        if (total > 0 && !sudahTampil) {
+
+            tampilkanPopupNotifikasi({ totalTransfer, totalRetur, totalPermanenkan, total });
+
+            sessionStorage.setItem("notifPopupShown", "1");
+
+        }
+
+    }
+    catch (err) {
+
+        console.error("Gagal cek notifikasi approval:", err);
+
+    }
+
+}
+
+function updateNotifBadge(total) {
+
+    const badge = document.getElementById("notifBadge");
+
+    if (!badge) return;
+
+    if (total > 0) {
+
+        badge.textContent = total > 99 ? "99+" : total;
+        badge.style.display = "flex";
+
+    } else {
+
+        badge.style.display = "none";
+
+    }
+
+}
+
+function renderNotifDropdown({ totalTransfer, totalRetur, totalPermanenkan }) {
+
+    const list = document.getElementById("notifList");
+
+    if (!list) return;
+
+    const items = [];
+
+    if (totalTransfer > 0) {
+
+        items.push({
+            icon: "🔁",
+            bg: "rgba(56,189,248,.14)",
+            text: `${totalTransfer} Transfer Barang menunggu approval Anda`
+        });
+
+    }
+
+    if (totalRetur > 0) {
+
+        items.push({
+            icon: "↩",
+            bg: "rgba(148,163,184,.14)",
+            text: `${totalRetur} Permintaan Retur menunggu approval Anda`
+        });
+
+    }
+
+    if (totalPermanenkan > 0) {
+
+        items.push({
+            icon: "🔒",
+            bg: "rgba(168,85,247,.14)",
+            text: `${totalPermanenkan} Permintaan Permanenkan menunggu approval Anda`
+        });
+
+    }
+
+    if (items.length === 0) {
+
+        list.innerHTML = `<div class="empty-panel">Tidak ada notifikasi.</div>`;
+        return;
+
+    }
+
+    list.innerHTML = items.map(it => `
+        <div class="notif-item" onclick="goPage('barang-transfer.html')">
+            <div class="notif-item-icon" style="background:${it.bg};">${it.icon}</div>
+            <div class="notif-item-text">${it.text}</div>
+        </div>
+    `).join("");
+
+}
+
+function tampilkanPopupNotifikasi({ totalTransfer, totalRetur, totalPermanenkan, total }) {
+
+    const overlay = document.getElementById("notifModalOverlay");
+    const textEl  = document.getElementById("notifModalText");
+
+    if (!overlay || !textEl) return;
+
+    const rincian = [];
+
+    if (totalTransfer > 0)    rincian.push(`${totalTransfer} Transfer Barang`);
+    if (totalRetur > 0)       rincian.push(`${totalRetur} Permintaan Retur`);
+    if (totalPermanenkan > 0) rincian.push(`${totalPermanenkan} Permintaan Permanenkan`);
+
+    textEl.textContent =
+        `Anda memiliki ${total} permintaan (${rincian.join(", ")}) yang masih menunggu approval di gudang ${userGudang}.`;
+
+    overlay.classList.add("show");
+
+}
+
+function tutupPopupNotifikasi() {
+
+    const overlay = document.getElementById("notifModalOverlay");
+
+    if (overlay) overlay.classList.remove("show");
+
+}
+
+// buka / tutup dropdown lonceng
+const notifBellBtnEl  = document.getElementById("notifBellBtn");
+const notifDropdownEl = document.getElementById("notifDropdown");
+
+if (notifBellBtnEl && notifDropdownEl) {
+
+    notifBellBtnEl.addEventListener("click", function(e){
+
+        e.stopPropagation();
+        notifDropdownEl.classList.toggle("show");
+
+    });
+
+    document.addEventListener("click", function(e){
+
+        if (!notifDropdownEl.contains(e.target) && e.target !== notifBellBtnEl) {
+
+            notifDropdownEl.classList.remove("show");
+
+        }
+
+    });
+
+}
+
+document.addEventListener("keydown", function(e){
+
+    if (e.key === "Escape") {
+
+        tutupPopupNotifikasi();
+
+        if (notifDropdownEl) notifDropdownEl.classList.remove("show");
+
+    }
+
+});
+
+// update badge & dropdown otomatis kalau ada perubahan data approval
+// selama halaman dashboard masih terbuka
+function aktifkanRealtimeNotifikasi() {
+
+    supabaseClient
+
+    .channel("realtime-dashboard-notif")
+
+    .on("postgres_changes",
+        { event:"*", schema:"public", table:"barang_transfer" },
+        cekNotifikasiApproval
+    )
+    .on("postgres_changes",
+        { event:"*", schema:"public", table:"barang_transfer_retur" },
+        cekNotifikasiApproval
+    )
+    .on("postgres_changes",
+        { event:"*", schema:"public", table:"barang_transfer_permanenkan" },
+        cekNotifikasiApproval
+    )
+
+    .subscribe();
+
+}
+
+// ===========================
 // INIT
 // ===========================
 document.addEventListener("DOMContentLoaded", () => {
     loadStats();
     loadMasuk();
     loadKeluar();
+    cekNotifikasiApproval();
+    aktifkanRealtimeNotifikasi();
 });
 </script>
 </body>
