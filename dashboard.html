@@ -610,6 +610,23 @@
     border-color:var(--dsh-purple);
   }
 
+  .notif-section-title{
+    font-size:10.5px;
+    font-weight:700;
+    color:var(--dsh-muted);
+    text-transform:uppercase;
+    letter-spacing:.06em;
+    margin:12px 0 8px;
+    padding-top:10px;
+    border-top:1px solid var(--dsh-border);
+  }
+
+  .notif-list .notif-section-title:first-child{
+    margin-top:0;
+    padding-top:0;
+    border-top:none;
+  }
+
   .notif-item-icon{
     width:32px;
     height:32px;
@@ -920,7 +937,7 @@
     <h3>Ada Persetujuan Menunggu</h3>
     <p id="notifModalText">-</p>
     <div class="notif-modal-actions">
-      <button class="notif-modal-btn-primary" onclick="location.href='barang-transfer.html'">Lihat Sekarang</button>
+      <button class="notif-modal-btn-primary" id="notifModalBtnLihat" onclick="location.href='barang-transfer.html'">Lihat Sekarang</button>
       <button class="notif-modal-btn-secondary" onclick="tutupPopupNotifikasi()">Nanti Saja</button>
     </div>
   </div>
@@ -935,6 +952,7 @@ if (!user) { location.href = "login.html"; }
 
 function logout() {
     sessionStorage.removeItem("user");
+    sessionStorage.removeItem("notifPopupShown");
     location.href = "login.html";
 }
 
@@ -1082,10 +1100,195 @@ async function loadKeluar() {
 
 // ===========================
 // NOTIFIKASI APPROVAL (Transfer / Retur / Permanenkan)
-// Menghitung permintaan yang menunggu approval DARI gudang user yang
-// sedang login, lalu menampilkannya di lonceng + popup sekali di awal
-// sesi login kalau memang ada yang menunggu.
+// Ada 2 jenis notifikasi:
+//
+// 1) "Menunggu Approval" -> untuk gudang user yang login (dia yang harus
+//    menyetujui). Ini yang munculkan POPUP sekali di awal sesi login.
+//
+// 2) "Sudah Disetujui" -> untuk permintaan yang DIBUAT SENDIRI oleh user
+//    ini (created_by = user.nama) yang statusnya baru saja Approved /
+//    Disetujui. Ini HANYA muncul di lonceng (badge + dropdown), TIDAK
+//    ada popup. Supaya tidak terus menumpuk selamanya, begitu lonceng
+//    dibuka, notifikasi jenis ini ditandai "sudah dibaca" lewat
+//    localStorage (bertahan walau logout/login lagi / tutup tab).
 // ===========================
+
+// menyimpan hasil cek terakhir supaya bisa dipakai saat lonceng diklik
+let lastNotifState = {
+    totalTransfer: 0,
+    totalRetur: 0,
+    totalPermanenkan: 0,
+    totalMutasi: 0,
+    disetujuiItems: []
+};
+
+function getSeenApprovedKeys() {
+
+    try {
+
+        const raw = localStorage.getItem("notifApprovedSeenKeys");
+        return new Set(raw ? JSON.parse(raw) : []);
+
+    }
+    catch (err) {
+
+        console.error("Gagal membaca status notifikasi disetujui:", err);
+        return new Set();
+
+    }
+
+}
+
+function tandaiNotifDisetujuiSudahDibaca(keys) {
+
+    if (!keys || keys.length === 0) return;
+
+    try {
+
+        const current = getSeenApprovedKeys();
+
+        keys.forEach(k => current.add(k));
+
+        localStorage.setItem("notifApprovedSeenKeys", JSON.stringify(Array.from(current)));
+
+    }
+    catch (err) {
+
+        console.error("Gagal menyimpan status notifikasi disetujui:", err);
+
+    }
+
+}
+
+// ambil permintaan (Transfer/Retur/Permanenkan) milik user ini sendiri
+// yang BARU disetujui (belum pernah "dibaca" lewat lonceng)
+async function ambilNotifikasiDisetujui() {
+
+    const namaUser = user?.nama;
+
+    if (!namaUser) return [];
+
+    const seenKeys = getSeenApprovedKeys();
+
+    try {
+
+        const [
+            { data: dataTransfer },
+            { data: dataRetur },
+            { data: dataPermanenkan },
+            { data: dataMutasi }
+        ] = await Promise.all([
+            supabaseClient.from("barang_transfer")
+                .select("id, no_transfer, gudang_tujuan, approved_at")
+                .eq("created_by", namaUser)
+                .eq("status", "Approved")
+                .order("approved_at", { ascending:false })
+                .limit(20),
+            supabaseClient.from("barang_transfer_retur")
+                .select("id, no_retur, gudang_asal, approved_at")
+                .eq("created_by", namaUser)
+                .eq("status", "Disetujui")
+                .order("approved_at", { ascending:false })
+                .limit(20),
+            supabaseClient.from("barang_transfer_permanenkan")
+                .select("id, no_permanen, gudang_asal, approved_at")
+                .eq("created_by", namaUser)
+                .eq("status", "Disetujui")
+                .order("approved_at", { ascending:false })
+                .limit(20),
+            supabaseClient.from("mutasi_karyawan")
+                .select("id, nama, gudang_baru, approved_at")
+                .eq("created_by", namaUser)
+                .eq("status", "Disetujui")
+                .order("approved_at", { ascending:false })
+                .limit(20)
+        ]);
+
+        const hasil = [];
+
+        (dataTransfer || []).forEach(item => {
+
+            const key = `transfer-${item.id}`;
+
+            if (!seenKeys.has(key)) {
+
+                hasil.push({
+                    key,
+                    icon: "✅",
+                    bg: "rgba(62,207,142,.14)",
+                    text: `Transfer ${item.no_transfer} Anda telah di-approve oleh ${item.gudang_tujuan}`,
+                    page: "barang-transfer.html"
+                });
+
+            }
+
+        });
+
+        (dataRetur || []).forEach(item => {
+
+            const key = `retur-${item.id}`;
+
+            if (!seenKeys.has(key)) {
+
+                hasil.push({
+                    key,
+                    icon: "✅",
+                    bg: "rgba(62,207,142,.14)",
+                    text: `Retur ${item.no_retur} Anda telah disetujui oleh ${item.gudang_asal}`,
+                    page: "barang-transfer.html"
+                });
+
+            }
+
+        });
+
+        (dataPermanenkan || []).forEach(item => {
+
+            const key = `permanenkan-${item.id}`;
+
+            if (!seenKeys.has(key)) {
+
+                hasil.push({
+                    key,
+                    icon: "✅",
+                    bg: "rgba(62,207,142,.14)",
+                    text: `Permanenkan ${item.no_permanen} Anda telah disetujui oleh ${item.gudang_asal}`,
+                    page: "barang-transfer.html"
+                });
+
+            }
+
+        });
+
+        (dataMutasi || []).forEach(item => {
+
+            const key = `mutasi-${item.id}`;
+
+            if (!seenKeys.has(key)) {
+
+                hasil.push({
+                    key,
+                    icon: "✅",
+                    bg: "rgba(62,207,142,.14)",
+                    text: `Mutasi karyawan ${item.nama} Anda telah disetujui oleh ${item.gudang_baru}`,
+                    page: "mutasi-karyawan.html"
+                });
+
+            }
+
+        });
+
+        return hasil;
+
+    }
+    catch (err) {
+
+        console.error("Gagal mengambil notifikasi disetujui:", err);
+        return [];
+
+    }
+
+}
 
 async function cekNotifikasiApproval() {
 
@@ -1098,7 +1301,9 @@ async function cekNotifikasiApproval() {
         const [
             { count: cTransfer },
             { count: cRetur },
-            { count: cPermanenkan }
+            { count: cPermanenkan },
+            { count: cMutasi },
+            disetujuiItems
         ] = await Promise.all([
             supabaseClient.from("barang_transfer")
                 .select("*", { count:"exact", head:true })
@@ -1111,24 +1316,34 @@ async function cekNotifikasiApproval() {
             supabaseClient.from("barang_transfer_permanenkan")
                 .select("*", { count:"exact", head:true })
                 .eq("gudang_asal", gudang)
-                .eq("status", "Menunggu Approval")
+                .eq("status", "Menunggu Approval"),
+            supabaseClient.from("mutasi_karyawan")
+                .select("*", { count:"exact", head:true })
+                .eq("gudang_baru", gudang)
+                .eq("status", "Pending"),
+            ambilNotifikasiDisetujui()
         ]);
 
         const totalTransfer     = cTransfer ?? 0;
         const totalRetur        = cRetur ?? 0;
         const totalPermanenkan  = cPermanenkan ?? 0;
-        const total             = totalTransfer + totalRetur + totalPermanenkan;
+        const totalMutasi       = cMutasi ?? 0;
+        const totalPending      = totalTransfer + totalRetur + totalPermanenkan + totalMutasi;
+        const totalBadge        = totalPending + disetujuiItems.length;
 
-        updateNotifBadge(total);
-        renderNotifDropdown({ totalTransfer, totalRetur, totalPermanenkan });
+        lastNotifState = { totalTransfer, totalRetur, totalPermanenkan, totalMutasi, disetujuiItems };
 
-        // Popup otomatis hanya sekali per sesi login (bukan tiap kali
-        // halaman dashboard dibuka ulang selama sesi yang sama)
+        updateNotifBadge(totalBadge);
+        renderNotifDropdown(lastNotifState);
+
+        // Popup otomatis hanya sekali per sesi login, dan HANYA untuk
+        // permintaan yang MENUNGGU approval Anda (bukan yang sudah
+        // disetujui - itu cukup lewat lonceng saja)
         const sudahTampil = sessionStorage.getItem("notifPopupShown");
 
-        if (total > 0 && !sudahTampil) {
+        if (totalPending > 0 && !sudahTampil) {
 
-            tampilkanPopupNotifikasi({ totalTransfer, totalRetur, totalPermanenkan, total });
+            tampilkanPopupNotifikasi({ totalTransfer, totalRetur, totalPermanenkan, totalMutasi, total: totalPending });
 
             sessionStorage.setItem("notifPopupShown", "1");
 
@@ -1162,7 +1377,7 @@ function updateNotifBadge(total) {
 
 }
 
-function renderNotifDropdown({ totalTransfer, totalRetur, totalPermanenkan }) {
+function renderNotifDropdown({ totalTransfer, totalRetur, totalPermanenkan, totalMutasi, disetujuiItems }) {
 
     const list = document.getElementById("notifList");
 
@@ -1175,7 +1390,8 @@ function renderNotifDropdown({ totalTransfer, totalRetur, totalPermanenkan }) {
         items.push({
             icon: "🔁",
             bg: "rgba(56,189,248,.14)",
-            text: `${totalTransfer} Transfer Barang menunggu approval Anda`
+            text: `${totalTransfer} Transfer Barang menunggu approval Anda`,
+            page: "barang-transfer.html"
         });
 
     }
@@ -1185,7 +1401,8 @@ function renderNotifDropdown({ totalTransfer, totalRetur, totalPermanenkan }) {
         items.push({
             icon: "↩",
             bg: "rgba(148,163,184,.14)",
-            text: `${totalRetur} Permintaan Retur menunggu approval Anda`
+            text: `${totalRetur} Permintaan Retur menunggu approval Anda`,
+            page: "barang-transfer.html"
         });
 
     }
@@ -1195,28 +1412,61 @@ function renderNotifDropdown({ totalTransfer, totalRetur, totalPermanenkan }) {
         items.push({
             icon: "🔒",
             bg: "rgba(168,85,247,.14)",
-            text: `${totalPermanenkan} Permintaan Permanenkan menunggu approval Anda`
+            text: `${totalPermanenkan} Permintaan Permanenkan menunggu approval Anda`,
+            page: "barang-transfer.html"
         });
 
     }
 
-    if (items.length === 0) {
+    if (totalMutasi > 0) {
+
+        items.push({
+            icon: "🔄",
+            bg: "rgba(245,158,11,.14)",
+            text: `${totalMutasi} Mutasi Karyawan menunggu approval Anda`,
+            page: "mutasi-karyawan.html"
+        });
+
+    }
+
+    let html = "";
+
+    if (items.length > 0) {
+
+        html += items.map(it => `
+            <div class="notif-item" onclick="goPage('${it.page}')">
+                <div class="notif-item-icon" style="background:${it.bg};">${it.icon}</div>
+                <div class="notif-item-text">${it.text}</div>
+            </div>
+        `).join("");
+
+    }
+
+    if (disetujuiItems && disetujuiItems.length > 0) {
+
+        html += `<div class="notif-section-title">Permintaan Anda Disetujui</div>`;
+
+        html += disetujuiItems.map(it => `
+            <div class="notif-item" onclick="goPage('${it.page || 'barang-transfer.html'}')">
+                <div class="notif-item-icon" style="background:${it.bg};">${it.icon}</div>
+                <div class="notif-item-text">${it.text}</div>
+            </div>
+        `).join("");
+
+    }
+
+    if (html === "") {
 
         list.innerHTML = `<div class="empty-panel">Tidak ada notifikasi.</div>`;
         return;
 
     }
 
-    list.innerHTML = items.map(it => `
-        <div class="notif-item" onclick="goPage('barang-transfer.html')">
-            <div class="notif-item-icon" style="background:${it.bg};">${it.icon}</div>
-            <div class="notif-item-text">${it.text}</div>
-        </div>
-    `).join("");
+    list.innerHTML = html;
 
 }
 
-function tampilkanPopupNotifikasi({ totalTransfer, totalRetur, totalPermanenkan, total }) {
+function tampilkanPopupNotifikasi({ totalTransfer, totalRetur, totalPermanenkan, totalMutasi, total }) {
 
     const overlay = document.getElementById("notifModalOverlay");
     const textEl  = document.getElementById("notifModalText");
@@ -1228,9 +1478,26 @@ function tampilkanPopupNotifikasi({ totalTransfer, totalRetur, totalPermanenkan,
     if (totalTransfer > 0)    rincian.push(`${totalTransfer} Transfer Barang`);
     if (totalRetur > 0)       rincian.push(`${totalRetur} Permintaan Retur`);
     if (totalPermanenkan > 0) rincian.push(`${totalPermanenkan} Permintaan Permanenkan`);
+    if (totalMutasi > 0)      rincian.push(`${totalMutasi} Mutasi Karyawan`);
 
     textEl.textContent =
         `Anda memiliki ${total} permintaan (${rincian.join(", ")}) yang masih menunggu approval di gudang ${userGudang}.`;
+
+    // arahkan tombol "Lihat Sekarang" ke halaman yang relevan: kalau
+    // yang menunggu HANYA mutasi karyawan, arahkan ke halaman itu;
+    // selain itu (ada Transfer/Retur/Permanenkan), arahkan ke Transfer Barang
+    const btnLihat = document.getElementById("notifModalBtnLihat");
+
+    if (btnLihat) {
+
+        const hanyaMutasi = totalMutasi > 0 && (totalTransfer + totalRetur + totalPermanenkan) === 0;
+
+        btnLihat.setAttribute(
+            "onclick",
+            hanyaMutasi ? "location.href='mutasi-karyawan.html'" : "location.href='barang-transfer.html'"
+        );
+
+    }
 
     overlay.classList.add("show");
 
@@ -1254,6 +1521,25 @@ if (notifBellBtnEl && notifDropdownEl) {
 
         e.stopPropagation();
         notifDropdownEl.classList.toggle("show");
+
+        // begitu lonceng dibuka, notifikasi "sudah disetujui" yang lagi
+        // ditampilkan dianggap sudah dibaca -> badge dikurangi, dropdown
+        // tetap menampilkan isinya untuk kesempatan ini
+        if (notifDropdownEl.classList.contains("show") && lastNotifState.disetujuiItems.length > 0) {
+
+            const keysBaruDibaca = lastNotifState.disetujuiItems.map(it => it.key);
+
+            tandaiNotifDisetujuiSudahDibaca(keysBaruDibaca);
+
+            const totalPendingSaja =
+                lastNotifState.totalTransfer +
+                lastNotifState.totalRetur +
+                lastNotifState.totalPermanenkan +
+                (lastNotifState.totalMutasi || 0);
+
+            updateNotifBadge(totalPendingSaja);
+
+        }
 
     });
 
@@ -1299,6 +1585,10 @@ function aktifkanRealtimeNotifikasi() {
     )
     .on("postgres_changes",
         { event:"*", schema:"public", table:"barang_transfer_permanenkan" },
+        cekNotifikasiApproval
+    )
+    .on("postgres_changes",
+        { event:"*", schema:"public", table:"mutasi_karyawan" },
         cekNotifikasiApproval
     )
 
