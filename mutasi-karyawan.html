@@ -431,6 +431,65 @@
     transition:background .15s ease;
   }
   .btn-export-riwayat:hover{ background:#262a3c; }
+
+  /* ===== Status Badge & Aksi Approval (Mutasi) ===== */
+
+  .status-badge{
+    display:inline-block;
+    font-weight:600;
+    font-size:12.5px;
+    padding:5px 12px;
+    border-radius:999px;
+    white-space:nowrap;
+  }
+
+  .status-pending{
+    background:rgba(234,179,8,.14);
+    color:#facc15;
+    border:1px solid rgba(234,179,8,.35);
+  }
+
+  .status-approved{
+    background:rgba(34,197,94,.14);
+    color:#4ade80;
+    border:1px solid rgba(34,197,94,.35);
+  }
+
+  .status-rejected{
+    background:rgba(239,68,68,.14);
+    color:#f87171;
+    border:1px solid rgba(239,68,68,.35);
+  }
+
+  .btn-approve{
+    background:rgba(34,197,94,.12);
+    color:#4ade80;
+    border:1px solid rgba(34,197,94,.35);
+    border-radius:6px;
+    padding:6px 10px;
+    cursor:pointer;
+    font-weight:600;
+    font-size:12.5px;
+  }
+
+  .btn-approve:hover{
+    background:rgba(34,197,94,.25);
+  }
+
+  .btn-reject{
+    background:rgba(239,68,68,.12);
+    color:#f87171;
+    border:1px solid rgba(239,68,68,.35);
+    border-radius:6px;
+    padding:6px 10px;
+    cursor:pointer;
+    font-weight:600;
+    font-size:12.5px;
+  }
+
+  .btn-reject:hover{
+    background:rgba(239,68,68,.25);
+  }
 </style>
 </head>
 <body>
@@ -551,6 +610,37 @@
   </div>
   <br>
 
+  <!-- ================= MUTASI MASUK - MENUNGGU APPROVAL ================= -->
+  <div class="panel">
+    <p class="panel-title"><span class="dot"></span> ⏳ Mutasi Masuk - Menunggu Approval</p>
+    <p style="color:var(--mu-muted);font-size:13px;margin:-8px 0 16px;">
+      Daftar pengajuan mutasi yang menuju gudang Anda (<b id="labelGudangUserMutasi">-</b>) dan masih menunggu persetujuan. Data karyawan baru berubah setelah Anda approve di sini.
+    </p>
+    <div class="table-wrap">
+      <table id="tablePendingMutasi">
+        <thead>
+          <tr>
+            <th width="60">No</th>
+            <th width="110">NIK</th>
+            <th width="160">Nama</th>
+            <th>Dari</th>
+            <th>Ke</th>
+            <th width="150">Diajukan Oleh</th>
+            <th width="170">Aksi</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td colspan="7" class="loading-state">
+              <span class="spinner"></span> Memuat...
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+  <br>
+
   <!-- ================= RIWAYAT MUTASI ================= -->
   <div class="panel">
     <div class="panel-header">
@@ -570,13 +660,14 @@
             <th>Dari</th>
             <th>Ke</th>
             <th>Keterangan</th>
+            <th width="110">Status</th>
             <th width="130">Tanggal</th>
             <th width="130">Dibuat Oleh</th>
           </tr>
         </thead>
         <tbody>
           <tr>
-            <td colspan="7" class="loading-state">
+            <td colspan="8" class="loading-state">
               <span class="spinner"></span> Memuat riwayat...
             </td>
           </tr>
