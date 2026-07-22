@@ -1029,11 +1029,42 @@ async function loadMasuk() {
             return;
         }
 
-        list.innerHTML = data.map(item => `
+        // barang_masuk (header) tidak menyimpan nama barang / qty langsung —
+        // datanya ada di barang_masuk_detail (satu header bisa banyak item),
+        // jadi perlu diambil terpisah lalu digabungkan per header.
+        const ids = data.map(h => h.id);
+
+        const { data: details, error: errDetail } = await supabaseClient
+            .from("barang_masuk_detail")
+            .select("barang_masuk_id, nama_barang, qty")
+            .in("barang_masuk_id", ids);
+
+        if (errDetail) throw errDetail;
+
+        const detailMap = new Map();
+
+        (details || []).forEach(d => {
+            const key = String(d.barang_masuk_id);
+            if (!detailMap.has(key)) detailMap.set(key, []);
+            detailMap.get(key).push(d);
+        });
+
+        list.innerHTML = data.map(item => {
+
+            const items = detailMap.get(String(item.id)) || [];
+            const totalQty = items.reduce((s, d) => s + (Number(d.qty) || 0), 0);
+
+            const namaTampil = items.length === 0
+                ? "—"
+                : items.length === 1
+                    ? items[0].nama_barang
+                    : `${items[0].nama_barang} +${items.length - 1} lainnya`;
+
+            return `
             <div class="recent-item">
                 <div class="ri-icon" style="background:rgba(62,207,142,.12);">📥</div>
                 <div class="ri-info">
-                    <div class="ri-name">${item.kode_barang ?? item.nama_barang ?? "—"}</div>
+                    <div class="ri-name">${namaTampil}</div>
                     <div class="ri-sub">${item.created_by ?? "-"} · ${
                         item.created_at
                             ? new Date(item.created_at).toLocaleDateString("id-ID",{day:"2-digit",month:"short",year:"numeric"})
@@ -1041,10 +1072,12 @@ async function loadMasuk() {
                     }</div>
                 </div>
                 <span class="ri-badge" style="background:rgba(62,207,142,.12);color:#3ecf8e;">
-                    +${Number(item.jumlah ?? 0).toLocaleString("id-ID")}
+                    +${totalQty.toLocaleString("id-ID")}
                 </span>
             </div>
-        `).join("");
+            `;
+
+        }).join("");
 
     } catch (err) {
         list.innerHTML = `<div class="empty-panel">⚠ Gagal memuat data.</div>`;
@@ -1079,7 +1112,7 @@ async function loadKeluar() {
             <div class="recent-item">
                 <div class="ri-icon" style="background:rgba(239,84,117,.12);">📤</div>
                 <div class="ri-info">
-                    <div class="ri-name">${item.kode_barang ?? item.nama_barang ?? "—"}</div>
+                    <div class="ri-name">${item.nama_barang ?? "—"}</div>
                     <div class="ri-sub">${item.created_by ?? "-"} · ${
                         item.created_at
                             ? new Date(item.created_at).toLocaleDateString("id-ID",{day:"2-digit",month:"short",year:"numeric"})
@@ -1087,7 +1120,7 @@ async function loadKeluar() {
                     }</div>
                 </div>
                 <span class="ri-badge" style="background:rgba(239,84,117,.12);color:#ef5675;">
-                    -${Number(item.jumlah ?? 0).toLocaleString("id-ID")}
+                    -${Number(item.qty ?? 0).toLocaleString("id-ID")}
                 </span>
             </div>
         `).join("");
