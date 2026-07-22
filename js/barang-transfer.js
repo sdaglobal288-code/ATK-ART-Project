@@ -962,6 +962,7 @@ async function simpanTransfer(e){
 
         await loadPendingApproval();
         await loadRiwayatTransfer();
+        await loadTransferBisaTindakan();
 
     }
     catch(err){
@@ -1139,6 +1140,7 @@ async function approveTransfer(id){
 
         await loadPendingApproval();
         await loadRiwayatTransfer();
+        await loadTransferBisaTindakan();
 
     }
     catch(err){
@@ -1208,6 +1210,7 @@ async function rejectTransfer(id){
 
         await loadPendingApproval();
         await loadRiwayatTransfer();
+        await loadTransferBisaTindakan();
 
     }
     catch(err){
@@ -1696,6 +1699,7 @@ async function submitRetur(e){
         tutupModalRetur();
 
         await loadRiwayatTransfer();
+        await loadTransferBisaTindakan();
         await loadPendingReturApproval();
 
     }
@@ -1862,6 +1866,7 @@ async function approveRetur(id){
 
         await loadPendingReturApproval();
         await loadRiwayatTransfer();
+        await loadTransferBisaTindakan();
 
     }
     catch(err){
@@ -1907,6 +1912,7 @@ async function rejectRetur(id){
 
         await loadPendingReturApproval();
         await loadRiwayatTransfer();
+        await loadTransferBisaTindakan();
 
     }
     catch(err){
@@ -2206,6 +2212,7 @@ async function submitPermanenkan(e){
         tutupModalPermanenkan();
 
         await loadRiwayatTransfer();
+        await loadTransferBisaTindakan();
         await loadPendingPermanenkanApproval();
 
     }
@@ -2349,6 +2356,7 @@ async function approvePermanenkan(id){
 
         await loadPendingPermanenkanApproval();
         await loadRiwayatTransfer();
+        await loadTransferBisaTindakan();
 
     }
     catch(err){
@@ -2394,6 +2402,7 @@ async function rejectPermanenkan(id){
 
         await loadPendingPermanenkanApproval();
         await loadRiwayatTransfer();
+        await loadTransferBisaTindakan();
 
     }
     catch(err){
@@ -2534,7 +2543,7 @@ async function tampilkanRiwayatTransfer(data){
 
         tbody.innerHTML = `
         <tr>
-            <td colspan="9" class="empty-state">
+            <td colspan="8" class="empty-state">
                 Belum ada data Transfer Barang.
             </td>
         </tr>
@@ -2550,14 +2559,6 @@ async function tampilkanRiwayatTransfer(data){
 
         const jumlahItem = await hitungJumlahItem(item.id);
 
-        let bisaTindakan = false;
-
-        if(item.status === "Approved" && user && user.gudang === item.gudang_tujuan){
-
-            bisaTindakan = await adaSisaTindakan(item.id);
-
-        }
-
         tbody.innerHTML += `
         <tr>
             <td>${no++}</td>
@@ -2570,11 +2571,103 @@ async function tampilkanRiwayatTransfer(data){
             </td>
             <td>${badgeStatus(item.status)}</td>
             <td>${item.created_by ?? "-"}</td>
+        </tr>
+        `;
+
+    }
+
+}
+
+// =====================================
+// PANEL "TRANSFER APPROVED - BISA RETUR / PERMANENKAN"
+// Kolom Aksi (tombol Retur/Permanenkan) dipisah ke panel/tabel sendiri
+// supaya tabel Riwayat Transfer Barang tidak perlu di-scroll horizontal
+// hanya untuk melihat tombol aksi yang sebenarnya jarang muncul.
+// Begitu semua item pada satu transfer sudah habis diretur/dipermanenkan
+// (adaSisaTindakan menjadi false), transfer itu otomatis hilang dari
+// panel ini dan hanya terlihat sebagai catatan biasa di Riwayat.
+// =====================================
+
+async function loadTransferBisaTindakan(){
+
+    try{
+
+        if(!user || !user.gudang) return;
+
+        const { data, error } = await supabaseClient
+            .from("barang_transfer")
+            .select("*")
+            .eq("gudang_tujuan", user.gudang)
+            .eq("status", "Approved")
+            .order("tanggal", { ascending:false })
+            .order("id", { ascending:false });
+
+        if(error) throw error;
+
+        await tampilkanTransferBisaTindakan(data || []);
+
+    }
+    catch(err){
+
+        console.error(err);
+        alert(err.message);
+
+    }
+
+}
+
+async function tampilkanTransferBisaTindakan(data){
+
+    const tbody = document.querySelector("#tableBisaTindakan tbody");
+
+    if(!tbody) return;
+
+    // saring dulu: hanya transfer yang masih ada sisa qty untuk diretur
+    // atau dipermanenkan yang tampil di panel ini
+    const dipakai = [];
+
+    for(const item of data){
+
+        const bisa = await adaSisaTindakan(item.id);
+
+        if(bisa) dipakai.push(item);
+
+    }
+
+    if(dipakai.length === 0){
+
+        tbody.innerHTML = `
+        <tr>
+            <td colspan="6" class="empty-state">
+                Tidak ada transfer yang masih bisa diretur / dipermanenkan.
+            </td>
+        </tr>
+        `;
+
+        return;
+
+    }
+
+    let no = 1;
+
+    tbody.innerHTML = "";
+
+    for(const item of dipakai){
+
+        const jumlahItem = await hitungJumlahItem(item.id);
+
+        tbody.innerHTML += `
+        <tr>
+            <td>${no++}</td>
+            <td><b>${item.no_transfer}</b></td>
+            <td>${item.tanggal}</td>
+            <td>${item.gudang_asal}</td>
             <td>
-                ${bisaTindakan ? `
-                    <button class="btn-retur" onclick="bukaModalRetur(${item.id})">↩ Retur</button>
-                    <button class="btn-permanenkan" onclick="bukaModalPermanenkan(${item.id})">🔒 Permanenkan</button>
-                ` : "-"}
+                <button class="btn-edit" onclick="lihatDetailTransfer(${item.id})">📦 ${jumlahItem} item</button>
+            </td>
+            <td>
+                <button class="btn-retur" onclick="bukaModalRetur(${item.id})">↩ Retur</button>
+                <button class="btn-permanenkan" onclick="bukaModalPermanenkan(${item.id})">🔒 Permanenkan</button>
             </td>
         </tr>
         `;
@@ -2893,6 +2986,7 @@ function aktifkanRealtime(){
 
             loadPendingApproval();
             loadRiwayatTransfer();
+            loadTransferBisaTindakan();
 
         }
 
@@ -2906,6 +3000,7 @@ function aktifkanRealtime(){
 
             loadPendingReturApproval();
             loadRiwayatTransfer();
+            loadTransferBisaTindakan();
 
         }
 
@@ -2919,6 +3014,7 @@ function aktifkanRealtime(){
 
             loadPendingPermanenkanApproval();
             loadRiwayatTransfer();
+            loadTransferBisaTindakan();
 
         }
 
@@ -2973,6 +3069,7 @@ document.addEventListener("DOMContentLoaded", async ()=>{
     await loadPendingReturApproval();
     await loadPendingPermanenkanApproval();
     await loadRiwayatTransfer();
+    await loadTransferBisaTindakan();
 
     const modalReturEl = document.getElementById("modalRetur");
 
