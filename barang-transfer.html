@@ -860,6 +860,30 @@ Permintaan untuk MENGUNCI barang menjadi permanen (tidak akan diretur lagi), dia
 </div>
 </div>
 
+<!-- ================= TRANSFER APPROVED - BISA RETUR / PERMANENKAN ================= -->
+<div class="panel">
+<h3><span>🔄 Transfer Approved - Bisa Retur / Permanenkan</span></h3>
+<br>
+<p style="color:var(--pg-faint);font-size:13px;margin:0 0 12px;">
+Daftar transfer yang gudang Anda ajukan sebagai gudang tujuan, sudah Approved, dan MASIH ada sisa qty yang belum diretur / dipermanenkan sepenuhnya. Begitu semua item pada satu transfer sudah habis diretur/dipermanenkan (atau memang tidak diajukan sama sekali), transfer itu tidak lagi muncul di sini — cukup terlihat di Riwayat Transfer Barang di bawah.
+</p>
+<div class="table-responsive">
+<table id="tableBisaTindakan">
+<thead>
+<tr>
+<th width="60">No</th>
+<th width="150">No Transfer</th>
+<th width="110">Tanggal</th>
+<th width="140">Gudang Asal</th>
+<th width="90">Item</th>
+<th width="180">Aksi</th>
+</tr>
+</thead>
+<tbody></tbody>
+</table>
+</div>
+</div>
+
 <!-- ================= HISTORI ================= -->
 <div class="panel">
 <h3><span>📋 Riwayat Transfer Barang</span></h3>
@@ -881,14 +905,13 @@ style="width:100%;padding:10px;margin-bottom:12px;border:1px solid var(--pg-bord
 <th width="90">Item</th>
 <th width="110">Status</th>
 <th width="150">Dibuat Oleh</th>
-<th width="200">Aksi</th>
 </tr>
 </thead>
 <tbody></tbody>
 </table>
 </div>
 <p style="color:var(--pg-faint);font-size:12.5px;margin:10px 0 0;">
-Tombol <b>↩ Retur</b> dan <b>🔒 Permanenkan</b> muncul di transfer berstatus Approved selama masih ada sisa qty yang belum diretur / dipermanenkan. Kuota sisa dibagi antara kedua tindakan tersebut untuk barang yang sama.
+Transfer yang masih bisa diretur / dipermanenkan tampil di panel <b>🔄 Transfer Approved - Bisa Retur / Permanenkan</b> di atas. Tabel riwayat ini murni catatan histori tanpa tombol aksi.
 </p>
 </div>
 
