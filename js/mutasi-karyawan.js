@@ -182,10 +182,13 @@ if (form) {
 
         try {
 
-            // 1. Simpan record mutasi ke tabel riwayat
+            // Simpan pengajuan mutasi dengan status Pending. Data karyawan
+            // di master_karyawan BELUM diubah di sini — baru diterapkan
+            // setelah gudang tujuan meng-approve (lihat approveMutasi()).
             const { error: errMutasi } = await supabaseClient
                 .from("mutasi_karyawan")
                 .insert([{
+                    karyawan_id      : karyawanAktif.id,
                     nik              : karyawanAktif.nik,
                     nama             : karyawanAktif.nama,
                     gudang_lama      : karyawanAktif.gudang    ?? "-",
@@ -195,25 +198,19 @@ if (form) {
                     departemen_baru  : departemenBaru,
                     jabatan_baru     : jabatanBaru,
                     keterangan       : keterangan || null,
+                    gudang_pengaju   : user.gudang,
+                    status           : "Pending",
                     created_by       : user.nama,
                     tanggal_mutasi   : new Date().toISOString()
                 }]);
 
             if (errMutasi) throw errMutasi;
 
-            // 2. Update data karyawan di master_karyawan
-            const { error: errUpdate } = await supabaseClient
-                .from("master_karyawan")
-                .update({
-                    gudang     : gudangBaru,
-                    departemen : departemenBaru,
-                    jabatan    : jabatanBaru
-                })
-                .eq("id", karyawanAktif.id);
-
-            if (errUpdate) throw errUpdate;
-
-            alert(`Mutasi karyawan ${karyawanAktif.nama} berhasil disimpan.`);
+            alert(
+                `Pengajuan mutasi karyawan ${karyawanAktif.nama} berhasil dikirim, ` +
+                `menunggu approval dari gudang ${gudangBaru}. Data karyawan akan ` +
+                `berubah setelah disetujui.`
+            );
 
             // Reset form
             form.reset();
@@ -221,6 +218,7 @@ if (form) {
             document.getElementById("btnSimpan").disabled = true;
 
             await loadRiwayat();
+            await loadPendingMutasiApproval();
 
         } catch (err) {
             console.error(err);
@@ -235,6 +233,219 @@ if (form) {
 }
 
 // =====================================
+// PANEL MUTASI MASUK - MENUNGGU APPROVAL
+// (dilihat & disetujui oleh admin gudang TUJUAN / gudang_baru)
+// =====================================
+
+function badgeStatusMutasi(status) {
+
+    const map = {
+        "Pending"   : `<span class="status-badge status-pending">⏳ Pending</span>`,
+        "Disetujui" : `<span class="status-badge status-approved">✅ Disetujui</span>`,
+        "Ditolak"   : `<span class="status-badge status-rejected">❌ Ditolak</span>`
+    };
+
+    return map[status] || `<span class="status-badge">${status}</span>`;
+
+}
+
+async function loadPendingMutasiApproval() {
+
+    const tbody = document.querySelector("#tablePendingMutasi tbody");
+
+    const labelEl = document.getElementById("labelGudangUserMutasi");
+
+    if (labelEl) labelEl.textContent = (user && user.gudang) ? user.gudang : "-";
+
+    if (!tbody) return;
+
+    try {
+
+        if (!user || !user.gudang) return;
+
+        const { data, error } = await supabaseClient
+            .from("mutasi_karyawan")
+            .select("*")
+            .eq("gudang_baru", user.gudang)
+            .eq("status", "Pending")
+            .order("tanggal_mutasi", { ascending: false });
+
+        if (error) throw error;
+
+        tampilkanPendingMutasiApproval(data || []);
+
+    } catch (err) {
+        console.error(err);
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="7" class="empty-state">
+                    ⚠ Gagal memuat data: ${err.message}
+                </td>
+            </tr>
+        `;
+    }
+
+}
+
+function tampilkanPendingMutasiApproval(data) {
+
+    const tbody = document.querySelector("#tablePendingMutasi tbody");
+
+    if (!tbody) return;
+
+    if (data.length === 0) {
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="7" class="empty-state">
+                    Tidak ada pengajuan mutasi yang menunggu approval.
+                </td>
+            </tr>
+        `;
+        return;
+    }
+
+    let no = 1;
+
+    tbody.innerHTML = data.map(item => {
+
+        const dari = [item.gudang_lama, item.departemen_lama, item.jabatan_lama]
+            .filter(v => v && v !== "-").join(" · ");
+
+        const ke = [item.gudang_baru, item.departemen_baru, item.jabatan_baru]
+            .filter(v => v && v !== "-").join(" · ");
+
+        return `
+            <tr>
+                <td>${no++}</td>
+                <td><span class="nik-pill">${item.nik}</span></td>
+                <td><strong>${item.nama}</strong></td>
+                <td style="color:var(--mu-muted);font-size:13px;">${dari || "-"}</td>
+                <td style="font-size:13px;">${ke || "-"}</td>
+                <td style="color:var(--mu-muted);font-size:13px;">${item.created_by ?? "-"}</td>
+                <td>
+                    <button class="btn-approve" onclick="approveMutasi(${item.id})">✅ Approve</button>
+                    <button class="btn-reject" onclick="rejectMutasi(${item.id})">❌ Reject</button>
+                </td>
+            </tr>
+        `;
+
+    }).join("");
+
+}
+
+// =====================================
+// APPROVE MUTASI
+// Perubahan data karyawan (gudang/departemen/jabatan) BARU diterapkan
+// ke master_karyawan di sini, bukan saat pengajuan dibuat.
+// =====================================
+
+async function approveMutasi(id) {
+
+    if (!confirm("Approve mutasi ini? Data karyawan akan langsung diperbarui.")) return;
+
+    try {
+
+        const { data: mutasi, error: errMutasi } = await supabaseClient
+            .from("mutasi_karyawan")
+            .select("*")
+            .eq("id", id)
+            .single();
+
+        if (errMutasi) throw errMutasi;
+
+        if (mutasi.status !== "Pending") {
+            alert("Pengajuan ini sudah tidak berstatus Pending.");
+            return;
+        }
+
+        // Terapkan perubahan ke master_karyawan. Diutamakan lewat
+        // karyawan_id (kalau tersimpan), fallback ke NIK untuk data lama
+        // yang belum punya kolom karyawan_id.
+        let query = supabaseClient.from("master_karyawan").update({
+            gudang     : mutasi.gudang_baru,
+            departemen : mutasi.departemen_baru,
+            jabatan    : mutasi.jabatan_baru
+        });
+
+        query = mutasi.karyawan_id
+            ? query.eq("id", mutasi.karyawan_id)
+            : query.eq("nik", mutasi.nik);
+
+        const { error: errUpdateKaryawan } = await query;
+
+        if (errUpdateKaryawan) throw errUpdateKaryawan;
+
+        const { error: errUpdateStatus } = await supabaseClient
+            .from("mutasi_karyawan")
+            .update({
+                status      : "Disetujui",
+                approved_by : user.nama,
+                approved_at : new Date().toISOString()
+            })
+            .eq("id", id);
+
+        if (errUpdateStatus) throw errUpdateStatus;
+
+        alert("Mutasi disetujui. Data karyawan sudah diperbarui.");
+
+        await loadPendingMutasiApproval();
+        await loadRiwayat();
+
+    } catch (err) {
+        console.error(err);
+        alert(err.message);
+    }
+
+}
+
+// =====================================
+// REJECT MUTASI
+// Data karyawan TIDAK berubah sama sekali.
+// =====================================
+
+async function rejectMutasi(id) {
+
+    if (!confirm("Tolak pengajuan mutasi ini? Data karyawan tetap seperti semula.")) return;
+
+    try {
+
+        const { data: mutasi, error: errMutasi } = await supabaseClient
+            .from("mutasi_karyawan")
+            .select("*")
+            .eq("id", id)
+            .single();
+
+        if (errMutasi) throw errMutasi;
+
+        if (mutasi.status !== "Pending") {
+            alert("Pengajuan ini sudah tidak berstatus Pending.");
+            return;
+        }
+
+        const { error: errUpdateStatus } = await supabaseClient
+            .from("mutasi_karyawan")
+            .update({
+                status      : "Ditolak",
+                approved_by : user.nama,
+                approved_at : new Date().toISOString()
+            })
+            .eq("id", id);
+
+        if (errUpdateStatus) throw errUpdateStatus;
+
+        alert("Pengajuan mutasi ditolak.");
+
+        await loadPendingMutasiApproval();
+        await loadRiwayat();
+
+    } catch (err) {
+        console.error(err);
+        alert(err.message);
+    }
+
+}
+
+// =====================================
 // LOAD RIWAYAT MUTASI
 // =====================================
 
@@ -244,7 +455,7 @@ async function loadRiwayat() {
 
     tbody.innerHTML = `
         <tr>
-            <td colspan="7" class="loading-state">
+            <td colspan="8" class="loading-state">
                 <span class="spinner"></span> Memuat riwayat...
             </td>
         </tr>
@@ -267,7 +478,7 @@ async function loadRiwayat() {
         if (allMutasi.length === 0) {
             tbody.innerHTML = `
                 <tr>
-                    <td colspan="7" class="empty-state">
+                    <td colspan="8" class="empty-state">
                         Belum ada riwayat mutasi.
                     </td>
                 </tr>
@@ -298,6 +509,7 @@ async function loadRiwayat() {
                     <td style="color:var(--mu-muted);font-size:13px;">${dari || "-"}</td>
                     <td style="font-size:13px;">${ke || "-"}</td>
                     <td style="color:var(--mu-muted);font-size:13px;">${item.keterangan ?? "-"}</td>
+                    <td>${badgeStatusMutasi(item.status ?? "Disetujui")}</td>
                     <td style="color:var(--mu-muted);font-size:13px;white-space:nowrap;">${tanggal}</td>
                     <td style="color:var(--mu-muted);font-size:13px;">${item.created_by ?? "-"}</td>
                 </tr>
@@ -308,7 +520,7 @@ async function loadRiwayat() {
         console.error(err);
         tbody.innerHTML = `
             <tr>
-                <td colspan="7" class="empty-state">
+                <td colspan="8" class="empty-state">
                     ⚠ Gagal memuat riwayat: ${err.message}
                 </td>
             </tr>
@@ -343,6 +555,7 @@ function exportExcel() {
         "DEPARTEMEN BARU" : item.departemen_baru ?? "-",
         "JABATAN BARU"    : item.jabatan_baru ?? "-",
         "KETERANGAN"      : item.keterangan ?? "-",
+        "STATUS"          : item.status ?? "Disetujui",
         "TANGGAL"         : item.tanggal_mutasi
             ? new Date(item.tanggal_mutasi).toLocaleDateString("id-ID")
             : "-",
@@ -359,10 +572,36 @@ function exportExcel() {
 }
 
 // =====================================
+// REALTIME STATUS MUTASI
+// =====================================
+
+function aktifkanRealtimeMutasi() {
+
+    supabaseClient
+
+    .channel("realtime-mutasi-karyawan")
+
+    .on("postgres_changes",
+        { event: "*", schema: "public", table: "mutasi_karyawan" },
+        () => {
+
+            loadPendingMutasiApproval();
+            loadRiwayat();
+
+        }
+    )
+
+    .subscribe();
+
+}
+
+// =====================================
 // LOAD AWAL
 // =====================================
 
 document.addEventListener("DOMContentLoaded", async () => {
     await Promise.all([ loadDepartemen(), loadJabatan() ]);
     await loadRiwayat();
+    await loadPendingMutasiApproval();
+    aktifkanRealtimeMutasi();
 });
