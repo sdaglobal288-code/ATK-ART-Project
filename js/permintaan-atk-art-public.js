@@ -5,6 +5,14 @@
 // karyawan & stok barang muncul (difilter sesuai gudang yang dipilih).
 // Tidak ada sessionStorage/login sama sekali di halaman ini.
 //
+// PERUBAHAN UTAMA vs versi sebelumnya:
+// Permintaan yang diajukan lewat halaman ini TIDAK langsung memotong stok.
+// Setiap baris disimpan ke barang_keluar dengan status "Menunggu Approval".
+// Admin gudang yang memvalidasi (menyetujui/menolak) lewat panel Validasi
+// di permintaan-atk-art.html — stok baru terpotong SETELAH disetujui.
+// Setelah berhasil diajukan, tombol "Ajukan Permintaan" digantikan tombol
+// "Cetak Bukti Permintaan" + "Buat Permintaan Baru".
+//
 // PENTING (harus disiapkan di sisi Supabase, tidak bisa dilakukan dari sini):
 // Karena halaman ini publik (anon key, tanpa auth), Row Level Security (RLS)
 // di Supabase WAJIB diatur supaya anon hanya bisa:
@@ -12,15 +20,19 @@
 //     nik, departemen, jabatan, gudang, status — jangan ekspos kolom sensitif
 //     lain seperti gaji dsb bila ada, sebaiknya lewat VIEW khusus)
 //   - SELECT master_barang (katalog barang, aman)
-//   - SELECT + UPDATE + INSERT stok_gudang (perlu untuk baca & potong stok)
-//   - INSERT saja ke barang_keluar (JANGAN beri akses SELECT publik ke
-//     riwayat transaksi — makanya panel histori sengaja tidak ada di versi
-//     publik ini)
-// Tanpa policy ini, mematikan syarat login sama saja membuka akses baca/tulis
-// tabel-tabel tsb ke siapa saja yang tahu URL-nya.
+//   - SELECT stok_gudang (perlu untuk menampilkan sisa stok — publik TIDAK
+//     lagi butuh akses UPDATE/INSERT stok_gudang, karena pemotongan stok
+//     sekarang hanya dilakukan oleh admin saat approve)
+//   - INSERT saja ke barang_keluar (JANGAN beri akses SELECT/UPDATE/DELETE
+//     publik ke riwayat transaksi — makanya panel histori & validasi
+//     sengaja tidak ada di versi publik ini)
+//
+// MIGRASI DATABASE YANG DIPERLUKAN:
+//   alter table barang_keluar add column if not exists status text default 'Disetujui';
 // =====================================
 
 const TAG_FORM = "[Formulir Permintaan ATK/ART]";
+const STATUS_MENUNGGU = "Menunggu Approval";
 
 let selectedGudang = "";
 let masterBarangList = [];
@@ -157,28 +169,6 @@ async function ambilStokLive(barangId){
 
     if(error){ console.error(error); return 0; }
     return data ? (Number(data.stok) || 0) : 0;
-}
-
-async function kurangiStokGudang(barangId, qty){
-    if(!qty || !selectedGudang) return;
-
-    const { data: existing, error: selErr } = await supabaseClient
-        .from("stok_gudang").select("*")
-        .eq("barang_id", barangId).eq("gudang", selectedGudang).maybeSingle();
-
-    if(selErr) throw selErr;
-
-    const stokBaru = (existing ? (Number(existing.stok) || 0) : 0) - qty;
-
-    if(existing){
-        const { error: updErr } = await supabaseClient.from("stok_gudang")
-            .update({ stok: stokBaru, updated_at: new Date().toISOString() }).eq("id", existing.id);
-        if(updErr) throw updErr;
-    } else {
-        const { error: insErr } = await supabaseClient.from("stok_gudang")
-            .insert([{ barang_id: barangId, gudang: selectedGudang, stok: stokBaru, updated_at: new Date().toISOString() }]);
-        if(insErr) throw insErr;
-    }
 }
 
 // =====================================
@@ -526,8 +516,6 @@ function validasiDanAmbilItem(){
 
 // =====================================
 // CETAK FORM — replika presisi form kertas FHCS-003
-// (dipakai baik oleh tombol "Cetak Form" manual maupun otomatis
-//  setelah "Simpan & Kurangi Stok" berhasil)
 // =====================================
 
 function formatTanggalIndo(tglStr){
@@ -537,12 +525,15 @@ function formatTanggalIndo(tglStr){
     return `${d.getDate()} ${bulan[d.getMonth()]} ${d.getFullYear()}`;
 }
 
-function siapkanAreaCetak(karyawan, tanggal, itemList){
+function siapkanAreaCetak(karyawan, tanggal, itemList, statusNote){
     document.getElementById("pNamaKaryawan").textContent = karyawan.nama;
     document.getElementById("pDepartemen").textContent = karyawan.departemen || "-";
     document.getElementById("pNik").textContent = karyawan.nik || "-";
     document.getElementById("pTanggal").textContent = tanggal ? formatTanggalIndo(tanggal) : "-";
     document.getElementById("pCity").textContent = `Surabaya, ${formatTanggalIndo(tanggal)}`;
+
+    const elStatusNote = document.getElementById("pStatusNote");
+    if(elStatusNote) elStatusNote.textContent = statusNote || "";
 
     const tbody = document.getElementById("printRowsBody");
     tbody.innerHTML = "";
@@ -575,18 +566,53 @@ document.getElementById("btnCetakForm").addEventListener("click", function(){
     if(!itemList){ return; }
     if(!karyawan){ alert("Pilih Nama Karyawan terlebih dahulu sebelum mencetak."); return; }
 
-    siapkanAreaCetak(karyawan, tanggal, itemList);
+    siapkanAreaCetak(karyawan, tanggal, itemList, "");
     window.print();
 });
 
 // =====================================
-// SIMPAN PERMINTAAN (insert ke barang_keluar + potong stok otomatis)
-// Setelah berhasil simpan, form otomatis memicu dialog cetak (print),
-// supaya karyawan langsung bisa mencetak bukti & minta tanda tangan basah,
-// tanpa harus klik tombol "Cetak Form" secara terpisah.
+// AJUKAN PERMINTAAN (insert ke barang_keluar berstatus "Menunggu Approval")
+// Stok TIDAK dipotong di sini — admin gudang yang memotong stok saat
+// menyetujui permintaan lewat panel Validasi. Setelah berhasil disimpan,
+// tombol "Ajukan Permintaan" digantikan tombol "Cetak Bukti Permintaan"
+// + "Buat Permintaan Baru".
 // =====================================
 
 const form = document.getElementById("formPermintaan");
+const btnSimpanEl = document.getElementById("btnSimpan");
+const btnCetakUlangSimpanEl = document.getElementById("btnCetakUlangSimpan");
+const btnPermintaanBaruEl = document.getElementById("btnPermintaanBaru");
+
+let itemTerakhirDisimpan = null;
+let karyawanTerakhirDisimpan = null;
+let tanggalTerakhirDisimpan = null;
+
+function tampilkanModeSetelahSimpan(){
+    if(btnSimpanEl) btnSimpanEl.style.display = "none";
+    if(btnCetakUlangSimpanEl) btnCetakUlangSimpanEl.style.display = "inline-block";
+    if(btnPermintaanBaruEl) btnPermintaanBaruEl.style.display = "inline-block";
+}
+
+function tampilkanModeSebelumSimpan(){
+    if(btnSimpanEl) btnSimpanEl.style.display = "inline-block";
+    if(btnCetakUlangSimpanEl) btnCetakUlangSimpanEl.style.display = "none";
+    if(btnPermintaanBaruEl) btnPermintaanBaruEl.style.display = "none";
+}
+
+if(btnCetakUlangSimpanEl){
+    btnCetakUlangSimpanEl.addEventListener("click", function(){
+        if(!itemTerakhirDisimpan || !karyawanTerakhirDisimpan) return;
+        siapkanAreaCetak(karyawanTerakhirDisimpan, tanggalTerakhirDisimpan, itemTerakhirDisimpan, "Status: MENUNGGU APPROVAL ADMIN GUDANG");
+        window.print();
+    });
+}
+
+if(btnPermintaanBaruEl){
+    btnPermintaanBaruEl.addEventListener("click", function(){
+        tampilkanModeSebelumSimpan();
+        resetFormItemDanKaryawanSaja();
+    });
+}
 
 form.addEventListener("submit", async function(e){
     e.preventDefault();
@@ -603,11 +629,14 @@ form.addEventListener("submit", async function(e){
         const itemList = validasiDanAmbilItem();
         if(!itemList) return;
 
+        // sanity-check stok saat ini supaya karyawan tahu lebih awal kalau
+        // stok kemungkinan tidak cukup — pengecekan FINAL tetap dilakukan
+        // admin saat approve (karena stok bisa berubah sebelum divalidasi)
         for(const { barang, qty } of itemList){
             const stokSaatIni = await ambilStokLive(barang.id);
             if(qty > stokSaatIni){
-                alert(`Stok "${barang.nama_barang}" tidak mencukupi.\n\nStok tersedia : ${stokSaatIni}`);
-                return;
+                const lanjut = confirm(`Stok "${barang.nama_barang}" saat ini hanya ${stokSaatIni}, sementara Anda meminta ${qty}.\n\nPermintaan tetap bisa diajukan dan akan ditinjau admin. Lanjutkan?`);
+                if(!lanjut) return;
             }
         }
 
@@ -619,24 +648,26 @@ form.addEventListener("submit", async function(e){
             kode_barang: barang.kode_barang, nama_barang: barang.nama_barang,
             kategori: barang.kategori, satuan: barang.satuan,
             qty, keterangan: (keteranganRow ? `${keteranganRow} ` : "") + TAG_FORM,
-            gudang: selectedGudang, created_by: karyawan.nama
+            gudang: selectedGudang, created_by: karyawan.nama,
+            status: STATUS_MENUNGGU
         }));
 
         const { error } = await supabaseClient.from("barang_keluar").insert(transaksiList);
         if(error) throw error;
 
-        for(const { barang, qty } of itemList){ await kurangiStokGudang(barang.id, qty); }
+        // simpan konteks untuk tombol "Cetak Bukti Permintaan"
+        itemTerakhirDisimpan = itemList;
+        karyawanTerakhirDisimpan = karyawan;
+        tanggalTerakhirDisimpan = tanggal;
 
-        // Siapkan & munculkan dialog cetak SEBELUM form direset, supaya data
-        // yang tercetak masih data yang barusan disimpan.
-        siapkanAreaCetak(karyawan, tanggal, itemList);
+        // langsung tampilkan dialog cetak juga, supaya karyawan bisa
+        // langsung mencetak bukti pengajuan & minta tanda tangan basah
+        siapkanAreaCetak(karyawan, tanggal, itemList, "Status: MENUNGGU APPROVAL ADMIN GUDANG");
         window.print();
 
-        alert(`Permintaan ATK/ART berhasil disimpan & stok otomatis terpotong (${transaksiList.length} item).`);
+        alert(`Permintaan ATK/ART berhasil diajukan (${transaksiList.length} item) dan menunggu approval admin gudang. Stok akan terpotong otomatis setelah disetujui.`);
 
-        resetFormItemDanKaryawanSaja();
-        await loadStokGudang();
-        refreshSemuaBarisStok();
+        tampilkanModeSetelahSimpan();
 
     }catch(err){ console.error(err); alert(err.message); }
 });
@@ -652,6 +683,8 @@ function resetForm(){
     const wrapper = document.getElementById("detailRows");
     wrapper.innerHTML = "";
     tambahBarisBarang();
+
+    tampilkanModeSebelumSimpan();
 }
 
 // reset setelah submit sukses — gudang yang sedang dipilih TETAP dipertahankan
