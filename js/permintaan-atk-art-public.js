@@ -525,7 +525,65 @@ function validasiDanAmbilItem(){
 }
 
 // =====================================
+// CETAK FORM — replika presisi form kertas FHCS-003
+// (dipakai baik oleh tombol "Cetak Form" manual maupun otomatis
+//  setelah "Simpan & Kurangi Stok" berhasil)
+// =====================================
+
+function formatTanggalIndo(tglStr){
+    if(!tglStr) return "..........................";
+    const bulan = ["Januari","Februari","Maret","April","Mei","Juni","Juli","Agustus","September","Oktober","November","Desember"];
+    const d = new Date(tglStr + "T00:00:00");
+    return `${d.getDate()} ${bulan[d.getMonth()]} ${d.getFullYear()}`;
+}
+
+function siapkanAreaCetak(karyawan, tanggal, itemList){
+    document.getElementById("pNamaKaryawan").textContent = karyawan.nama;
+    document.getElementById("pDepartemen").textContent = karyawan.departemen || "-";
+    document.getElementById("pNik").textContent = karyawan.nik || "-";
+    document.getElementById("pTanggal").textContent = tanggal ? formatTanggalIndo(tanggal) : "-";
+    document.getElementById("pCity").textContent = `Surabaya, ${formatTanggalIndo(tanggal)}`;
+
+    const tbody = document.getElementById("printRowsBody");
+    tbody.innerHTML = "";
+
+    itemList.forEach(({ barang, qty, keteranganRow }, idx)=>{
+        tbody.innerHTML += `
+            <tr>
+                <td>${idx + 1}</td>
+                <td class="left">${barang.nama_barang}</td>
+                <td>${barang.kategori || "-"}</td>
+                <td>${qty}</td>
+                <td>${barang.satuan}</td>
+                <td class="left">${keteranganRow || "-"}</td>
+            </tr>`;
+    });
+
+    // baris kosong tambahan supaya tampilan tabel tetap mirip form kertas asli
+    for(let i = itemList.length; i < Math.max(5, itemList.length); i++){
+        tbody.innerHTML += `<tr><td>&nbsp;</td><td></td><td></td><td></td><td></td><td></td></tr>`;
+    }
+}
+
+document.getElementById("btnCetakForm").addEventListener("click", function(){
+
+    const karyawanId = karyawanHidden.value;
+    const karyawan = karyawanId ? findKaryawanById(karyawanId) : null;
+    const tanggal = document.getElementById("tanggal").value;
+
+    const itemList = validasiDanAmbilItem();
+    if(!itemList){ return; }
+    if(!karyawan){ alert("Pilih Nama Karyawan terlebih dahulu sebelum mencetak."); return; }
+
+    siapkanAreaCetak(karyawan, tanggal, itemList);
+    window.print();
+});
+
+// =====================================
 // SIMPAN PERMINTAAN (insert ke barang_keluar + potong stok otomatis)
+// Setelah berhasil simpan, form otomatis memicu dialog cetak (print),
+// supaya karyawan langsung bisa mencetak bukti & minta tanda tangan basah,
+// tanpa harus klik tombol "Cetak Form" secara terpisah.
 // =====================================
 
 const form = document.getElementById("formPermintaan");
@@ -569,6 +627,11 @@ form.addEventListener("submit", async function(e){
 
         for(const { barang, qty } of itemList){ await kurangiStokGudang(barang.id, qty); }
 
+        // Siapkan & munculkan dialog cetak SEBELUM form direset, supaya data
+        // yang tercetak masih data yang barusan disimpan.
+        siapkanAreaCetak(karyawan, tanggal, itemList);
+        window.print();
+
         alert(`Permintaan ATK/ART berhasil disimpan & stok otomatis terpotong (${transaksiList.length} item).`);
 
         resetFormItemDanKaryawanSaja();
@@ -604,56 +667,6 @@ function resetFormItemDanKaryawanSaja(){
     wrapper.innerHTML = "";
     tambahBarisBarang();
 }
-
-// =====================================
-// CETAK FORM — replika presisi form kertas FHCS-003
-// =====================================
-
-function formatTanggalIndo(tglStr){
-    if(!tglStr) return "..........................";
-    const bulan = ["Januari","Februari","Maret","April","Mei","Juni","Juli","Agustus","September","Oktober","November","Desember"];
-    const d = new Date(tglStr + "T00:00:00");
-    return `${d.getDate()} ${bulan[d.getMonth()]} ${d.getFullYear()}`;
-}
-
-document.getElementById("btnCetakForm").addEventListener("click", function(){
-
-    const karyawanId = karyawanHidden.value;
-    const karyawan = karyawanId ? findKaryawanById(karyawanId) : null;
-    const tanggal = document.getElementById("tanggal").value;
-
-    const itemList = validasiDanAmbilItem();
-    if(!itemList){ return; }
-    if(!karyawan){ alert("Pilih Nama Karyawan terlebih dahulu sebelum mencetak."); return; }
-
-    document.getElementById("pNamaKaryawan").textContent = karyawan.nama;
-    document.getElementById("pDepartemen").textContent = karyawan.departemen || "-";
-    document.getElementById("pNik").textContent = karyawan.nik || "-";
-    document.getElementById("pTanggal").textContent = tanggal ? formatTanggalIndo(tanggal) : "-";
-    document.getElementById("pCity").textContent = `Surabaya, ${formatTanggalIndo(tanggal)}`;
-
-    const tbody = document.getElementById("printRowsBody");
-    tbody.innerHTML = "";
-
-    itemList.forEach(({ barang, qty, keteranganRow }, idx)=>{
-        tbody.innerHTML += `
-            <tr>
-                <td>${idx + 1}</td>
-                <td class="left">${barang.nama_barang}</td>
-                <td>${barang.kategori || "-"}</td>
-                <td>${qty}</td>
-                <td>${barang.satuan}</td>
-                <td class="left">${keteranganRow || "-"}</td>
-            </tr>`;
-    });
-
-    // baris kosong tambahan supaya tampilan tabel tetap mirip form kertas asli
-    for(let i = itemList.length; i < Math.max(5, itemList.length); i++){
-        tbody.innerHTML += `<tr><td>&nbsp;</td><td></td><td></td><td></td><td></td><td></td></tr>`;
-    }
-
-    window.print();
-});
 
 // =====================================
 // INIT
