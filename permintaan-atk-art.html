@@ -9,7 +9,6 @@
 <link rel="stylesheet" href="css/dashboard.css">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
 <script src="supabase/config.js"></script>
-<script src="js/theme.js"></script>
 <style>
     :root{
         --pg-border:#334155;
@@ -24,16 +23,6 @@
         --pg-soft-bg:rgba(255,255,255,.02);
         --pg-soft-bg-2:rgba(255,255,255,.06);
     }
-    body.theme-blue-raden-saleh{
-        --pg-border:#2f66a4; --pg-bg-1:#12447f; --pg-text:#ffffff; --pg-faint:#bcd2ef;
-        --pg-bg-2:#0a2c56; --pg-border-2:#123a66; --pg-hover-bg:#175490; --pg-label:#bcd2ef;
-        --pg-bg-3:#0b2f5c; --pg-soft-bg:rgba(255,255,255,.05); --pg-soft-bg-2:rgba(255,255,255,.1);
-    }
-    body.theme-red-margomulyo{
-        --pg-border:#b5626f; --pg-bg-1:#7a1f2c; --pg-text:#fdf2f3; --pg-faint:#e3b3ba;
-        --pg-bg-2:#5c1a22; --pg-border-2:#6e2029; --pg-hover-bg:#9e2a3b; --pg-label:#f0d9dc;
-        --pg-bg-3:#611b23; --pg-soft-bg:rgba(255,255,255,.05); --pg-soft-bg-2:rgba(255,255,255,.1);
-    }
 
     /* =========================================================
        Semua rule di bawah ini di-scope ke #formPermintaanWrap
@@ -43,8 +32,26 @@
        elemen umum (div, panel, dst).
     ========================================================= */
     #formPermintaanWrap, #formPermintaanWrap *{ box-sizing:border-box; }
+    #formPermintaanWrap.panel{ overflow:visible !important; }
+    body .content{ overflow:visible !important; }
     #formPermintaanWrap form{ display:block !important; }
     #formPermintaanWrap form > *{ display:block !important; }
+
+    /* ===== pilih gudang (gerbang pertama sebelum isi apapun) ===== */
+    .gudang-gate{
+        display:flex !important; align-items:center; gap:10px; margin-bottom:22px;
+        padding:14px 16px; border:1px solid var(--pg-border); border-radius:10px; background:var(--pg-soft-bg);
+    }
+    .gudang-gate label{ font-size:13.5px; color:var(--pg-label); flex:0 0 130px; }
+    .gudang-gate select{
+        flex:1; width:100%; padding:9px 10px; border-radius:6px;
+        border:1px solid var(--pg-border); background:var(--pg-bg-1);
+        color:var(--pg-text); font-family:inherit; font-size:13.5px; box-sizing:border-box;
+    }
+    .gudang-gate select:focus{ outline:none; border-color:#3b82f6; box-shadow:0 0 0 3px rgba(59,130,246,.2); }
+    .gudang-hint{ font-size:11.5px; color:var(--pg-faint); margin:-14px 0 20px; }
+
+    #formBodyGated[data-locked="1"]{ opacity:.4; pointer-events:none; filter:grayscale(.3); }
 
     /* ===== combo & input bits ===== */
     .combo-wrapper{ position:relative; width:100%; display:block !important; }
@@ -71,7 +78,7 @@
 
     /* ===== "kop surat" digital — meniru kop form kertas FHCS-003 ===== */
     .form-kop{
-        display:flex !important; justify-content:space-between; align-items:center;
+        display:flex !important; justify-content:space-between; align-items:flex-end;
         border-bottom:2px solid var(--pg-border); padding-bottom:14px; margin-bottom:6px; gap:12px;
     }
     .form-kop-brand{ display:flex !important; flex-direction:column; align-items:flex-start; gap:2px; }
@@ -97,7 +104,7 @@
     }
     table.tabel-barang th{
         background:var(--pg-soft-bg-2); color:var(--pg-label);
-        font-size:11.5px; font-weight:700; letter-spacing:.03em; text-transform:uppercase;
+        font-size:11.5px; font-weight:700; letter-spacing:.03em; text-transform:capitalize;
         padding:10px 8px; border:1px solid var(--pg-border); text-align:center;
     }
     table.tabel-barang td{
@@ -165,6 +172,8 @@
         .header-grid{ grid-template-columns:1fr; }
         .signature-grid{ grid-template-columns:1fr; gap:30px; }
         .header-field label{ flex:0 0 120px; }
+        .gudang-gate{ flex-direction:column; align-items:stretch !important; }
+        .gudang-gate label{ flex:0 0 auto; }
     }
 
     /* ===== tampilan cetak: replika presisi form kertas FHCS-003 ===== */
@@ -179,7 +188,7 @@
             background:#fff; color:#000; padding:0; margin:0; font-family:"Times New Roman", Times, serif; font-size:11pt !important;
         }
         #printArea, #printArea *{ color:#000 !important; font-family:"Times New Roman", Times, serif !important; }
-        .print-kop{ display:flex; justify-content:space-between; align-items:flex-end; padding-bottom:4px; margin-bottom:10px; }
+        .print-kop{ display:flex; justify-content:space-between; align-items:flex-start; padding-bottom:4px; margin-bottom:10px; }
         .print-kop-brand{ display:flex; flex-direction:column; align-items:flex-start; gap:2px; }
         .print-kop-brand img.brand-logo{ height:38px; width:auto; }
         .print-kop-brand p.brand-name{ margin:0; font-size:11pt !important; font-weight:700; letter-spacing:.03em; }
@@ -209,7 +218,6 @@
 <h2>📝 Permintaan / Pengambilan ATK &amp; ART</h2>
 <br>
 <div class="toolbar">
-<button class="btn-dashboard" onclick="location.href='dashboard.html'">🏠 Dashboard</button>
 <button type="button" class="btn-print" id="btnCetakForm">🖨️ Cetak Form</button>
 </div>
 <br>
@@ -227,14 +235,24 @@
 
     <h3 class="form-title">PERMINTAAN / PENGAMBILAN ATK &amp; ART</h3>
 
+    <div class="gudang-gate">
+        <label for="gudangSelect">Pilih Gudang</label>
+        <select id="gudangSelect" required>
+            <option value="">-- Pilih Gudang --</option>
+        </select>
+    </div>
+    <p class="gudang-hint">Pilih gudang tempat Anda bertugas terlebih dahulu — daftar nama karyawan &amp; stok barang akan menyesuaikan otomatis.</p>
+
     <form id="formPermintaan">
+
+        <div id="formBodyGated" data-locked="1">
 
         <div class="header-grid">
             <div class="header-field">
                 <label>Nama Karyawan</label><span class="colon">:</span>
                 <div class="combo-wrapper">
                     <input type="text" id="karyawanSearch" class="combo-input"
-                        placeholder="-- Cari Nama Karyawan --" autocomplete="off" required>
+                        placeholder="-- Pilih gudang dahulu --" autocomplete="off" required disabled>
                     <input type="hidden" id="karyawanId">
                     <div class="combo-dropdown" id="karyawanDropdown"></div>
                 </div>
@@ -292,31 +310,9 @@
             <button type="submit" id="btnSimpan">💾 Simpan &amp; Kurangi Stok</button>
         </div>
 
-    </form>
-</div>
-<br>
+        </div><!-- /#formBodyGated -->
 
-<div class="panel">
-<h3>Histori Permintaan ATK &amp; ART</h3>
-<br>
-<input type="text" id="search" placeholder="🔍 Cari histori permintaan..."
-    style="width:100%;padding:10px;margin-bottom:10px;border:1px solid var(--pg-border);border-radius:8px;background:var(--pg-bg-1);color:var(--pg-text);box-sizing:border-box;">
-<table id="tablePermintaan">
-<thead>
-<tr>
-<th width="60">No</th>
-<th width="120">Tanggal</th>
-<th width="200">Nama Karyawan</th>
-<th width="150">Departemen</th>
-<th>Jenis Barang</th>
-<th width="90">Jumlah</th>
-<th width="90">Satuan</th>
-<th width="200">Keterangan</th>
-<th width="160">Diinput Oleh</th>
-</tr>
-</thead>
-<tbody></tbody>
-</table>
+    </form>
 </div>
 </div>
 
@@ -359,6 +355,6 @@
     <div class="print-rev">Rev.00</div>
 </div>
 
-<script src="js/permintaan-atk-art.js"></script>
+<script src="js/permintaan-atk-art-public.js"></script>
 </body>
 </html>
