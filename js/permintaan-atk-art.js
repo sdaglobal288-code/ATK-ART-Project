@@ -1,0 +1,636 @@
+// =====================================
+// PERMINTAAN / PENGAMBILAN ATK & ART  (FHCS-003)
+// Form ini secara fungsi = "Barang Keluar" (memotong stok gudang secara
+// otomatis) tapi tampilannya dibuat meniru form kertas FHCS-003, lengkap
+// dengan mode cetak yang presisi sama seperti form aslinya.
+//
+// Data disimpan ke tabel "barang_keluar" yang sudah ada (supaya otomatis
+// ikut ke Laporan & Histori Barang Keluar), ditandai lewat tag khusus di
+// kolom keterangan supaya bisa difilter di histori halaman ini.
+// =====================================
+
+const TAG_FORM = "[Formulir Permintaan ATK/ART]";
+
+const user = JSON.parse(sessionStorage.getItem("user"));
+if (!user) { location.href = "login.html"; }
+
+let masterBarangList = [];
+let masterKaryawanList = [];
+let stokGudangMap = new Map();
+
+// =====================================
+// LOAD MASTER KARYAWAN (difilter sesuai gudang yang login)
+// =====================================
+
+async function loadKaryawan() {
+    try {
+        const { data, error } = await supabaseClient
+            .from("master_karyawan")
+            .select("*")
+            .eq("status", "Aktif")
+            .eq("gudang", user.gudang)
+            .order("nama");
+
+        if (error) throw error;
+        masterKaryawanList = data || [];
+    } catch (err) {
+        console.error(err);
+        alert(err.message);
+    }
+}
+
+function findKaryawanById(id){
+    return masterKaryawanList.find(k => String(k.id) === String(id));
+}
+
+// =====================================
+// LOAD MASTER BARANG + STOK GUDANG
+// =====================================
+
+async function loadBarang(){
+    try{
+        const { data, error } = await supabaseClient
+            .from("master_barang")
+            .select("*")
+            .order("nama_barang");
+
+        if(error) throw error;
+        masterBarangList = data || [];
+        refreshSemuaBarisStok();
+    }
+    catch(err){ console.error(err); alert(err.message); }
+}
+
+function findBarangById(id){
+    return masterBarangList.find(b => String(b.id) === String(id));
+}
+
+async function loadStokGudang(){
+    try{
+        const { data, error } = await supabaseClient
+            .from("stok_gudang")
+            .select("barang_id, stok")
+            .eq("gudang", user.gudang);
+
+        if(error) throw error;
+
+        stokGudangMap = new Map();
+        (data || []).forEach(row=>{
+            stokGudangMap.set(String(row.barang_id), Number(row.stok) || 0);
+        });
+    }
+    catch(err){ console.error(err); alert(err.message); }
+}
+
+async function ambilStokLive(barangId){
+    if(!barangId) return 0;
+
+    const { data, error } = await supabaseClient
+        .from("stok_gudang")
+        .select("stok")
+        .eq("barang_id", barangId)
+        .eq("gudang", user.gudang)
+        .maybeSingle();
+
+    if(error){ console.error(error); return 0; }
+    return data ? (Number(data.stok) || 0) : 0;
+}
+
+async function kurangiStokGudang(barangId, qty){
+    if(!qty) return;
+
+    const { data: existing, error: selErr } = await supabaseClient
+        .from("stok_gudang").select("*")
+        .eq("barang_id", barangId).eq("gudang", user.gudang).maybeSingle();
+
+    if(selErr) throw selErr;
+
+    const stokBaru = (existing ? (Number(existing.stok) || 0) : 0) - qty;
+
+    if(existing){
+        const { error: updErr } = await supabaseClient.from("stok_gudang")
+            .update({ stok: stokBaru, updated_at: new Date().toISOString() }).eq("id", existing.id);
+        if(updErr) throw updErr;
+    } else {
+        const { error: insErr } = await supabaseClient.from("stok_gudang")
+            .insert([{ barang_id: barangId, gudang: user.gudang, stok: stokBaru, updated_at: new Date().toISOString() }]);
+        if(insErr) throw insErr;
+    }
+}
+
+// =====================================
+// NAVIGASI KEYBOARD UNTUK COMBOBOX (helper umum)
+// =====================================
+
+function highlightComboItem(dropdown, activeIndex){
+    const items = dropdown.querySelectorAll(".combo-item");
+    items.forEach((el, idx)=>{
+        if(idx === activeIndex){
+            el.classList.add("combo-active");
+            el.style.background = "rgba(255,255,255,0.15)";
+            el.scrollIntoView({ block: "nearest" });
+        } else {
+            el.classList.remove("combo-active");
+            el.style.background = "";
+        }
+    });
+}
+
+function getComboActiveIndex(dropdown){
+    const items = Array.from(dropdown.querySelectorAll(".combo-item"));
+    return items.findIndex(el => el.classList.contains("combo-active"));
+}
+
+// =====================================
+// COMBOBOX NAMA KARYAWAN
+// =====================================
+
+const karyawanSearchInput = document.getElementById("karyawanSearch");
+const karyawanHidden      = document.getElementById("karyawanId");
+const karyawanDropdown    = document.getElementById("karyawanDropdown");
+const departemenInput    = document.getElementById("departemen");
+const nikInput           = document.getElementById("nik");
+
+function setupKaryawanCombo(){
+
+    function render(keyword){
+        const kw = (keyword || "").trim().toLowerCase();
+        const filtered = masterKaryawanList.filter(k => k.nama.toLowerCase().includes(kw));
+
+        karyawanDropdown.innerHTML = "";
+
+        if(filtered.length === 0){
+            karyawanDropdown.innerHTML = `<div class="combo-empty">Nama tidak ditemukan</div>`;
+        } else {
+            filtered.forEach(k=>{
+                const item = document.createElement("div");
+                item.className = "combo-item";
+                item.textContent = k.nama;
+                item.dataset.id = k.id;
+                karyawanDropdown.appendChild(item);
+            });
+        }
+
+        karyawanDropdown.classList.add("show");
+    }
+
+    karyawanSearchInput.addEventListener("input", function(){
+        karyawanHidden.value = "";
+        departemenInput.value = "";
+        nikInput.value = "";
+        render(this.value);
+    });
+
+    karyawanSearchInput.addEventListener("focus", function(){ render(this.value); });
+
+    karyawanSearchInput.addEventListener("keydown", function(e){
+        if(!karyawanDropdown.classList.contains("show")) return;
+        const items = karyawanDropdown.querySelectorAll(".combo-item");
+        if(items.length === 0) return;
+
+        let activeIndex = getComboActiveIndex(karyawanDropdown);
+
+        if(e.key === "ArrowDown"){
+            e.preventDefault();
+            activeIndex = (activeIndex + 1) % items.length;
+            highlightComboItem(karyawanDropdown, activeIndex);
+        } else if(e.key === "ArrowUp"){
+            e.preventDefault();
+            activeIndex = (activeIndex - 1 + items.length) % items.length;
+            highlightComboItem(karyawanDropdown, activeIndex);
+        } else if(e.key === "Enter"){
+            if(activeIndex >= 0 && activeIndex < items.length){
+                e.preventDefault();
+                items[activeIndex].click();
+            }
+        } else if(e.key === "Escape"){
+            karyawanDropdown.classList.remove("show");
+        }
+    });
+
+    karyawanDropdown.addEventListener("click", function(e){
+        const item = e.target.closest(".combo-item");
+        if(!item || !item.dataset.id) return;
+        const karyawan = findKaryawanById(item.dataset.id);
+        if(!karyawan) return;
+        karyawanHidden.value = karyawan.id;
+        karyawanSearchInput.value = karyawan.nama;
+        departemenInput.value = karyawan.departemen;
+        nikInput.value = karyawan.nik;
+        karyawanDropdown.classList.remove("show");
+    });
+
+    document.addEventListener("click", function(e){
+        if(!e.target.closest(".combo-wrapper")) karyawanDropdown.classList.remove("show");
+    });
+}
+
+setupKaryawanCombo();
+
+// =====================================
+// BARIS DETAIL BARANG (No | Jenis Barang | Type | Jumlah | Satuan | Keterangan | hapus)
+// =====================================
+
+function templateBarisBarang(){
+    return `
+        <span class="row-no"></span>
+        <div class="combo-wrapper">
+            <input type="text" class="combo-input input-barang-search"
+                placeholder="-- Cari Jenis Barang --" autocomplete="off" required>
+            <input type="hidden" class="input-barang-id">
+            <div class="combo-dropdown input-barang-dropdown"></div>
+        </div>
+        <input type="text" class="input-readonly input-kategori" placeholder="Type" readonly>
+        <div>
+            <input type="number" class="input-qty" placeholder="Jumlah" min="1" required>
+            <span class="stok-mini">Stok: -</span>
+        </div>
+        <input type="text" class="input-readonly input-satuan" placeholder="Satuan" readonly>
+        <input type="text" class="input-ket-row input-keterangan-row" placeholder="Keterangan (opsional)">
+        <button type="button" class="btn-hapus-baris" title="Hapus baris">✕</button>
+    `;
+}
+
+function renomorBaris(){
+    document.querySelectorAll("#detailRows .detail-row").forEach((row, idx)=>{
+        row.querySelector(".row-no").textContent = idx + 1;
+    });
+}
+
+function tambahBarisBarang(){
+    const wrapper = document.getElementById("detailRows");
+    const row = document.createElement("div");
+    row.className = "detail-row";
+    row.dataset.stok = "0";
+    row.innerHTML = templateBarisBarang();
+    wrapper.appendChild(row);
+    renomorBaris();
+    return row;
+}
+
+function hapusBarisBarang(row){
+    const wrapper = document.getElementById("detailRows");
+    if(wrapper.children.length <= 1){ alert("Minimal harus ada 1 baris barang."); return; }
+    row.remove();
+    renomorBaris();
+}
+
+function renderBarangDropdown(row, keyword){
+    const dropdown = row.querySelector(".input-barang-dropdown");
+    const kw = (keyword || "").trim().toLowerCase();
+    const filtered = masterBarangList.filter(b => b.nama_barang.toLowerCase().includes(kw));
+
+    dropdown.innerHTML = "";
+
+    if(filtered.length === 0){
+        dropdown.innerHTML = `<div class="combo-empty">Barang tidak ditemukan</div>`;
+    } else {
+        filtered.forEach(b=>{
+            const item = document.createElement("div");
+            item.className = "combo-item";
+            item.textContent = b.nama_barang;
+            item.dataset.id = b.id;
+            dropdown.appendChild(item);
+        });
+    }
+
+    dropdown.classList.add("show");
+}
+
+function refreshStokBaris(row){
+    const mini = row.querySelector(".stok-mini");
+    const barangId = row.querySelector(".input-barang-id").value;
+
+    if(!barangId){
+        mini.textContent = "Stok: -";
+        mini.classList.remove("warning");
+        row.dataset.stok = "0";
+        return;
+    }
+
+    const stok = stokGudangMap.get(String(barangId)) || 0;
+    row.dataset.stok = stok;
+    mini.textContent = `Stok tersedia: ${stok}`;
+    validasiQtyBaris(row);
+}
+
+function refreshSemuaBarisStok(){
+    document.querySelectorAll("#detailRows .detail-row").forEach(row=>{
+        if(row.querySelector(".input-barang-id").value) refreshStokBaris(row);
+    });
+}
+
+function validasiQtyBaris(row){
+    const mini = row.querySelector(".stok-mini");
+    const qtyInput = row.querySelector(".input-qty");
+    const stok = parseInt(row.dataset.stok || "0");
+    const qty = parseInt(qtyInput.value || "0");
+
+    if(qty > stok){ row.classList.add("qty-invalid"); mini.classList.add("warning"); }
+    else { row.classList.remove("qty-invalid"); mini.classList.remove("warning"); }
+}
+
+// Event delegation untuk semua baris barang
+const detailWrapper = document.getElementById("detailRows");
+
+detailWrapper.addEventListener("input", function(e){
+    const row = e.target.closest(".detail-row");
+    if(!row) return;
+
+    if(e.target.classList.contains("input-barang-search")){
+        row.querySelector(".input-barang-id").value = "";
+        row.querySelector(".input-kategori").value = "";
+        row.querySelector(".input-satuan").value = "";
+        renderBarangDropdown(row, e.target.value);
+        refreshStokBaris(row);
+    }
+
+    if(e.target.classList.contains("input-qty")){
+        validasiQtyBaris(row);
+    }
+});
+
+detailWrapper.addEventListener("focus", function(e){
+    if(e.target.classList.contains("input-barang-search")){
+        const row = e.target.closest(".detail-row");
+        renderBarangDropdown(row, e.target.value);
+    }
+}, true);
+
+detailWrapper.addEventListener("keydown", function(e){
+    const row = e.target.closest(".detail-row");
+    if(!row) return;
+    if(!e.target.classList.contains("input-barang-search")) return;
+
+    const dropdown = row.querySelector(".input-barang-dropdown");
+    if(!dropdown.classList.contains("show")) return;
+
+    const items = dropdown.querySelectorAll(".combo-item");
+    if(items.length === 0) return;
+
+    let activeIndex = getComboActiveIndex(dropdown);
+
+    if(e.key === "ArrowDown"){
+        e.preventDefault();
+        activeIndex = (activeIndex + 1) % items.length;
+        highlightComboItem(dropdown, activeIndex);
+    } else if(e.key === "ArrowUp"){
+        e.preventDefault();
+        activeIndex = (activeIndex - 1 + items.length) % items.length;
+        highlightComboItem(dropdown, activeIndex);
+    } else if(e.key === "Enter"){
+        if(activeIndex >= 0 && activeIndex < items.length){
+            e.preventDefault();
+            items[activeIndex].click();
+        }
+    } else if(e.key === "Escape"){
+        dropdown.classList.remove("show");
+    }
+});
+
+detailWrapper.addEventListener("click", function(e){
+
+    const hapusBtn = e.target.closest(".btn-hapus-baris");
+    if(hapusBtn){
+        hapusBarisBarang(hapusBtn.closest(".detail-row"));
+        return;
+    }
+
+    const item = e.target.closest(".combo-item");
+    if(item && item.dataset.id){
+        const row = item.closest(".detail-row");
+        const barang = findBarangById(item.dataset.id);
+        if(!barang) return;
+        row.querySelector(".input-barang-id").value = barang.id;
+        row.querySelector(".input-barang-search").value = barang.nama_barang;
+        row.querySelector(".input-kategori").value = barang.kategori;
+        row.querySelector(".input-satuan").value = barang.satuan;
+        row.querySelector(".input-barang-dropdown").classList.remove("show");
+        refreshStokBaris(row);
+    }
+});
+
+document.addEventListener("click", function(e){
+    if(!e.target.closest(".combo-wrapper")){
+        document.querySelectorAll(".input-barang-dropdown.show").forEach(d => d.classList.remove("show"));
+    }
+});
+
+document.getElementById("btnTambahBaris").addEventListener("click", tambahBarisBarang);
+
+// =====================================
+// VALIDASI + AMBIL ITEM DARI FORM
+// =====================================
+
+function validasiDanAmbilItem(){
+    const rows = document.querySelectorAll("#detailRows .detail-row");
+    if(rows.length === 0){ alert("Tambahkan minimal 1 barang."); return null; }
+
+    const itemList = [];
+    const kodeSudahDipakai = new Set();
+
+    for(const row of rows){
+        const barangId = row.querySelector(".input-barang-id").value;
+        const qty = parseInt(row.querySelector(".input-qty").value);
+        const keteranganRow = row.querySelector(".input-keterangan-row").value.trim();
+
+        if(barangId === ""){ alert("Ada baris yang belum memilih Jenis Barang dari daftar pencarian."); return null; }
+        if(!qty || qty <= 0){ alert("Jumlah harus lebih dari 0 untuk setiap barang."); return null; }
+
+        const barang = findBarangById(barangId);
+        if(!barang){ alert("Data barang tidak ditemukan, coba muat ulang halaman."); return null; }
+
+        if(kodeSudahDipakai.has(barang.kode_barang)){
+            alert(`Barang "${barang.nama_barang}" dipilih lebih dari satu kali.\nGabungkan jumlahnya dalam satu baris saja.`);
+            return null;
+        }
+
+        kodeSudahDipakai.add(barang.kode_barang);
+        itemList.push({ barang, qty, keteranganRow });
+    }
+
+    return itemList;
+}
+
+// =====================================
+// SIMPAN PERMINTAAN (insert ke barang_keluar + potong stok otomatis)
+// =====================================
+
+const form = document.getElementById("formPermintaan");
+
+form.addEventListener("submit", async function(e){
+    e.preventDefault();
+
+    try{
+        const karyawanId = karyawanHidden.value;
+        if(karyawanId === ""){ alert("Pilih Nama Karyawan dari daftar pencarian."); return; }
+
+        const karyawan = findKaryawanById(karyawanId);
+        if(!karyawan){ alert("Data karyawan tidak ditemukan, coba muat ulang halaman."); return; }
+
+        const itemList = validasiDanAmbilItem();
+        if(!itemList) return;
+
+        for(const { barang, qty } of itemList){
+            const stokSaatIni = await ambilStokLive(barang.id);
+            if(qty > stokSaatIni){
+                alert(`Stok "${barang.nama_barang}" tidak mencukupi.\n\nStok tersedia : ${stokSaatIni}`);
+                return;
+            }
+        }
+
+        const tanggal = document.getElementById("tanggal").value;
+
+        const transaksiList = itemList.map(({ barang, qty, keteranganRow }) => ({
+            tanggal, nik: karyawan.nik, nama_pengambil: karyawan.nama,
+            departemen: karyawan.departemen, jabatan: karyawan.jabatan,
+            kode_barang: barang.kode_barang, nama_barang: barang.nama_barang,
+            kategori: barang.kategori, satuan: barang.satuan,
+            qty, keterangan: (keteranganRow ? `${keteranganRow} ` : "") + TAG_FORM,
+            gudang: user.gudang, created_by: user.nama
+        }));
+
+        const { error } = await supabaseClient.from("barang_keluar").insert(transaksiList);
+        if(error) throw error;
+
+        for(const { barang, qty } of itemList){ await kurangiStokGudang(barang.id, qty); }
+
+        alert(`Permintaan ATK/ART berhasil disimpan & stok otomatis terpotong (${transaksiList.length} item).`);
+
+        resetForm();
+        await loadBarang();
+        await loadStokGudang();
+        refreshSemuaBarisStok();
+        await loadHistori();
+
+    }catch(err){ console.error(err); alert(err.message); }
+});
+
+function resetForm(){
+    karyawanHidden.value = "";
+    karyawanSearchInput.value = "";
+    departemenInput.value = "";
+    nikInput.value = "";
+    document.getElementById("tanggal").value = new Date().toISOString().split("T")[0];
+
+    const wrapper = document.getElementById("detailRows");
+    wrapper.innerHTML = "";
+    tambahBarisBarang();
+}
+
+// =====================================
+// CETAK FORM — replika presisi form kertas FHCS-003
+// =====================================
+
+function formatTanggalIndo(tglStr){
+    if(!tglStr) return "..........................";
+    const bulan = ["Januari","Februari","Maret","April","Mei","Juni","Juli","Agustus","September","Oktober","November","Desember"];
+    const d = new Date(tglStr + "T00:00:00");
+    return `${d.getDate()} ${bulan[d.getMonth()]} ${d.getFullYear()}`;
+}
+
+document.getElementById("btnCetakForm").addEventListener("click", function(){
+
+    const karyawanId = karyawanHidden.value;
+    const karyawan = karyawanId ? findKaryawanById(karyawanId) : null;
+    const tanggal = document.getElementById("tanggal").value;
+
+    const itemList = validasiDanAmbilItem();
+    if(!itemList){ return; }
+    if(!karyawan){ alert("Pilih Nama Karyawan terlebih dahulu sebelum mencetak."); return; }
+
+    document.getElementById("pNamaKaryawan").textContent = karyawan.nama;
+    document.getElementById("pDepartemen").textContent = karyawan.departemen || "-";
+    document.getElementById("pNik").textContent = karyawan.nik || "-";
+    document.getElementById("pTanggal").textContent = tanggal ? formatTanggalIndo(tanggal) : "-";
+    document.getElementById("pCity").textContent = `Surabaya, ${formatTanggalIndo(tanggal)}`;
+
+    const tbody = document.getElementById("printRowsBody");
+    tbody.innerHTML = "";
+
+    itemList.forEach(({ barang, qty, keteranganRow }, idx)=>{
+        tbody.innerHTML += `
+            <tr>
+                <td>${idx + 1}</td>
+                <td class="left">${barang.nama_barang}</td>
+                <td>${barang.kategori || "-"}</td>
+                <td>${qty}</td>
+                <td>${barang.satuan}</td>
+                <td class="left">${keteranganRow || "-"}</td>
+            </tr>`;
+    });
+
+    // baris kosong tambahan supaya tampilan tabel tetap mirip form kertas asli
+    for(let i = itemList.length; i < Math.max(5, itemList.length); i++){
+        tbody.innerHTML += `<tr><td>&nbsp;</td><td></td><td></td><td></td><td></td><td></td></tr>`;
+    }
+
+    window.print();
+});
+
+// =====================================
+// HISTORI PERMINTAAN ATK & ART
+// (ambil dari tabel barang_keluar, difilter berdasarkan tag form ini)
+// =====================================
+
+async function loadHistori(){
+    try{
+        const { data, error } = await supabaseClient
+            .from("barang_keluar")
+            .select("*")
+            .eq("gudang", user.gudang)
+            .ilike("keterangan", `%${TAG_FORM}%`)
+            .order("id", { ascending: false });
+
+        if(error) throw error;
+        renderHistori(data || []);
+    }
+    catch(err){ console.error(err); alert(err.message); }
+}
+
+function renderHistori(list){
+    const tbody = document.querySelector("#tablePermintaan tbody");
+    tbody.innerHTML = "";
+
+    if(list.length === 0){
+        tbody.innerHTML = `<tr><td colspan="9" style="text-align:center;color:var(--pg-faint);font-style:italic;padding:20px;">Belum ada data permintaan ATK/ART.</td></tr>`;
+        return;
+    }
+
+    list.forEach((item, idx)=>{
+        const keteranganBersih = (item.keterangan || "").replace(TAG_FORM, "").trim() || "-";
+        tbody.innerHTML += `
+        <tr>
+            <td>${idx + 1}</td>
+            <td>${item.tanggal}</td>
+            <td>${item.nama_pengambil}</td>
+            <td>${item.departemen}</td>
+            <td>${item.nama_barang}</td>
+            <td>-${item.qty}</td>
+            <td>${item.satuan}</td>
+            <td>${keteranganBersih}</td>
+            <td>${item.created_by}</td>
+        </tr>`;
+    });
+}
+
+function cariHistori(){
+    const keyword = document.getElementById("search").value.toLowerCase();
+    document.querySelectorAll("#tablePermintaan tbody tr").forEach(row=>{
+        row.style.display = row.innerText.toLowerCase().includes(keyword) ? "" : "none";
+    });
+}
+document.getElementById("search").addEventListener("keyup", cariHistori);
+
+// =====================================
+// INIT
+// =====================================
+
+(async function init(){
+    document.getElementById("tanggal").value = new Date().toISOString().split("T")[0];
+    tambahBarisBarang();
+
+    await Promise.all([loadKaryawan(), loadBarang(), loadStokGudang()]);
+    refreshSemuaBarisStok();
+    await loadHistori();
+})();
