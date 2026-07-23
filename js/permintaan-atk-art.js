@@ -2,9 +2,14 @@
 // PERMINTAAN / PENGAMBILAN ATK & ART  (FHCS-003) — VERSI ADMIN
 // -------------------------------------------------------------------------
 // Dipakai oleh permintaan-atk-art.html baik saat dibuka sebagai link publik
-// (tanpa sesi admin -> sidebar/topbar/panel validasi/riwayat disembunyikan
+// (tanpa sesi admin -> toolbar Dashboard/panel validasi/riwayat disembunyikan
 // otomatis oleh CSS) maupun saat dibuka dari dalam sistem admin (ada
-// sessionStorage "user" -> sidebar/topbar/panel validasi/riwayat muncul).
+// sessionStorage "user" -> toolbar Dashboard/panel validasi/riwayat muncul).
+//
+// CATATAN TAMPILAN: mode admin halaman ini SEKARANG disamakan dengan
+// barang-masuk.html — tidak ada lagi sidebar/topbar replika sendiri.
+// Navigasi kembali ke sistem cukup lewat tombol "🏠 Dashboard" di toolbar
+// (class admin-only), sama seperti halaman Barang Masuk / Barang Keluar.
 //
 // PERUBAHAN UTAMA vs versi sebelumnya:
 // 1) Permintaan dari form TIDAK langsung memotong stok. Baris yang di-insert
@@ -56,9 +61,9 @@ let stokGudangMap = new Map();
 // SESI ADMIN (opsional) — halaman ini TETAP bisa diakses tanpa login
 // sama sekali (link publik). Kalau kebetulan dibuka dari dalam sistem
 // admin (ada sessionStorage "user", diisi oleh halaman login.html),
-// maka sidebar + topbar + panel "Validasi" + "Riwayat Pengajuan"
-// otomatis muncul. Kalau tidak ada sesi, semuanya tetap tersembunyi
-// (tampilan publik asli).
+// maka toolbar Dashboard + panel "Validasi" + "Riwayat Pengajuan"
+// otomatis muncul (persis seperti Barang Masuk). Kalau tidak ada sesi,
+// semuanya tetap tersembunyi (tampilan publik asli).
 // =====================================
 
 let adminUser = null;
@@ -78,22 +83,6 @@ function initAdminChrome(){
     if(!adminUser) return;
 
     document.body.classList.add("is-admin-view");
-
-    const namaUser   = adminUser?.nama || adminUser?.name || adminUser?.username || "Admin";
-    const gudangUser = adminUser?.gudang || adminUser?.role || "—";
-
-    const elNama = document.getElementById("userName");
-    const elGudang = document.getElementById("userGudang");
-    const elAvatar = document.getElementById("avatarInit");
-    if(elNama) elNama.textContent = namaUser;
-    if(elGudang) elGudang.textContent = gudangUser;
-    if(elAvatar) elAvatar.textContent = namaUser.charAt(0).toUpperCase();
-
-    const elTanggal = document.getElementById("topbarDate");
-    if(elTanggal){
-        const now = new Date();
-        elTanggal.textContent = now.toLocaleDateString("id-ID", { weekday:"long", day:"numeric", month:"long", year:"numeric" });
-    }
 
     // panel validasi & riwayat hanya relevan & hanya dimuat kalau memang
     // sedang tampil (admin)
