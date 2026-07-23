@@ -1,26 +1,51 @@
 // =====================================
-// PERMINTAAN / PENGAMBILAN ATK & ART  (FHCS-003) — VERSI PUBLIK, TANPA LOGIN
+// PERMINTAAN / PENGAMBILAN ATK & ART  (FHCS-003) — VERSI ADMIN
 // -------------------------------------------------------------------------
-// Alur: karyawan buka link ini -> pilih GUDANG dulu -> baru daftar nama
-// karyawan & stok barang muncul (difilter sesuai gudang yang dipilih).
-// Tidak ada sessionStorage/login sama sekali di halaman ini.
+// Dipakai oleh permintaan-atk-art.html baik saat dibuka sebagai link publik
+// (tanpa sesi admin -> sidebar/topbar/panel validasi/riwayat disembunyikan
+// otomatis oleh CSS) maupun saat dibuka dari dalam sistem admin (ada
+// sessionStorage "user" -> sidebar/topbar/panel validasi/riwayat muncul).
 //
-// PENTING (harus disiapkan di sisi Supabase, tidak bisa dilakukan dari sini):
-// Karena halaman ini publik (anon key, tanpa auth), Row Level Security (RLS)
-// di Supabase WAJIB diatur supaya anon hanya bisa:
-//   - SELECT master_karyawan (idealnya hanya kolom yang dipakai: id, nama,
-//     nik, departemen, jabatan, gudang, status — jangan ekspos kolom sensitif
-//     lain seperti gaji dsb bila ada, sebaiknya lewat VIEW khusus)
+// PERUBAHAN UTAMA vs versi sebelumnya:
+// 1) Permintaan dari form TIDAK langsung memotong stok. Baris yang di-insert
+//    ke barang_keluar diberi status "Menunggu Approval". Stok baru dipotong
+//    saat admin menekan "Setujui" di panel Validasi.
+// 2) Tombol "Simpan & Kurangi Stok" berganti nama jadi "Ajukan Permintaan",
+//    dan begitu berhasil disimpan, tombol itu disembunyikan lalu digantikan
+//    tombol "Cetak Bukti Permintaan" + "Buat Permintaan Baru".
+// 3) Panel baru "Validasi Permintaan ATK/ART" (admin-only) menampilkan semua
+//    baris berstatus "Menunggu Approval", dengan input jumlah yang bisa
+//    dikoreksi admin sebelum disetujui, tombol ✅ Setujui (memotong stok +
+//    ubah status jadi "Disetujui") dan ❌ Tolak (ubah status jadi "Ditolak",
+//    tanpa memotong stok).
+// 4) Panel "Riwayat Pengajuan" sekarang menampilkan kolom Status, dan tombol
+//    Edit/Hapus hanya aktif untuk baris berstatus "Disetujui" (karena hanya
+//    baris itu yang sudah memotong stok).
+//
+// PENTING — MIGRASI DATABASE YANG DIPERLUKAN (Supabase):
+//   alter table barang_keluar add column if not exists status text default 'Disetujui';
+// Baris lama (bukan dari form ATK/ART) akan otomatis dianggap "Disetujui"
+// lewat fallback `row.status || 'Disetujui'` di kode ini, tapi sebaiknya
+// tetap jalankan migrasi di atas supaya kolom status benar-benar ada.
+//
+// PENTING — RLS (Row Level Security) Supabase:
+// Karena halaman ini bisa diakses publik (anon key, tanpa auth), RLS WAJIB:
+//   - SELECT master_karyawan (idealnya hanya kolom yang dipakai)
 //   - SELECT master_barang (katalog barang, aman)
-//   - SELECT + UPDATE + INSERT stok_gudang (perlu untuk baca & potong stok)
-//   - INSERT saja ke barang_keluar (JANGAN beri akses SELECT publik ke
-//     riwayat transaksi — makanya panel histori sengaja tidak ada di versi
-//     publik ini)
-// Tanpa policy ini, mematikan syarat login sama saja membuka akses baca/tulis
-// tabel-tabel tsb ke siapa saja yang tahu URL-nya.
+//   - SELECT + UPDATE + INSERT stok_gudang (baca & potong stok saat approve)
+//   - INSERT ke barang_keluar dari publik (status akan "Menunggu Approval")
+//   - UPDATE + DELETE ke barang_keluar (diperlukan fitur validasi/edit/hapus
+//     riwayat) — karena aplikasi ini TIDAK memakai Supabase Auth (login
+//     custom lewat sessionStorage), anon key yang sama dipakai baik oleh
+//     halaman publik maupun admin. Pertimbangkan menambahkan proteksi di
+//     level lain (mis. Supabase Edge Function / RPC dengan service role)
+//     bila validasi/edit/hapus perlu benar-benar dibatasi hanya untuk admin.
 // =====================================
 
 const TAG_FORM = "[Formulir Permintaan ATK/ART]";
+const STATUS_MENUNGGU = "Menunggu Approval";
+const STATUS_DISETUJUI = "Disetujui";
+const STATUS_DITOLAK = "Ditolak";
 
 let selectedGudang = "";
 let masterBarangList = [];
@@ -31,8 +56,9 @@ let stokGudangMap = new Map();
 // SESI ADMIN (opsional) — halaman ini TETAP bisa diakses tanpa login
 // sama sekali (link publik). Kalau kebetulan dibuka dari dalam sistem
 // admin (ada sessionStorage "user", diisi oleh halaman login.html),
-// maka sidebar + topbar + panel "Riwayat Pengajuan" otomatis muncul.
-// Kalau tidak ada sesi, semuanya tetap tersembunyi (tampilan publik asli).
+// maka sidebar + topbar + panel "Validasi" + "Riwayat Pengajuan"
+// otomatis muncul. Kalau tidak ada sesi, semuanya tetap tersembunyi
+// (tampilan publik asli).
 // =====================================
 
 let adminUser = null;
@@ -69,8 +95,13 @@ function initAdminChrome(){
         elTanggal.textContent = now.toLocaleDateString("id-ID", { weekday:"long", day:"numeric", month:"long", year:"numeric" });
     }
 
-    // panel riwayat hanya relevan & hanya dimuat kalau memang sedang tampil (admin)
+    // panel validasi & riwayat hanya relevan & hanya dimuat kalau memang
+    // sedang tampil (admin)
+    muatValidasiPermintaan();
     muatRiwayatPengajuan();
+
+    const btnMuatUlangValidasi = document.getElementById("btnMuatUlangValidasi");
+    if(btnMuatUlangValidasi) btnMuatUlangValidasi.addEventListener("click", muatValidasiPermintaan);
 
     const btnMuatUlang = document.getElementById("btnMuatUlangRiwayat");
     if(btnMuatUlang) btnMuatUlang.addEventListener("click", muatRiwayatPengajuan);
@@ -213,28 +244,6 @@ async function ambilStokLive(barangId){
 
     if(error){ console.error(error); return 0; }
     return data ? (Number(data.stok) || 0) : 0;
-}
-
-async function kurangiStokGudang(barangId, qty){
-    if(!qty || !selectedGudang) return;
-
-    const { data: existing, error: selErr } = await supabaseClient
-        .from("stok_gudang").select("*")
-        .eq("barang_id", barangId).eq("gudang", selectedGudang).maybeSingle();
-
-    if(selErr) throw selErr;
-
-    const stokBaru = (existing ? (Number(existing.stok) || 0) : 0) - qty;
-
-    if(existing){
-        const { error: updErr } = await supabaseClient.from("stok_gudang")
-            .update({ stok: stokBaru, updated_at: new Date().toISOString() }).eq("id", existing.id);
-        if(updErr) throw updErr;
-    } else {
-        const { error: insErr } = await supabaseClient.from("stok_gudang")
-            .insert([{ barang_id: barangId, gudang: selectedGudang, stok: stokBaru, updated_at: new Date().toISOString() }]);
-        if(insErr) throw insErr;
-    }
 }
 
 // =====================================
@@ -582,8 +591,6 @@ function validasiDanAmbilItem(){
 
 // =====================================
 // CETAK FORM — replika presisi form kertas FHCS-003
-// (dipakai baik oleh tombol "Cetak Form" manual maupun otomatis
-//  setelah "Simpan & Kurangi Stok" berhasil)
 // =====================================
 
 function formatTanggalIndo(tglStr){
@@ -593,12 +600,15 @@ function formatTanggalIndo(tglStr){
     return `${d.getDate()} ${bulan[d.getMonth()]} ${d.getFullYear()}`;
 }
 
-function siapkanAreaCetak(karyawan, tanggal, itemList){
+function siapkanAreaCetak(karyawan, tanggal, itemList, statusNote){
     document.getElementById("pNamaKaryawan").textContent = karyawan.nama;
     document.getElementById("pDepartemen").textContent = karyawan.departemen || "-";
     document.getElementById("pNik").textContent = karyawan.nik || "-";
     document.getElementById("pTanggal").textContent = tanggal ? formatTanggalIndo(tanggal) : "-";
     document.getElementById("pCity").textContent = `Surabaya, ${formatTanggalIndo(tanggal)}`;
+
+    const elStatusNote = document.getElementById("pStatusNote");
+    if(elStatusNote) elStatusNote.textContent = statusNote || "";
 
     const tbody = document.getElementById("printRowsBody");
     tbody.innerHTML = "";
@@ -631,18 +641,52 @@ document.getElementById("btnCetakForm").addEventListener("click", function(){
     if(!itemList){ return; }
     if(!karyawan){ alert("Pilih Nama Karyawan terlebih dahulu sebelum mencetak."); return; }
 
-    siapkanAreaCetak(karyawan, tanggal, itemList);
+    siapkanAreaCetak(karyawan, tanggal, itemList, "");
     window.print();
 });
 
 // =====================================
-// SIMPAN PERMINTAAN (insert ke barang_keluar + potong stok otomatis)
-// Setelah berhasil simpan, form otomatis memicu dialog cetak (print),
-// supaya karyawan langsung bisa mencetak bukti & minta tanda tangan basah,
-// tanpa harus klik tombol "Cetak Form" secara terpisah.
+// AJUKAN PERMINTAAN (insert ke barang_keluar berstatus "Menunggu Approval")
+// Stok TIDAK langsung dipotong — baru dipotong saat admin menekan Setujui
+// di panel Validasi. Setelah berhasil, tombol "Ajukan Permintaan"
+// digantikan tombol "Cetak Bukti Permintaan" + "Buat Permintaan Baru".
 // =====================================
 
 const form = document.getElementById("formPermintaan");
+const btnSimpanEl = document.getElementById("btnSimpan");
+const btnCetakUlangSimpanEl = document.getElementById("btnCetakUlangSimpan");
+const btnPermintaanBaruEl = document.getElementById("btnPermintaanBaru");
+
+let itemTerakhirDisimpan = null;
+let karyawanTerakhirDisimpan = null;
+let tanggalTerakhirDisimpan = null;
+
+function tampilkanModeSetelahSimpan(){
+    if(btnSimpanEl) btnSimpanEl.style.display = "none";
+    if(btnCetakUlangSimpanEl) btnCetakUlangSimpanEl.style.display = "inline-block";
+    if(btnPermintaanBaruEl) btnPermintaanBaruEl.style.display = "inline-block";
+}
+
+function tampilkanModeSebelumSimpan(){
+    if(btnSimpanEl) btnSimpanEl.style.display = "inline-block";
+    if(btnCetakUlangSimpanEl) btnCetakUlangSimpanEl.style.display = "none";
+    if(btnPermintaanBaruEl) btnPermintaanBaruEl.style.display = "none";
+}
+
+if(btnCetakUlangSimpanEl){
+    btnCetakUlangSimpanEl.addEventListener("click", function(){
+        if(!itemTerakhirDisimpan || !karyawanTerakhirDisimpan) return;
+        siapkanAreaCetak(karyawanTerakhirDisimpan, tanggalTerakhirDisimpan, itemTerakhirDisimpan, "Status: MENUNGGU APPROVAL ADMIN GUDANG");
+        window.print();
+    });
+}
+
+if(btnPermintaanBaruEl){
+    btnPermintaanBaruEl.addEventListener("click", function(){
+        tampilkanModeSebelumSimpan();
+        resetFormItemDanKaryawanSaja();
+    });
+}
 
 form.addEventListener("submit", async function(e){
     e.preventDefault();
@@ -659,11 +703,14 @@ form.addEventListener("submit", async function(e){
         const itemList = validasiDanAmbilItem();
         if(!itemList) return;
 
+        // sanity-check stok saat ini supaya karyawan tahu lebih awal kalau
+        // stok kemungkinan tidak cukup — pengecekan FINAL tetap dilakukan
+        // admin saat approve (karena stok bisa berubah sebelum divalidasi)
         for(const { barang, qty } of itemList){
             const stokSaatIni = await ambilStokLive(barang.id);
             if(qty > stokSaatIni){
-                alert(`Stok "${barang.nama_barang}" tidak mencukupi.\n\nStok tersedia : ${stokSaatIni}`);
-                return;
+                const lanjut = confirm(`Stok "${barang.nama_barang}" saat ini hanya ${stokSaatIni}, sementara Anda meminta ${qty}.\n\nPermintaan tetap bisa diajukan dan akan ditinjau admin. Lanjutkan?`);
+                if(!lanjut) return;
             }
         }
 
@@ -675,24 +722,31 @@ form.addEventListener("submit", async function(e){
             kode_barang: barang.kode_barang, nama_barang: barang.nama_barang,
             kategori: barang.kategori, satuan: barang.satuan,
             qty, keterangan: (keteranganRow ? `${keteranganRow} ` : "") + TAG_FORM,
-            gudang: selectedGudang, created_by: karyawan.nama
+            gudang: selectedGudang, created_by: karyawan.nama,
+            status: STATUS_MENUNGGU
         }));
 
         const { error } = await supabaseClient.from("barang_keluar").insert(transaksiList);
         if(error) throw error;
 
-        for(const { barang, qty } of itemList){ await kurangiStokGudang(barang.id, qty); }
+        // simpan konteks untuk tombol "Cetak Bukti Permintaan"
+        itemTerakhirDisimpan = itemList;
+        karyawanTerakhirDisimpan = karyawan;
+        tanggalTerakhirDisimpan = tanggal;
 
-        // Siapkan & munculkan dialog cetak SEBELUM form direset, supaya data
-        // yang tercetak masih data yang barusan disimpan.
-        siapkanAreaCetak(karyawan, tanggal, itemList);
+        // langsung tampilkan dialog cetak juga, supaya karyawan bisa
+        // langsung mencetak bukti pengajuan & minta tanda tangan basah
+        siapkanAreaCetak(karyawan, tanggal, itemList, "Status: MENUNGGU APPROVAL ADMIN GUDANG");
         window.print();
 
-        alert(`Permintaan ATK/ART berhasil disimpan & stok otomatis terpotong (${transaksiList.length} item).`);
+        alert(`Permintaan ATK/ART berhasil diajukan (${transaksiList.length} item) dan menunggu approval admin gudang. Stok akan terpotong otomatis setelah disetujui.`);
 
-        resetFormItemDanKaryawanSaja();
-        await loadStokGudang();
-        refreshSemuaBarisStok();
+        tampilkanModeSetelahSimpan();
+
+        if(document.body.classList.contains("is-admin-view")){
+            await muatValidasiPermintaan();
+            await muatRiwayatPengajuan();
+        }
 
     }catch(err){ console.error(err); alert(err.message); }
 });
@@ -708,6 +762,8 @@ function resetForm(){
     const wrapper = document.getElementById("detailRows");
     wrapper.innerHTML = "";
     tambahBarisBarang();
+
+    tampilkanModeSebelumSimpan();
 }
 
 // reset setelah submit sukses — gudang yang sedang dipilih TETAP dipertahankan
@@ -725,14 +781,251 @@ function resetFormItemDanKaryawanSaja(){
 }
 
 // =====================================
+// helper stok untuk gudang tertentu (dipakai fitur validasi & riwayat,
+// karena baris riwayat/validasi bisa berasal dari gudang berbeda dari
+// gudang yang lagi dipilih di form utama / selectedGudang)
+// =====================================
+async function ambilStokUntukGudang(barangId, gudang){
+    if(!barangId || !gudang) return 0;
+    const { data, error } = await supabaseClient
+        .from("stok_gudang")
+        .select("stok")
+        .eq("barang_id", barangId)
+        .eq("gudang", gudang)
+        .maybeSingle();
+    if(error){ console.error(error); return 0; }
+    return data ? (Number(data.stok) || 0) : 0;
+}
+
+async function kurangiStokGudangDiGudang(barangId, gudang, qty){
+    if(!qty || !gudang) return;
+
+    const { data: existing, error: selErr } = await supabaseClient
+        .from("stok_gudang").select("*")
+        .eq("barang_id", barangId).eq("gudang", gudang).maybeSingle();
+
+    if(selErr) throw selErr;
+
+    const stokBaru = (existing ? (Number(existing.stok) || 0) : 0) - qty;
+
+    if(existing){
+        const { error: updErr } = await supabaseClient.from("stok_gudang")
+            .update({ stok: stokBaru, updated_at: new Date().toISOString() }).eq("id", existing.id);
+        if(updErr) throw updErr;
+    } else {
+        const { error: insErr } = await supabaseClient.from("stok_gudang")
+            .insert([{ barang_id: barangId, gudang: gudang, stok: stokBaru, updated_at: new Date().toISOString() }]);
+        if(insErr) throw insErr;
+    }
+}
+
+// =====================================
+// VALIDASI PERMINTAAN (khusus admin) — daftar permintaan berstatus
+// "Menunggu Approval", dikelompokkan seperti riwayat.
+// =====================================
+
+let validasiGroupsCache = [];
+
+function buatKunciGrup(row){
+    const menitBucket = row.created_at ? Math.floor(new Date(row.created_at).getTime() / 60000) : 0;
+    return `${row.nik}|${row.tanggal}|${row.gudang}|${menitBucket}`;
+}
+
+async function muatValidasiPermintaan(){
+    const wrap = document.getElementById("validasiTableWrap");
+    if(!wrap) return;
+
+    wrap.innerHTML = `<div class="riwayat-loading">Memuat permintaan menunggu approval...</div>`;
+
+    try{
+        const { data, error } = await supabaseClient
+            .from("barang_keluar")
+            .select("*")
+            .ilike("keterangan", `%${TAG_FORM}%`)
+            .eq("status", STATUS_MENUNGGU)
+            .order("created_at", { ascending: true });
+
+        if(error) throw error;
+
+        const groupMap = new Map();
+        (data || []).forEach(row=>{
+            const key = buatKunciGrup(row);
+            if(!groupMap.has(key)){
+                groupMap.set(key, {
+                    key, tanggal: row.tanggal, nik: row.nik,
+                    nama_pengambil: row.nama_pengambil, departemen: row.departemen,
+                    jabatan: row.jabatan, gudang: row.gudang,
+                    created_by: row.created_by, created_at: row.created_at, items: []
+                });
+            }
+            groupMap.get(key).items.push(row);
+        });
+
+        validasiGroupsCache = Array.from(groupMap.values());
+        renderValidasiTable();
+
+    }catch(err){
+        console.error(err);
+        wrap.innerHTML = `<div class="riwayat-empty">⚠ Gagal memuat: ${err.message}</div>`;
+    }
+}
+
+function renderValidasiTable(){
+    const wrap = document.getElementById("validasiTableWrap");
+    if(!wrap) return;
+
+    if(validasiGroupsCache.length === 0){
+        wrap.innerHTML = `<div class="riwayat-empty">Tidak ada permintaan yang menunggu approval saat ini.</div>`;
+        return;
+    }
+
+    const baris = validasiGroupsCache.map((g, idx)=>{
+        const daftarBarang = g.items.map(it => `
+            <div style="margin-bottom:6px;">
+                ${it.nama_barang} —
+                <input type="number" min="1" value="${it.qty}" data-id="${it.id}" class="validasi-qty-input">
+                ${it.satuan}
+            </div>
+        `).join("");
+
+        return `
+        <tr>
+            <td>${idx + 1}</td>
+            <td>${formatTanggalIndo(g.tanggal)}</td>
+            <td>${g.nama_pengambil || "-"}<br><span class="riwayat-item-badge">${g.nik || "-"}</span></td>
+            <td>${g.departemen || "-"}</td>
+            <td>${g.gudang || "-"}</td>
+            <td>${daftarBarang}</td>
+            <td>
+                <div class="riwayat-aksi">
+                    <button type="button" class="btn-setujui" data-key="${g.key}" title="Setujui">✅ Setujui</button>
+                    <button type="button" class="btn-tolak" data-key="${g.key}" title="Tolak">❌ Tolak</button>
+                </div>
+            </td>
+        </tr>`;
+    }).join("");
+
+    wrap.innerHTML = `
+        <table class="tabel-riwayat">
+            <thead>
+                <tr>
+                    <th style="width:30px;">No</th>
+                    <th style="width:100px;">Tanggal</th>
+                    <th>Pengambil</th>
+                    <th>Departemen</th>
+                    <th>Gudang</th>
+                    <th>Barang &amp; Jumlah</th>
+                    <th style="width:170px;">Aksi</th>
+                </tr>
+            </thead>
+            <tbody>${baris}</tbody>
+        </table>
+    `;
+
+    wrap.querySelectorAll(".btn-setujui").forEach(btn=>{
+        btn.addEventListener("click", () => setujuiPermintaan(btn.dataset.key));
+    });
+    wrap.querySelectorAll(".btn-tolak").forEach(btn=>{
+        btn.addEventListener("click", () => tolakPermintaan(btn.dataset.key));
+    });
+}
+
+async function setujuiPermintaan(key){
+    const grup = validasiGroupsCache.find(g => g.key === key);
+    if(!grup) return;
+
+    if(!confirm(`Setujui permintaan dari ${grup.nama_pengambil} (Gudang ${grup.gudang})?\nStok akan otomatis dipotong.`)) return;
+
+    try{
+        // ambil jumlah terbaru dari input (admin bisa koreksi sebelum approve)
+        const qtyMap = new Map();
+        document.querySelectorAll(".validasi-qty-input").forEach(inp=>{
+            qtyMap.set(String(inp.dataset.id), parseInt(inp.value) || 0);
+        });
+
+        // validasi stok untuk SEMUA item dulu sebelum memotong apapun,
+        // supaya tidak ada pemotongan stok sebagian (partial) kalau salah
+        // satu item ternyata tidak cukup
+        for(const item of grup.items){
+            const qtyFinal = qtyMap.get(String(item.id)) ?? item.qty;
+            if(!qtyFinal || qtyFinal <= 0){ alert(`Jumlah untuk "${item.nama_barang}" harus lebih dari 0.`); return; }
+
+            const barangMaster = findBarangByKode(item.kode_barang);
+            if(!barangMaster){
+                alert(`Barang "${item.nama_barang}" tidak ditemukan di master, tidak bisa disetujui otomatis.`);
+                return;
+            }
+
+            const stokTersedia = await ambilStokUntukGudang(barangMaster.id, grup.gudang);
+            if(qtyFinal > stokTersedia){
+                alert(`Stok "${item.nama_barang}" di gudang ${grup.gudang} tidak mencukupi.\nStok tersedia: ${stokTersedia}, diminta: ${qtyFinal}`);
+                return;
+            }
+        }
+
+        // semua item lolos validasi stok -> proses satu per satu
+        for(const item of grup.items){
+            const qtyFinal = qtyMap.get(String(item.id)) ?? item.qty;
+            const barangMaster = findBarangByKode(item.kode_barang);
+
+            await kurangiStokGudangDiGudang(barangMaster.id, grup.gudang, qtyFinal);
+
+            const { error } = await supabaseClient
+                .from("barang_keluar")
+                .update({ qty: qtyFinal, status: STATUS_DISETUJUI })
+                .eq("id", item.id);
+            if(error) throw error;
+        }
+
+        alert("Permintaan disetujui & stok otomatis terpotong.");
+        await muatValidasiPermintaan();
+        await muatRiwayatPengajuan();
+        await loadStokGudang();
+        refreshSemuaBarisStok();
+
+    }catch(err){
+        console.error(err);
+        alert(err.message);
+    }
+}
+
+async function tolakPermintaan(key){
+    const grup = validasiGroupsCache.find(g => g.key === key);
+    if(!grup) return;
+
+    const alasan = prompt("Alasan penolakan (opsional, akan tercatat di keterangan):", "");
+    if(alasan === null) return; // batal
+
+    if(!confirm(`Tolak permintaan dari ${grup.nama_pengambil} (Gudang ${grup.gudang})? Stok TIDAK akan terpotong.`)) return;
+
+    try{
+        for(const item of grup.items){
+            const keteranganBaru = `${alasan ? alasan + " · " : ""}${TAG_FORM} [DITOLAK]`;
+            const { error } = await supabaseClient
+                .from("barang_keluar")
+                .update({ status: STATUS_DITOLAK, keterangan: keteranganBaru })
+                .eq("id", item.id);
+            if(error) throw error;
+        }
+
+        alert("Permintaan ditolak.");
+        await muatValidasiPermintaan();
+        await muatRiwayatPengajuan();
+
+    }catch(err){
+        console.error(err);
+        alert(err.message);
+    }
+}
+
+// =====================================
 // RIWAYAT PENGAJUAN (khusus admin) — gabungan pengajuan dari akun
-// admin maupun dari link publik, karena keduanya insert ke tabel
-// barang_keluar yang sama dan ditandai TAG_FORM.
+// admin maupun dari link publik, semua status (Menunggu/Disetujui/Ditolak).
 //
 // CATATAN PENTING soal pengelompokan:
 // Skema tabel barang_keluar TIDAK menyimpan "nomor pengajuan" — setiap
 // baris item disimpan terpisah. Supaya beberapa item yang disubmit
-// bersamaan (1x klik Simpan) tetap tampil sebagai SATU baris riwayat,
+// bersamaan (1x klik Ajukan) tetap tampil sebagai SATU baris riwayat,
 // baris-baris tsb dikelompokkan berdasarkan kombinasi:
 // NIK + tanggal + gudang + menit created_at. Ini heuristik yang cukup
 // akurat untuk pemakaian normal, tapi kalau 1 karyawan kebetulan
@@ -741,11 +1034,6 @@ function resetFormItemDanKaryawanSaja(){
 // =====================================
 
 let riwayatGroupsCache = [];
-
-function buatKunciGrup(row){
-    const menitBucket = row.created_at ? Math.floor(new Date(row.created_at).getTime() / 60000) : 0;
-    return `${row.nik}|${row.tanggal}|${row.gudang}|${menitBucket}`;
-}
 
 async function muatRiwayatPengajuan(){
     const wrap = document.getElementById("riwayatTableWrap");
@@ -778,6 +1066,7 @@ async function muatRiwayatPengajuan(){
                     gudang: row.gudang,
                     created_by: row.created_by,
                     created_at: row.created_at,
+                    status: row.status || STATUS_DISETUJUI,
                     items: []
                 });
             }
@@ -791,6 +1080,12 @@ async function muatRiwayatPengajuan(){
         console.error(err);
         wrap.innerHTML = `<div class="riwayat-empty">⚠ Gagal memuat riwayat: ${err.message}</div>`;
     }
+}
+
+function badgeStatusHtml(status){
+    if(status === STATUS_MENUNGGU) return `<span class="status-badge status-menunggu">Menunggu</span>`;
+    if(status === STATUS_DITOLAK) return `<span class="status-badge status-ditolak">Ditolak</span>`;
+    return `<span class="status-badge status-disetujui">Disetujui</span>`;
 }
 
 function renderRiwayatTable(){
@@ -817,6 +1112,8 @@ function renderRiwayatTable(){
 
     const baris = groups.map((g, idx)=>{
         const daftarBarang = g.items.map(it => `${it.nama_barang} (${it.qty} ${it.satuan})`).join(", ");
+        const bisaDiubah = g.status === STATUS_DISETUJUI;
+
         return `
         <tr>
             <td>${idx + 1}</td>
@@ -824,13 +1121,14 @@ function renderRiwayatTable(){
             <td>${g.nama_pengambil || "-"}<br><span class="riwayat-item-badge">${g.nik || "-"}</span></td>
             <td>${g.departemen || "-"}</td>
             <td>${g.gudang || "-"}</td>
+            <td>${badgeStatusHtml(g.status)}</td>
             <td>${daftarBarang}</td>
             <td>${g.created_by || "-"}</td>
             <td>
                 <div class="riwayat-aksi">
                     <button type="button" class="btn-cetak" data-key="${g.key}" title="Cetak ulang">🖨️ Cetak</button>
-                    <button type="button" class="btn-edit" data-key="${g.key}" title="Edit">✏️ Edit</button>
-                    <button type="button" class="btn-hapus" data-key="${g.key}" title="Hapus">🗑️ Hapus</button>
+                    ${bisaDiubah ? `<button type="button" class="btn-edit" data-key="${g.key}" title="Edit">✏️ Edit</button>` : ""}
+                    ${bisaDiubah ? `<button type="button" class="btn-hapus" data-key="${g.key}" title="Hapus">🗑️ Hapus</button>` : ""}
                 </div>
             </td>
         </tr>`;
@@ -845,6 +1143,7 @@ function renderRiwayatTable(){
                     <th>Nama Pengambil</th>
                     <th>Departemen</th>
                     <th>Gudang</th>
+                    <th style="width:90px;">Status</th>
                     <th>Barang</th>
                     <th>Dibuat Oleh</th>
                     <th style="width:190px;">Aksi</th>
@@ -877,7 +1176,7 @@ function cetakRiwayat(key){
     const itemListUntukCetak = grup.items.map(it => ({
         barang: { nama_barang: it.nama_barang, kategori: it.kategori, satuan: it.satuan },
         qty: it.qty,
-        keteranganRow: (it.keterangan || "").replace(TAG_FORM, "").trim()
+        keteranganRow: (it.keterangan || "").replace(TAG_FORM, "").replace("[DITOLAK]", "").trim()
     }));
 
     const karyawanUntukCetak = {
@@ -886,11 +1185,19 @@ function cetakRiwayat(key){
         nik: grup.nik
     };
 
-    siapkanAreaCetak(karyawanUntukCetak, grup.tanggal, itemListUntukCetak);
+    const statusNote = grup.status === STATUS_MENUNGGU
+        ? "Status: MENUNGGU APPROVAL ADMIN GUDANG"
+        : grup.status === STATUS_DITOLAK
+            ? "Status: DITOLAK"
+            : "";
+
+    siapkanAreaCetak(karyawanUntukCetak, grup.tanggal, itemListUntukCetak, statusNote);
     window.print();
 }
 
 // ----- EDIT riwayat (qty & keterangan per item, stok otomatis disesuaikan) -----
+// Hanya tersedia untuk baris berstatus "Disetujui" (lihat renderRiwayatTable),
+// karena hanya baris itu yang sudah memotong stok gudang.
 const rwModalOverlay = document.getElementById("rwModalOverlay");
 const rwEditRows     = document.getElementById("rwEditRows");
 const rwModalSub     = document.getElementById("rwModalSub");
@@ -955,9 +1262,6 @@ if(rwBtnSimpan){
                 if(selisih !== 0){
                     const barangMaster = findBarangByKode(itemAsli.kode_barang);
                     if(barangMaster){
-                        // pakai gudang milik baris riwayat (grup.gudang), bukan
-                        // selectedGudang di form utama, karena riwayat bisa berasal
-                        // dari gudang lain daripada yang sedang dipilih di form
                         const stokUntukValidasi = await ambilStokUntukGudang(barangMaster.id, grup.gudang);
                         if(selisih > 0 && selisih > stokUntukValidasi){
                             alert(`Stok "${itemAsli.nama_barang}" di gudang ${grup.gudang} tidak cukup untuk menambah jumlah.\nStok tersedia saat ini: ${stokUntukValidasi}`);
@@ -990,7 +1294,7 @@ if(rwBtnSimpan){
     });
 }
 
-// ----- HAPUS riwayat (batalkan pengajuan, stok dikembalikan) -----
+// ----- HAPUS riwayat (batalkan pengajuan, stok dikembalikan bila sudah disetujui) -----
 async function hapusRiwayat(key){
     const grup = cariGrupByKey(key);
     if(!grup) return;
@@ -1024,43 +1328,6 @@ async function hapusRiwayat(key){
     }catch(err){
         console.error(err);
         alert(err.message);
-    }
-}
-
-// ----- helper stok untuk gudang tertentu (dipakai fitur riwayat, karena
-// baris riwayat bisa berasal dari gudang berbeda dari gudang yang lagi
-// dipilih di form utama / selectedGudang) -----
-async function ambilStokUntukGudang(barangId, gudang){
-    if(!barangId || !gudang) return 0;
-    const { data, error } = await supabaseClient
-        .from("stok_gudang")
-        .select("stok")
-        .eq("barang_id", barangId)
-        .eq("gudang", gudang)
-        .maybeSingle();
-    if(error){ console.error(error); return 0; }
-    return data ? (Number(data.stok) || 0) : 0;
-}
-
-async function kurangiStokGudangDiGudang(barangId, gudang, qty){
-    if(!qty || !gudang) return;
-
-    const { data: existing, error: selErr } = await supabaseClient
-        .from("stok_gudang").select("*")
-        .eq("barang_id", barangId).eq("gudang", gudang).maybeSingle();
-
-    if(selErr) throw selErr;
-
-    const stokBaru = (existing ? (Number(existing.stok) || 0) : 0) - qty;
-
-    if(existing){
-        const { error: updErr } = await supabaseClient.from("stok_gudang")
-            .update({ stok: stokBaru, updated_at: new Date().toISOString() }).eq("id", existing.id);
-        if(updErr) throw updErr;
-    } else {
-        const { error: insErr } = await supabaseClient.from("stok_gudang")
-            .insert([{ barang_id: barangId, gudang: gudang, stok: stokBaru, updated_at: new Date().toISOString() }]);
-        if(insErr) throw insErr;
     }
 }
 
