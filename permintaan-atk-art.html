@@ -93,7 +93,7 @@
        selalu presisi sejajar seperti form kertas, apapun CSS luarnya ===== */
     table.tabel-barang{
         width:100%; border-collapse:collapse; margin-bottom:10px;
-        border:1px solid var(--pg-border); border-radius:8px; overflow:hidden;
+        border:1px solid var(--pg-border); border-radius:8px; overflow:visible;
     }
     table.tabel-barang th{
         background:var(--pg-soft-bg-2); color:var(--pg-label);
@@ -101,9 +101,11 @@
         padding:10px 8px; border:1px solid var(--pg-border); text-align:center;
     }
     table.tabel-barang td{
-        padding:8px; border:1px solid var(--pg-border); vertical-align:top;
+        padding:8px; border:1px solid var(--pg-border); vertical-align:top; position:relative;
     }
     table.tabel-barang tbody tr:nth-child(odd){ background:var(--pg-soft-bg); }
+    table.tabel-barang td .combo-dropdown,
+    table.tabel-barang td [class*="dropdown"]{ z-index:80; box-shadow:0 12px 28px rgba(0,0,0,.55); }
 
     .input-readonly{
         width:100%; padding:9px 10px; border-radius:6px;
