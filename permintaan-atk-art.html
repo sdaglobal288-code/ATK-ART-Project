@@ -35,12 +35,23 @@
         --pg-bg-3:#611b23; --pg-soft-bg:rgba(255,255,255,.05); --pg-soft-bg-2:rgba(255,255,255,.1);
     }
 
-    /* ===== combo & input bits (sama seperti Barang Keluar) ===== */
-    .combo-wrapper{ position:relative; width:100%; }
+    /* =========================================================
+       Semua rule di bawah ini di-scope ke #formPermintaanWrap
+       dan pakai !important pada properti layout (display/grid/
+       table) supaya tidak "ketarik berantakan" walau ada rule
+       lain dari css/dashboard.css yang menaruh flex/grid di
+       elemen umum (div, panel, dst).
+    ========================================================= */
+    #formPermintaanWrap, #formPermintaanWrap *{ box-sizing:border-box; }
+    #formPermintaanWrap form{ display:block !important; }
+    #formPermintaanWrap form > *{ display:block !important; }
+
+    /* ===== combo & input bits ===== */
+    .combo-wrapper{ position:relative; width:100%; display:block !important; }
     .combo-input{
-        width:100%; padding:10px 12px; border-radius:8px;
+        width:100%; padding:9px 10px; border-radius:6px;
         border:1px solid var(--pg-border); background:var(--pg-bg-1);
-        color:var(--pg-text); font-family:inherit; font-size:14px;
+        color:var(--pg-text); font-family:inherit; font-size:13.5px;
         box-sizing:border-box; transition:border-color .15s, box-shadow .15s;
     }
     .combo-input::placeholder{ color:var(--pg-faint); }
@@ -52,80 +63,78 @@
         border-radius:10px; max-height:230px; overflow-y:auto;
         z-index:60; display:none; box-shadow:0 12px 28px rgba(0,0,0,.45);
     }
-    .combo-dropdown.show{ display:block; }
+    .combo-dropdown.show{ display:block !important; }
     .combo-item{ padding:10px 14px; color:var(--pg-text); cursor:pointer; font-size:13.5px; border-bottom:1px solid var(--pg-border-2); }
     .combo-item:last-child{ border-bottom:none; }
     .combo-item:hover, .combo-item.active{ background:var(--pg-hover-bg); color:#60a5fa; }
     .combo-empty{ padding:10px 14px; color:var(--pg-faint); font-size:13px; font-style:italic; }
 
-    /* ===== "kop surat" digital, meniru form kertas FHCS-003 ===== */
+    /* ===== "kop surat" digital — meniru kop form kertas FHCS-003 ===== */
     .form-kop{
-        display:flex; justify-content:space-between; align-items:flex-start;
-        border-bottom:2px solid var(--pg-border); padding-bottom:14px; margin-bottom:18px; gap:12px;
+        display:flex !important; justify-content:space-between; align-items:center;
+        border-bottom:2px solid var(--pg-border); padding-bottom:14px; margin-bottom:6px; gap:12px;
     }
-    .form-kop-brand{ display:flex; align-items:center; gap:12px; }
-    .form-kop-brand .brand-mark{
-        width:52px; height:52px; border-radius:10px; background:#e11d2e; color:#fff;
-        display:flex; align-items:center; justify-content:center; font-weight:800; font-size:20px; flex-shrink:0;
-    }
-    .form-kop-brand h2{ margin:0; font-size:17px; letter-spacing:.02em; }
-    .form-kop-brand p{ margin:2px 0 0; font-size:11.5px; color:var(--pg-label); line-height:1.4; }
+    .form-kop-brand{ display:flex !important; align-items:center; gap:12px; }
+    .form-kop-brand img.brand-logo{ height:56px; width:auto; display:block; image-rendering:-webkit-optimize-contrast; }
     .form-kop-code{ font-size:12.5px; color:var(--pg-faint); font-weight:600; white-space:nowrap; }
     .form-title{ text-align:center; margin:0 0 18px; font-size:16px; font-weight:700; letter-spacing:.03em;
         text-decoration:underline; text-underline-offset:5px; }
 
+    /* ===== header info: 2 kolom x 2 baris, persis susunan form kertas ===== */
     .header-grid{
-        display:grid; grid-template-columns:1fr 1fr; gap:14px 24px; margin-bottom:20px;
+        display:grid !important; grid-template-columns:1fr 1fr; gap:12px 28px; margin-bottom:20px;
     }
-    .header-field{ display:flex; align-items:center; gap:10px; }
-    .header-field label{ font-size:13.5px; color:var(--pg-label); flex:0 0 150px; }
-    .header-field .colon{ color:var(--pg-faint); }
+    .header-field{ display:flex !important; align-items:center; gap:8px; }
+    .header-field label{ font-size:13.5px; color:var(--pg-label); flex:0 0 145px; }
+    .header-field .colon{ color:var(--pg-faint); flex:0 0 auto; }
 
-    .header-label{
-        display:grid; grid-template-columns:36px 2fr 1fr 0.8fr 0.8fr 1.4fr 40px;
-        gap:10px; font-size:12px; font-weight:600; letter-spacing:.03em;
-        text-transform:uppercase; color:var(--pg-label); margin-bottom:8px; padding:0 4px;
+    /* ===== tabel item — dibuat pakai <table> sungguhan supaya kolomnya
+       selalu presisi sejajar seperti form kertas, apapun CSS luarnya ===== */
+    table.tabel-barang{
+        width:100%; border-collapse:collapse; margin-bottom:10px;
+        border:1px solid var(--pg-border); border-radius:8px; overflow:hidden;
     }
-    .detail-wrapper{
-        border:1px solid var(--pg-border); border-radius:12px;
-        padding:14px; margin-bottom:12px; background:var(--pg-soft-bg);
+    table.tabel-barang th{
+        background:var(--pg-soft-bg-2); color:var(--pg-label);
+        font-size:11.5px; font-weight:700; letter-spacing:.03em; text-transform:uppercase;
+        padding:10px 8px; border:1px solid var(--pg-border); text-align:center;
     }
-    .detail-row{
-        display:grid; grid-template-columns:36px 2fr 1fr 0.8fr 0.8fr 1.4fr 40px;
-        gap:10px; align-items:center; margin-bottom:10px; position:relative;
+    table.tabel-barang td{
+        padding:8px; border:1px solid var(--pg-border); vertical-align:top;
     }
-    .detail-row:last-child{ margin-bottom:0; }
-    .row-no{ text-align:center; color:var(--pg-label); font-weight:600; font-size:13.5px; }
+    table.tabel-barang tbody tr:nth-child(odd){ background:var(--pg-soft-bg); }
+
     .input-readonly{
-        width:100%; padding:10px 12px; border-radius:8px;
+        width:100%; padding:9px 10px; border-radius:6px;
         border:1px dashed var(--pg-border); background:var(--pg-bg-3);
-        color:var(--pg-label); font-family:inherit; font-size:13.5px; box-sizing:border-box;
+        color:var(--pg-label); font-family:inherit; font-size:13px; box-sizing:border-box;
     }
     .input-qty{
-        width:100%; padding:10px 12px; border-radius:8px;
-        border:1px solid var(--pg-border); background:var(--pg-bg-1);
-        color:var(--pg-text); font-family:inherit; font-size:14px; box-sizing:border-box;
-    }
-    .input-qty:focus{ outline:none; border-color:#3b82f6; box-shadow:0 0 0 3px rgba(59,130,246,.2); }
-    .input-ket-row{
-        width:100%; padding:10px 12px; border-radius:8px;
+        width:100%; padding:9px 10px; border-radius:6px;
         border:1px solid var(--pg-border); background:var(--pg-bg-1);
         color:var(--pg-text); font-family:inherit; font-size:13.5px; box-sizing:border-box;
     }
-    .stok-mini{ font-size:11px; color:var(--pg-faint); margin-top:4px; display:block; }
+    .input-qty:focus{ outline:none; border-color:#3b82f6; box-shadow:0 0 0 3px rgba(59,130,246,.2); }
+    .input-ket-row{
+        width:100%; padding:9px 10px; border-radius:6px;
+        border:1px solid var(--pg-border); background:var(--pg-bg-1);
+        color:var(--pg-text); font-family:inherit; font-size:13px; box-sizing:border-box;
+    }
+    .stok-mini{ font-size:10.5px; color:var(--pg-faint); margin-top:4px; display:block; }
     .stok-mini.warning{ color:#f87171; }
 
-    .detail-row.qty-invalid .input-qty{ border-color:#ef4444; background:rgba(239,68,68,.08); }
+    tr.detail-row.qty-invalid .input-qty{ border-color:#ef4444; background:rgba(239,68,68,.08); }
+    .row-no{ text-align:center; color:var(--pg-label); font-weight:600; font-size:13.5px; display:block; }
 
     .btn-hapus-baris{
         background:rgba(239,68,68,.12); color:#f87171; border:1px solid rgba(239,68,68,.35);
-        border-radius:8px; cursor:pointer; font-weight:700; height:38px; width:100%; transition:background .15s;
+        border-radius:6px; cursor:pointer; font-weight:700; height:36px; width:100%; transition:background .15s;
     }
     .btn-hapus-baris:hover{ background:rgba(239,68,68,.25); }
     .btn-tambah-baris{
         background:rgba(59,130,246,.12); color:#60a5fa; border:1px solid rgba(59,130,246,.35);
         border-radius:8px; padding:10px 16px; cursor:pointer; font-weight:600;
-        font-size:13.5px; margin-top:2px; transition:background .15s;
+        font-size:13.5px; margin-bottom:18px; transition:background .15s;
     }
     .btn-tambah-baris:hover{ background:rgba(59,130,246,.22); }
 
@@ -134,7 +143,8 @@
         margin-top:26px; padding-top:18px; border-top:1px dashed var(--pg-border);
     }
     .signature-city{ font-size:13.5px; color:var(--pg-label); margin-bottom:10px; }
-    .signature-grid{ display:grid; grid-template-columns:1fr 1fr 1fr; gap:18px; text-align:center; }
+    .signature-grid{ display:grid !important; grid-template-columns:1fr 1fr 1fr; gap:18px; text-align:center; }
+    .signature-col{ display:block !important; }
     .signature-col p{ margin:0 0 60px; font-size:13.5px; color:var(--pg-label); }
     .signature-col .sig-line{ border-top:1px solid var(--pg-border); padding-top:6px; font-size:12.5px; color:var(--pg-faint); }
 
@@ -146,6 +156,14 @@
 
     .tag-note{ font-size:11.5px; color:var(--pg-faint); margin-top:4px; }
 
+    .form-actions{ display:flex !important; gap:10px; margin-top:20px; }
+
+    @media (max-width: 760px){
+        .header-grid{ grid-template-columns:1fr; }
+        .signature-grid{ grid-template-columns:1fr; gap:30px; }
+        .header-field label{ flex:0 0 120px; }
+    }
+
     /* ===== tampilan cetak: replika presisi form kertas FHCS-003 ===== */
     #printArea{ display:none; }
 
@@ -156,11 +174,8 @@
             display:block; position:absolute; top:0; left:0; width:100%;
             background:#fff; color:#000; padding:24px; font-family:Arial, Helvetica, sans-serif;
         }
-        .print-kop{ display:flex; justify-content:space-between; align-items:flex-start; border-bottom:2px solid #000; padding-bottom:10px; margin-bottom:14px; }
-        .print-kop-brand{ display:flex; gap:10px; align-items:center; }
-        .print-kop-brand .brand-mark{ width:46px; height:46px; border-radius:8px; background:#e11d2e; color:#fff; display:flex; align-items:center; justify-content:center; font-weight:800; }
-        .print-kop-brand h2{ margin:0; font-size:15px; }
-        .print-kop-brand p{ margin:2px 0 0; font-size:10px; line-height:1.3; }
+        .print-kop{ display:flex; justify-content:space-between; align-items:center; border-bottom:2px solid #000; padding-bottom:10px; margin-bottom:14px; }
+        .print-kop-brand img.brand-logo{ height:48px; width:auto; }
         .print-kop-code{ font-size:11px; font-weight:600; }
         .print-title{ text-align:center; font-weight:700; text-decoration:underline; margin:14px 0 16px; font-size:14px; }
         .print-header{ display:grid; grid-template-columns:1fr 1fr; gap:6px 20px; margin-bottom:14px; font-size:12.5px; }
@@ -189,15 +204,12 @@
 </div>
 <br>
 
-<div class="panel">
+<div class="panel" id="formPermintaanWrap">
 
     <div class="form-kop">
         <div class="form-kop-brand">
-            <div class="brand-mark">SDA</div>
-            <div>
-                <h2>PT. SDA GLOBAL</h2>
-                <p>FLUID POWER COMPANY<br>Hydraulics, Pneumatics &amp; Engineering</p>
-            </div>
+            <!-- Ganti file di images/logo-sda-global.png dengan logo asli Anda bila perlu -->
+            <img class="brand-logo" src="images/logo-sda-global.png" alt="PT. SDA Global - Fluid Power Company">
         </div>
         <div class="form-kop-code">FHCS&nbsp;–&nbsp;003</div>
     </div>
@@ -230,11 +242,20 @@
             </div>
         </div>
 
-        <div class="header-label">
-            <span>No</span><span>Jenis Barang</span><span>Type</span>
-            <span>Jumlah</span><span>Satuan</span><span>Keterangan</span><span></span>
-        </div>
-        <div class="detail-wrapper" id="detailRows"></div>
+        <table class="tabel-barang">
+            <thead>
+                <tr>
+                    <th style="width:34px;">No</th>
+                    <th>Jenis Barang</th>
+                    <th style="width:110px;">Type</th>
+                    <th style="width:110px;">Jumlah</th>
+                    <th style="width:90px;">Satuan</th>
+                    <th style="width:180px;">Keterangan</th>
+                    <th style="width:36px;"></th>
+                </tr>
+            </thead>
+            <tbody id="detailRows"></tbody>
+        </table>
         <button type="button" class="btn-tambah-baris" id="btnTambahBaris">➕ Tambah Barang</button>
 
         <div class="signature-block">
@@ -256,8 +277,7 @@
             <p class="tag-note">Tanda tangan basah dilakukan di atas kertas hasil cetak (tombol 🖨️ Cetak Form) — form ini hanya sebagai catatan digital &amp; pemotong stok otomatis.</p>
         </div>
 
-        <br>
-        <div style="display:flex;gap:10px;">
+        <div class="form-actions">
             <button type="submit" id="btnSimpan">💾 Simpan &amp; Kurangi Stok</button>
         </div>
 
@@ -295,11 +315,7 @@
 <div id="printArea">
     <div class="print-kop">
         <div class="print-kop-brand">
-            <div class="brand-mark">SDA</div>
-            <div>
-                <h2>PT. SDA GLOBAL</h2>
-                <p>FLUID POWER COMPANY<br>Hydraulics, Pneumatics &amp; Engineering</p>
-            </div>
+            <img class="brand-logo" src="images/logo-sda-global.png" alt="PT. SDA Global - Fluid Power Company">
         </div>
         <div class="print-kop-code">FHCS – 003</div>
     </div>
