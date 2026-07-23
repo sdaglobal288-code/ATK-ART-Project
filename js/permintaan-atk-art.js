@@ -228,26 +228,29 @@ function setupKaryawanCombo(){
 setupKaryawanCombo();
 
 // =====================================
-// BARIS DETAIL BARANG (No | Jenis Barang | Type | Jumlah | Satuan | Keterangan | hapus)
+// BARIS DETAIL BARANG — sekarang berupa <tr>/<td> asli
+// (No | Jenis Barang | Type | Jumlah | Satuan | Keterangan | hapus)
 // =====================================
 
 function templateBarisBarang(){
     return `
-        <span class="row-no"></span>
-        <div class="combo-wrapper">
-            <input type="text" class="combo-input input-barang-search"
-                placeholder="-- Cari Jenis Barang --" autocomplete="off" required>
-            <input type="hidden" class="input-barang-id">
-            <div class="combo-dropdown input-barang-dropdown"></div>
-        </div>
-        <input type="text" class="input-readonly input-kategori" placeholder="Type" readonly>
-        <div>
+        <td><span class="row-no"></span></td>
+        <td>
+            <div class="combo-wrapper">
+                <input type="text" class="combo-input input-barang-search"
+                    placeholder="-- Cari Jenis Barang --" autocomplete="off" required>
+                <input type="hidden" class="input-barang-id">
+                <div class="combo-dropdown input-barang-dropdown"></div>
+            </div>
+        </td>
+        <td><input type="text" class="input-readonly input-kategori" placeholder="Type" readonly></td>
+        <td>
             <input type="number" class="input-qty" placeholder="Jumlah" min="1" required>
             <span class="stok-mini">Stok: -</span>
-        </div>
-        <input type="text" class="input-readonly input-satuan" placeholder="Satuan" readonly>
-        <input type="text" class="input-ket-row input-keterangan-row" placeholder="Keterangan (opsional)">
-        <button type="button" class="btn-hapus-baris" title="Hapus baris">✕</button>
+        </td>
+        <td><input type="text" class="input-readonly input-satuan" placeholder="Satuan" readonly></td>
+        <td><input type="text" class="input-ket-row input-keterangan-row" placeholder="Keterangan (opsional)"></td>
+        <td><button type="button" class="btn-hapus-baris" title="Hapus baris">✕</button></td>
     `;
 }
 
@@ -259,7 +262,7 @@ function renomorBaris(){
 
 function tambahBarisBarang(){
     const wrapper = document.getElementById("detailRows");
-    const row = document.createElement("div");
+    const row = document.createElement("tr");
     row.className = "detail-row";
     row.dataset.stok = "0";
     row.innerHTML = templateBarisBarang();
