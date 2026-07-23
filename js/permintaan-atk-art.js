@@ -1,34 +1,96 @@
 // =====================================
-// PERMINTAAN / PENGAMBILAN ATK & ART  (FHCS-003)
-// Form ini secara fungsi = "Barang Keluar" (memotong stok gudang secara
-// otomatis) tapi tampilannya dibuat meniru form kertas FHCS-003, lengkap
-// dengan mode cetak yang presisi sama seperti form aslinya.
+// PERMINTAAN / PENGAMBILAN ATK & ART  (FHCS-003) — VERSI PUBLIK, TANPA LOGIN
+// -------------------------------------------------------------------------
+// Alur: karyawan buka link ini -> pilih GUDANG dulu -> baru daftar nama
+// karyawan & stok barang muncul (difilter sesuai gudang yang dipilih).
+// Tidak ada sessionStorage/login sama sekali di halaman ini.
 //
-// Data disimpan ke tabel "barang_keluar" yang sudah ada (supaya otomatis
-// ikut ke Laporan & Histori Barang Keluar), ditandai lewat tag khusus di
-// kolom keterangan supaya bisa difilter di histori halaman ini.
+// PENTING (harus disiapkan di sisi Supabase, tidak bisa dilakukan dari sini):
+// Karena halaman ini publik (anon key, tanpa auth), Row Level Security (RLS)
+// di Supabase WAJIB diatur supaya anon hanya bisa:
+//   - SELECT master_karyawan (idealnya hanya kolom yang dipakai: id, nama,
+//     nik, departemen, jabatan, gudang, status — jangan ekspos kolom sensitif
+//     lain seperti gaji dsb bila ada, sebaiknya lewat VIEW khusus)
+//   - SELECT master_barang (katalog barang, aman)
+//   - SELECT + UPDATE + INSERT stok_gudang (perlu untuk baca & potong stok)
+//   - INSERT saja ke barang_keluar (JANGAN beri akses SELECT publik ke
+//     riwayat transaksi — makanya panel histori sengaja tidak ada di versi
+//     publik ini)
+// Tanpa policy ini, mematikan syarat login sama saja membuka akses baca/tulis
+// tabel-tabel tsb ke siapa saja yang tahu URL-nya.
 // =====================================
 
 const TAG_FORM = "[Formulir Permintaan ATK/ART]";
 
-const user = JSON.parse(sessionStorage.getItem("user"));
-if (!user) { location.href = "login.html"; }
-
+let selectedGudang = "";
 let masterBarangList = [];
 let masterKaryawanList = [];
 let stokGudangMap = new Map();
 
 // =====================================
-// LOAD MASTER KARYAWAN (difilter sesuai gudang yang login)
+// GERBANG PILIH GUDANG
+// =====================================
+
+const gudangSelect   = document.getElementById("gudangSelect");
+const formBodyGated  = document.getElementById("formBodyGated");
+const karyawanSearchInputEl = document.getElementById("karyawanSearch");
+
+async function loadDaftarGudang(){
+    try{
+        const { data, error } = await supabaseClient
+            .from("master_karyawan")
+            .select("gudang")
+            .eq("status", "Aktif");
+
+        if(error) throw error;
+
+        const daftarGudang = Array.from(
+            new Set((data || []).map(r => (r.gudang || "").trim()).filter(Boolean))
+        ).sort((a, b) => a.localeCompare(b));
+
+        gudangSelect.innerHTML = `<option value="">-- Pilih Gudang --</option>` +
+            daftarGudang.map(g => `<option value="${g}">${g}</option>`).join("");
+    }
+    catch(err){ console.error(err); alert(err.message); }
+}
+
+async function onGudangBerubah(){
+    selectedGudang = gudangSelect.value;
+
+    // reset isi form yang bergantung pada gudang lama
+    resetForm();
+
+    if(!selectedGudang){
+        formBodyGated.dataset.locked = "1";
+        karyawanSearchInputEl.disabled = true;
+        karyawanSearchInputEl.placeholder = "-- Pilih gudang dahulu --";
+        masterKaryawanList = [];
+        stokGudangMap = new Map();
+        return;
+    }
+
+    formBodyGated.dataset.locked = "0";
+    karyawanSearchInputEl.disabled = false;
+    karyawanSearchInputEl.placeholder = "-- Cari Nama Karyawan --";
+
+    await Promise.all([loadKaryawan(), loadStokGudang()]);
+    refreshSemuaBarisStok();
+}
+
+gudangSelect.addEventListener("change", onGudangBerubah);
+
+// =====================================
+// LOAD MASTER KARYAWAN (difilter sesuai gudang yang dipilih)
 // =====================================
 
 async function loadKaryawan() {
+    if(!selectedGudang){ masterKaryawanList = []; return; }
     try {
         const { data, error } = await supabaseClient
             .from("master_karyawan")
             .select("*")
             .eq("status", "Aktif")
-            .eq("gudang", user.gudang)
+            .eq("gudang", selectedGudang)
             .order("nama");
 
         if (error) throw error;
@@ -66,11 +128,12 @@ function findBarangById(id){
 }
 
 async function loadStokGudang(){
+    if(!selectedGudang){ stokGudangMap = new Map(); return; }
     try{
         const { data, error } = await supabaseClient
             .from("stok_gudang")
             .select("barang_id, stok")
-            .eq("gudang", user.gudang);
+            .eq("gudang", selectedGudang);
 
         if(error) throw error;
 
@@ -83,13 +146,13 @@ async function loadStokGudang(){
 }
 
 async function ambilStokLive(barangId){
-    if(!barangId) return 0;
+    if(!barangId || !selectedGudang) return 0;
 
     const { data, error } = await supabaseClient
         .from("stok_gudang")
         .select("stok")
         .eq("barang_id", barangId)
-        .eq("gudang", user.gudang)
+        .eq("gudang", selectedGudang)
         .maybeSingle();
 
     if(error){ console.error(error); return 0; }
@@ -97,11 +160,11 @@ async function ambilStokLive(barangId){
 }
 
 async function kurangiStokGudang(barangId, qty){
-    if(!qty) return;
+    if(!qty || !selectedGudang) return;
 
     const { data: existing, error: selErr } = await supabaseClient
         .from("stok_gudang").select("*")
-        .eq("barang_id", barangId).eq("gudang", user.gudang).maybeSingle();
+        .eq("barang_id", barangId).eq("gudang", selectedGudang).maybeSingle();
 
     if(selErr) throw selErr;
 
@@ -113,7 +176,7 @@ async function kurangiStokGudang(barangId, qty){
         if(updErr) throw updErr;
     } else {
         const { error: insErr } = await supabaseClient.from("stok_gudang")
-            .insert([{ barang_id: barangId, gudang: user.gudang, stok: stokBaru, updated_at: new Date().toISOString() }]);
+            .insert([{ barang_id: barangId, gudang: selectedGudang, stok: stokBaru, updated_at: new Date().toISOString() }]);
         if(insErr) throw insErr;
     }
 }
@@ -154,13 +217,19 @@ const nikInput           = document.getElementById("nik");
 function setupKaryawanCombo(){
 
     function render(keyword){
+        if(!selectedGudang){
+            karyawanDropdown.innerHTML = `<div class="combo-empty">Pilih gudang terlebih dahulu</div>`;
+            karyawanDropdown.classList.add("show");
+            return;
+        }
+
         const kw = (keyword || "").trim().toLowerCase();
         const filtered = masterKaryawanList.filter(k => k.nama.toLowerCase().includes(kw));
 
         karyawanDropdown.innerHTML = "";
 
         if(filtered.length === 0){
-            karyawanDropdown.innerHTML = `<div class="combo-empty">Nama tidak ditemukan</div>`;
+            karyawanDropdown.innerHTML = `<div class="combo-empty">Nama tidak ditemukan di gudang ini</div>`;
         } else {
             filtered.forEach(k=>{
                 const item = document.createElement("div");
@@ -228,7 +297,7 @@ function setupKaryawanCombo(){
 setupKaryawanCombo();
 
 // =====================================
-// BARIS DETAIL BARANG — sekarang berupa <tr>/<td> asli
+// BARIS DETAIL BARANG — berupa <tr>/<td> asli
 // (No | Jenis Barang | Type | Jumlah | Satuan | Keterangan | hapus)
 // =====================================
 
@@ -465,6 +534,8 @@ form.addEventListener("submit", async function(e){
     e.preventDefault();
 
     try{
+        if(!selectedGudang){ alert("Pilih Gudang terlebih dahulu."); return; }
+
         const karyawanId = karyawanHidden.value;
         if(karyawanId === ""){ alert("Pilih Nama Karyawan dari daftar pencarian."); return; }
 
@@ -490,7 +561,7 @@ form.addEventListener("submit", async function(e){
             kode_barang: barang.kode_barang, nama_barang: barang.nama_barang,
             kategori: barang.kategori, satuan: barang.satuan,
             qty, keterangan: (keteranganRow ? `${keteranganRow} ` : "") + TAG_FORM,
-            gudang: user.gudang, created_by: user.nama
+            gudang: selectedGudang, created_by: karyawan.nama
         }));
 
         const { error } = await supabaseClient.from("barang_keluar").insert(transaksiList);
@@ -500,16 +571,29 @@ form.addEventListener("submit", async function(e){
 
         alert(`Permintaan ATK/ART berhasil disimpan & stok otomatis terpotong (${transaksiList.length} item).`);
 
-        resetForm();
-        await loadBarang();
+        resetFormItemDanKaryawanSaja();
         await loadStokGudang();
         refreshSemuaBarisStok();
-        await loadHistori();
 
     }catch(err){ console.error(err); alert(err.message); }
 });
 
+// reset penuh (dipakai saat pindah gudang)
 function resetForm(){
+    karyawanHidden.value = "";
+    karyawanSearchInput.value = "";
+    departemenInput.value = "";
+    nikInput.value = "";
+    document.getElementById("tanggal").value = new Date().toISOString().split("T")[0];
+
+    const wrapper = document.getElementById("detailRows");
+    wrapper.innerHTML = "";
+    tambahBarisBarang();
+}
+
+// reset setelah submit sukses — gudang yang sedang dipilih TETAP dipertahankan
+// supaya karyawan berikutnya di gudang yang sama tidak perlu pilih ulang
+function resetFormItemDanKaryawanSaja(){
     karyawanHidden.value = "";
     karyawanSearchInput.value = "";
     departemenInput.value = "";
@@ -572,60 +656,6 @@ document.getElementById("btnCetakForm").addEventListener("click", function(){
 });
 
 // =====================================
-// HISTORI PERMINTAAN ATK & ART
-// (ambil dari tabel barang_keluar, difilter berdasarkan tag form ini)
-// =====================================
-
-async function loadHistori(){
-    try{
-        const { data, error } = await supabaseClient
-            .from("barang_keluar")
-            .select("*")
-            .eq("gudang", user.gudang)
-            .ilike("keterangan", `%${TAG_FORM}%`)
-            .order("id", { ascending: false });
-
-        if(error) throw error;
-        renderHistori(data || []);
-    }
-    catch(err){ console.error(err); alert(err.message); }
-}
-
-function renderHistori(list){
-    const tbody = document.querySelector("#tablePermintaan tbody");
-    tbody.innerHTML = "";
-
-    if(list.length === 0){
-        tbody.innerHTML = `<tr><td colspan="9" style="text-align:center;color:var(--pg-faint);font-style:italic;padding:20px;">Belum ada data permintaan ATK/ART.</td></tr>`;
-        return;
-    }
-
-    list.forEach((item, idx)=>{
-        const keteranganBersih = (item.keterangan || "").replace(TAG_FORM, "").trim() || "-";
-        tbody.innerHTML += `
-        <tr>
-            <td>${idx + 1}</td>
-            <td>${item.tanggal}</td>
-            <td>${item.nama_pengambil}</td>
-            <td>${item.departemen}</td>
-            <td>${item.nama_barang}</td>
-            <td>-${item.qty}</td>
-            <td>${item.satuan}</td>
-            <td>${keteranganBersih}</td>
-            <td>${item.created_by}</td>
-        </tr>`;
-    });
-}
-
-function cariHistori(){
-    const keyword = document.getElementById("search").value.toLowerCase();
-    document.querySelectorAll("#tablePermintaan tbody tr").forEach(row=>{
-        row.style.display = row.innerText.toLowerCase().includes(keyword) ? "" : "none";
-    });
-}
-document.getElementById("search").addEventListener("keyup", cariHistori);
-
-// =====================================
 // INIT
 // =====================================
 
@@ -633,7 +663,7 @@ document.getElementById("search").addEventListener("keyup", cariHistori);
     document.getElementById("tanggal").value = new Date().toISOString().split("T")[0];
     tambahBarisBarang();
 
-    await Promise.all([loadKaryawan(), loadBarang(), loadStokGudang()]);
-    refreshSemuaBarisStok();
-    await loadHistori();
+    formBodyGated.dataset.locked = "1";
+
+    await Promise.all([loadDaftarGudang(), loadBarang()]);
 })();
