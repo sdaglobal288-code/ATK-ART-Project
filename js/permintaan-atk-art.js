@@ -28,6 +28,58 @@ let masterKaryawanList = [];
 let stokGudangMap = new Map();
 
 // =====================================
+// SESI ADMIN (opsional) — halaman ini TETAP bisa diakses tanpa login
+// sama sekali (link publik). Kalau kebetulan dibuka dari dalam sistem
+// admin (ada sessionStorage "user", diisi oleh halaman login.html),
+// maka sidebar + topbar + panel "Riwayat Pengajuan" otomatis muncul.
+// Kalau tidak ada sesi, semuanya tetap tersembunyi (tampilan publik asli).
+// =====================================
+
+let adminUser = null;
+
+try{
+    adminUser = JSON.parse(sessionStorage.getItem("user") || "null");
+}catch(err){ adminUser = null; }
+
+function goPage(page){ location.href = page; }
+
+function logout(){
+    sessionStorage.removeItem("user");
+    location.href = "login.html";
+}
+
+function initAdminChrome(){
+    if(!adminUser) return;
+
+    document.body.classList.add("is-admin-view");
+
+    const namaUser   = adminUser?.nama || adminUser?.name || adminUser?.username || "Admin";
+    const gudangUser = adminUser?.gudang || adminUser?.role || "—";
+
+    const elNama = document.getElementById("userName");
+    const elGudang = document.getElementById("userGudang");
+    const elAvatar = document.getElementById("avatarInit");
+    if(elNama) elNama.textContent = namaUser;
+    if(elGudang) elGudang.textContent = gudangUser;
+    if(elAvatar) elAvatar.textContent = namaUser.charAt(0).toUpperCase();
+
+    const elTanggal = document.getElementById("topbarDate");
+    if(elTanggal){
+        const now = new Date();
+        elTanggal.textContent = now.toLocaleDateString("id-ID", { weekday:"long", day:"numeric", month:"long", year:"numeric" });
+    }
+
+    // panel riwayat hanya relevan & hanya dimuat kalau memang sedang tampil (admin)
+    muatRiwayatPengajuan();
+
+    const btnMuatUlang = document.getElementById("btnMuatUlangRiwayat");
+    if(btnMuatUlang) btnMuatUlang.addEventListener("click", muatRiwayatPengajuan);
+
+    const inputCari = document.getElementById("riwayatSearch");
+    if(inputCari) inputCari.addEventListener("input", () => renderRiwayatTable());
+}
+
+// =====================================
 // GERBANG PILIH GUDANG
 // =====================================
 
@@ -125,6 +177,10 @@ async function loadBarang(){
 
 function findBarangById(id){
     return masterBarangList.find(b => String(b.id) === String(id));
+}
+
+function findBarangByKode(kode){
+    return masterBarangList.find(b => b.kode_barang === kode);
 }
 
 async function loadStokGudang(){
@@ -525,7 +581,65 @@ function validasiDanAmbilItem(){
 }
 
 // =====================================
+// CETAK FORM — replika presisi form kertas FHCS-003
+// (dipakai baik oleh tombol "Cetak Form" manual maupun otomatis
+//  setelah "Simpan & Kurangi Stok" berhasil)
+// =====================================
+
+function formatTanggalIndo(tglStr){
+    if(!tglStr) return "..........................";
+    const bulan = ["Januari","Februari","Maret","April","Mei","Juni","Juli","Agustus","September","Oktober","November","Desember"];
+    const d = new Date(tglStr + "T00:00:00");
+    return `${d.getDate()} ${bulan[d.getMonth()]} ${d.getFullYear()}`;
+}
+
+function siapkanAreaCetak(karyawan, tanggal, itemList){
+    document.getElementById("pNamaKaryawan").textContent = karyawan.nama;
+    document.getElementById("pDepartemen").textContent = karyawan.departemen || "-";
+    document.getElementById("pNik").textContent = karyawan.nik || "-";
+    document.getElementById("pTanggal").textContent = tanggal ? formatTanggalIndo(tanggal) : "-";
+    document.getElementById("pCity").textContent = `Surabaya, ${formatTanggalIndo(tanggal)}`;
+
+    const tbody = document.getElementById("printRowsBody");
+    tbody.innerHTML = "";
+
+    itemList.forEach(({ barang, qty, keteranganRow }, idx)=>{
+        tbody.innerHTML += `
+            <tr>
+                <td>${idx + 1}</td>
+                <td class="left">${barang.nama_barang}</td>
+                <td>${barang.kategori || "-"}</td>
+                <td>${qty}</td>
+                <td>${barang.satuan}</td>
+                <td class="left">${keteranganRow || "-"}</td>
+            </tr>`;
+    });
+
+    // baris kosong tambahan supaya tampilan tabel tetap mirip form kertas asli
+    for(let i = itemList.length; i < Math.max(5, itemList.length); i++){
+        tbody.innerHTML += `<tr><td>&nbsp;</td><td></td><td></td><td></td><td></td><td></td></tr>`;
+    }
+}
+
+document.getElementById("btnCetakForm").addEventListener("click", function(){
+
+    const karyawanId = karyawanHidden.value;
+    const karyawan = karyawanId ? findKaryawanById(karyawanId) : null;
+    const tanggal = document.getElementById("tanggal").value;
+
+    const itemList = validasiDanAmbilItem();
+    if(!itemList){ return; }
+    if(!karyawan){ alert("Pilih Nama Karyawan terlebih dahulu sebelum mencetak."); return; }
+
+    siapkanAreaCetak(karyawan, tanggal, itemList);
+    window.print();
+});
+
+// =====================================
 // SIMPAN PERMINTAAN (insert ke barang_keluar + potong stok otomatis)
+// Setelah berhasil simpan, form otomatis memicu dialog cetak (print),
+// supaya karyawan langsung bisa mencetak bukti & minta tanda tangan basah,
+// tanpa harus klik tombol "Cetak Form" secara terpisah.
 // =====================================
 
 const form = document.getElementById("formPermintaan");
@@ -569,6 +683,11 @@ form.addEventListener("submit", async function(e){
 
         for(const { barang, qty } of itemList){ await kurangiStokGudang(barang.id, qty); }
 
+        // Siapkan & munculkan dialog cetak SEBELUM form direset, supaya data
+        // yang tercetak masih data yang barusan disimpan.
+        siapkanAreaCetak(karyawan, tanggal, itemList);
+        window.print();
+
         alert(`Permintaan ATK/ART berhasil disimpan & stok otomatis terpotong (${transaksiList.length} item).`);
 
         resetFormItemDanKaryawanSaja();
@@ -606,54 +725,344 @@ function resetFormItemDanKaryawanSaja(){
 }
 
 // =====================================
-// CETAK FORM — replika presisi form kertas FHCS-003
+// RIWAYAT PENGAJUAN (khusus admin) — gabungan pengajuan dari akun
+// admin maupun dari link publik, karena keduanya insert ke tabel
+// barang_keluar yang sama dan ditandai TAG_FORM.
+//
+// CATATAN PENTING soal pengelompokan:
+// Skema tabel barang_keluar TIDAK menyimpan "nomor pengajuan" — setiap
+// baris item disimpan terpisah. Supaya beberapa item yang disubmit
+// bersamaan (1x klik Simpan) tetap tampil sebagai SATU baris riwayat,
+// baris-baris tsb dikelompokkan berdasarkan kombinasi:
+// NIK + tanggal + gudang + menit created_at. Ini heuristik yang cukup
+// akurat untuk pemakaian normal, tapi kalau 1 karyawan kebetulan
+// submit 2x persis di menit yang sama untuk tanggal & gudang yang sama,
+// keduanya akan tergabung jadi 1 baris riwayat.
 // =====================================
 
-function formatTanggalIndo(tglStr){
-    if(!tglStr) return "..........................";
-    const bulan = ["Januari","Februari","Maret","April","Mei","Juni","Juli","Agustus","September","Oktober","November","Desember"];
-    const d = new Date(tglStr + "T00:00:00");
-    return `${d.getDate()} ${bulan[d.getMonth()]} ${d.getFullYear()}`;
+let riwayatGroupsCache = [];
+
+function buatKunciGrup(row){
+    const menitBucket = row.created_at ? Math.floor(new Date(row.created_at).getTime() / 60000) : 0;
+    return `${row.nik}|${row.tanggal}|${row.gudang}|${menitBucket}`;
 }
 
-document.getElementById("btnCetakForm").addEventListener("click", function(){
+async function muatRiwayatPengajuan(){
+    const wrap = document.getElementById("riwayatTableWrap");
+    if(!wrap) return;
 
-    const karyawanId = karyawanHidden.value;
-    const karyawan = karyawanId ? findKaryawanById(karyawanId) : null;
-    const tanggal = document.getElementById("tanggal").value;
+    wrap.innerHTML = `<div class="riwayat-loading">Memuat riwayat...</div>`;
 
-    const itemList = validasiDanAmbilItem();
-    if(!itemList){ return; }
-    if(!karyawan){ alert("Pilih Nama Karyawan terlebih dahulu sebelum mencetak."); return; }
+    try{
+        const { data, error } = await supabaseClient
+            .from("barang_keluar")
+            .select("*")
+            .ilike("keterangan", `%${TAG_FORM}%`)
+            .order("created_at", { ascending: false })
+            .limit(300);
 
-    document.getElementById("pNamaKaryawan").textContent = karyawan.nama;
-    document.getElementById("pDepartemen").textContent = karyawan.departemen || "-";
-    document.getElementById("pNik").textContent = karyawan.nik || "-";
-    document.getElementById("pTanggal").textContent = tanggal ? formatTanggalIndo(tanggal) : "-";
-    document.getElementById("pCity").textContent = `Surabaya, ${formatTanggalIndo(tanggal)}`;
+        if(error) throw error;
 
-    const tbody = document.getElementById("printRowsBody");
-    tbody.innerHTML = "";
+        const groupMap = new Map();
 
-    itemList.forEach(({ barang, qty, keteranganRow }, idx)=>{
-        tbody.innerHTML += `
-            <tr>
-                <td>${idx + 1}</td>
-                <td class="left">${barang.nama_barang}</td>
-                <td>${barang.kategori || "-"}</td>
-                <td>${qty}</td>
-                <td>${barang.satuan}</td>
-                <td class="left">${keteranganRow || "-"}</td>
-            </tr>`;
-    });
+        (data || []).forEach(row=>{
+            const key = buatKunciGrup(row);
+            if(!groupMap.has(key)){
+                groupMap.set(key, {
+                    key,
+                    tanggal: row.tanggal,
+                    nik: row.nik,
+                    nama_pengambil: row.nama_pengambil,
+                    departemen: row.departemen,
+                    jabatan: row.jabatan,
+                    gudang: row.gudang,
+                    created_by: row.created_by,
+                    created_at: row.created_at,
+                    items: []
+                });
+            }
+            groupMap.get(key).items.push(row);
+        });
 
-    // baris kosong tambahan supaya tampilan tabel tetap mirip form kertas asli
-    for(let i = itemList.length; i < Math.max(5, itemList.length); i++){
-        tbody.innerHTML += `<tr><td>&nbsp;</td><td></td><td></td><td></td><td></td><td></td></tr>`;
+        riwayatGroupsCache = Array.from(groupMap.values());
+        renderRiwayatTable();
+
+    }catch(err){
+        console.error(err);
+        wrap.innerHTML = `<div class="riwayat-empty">⚠ Gagal memuat riwayat: ${err.message}</div>`;
+    }
+}
+
+function renderRiwayatTable(){
+    const wrap = document.getElementById("riwayatTableWrap");
+    if(!wrap) return;
+
+    const kw = (document.getElementById("riwayatSearch")?.value || "").trim().toLowerCase();
+
+    let groups = riwayatGroupsCache;
+    if(kw){
+        groups = groups.filter(g=>{
+            const gabungan = [
+                g.nama_pengambil, g.departemen, g.gudang,
+                ...g.items.map(it => it.nama_barang)
+            ].join(" ").toLowerCase();
+            return gabungan.includes(kw);
+        });
     }
 
+    if(groups.length === 0){
+        wrap.innerHTML = `<div class="riwayat-empty">Tidak ada riwayat pengajuan.</div>`;
+        return;
+    }
+
+    const baris = groups.map((g, idx)=>{
+        const daftarBarang = g.items.map(it => `${it.nama_barang} (${it.qty} ${it.satuan})`).join(", ");
+        return `
+        <tr>
+            <td>${idx + 1}</td>
+            <td>${formatTanggalIndo(g.tanggal)}</td>
+            <td>${g.nama_pengambil || "-"}<br><span class="riwayat-item-badge">${g.nik || "-"}</span></td>
+            <td>${g.departemen || "-"}</td>
+            <td>${g.gudang || "-"}</td>
+            <td>${daftarBarang}</td>
+            <td>${g.created_by || "-"}</td>
+            <td>
+                <div class="riwayat-aksi">
+                    <button type="button" class="btn-cetak" data-key="${g.key}" title="Cetak ulang">🖨️ Cetak</button>
+                    <button type="button" class="btn-edit" data-key="${g.key}" title="Edit">✏️ Edit</button>
+                    <button type="button" class="btn-hapus" data-key="${g.key}" title="Hapus">🗑️ Hapus</button>
+                </div>
+            </td>
+        </tr>`;
+    }).join("");
+
+    wrap.innerHTML = `
+        <table class="tabel-riwayat">
+            <thead>
+                <tr>
+                    <th style="width:30px;">No</th>
+                    <th style="width:100px;">Tanggal</th>
+                    <th>Nama Pengambil</th>
+                    <th>Departemen</th>
+                    <th>Gudang</th>
+                    <th>Barang</th>
+                    <th>Dibuat Oleh</th>
+                    <th style="width:190px;">Aksi</th>
+                </tr>
+            </thead>
+            <tbody>${baris}</tbody>
+        </table>
+    `;
+
+    wrap.querySelectorAll(".btn-cetak").forEach(btn=>{
+        btn.addEventListener("click", () => cetakRiwayat(btn.dataset.key));
+    });
+    wrap.querySelectorAll(".btn-edit").forEach(btn=>{
+        btn.addEventListener("click", () => bukaModalEditRiwayat(btn.dataset.key));
+    });
+    wrap.querySelectorAll(".btn-hapus").forEach(btn=>{
+        btn.addEventListener("click", () => hapusRiwayat(btn.dataset.key));
+    });
+}
+
+function cariGrupByKey(key){
+    return riwayatGroupsCache.find(g => g.key === key);
+}
+
+// ----- CETAK ULANG dari riwayat -----
+function cetakRiwayat(key){
+    const grup = cariGrupByKey(key);
+    if(!grup) return;
+
+    const itemListUntukCetak = grup.items.map(it => ({
+        barang: { nama_barang: it.nama_barang, kategori: it.kategori, satuan: it.satuan },
+        qty: it.qty,
+        keteranganRow: (it.keterangan || "").replace(TAG_FORM, "").trim()
+    }));
+
+    const karyawanUntukCetak = {
+        nama: grup.nama_pengambil,
+        departemen: grup.departemen,
+        nik: grup.nik
+    };
+
+    siapkanAreaCetak(karyawanUntukCetak, grup.tanggal, itemListUntukCetak);
     window.print();
-});
+}
+
+// ----- EDIT riwayat (qty & keterangan per item, stok otomatis disesuaikan) -----
+const rwModalOverlay = document.getElementById("rwModalOverlay");
+const rwEditRows     = document.getElementById("rwEditRows");
+const rwModalSub     = document.getElementById("rwModalSub");
+let rwEditingKey = null;
+
+function bukaModalEditRiwayat(key){
+    const grup = cariGrupByKey(key);
+    if(!grup || !rwModalOverlay || !rwEditRows) return;
+
+    rwEditingKey = key;
+    rwModalSub.textContent = `${grup.nama_pengambil || "-"} · ${grup.departemen || "-"} · Gudang ${grup.gudang || "-"} · ${formatTanggalIndo(grup.tanggal)}`;
+
+    rwEditRows.innerHTML = grup.items.map(it => `
+        <tr data-id="${it.id}">
+            <td>${it.nama_barang}<br><span class="riwayat-item-badge">${it.satuan}</span></td>
+            <td><input type="number" min="1" class="rw-input-qty" value="${it.qty}"></td>
+            <td><input type="text" class="rw-input-ket" value="${(it.keterangan || '').replace(TAG_FORM,'').trim()}"></td>
+        </tr>
+    `).join("");
+
+    rwModalOverlay.classList.add("show");
+}
+
+function tutupModalEditRiwayat(){
+    if(rwModalOverlay) rwModalOverlay.classList.remove("show");
+    rwEditingKey = null;
+}
+
+const rwBtnBatal = document.getElementById("rwBtnBatal");
+if(rwBtnBatal) rwBtnBatal.addEventListener("click", tutupModalEditRiwayat);
+
+if(rwModalOverlay){
+    rwModalOverlay.addEventListener("click", function(e){
+        if(e.target === rwModalOverlay) tutupModalEditRiwayat();
+    });
+}
+
+const rwBtnSimpan = document.getElementById("rwBtnSimpan");
+if(rwBtnSimpan){
+    rwBtnSimpan.addEventListener("click", async function(){
+        const grup = cariGrupByKey(rwEditingKey);
+        if(!grup) return;
+
+        try{
+            const baris = Array.from(rwEditRows.querySelectorAll("tr"));
+
+            for(const tr of baris){
+                const id = tr.dataset.id;
+                const itemAsli = grup.items.find(it => String(it.id) === String(id));
+                if(!itemAsli) continue;
+
+                const qtyBaru = parseInt(tr.querySelector(".rw-input-qty").value);
+                const ketBaru = tr.querySelector(".rw-input-ket").value.trim();
+
+                if(!qtyBaru || qtyBaru <= 0){
+                    alert(`Jumlah untuk "${itemAsli.nama_barang}" harus lebih dari 0.`);
+                    return;
+                }
+
+                const selisih = qtyBaru - itemAsli.qty; // positif = ambil tambahan dari stok, negatif = kembalikan ke stok
+
+                if(selisih !== 0){
+                    const barangMaster = findBarangByKode(itemAsli.kode_barang);
+                    if(barangMaster){
+                        // pakai gudang milik baris riwayat (grup.gudang), bukan
+                        // selectedGudang di form utama, karena riwayat bisa berasal
+                        // dari gudang lain daripada yang sedang dipilih di form
+                        const stokUntukValidasi = await ambilStokUntukGudang(barangMaster.id, grup.gudang);
+                        if(selisih > 0 && selisih > stokUntukValidasi){
+                            alert(`Stok "${itemAsli.nama_barang}" di gudang ${grup.gudang} tidak cukup untuk menambah jumlah.\nStok tersedia saat ini: ${stokUntukValidasi}`);
+                            return;
+                        }
+                        await kurangiStokGudangDiGudang(barangMaster.id, grup.gudang, selisih);
+                    } else {
+                        console.warn(`Barang dengan kode ${itemAsli.kode_barang} tidak ditemukan di master, stok tidak disesuaikan otomatis.`);
+                    }
+                }
+
+                const { error } = await supabaseClient
+                    .from("barang_keluar")
+                    .update({ qty: qtyBaru, keterangan: (ketBaru ? `${ketBaru} ` : "") + TAG_FORM })
+                    .eq("id", id);
+
+                if(error) throw error;
+            }
+
+            alert("Perubahan berhasil disimpan.");
+            tutupModalEditRiwayat();
+            await muatRiwayatPengajuan();
+            await loadStokGudang();
+            refreshSemuaBarisStok();
+
+        }catch(err){
+            console.error(err);
+            alert(err.message);
+        }
+    });
+}
+
+// ----- HAPUS riwayat (batalkan pengajuan, stok dikembalikan) -----
+async function hapusRiwayat(key){
+    const grup = cariGrupByKey(key);
+    if(!grup) return;
+
+    const daftar = grup.items.map(it => `- ${it.nama_barang} (${it.qty} ${it.satuan})`).join("\n");
+    const konfirmasi = confirm(
+        `Batalkan pengajuan ini?\n\nPengambil: ${grup.nama_pengambil}\nGudang: ${grup.gudang}\n\n${daftar}\n\nStok akan dikembalikan otomatis.`
+    );
+    if(!konfirmasi) return;
+
+    try{
+        for(const item of grup.items){
+            const barangMaster = findBarangByKode(item.kode_barang);
+            if(barangMaster){
+                // kurangi dengan qty negatif = mengembalikan stok
+                await kurangiStokGudangDiGudang(barangMaster.id, grup.gudang, -item.qty);
+            } else {
+                console.warn(`Barang dengan kode ${item.kode_barang} tidak ditemukan di master, stok tidak dikembalikan otomatis.`);
+            }
+        }
+
+        const ids = grup.items.map(it => it.id);
+        const { error } = await supabaseClient.from("barang_keluar").delete().in("id", ids);
+        if(error) throw error;
+
+        alert("Pengajuan berhasil dibatalkan & stok dikembalikan.");
+        await muatRiwayatPengajuan();
+        await loadStokGudang();
+        refreshSemuaBarisStok();
+
+    }catch(err){
+        console.error(err);
+        alert(err.message);
+    }
+}
+
+// ----- helper stok untuk gudang tertentu (dipakai fitur riwayat, karena
+// baris riwayat bisa berasal dari gudang berbeda dari gudang yang lagi
+// dipilih di form utama / selectedGudang) -----
+async function ambilStokUntukGudang(barangId, gudang){
+    if(!barangId || !gudang) return 0;
+    const { data, error } = await supabaseClient
+        .from("stok_gudang")
+        .select("stok")
+        .eq("barang_id", barangId)
+        .eq("gudang", gudang)
+        .maybeSingle();
+    if(error){ console.error(error); return 0; }
+    return data ? (Number(data.stok) || 0) : 0;
+}
+
+async function kurangiStokGudangDiGudang(barangId, gudang, qty){
+    if(!qty || !gudang) return;
+
+    const { data: existing, error: selErr } = await supabaseClient
+        .from("stok_gudang").select("*")
+        .eq("barang_id", barangId).eq("gudang", gudang).maybeSingle();
+
+    if(selErr) throw selErr;
+
+    const stokBaru = (existing ? (Number(existing.stok) || 0) : 0) - qty;
+
+    if(existing){
+        const { error: updErr } = await supabaseClient.from("stok_gudang")
+            .update({ stok: stokBaru, updated_at: new Date().toISOString() }).eq("id", existing.id);
+        if(updErr) throw updErr;
+    } else {
+        const { error: insErr } = await supabaseClient.from("stok_gudang")
+            .insert([{ barang_id: barangId, gudang: gudang, stok: stokBaru, updated_at: new Date().toISOString() }]);
+        if(insErr) throw insErr;
+    }
+}
 
 // =====================================
 // INIT
@@ -666,4 +1075,6 @@ document.getElementById("btnCetakForm").addEventListener("click", function(){
     formBodyGated.dataset.locked = "1";
 
     await Promise.all([loadDaftarGudang(), loadBarang()]);
+
+    initAdminChrome();
 })();
