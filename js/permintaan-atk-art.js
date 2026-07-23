@@ -26,9 +26,6 @@
 // 4) Panel "Riwayat Pengajuan" sekarang menampilkan kolom Status, dan tombol
 //    Edit/Hapus hanya aktif untuk baris berstatus "Disetujui" (karena hanya
 //    baris itu yang sudah memotong stok).
-// 5) Mode cetak: kolom "Jenis Barang" & "Keterangan" pada tabel cetak sekarang
-//    auto-mengecilkan ukuran font kalau teksnya panjang, supaya tetap 1 baris
-//    dan sejajar rapi dengan kolom lain (bukan melebar ke 2 baris).
 //
 // PENTING — MIGRASI DATABASE YANG DIPERLUKAN (Supabase):
 //   alter table barang_keluar add column if not exists status text default 'Disetujui';
@@ -582,37 +579,6 @@ function validasiDanAmbilItem(){
 }
 
 // =====================================
-// AUTO-FIT FONT untuk kolom "Jenis Barang" & "Keterangan" di tabel cetak.
-// Kalau teksnya panjang, ukuran font dikecilkan otomatis (sampai batas
-// minimum) supaya tetap muat dalam 1 baris & sejajar rapi dengan kolom
-// Type/Jumlah/Satuan yang lebih pendek — sesuai lebar kolom asli di
-// <colgroup> tabel cetak (lihat permintaan-atk-art.html).
-// =====================================
-
-const LEBAR_KOLOM_CETAK_PX = { jenisBarang: 230, keterangan: 237 };
-const FONT_DASAR_CETAK_PT = 15;
-const FONT_MIN_CETAK_PT = 8;
-
-function hitungFontMuatKolom(teks, lebarKolomPx, fontDasarPt = FONT_DASAR_CETAK_PT, fontMinPt = FONT_MIN_CETAK_PT){
-    const teksBersih = (teks || "").toString();
-    if(!teksBersih) return fontDasarPt;
-
-    const canvas = hitungFontMuatKolom._canvas || (hitungFontMuatKolom._canvas = document.createElement("canvas"));
-    const ctx = canvas.getContext("2d");
-    const pxPerPt = 96 / 72;       // konversi pt (fisik cetak) ke px (buat canvas)
-    const paddingPx = 20;          // kira-kira padding kiri+kanan + border sel tabel cetak
-
-    let fontPt = fontDasarPt;
-    while(fontPt > fontMinPt){
-        ctx.font = `${(fontPt * pxPerPt).toFixed(2)}px "Times New Roman"`;
-        const lebarTeks = ctx.measureText(teksBersih).width;
-        if(lebarTeks <= (lebarKolomPx - paddingPx)) break;
-        fontPt -= 0.5;
-    }
-    return fontPt;
-}
-
-// =====================================
 // CETAK FORM — replika presisi form kertas FHCS-003
 // =====================================
 
@@ -637,20 +603,14 @@ function siapkanAreaCetak(karyawan, tanggal, itemList, statusNote){
     tbody.innerHTML = "";
 
     itemList.forEach(({ barang, qty, keteranganRow }, idx)=>{
-        const namaBarang = barang.nama_barang || "";
-        const ketTampil  = (keteranganRow || "-").toString();
-
-        const fontJenis = hitungFontMuatKolom(namaBarang, LEBAR_KOLOM_CETAK_PX.jenisBarang);
-        const fontKet    = hitungFontMuatKolom(ketTampil, LEBAR_KOLOM_CETAK_PX.keterangan);
-
         tbody.innerHTML += `
             <tr>
                 <td>${idx + 1}</td>
-                <td class="left" style="font-size:${fontJenis}pt;">${namaBarang}</td>
+                <td class="left">${barang.nama_barang}</td>
                 <td>${barang.kategori || "-"}</td>
                 <td>${qty}</td>
                 <td>${barang.satuan}</td>
-                <td class="left" style="font-size:${fontKet}pt;">${ketTampil}</td>
+                <td class="left">${keteranganRow || "-"}</td>
             </tr>`;
     });
 
