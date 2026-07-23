@@ -9,6 +9,9 @@
 <link rel="stylesheet" href="css/dashboard.css">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
 <script src="supabase/config.js"></script>
+<!-- Tema warna otomatis sesuai gudang yang login (sama seperti dashboard.html).
+     Kalau tidak ada sesi admin, script ini aman untuk tidak melakukan apa-apa. -->
+<script src="js/theme.js"></script>
 <style>
     :root{
         --pg-border:#334155;
@@ -176,6 +179,100 @@
         .gudang-gate label{ flex:0 0 auto; }
     }
 
+    /* =========================================================
+       CHROME ADMIN (sidebar + topbar) — copy struktur dari
+       dashboard.html. Disembunyikan total secara default (mode
+       publik / tanpa login). Baru dimunculkan oleh JS lewat class
+       body.is-admin-view HANYA KALAU ada sessionStorage("user")
+       yang valid, yaitu saat halaman ini dibuka dari dalam sistem
+       admin (bukan link publik tanpa login).
+    ========================================================= */
+    body.is-admin-view{ display:flex; }
+    body:not(.is-admin-view) .sidebar,
+    body:not(.is-admin-view) .topbar{ display:none !important; }
+    body:not(.is-admin-view) .main-wrap{ margin-left:0 !important; }
+
+    .main-wrap{ flex:1; min-height:100vh; display:flex; flex-direction:column; }
+    body.is-admin-view .main-wrap{ margin-left:var(--sidebar-w,260px); }
+
+    body.is-admin-view .content{ padding:28px; }
+    body:not(.is-admin-view) .content{ padding:24px; max-width:900px; margin:0 auto; }
+
+    .toolbar{ display:flex !important; justify-content:flex-end; }
+
+    /* ===== panel riwayat pengajuan (khusus admin) ===== */
+    .admin-only{ display:none; }
+    body.is-admin-view .admin-only{ display:block; }
+
+    #riwayatPanel{ margin-top:26px; }
+    .riwayat-head{
+        display:flex !important; align-items:center; justify-content:space-between;
+        gap:12px; margin-bottom:16px; flex-wrap:wrap;
+    }
+    .riwayat-head h4{ font-size:15px; font-weight:700; color:var(--pg-text); margin:0; }
+    .riwayat-tools{ display:flex !important; gap:8px; align-items:center; flex-wrap:wrap; }
+    .riwayat-tools input[type="text"]{
+        padding:8px 10px; border-radius:6px; border:1px solid var(--pg-border);
+        background:var(--pg-bg-1); color:var(--pg-text); font-family:inherit; font-size:13px; min-width:220px;
+    }
+    .btn-mini{
+        background:var(--pg-soft-bg-2); color:var(--pg-text); border:1px solid var(--pg-border);
+        border-radius:6px; padding:8px 12px; cursor:pointer; font-weight:600; font-size:12.5px;
+    }
+    .btn-mini:hover{ background:rgba(255,255,255,.14); }
+
+    table.tabel-riwayat{ width:100%; border-collapse:collapse; font-size:12.5px; }
+    table.tabel-riwayat th{
+        background:var(--pg-soft-bg-2); color:var(--pg-label); text-align:left;
+        padding:9px 8px; border:1px solid var(--pg-border); font-size:11px; text-transform:uppercase; letter-spacing:.03em;
+    }
+    table.tabel-riwayat td{ padding:8px; border:1px solid var(--pg-border); color:var(--pg-text); vertical-align:top; }
+    table.tabel-riwayat tbody tr:nth-child(odd){ background:var(--pg-soft-bg); }
+    .riwayat-aksi{ display:flex; gap:6px; flex-wrap:wrap; }
+    .riwayat-aksi button{
+        border:1px solid var(--pg-border); border-radius:6px; padding:5px 9px;
+        font-size:11.5px; cursor:pointer; font-weight:600; background:var(--pg-bg-1); color:var(--pg-text);
+    }
+    .riwayat-aksi .btn-cetak{ color:#60a5fa; border-color:rgba(59,130,246,.35); }
+    .riwayat-aksi .btn-edit{ color:#fbbf24; border-color:rgba(251,191,36,.35); }
+    .riwayat-aksi .btn-hapus{ color:#f87171; border-color:rgba(239,68,68,.35); }
+    .riwayat-aksi button:hover{ filter:brightness(1.25); }
+    .riwayat-empty, .riwayat-loading{ padding:22px; text-align:center; color:var(--pg-faint); font-size:13px; }
+    .riwayat-item-badge{
+        display:inline-block; font-size:11px; color:var(--pg-label); background:var(--pg-soft-bg-2);
+        border:1px solid var(--pg-border); border-radius:999px; padding:2px 8px; margin-top:4px;
+    }
+
+    /* ===== modal edit riwayat ===== */
+    .rw-modal-overlay{
+        display:none; position:fixed; inset:0; background:rgba(0,0,0,.6); z-index:1000;
+        align-items:center; justify-content:center; padding:20px;
+    }
+    .rw-modal-overlay.show{ display:flex; }
+    .rw-modal-box{
+        background:var(--pg-bg-2); border:1px solid var(--pg-border); border-radius:14px;
+        max-width:640px; width:100%; max-height:88vh; overflow-y:auto; padding:22px 24px;
+    }
+    .rw-modal-box h3{ font-size:15px; margin:0 0 4px; color:var(--pg-text); }
+    .rw-modal-sub{ font-size:12px; color:var(--pg-faint); margin-bottom:16px; }
+    table.rw-edit-table{ width:100%; border-collapse:collapse; margin-bottom:16px; font-size:12.5px; }
+    table.rw-edit-table th{
+        text-align:left; padding:6px 6px; border-bottom:1px solid var(--pg-border);
+        color:var(--pg-label); font-size:11px; text-transform:uppercase;
+    }
+    table.rw-edit-table td{ padding:6px; border-bottom:1px solid var(--pg-border-2); }
+    table.rw-edit-table input[type="number"], table.rw-edit-table input[type="text"]{
+        width:100%; padding:6px 8px; border-radius:6px; border:1px solid var(--pg-border);
+        background:var(--pg-bg-1); color:var(--pg-text); font-family:inherit; font-size:12.5px; box-sizing:border-box;
+    }
+    .rw-modal-actions{ display:flex; gap:10px; justify-content:flex-end; }
+    .rw-modal-actions button{
+        border-radius:8px; padding:9px 18px; cursor:pointer; font-weight:600; font-size:13px; border:1px solid var(--pg-border);
+    }
+    .rw-btn-batal{ background:var(--pg-soft-bg-2); color:var(--pg-text); }
+    .rw-btn-simpan{ background:#3b82f6; color:#fff; border-color:#3b82f6; }
+    .rw-btn-simpan:hover{ background:#2563eb; }
+
     /* ===== tampilan cetak: replika presisi form kertas FHCS-003 ===== */
     #printArea{ display:none; }
 
@@ -214,107 +311,184 @@
 </style>
 </head>
 <body>
-<div class="content">
-<h2>📝 Permintaan / Pengambilan ATK &amp; ART</h2>
-<br>
-<div class="toolbar">
-<button type="button" class="btn-print" id="btnCetakForm">🖨️ Cetak Form</button>
+
+<!-- ===========================
+     SIDEBAR (khusus admin) — sama seperti dashboard.html.
+     Disembunyikan otomatis oleh CSS di atas kalau tidak ada sesi login.
+=========================== -->
+<div class="sidebar">
+  <div class="logo">
+    <span class="logo-icon">📦</span>
+    <h2>ATK &amp; ART</h2>
+    <p class="logo-sub">Management System</p>
+    <div class="logo-user">
+      <div class="avatar" id="avatarInit">?</div>
+      <div class="user-info">
+        <div class="user-name" id="userName">—</div>
+        <div class="user-role" id="userGudang">—</div>
+      </div>
+    </div>
+  </div>
+  <div class="menu">
+    <button onclick="goPage('dashboard.html')">🏠 Dashboard</button>
+    <button onclick="goPage('pengaturan-tema.html')">🎨 Pengaturan Tema</button>
+    <div class="menu-title">Transaksi</div>
+    <button onclick="goPage('barang-masuk.html')">📥 Barang Masuk</button>
+    <button onclick="goPage('barang-keluar.html')">📤 Barang Keluar</button>
+    <button class="active" onclick="goPage('permintaan-atk-art.html')">📝 Permintaan ATK/ART</button>
+    <button onclick="goPage('barang-transfer.html')">🔄 Transfer Barang</button>
+    <button onclick="goPage('database-barang.html')">📦 Database Barang</button>
+    <div class="menu-title">Master Data</div>
+    <button onclick="goPage('master-barang.html')">📋 Master Barang</button>
+    <button onclick="goPage('master-karyawan.html')">👥 Master Karyawan</button>
+    <button onclick="goPage('mutasi-karyawan.html')">🔄 Mutasi Karyawan</button>
+    <button onclick="goPage('master-departemen.html')">🏢 Master Departemen</button>
+    <button onclick="goPage('master-jabatan.html')">💼 Master Jabatan</button>
+    <button onclick="goPage('master-supplier.html')">🚚 Master Supplier</button>
+    <div class="menu-title">Laporan</div>
+    <button onclick="goPage('laporan.html')">📊 Laporan</button>
+    <hr>
+    <button class="btn-logout" onclick="logout()">🚪 Logout</button>
+  </div>
 </div>
-<br>
 
-<div class="panel" id="formPermintaanWrap">
+<div class="main-wrap">
 
-    <div class="form-kop">
-        <div class="form-kop-brand">
-            <!-- Ganti file di images/logo-sda-global.png dengan logo asli Anda bila perlu -->
-            <img class="brand-logo" src="images/logo-sda-global.png" alt="PT. SDA Global - Fluid Power Company">
-            <p class="brand-name">PT. SDA GLOBAL</p>
+  <!-- ===========================
+       TOPBAR (khusus admin)
+  =========================== -->
+  <div class="topbar">
+    <div class="topbar-left">
+      <h3>Permintaan / Pengambilan ATK &amp; ART</h3>
+      <p>Form FHCS-003 &middot; otomatis potong stok</p>
+    </div>
+    <div class="topbar-right">
+      <div class="topbar-date" id="topbarDate">—</div>
+    </div>
+  </div>
+
+  <div class="content">
+    <h2 class="admin-hide-title">📝 Permintaan / Pengambilan ATK &amp; ART</h2>
+    <br>
+    <div class="toolbar">
+        <button type="button" class="btn-print" id="btnCetakForm">🖨️ Cetak Form</button>
+    </div>
+    <br>
+
+    <div class="panel" id="formPermintaanWrap">
+
+        <div class="form-kop">
+            <div class="form-kop-brand">
+                <!-- Ganti file di images/logo-sda-global.png dengan logo asli Anda bila perlu -->
+                <img class="brand-logo" src="images/logo-sda-global.png" alt="PT. SDA Global - Fluid Power Company">
+                <p class="brand-name">PT. SDA GLOBAL</p>
+            </div>
+            <div class="form-kop-code">FHCS&nbsp;–&nbsp;003</div>
         </div>
-        <div class="form-kop-code">FHCS&nbsp;–&nbsp;003</div>
+
+        <h3 class="form-title">PERMINTAAN / PENGAMBILAN ATK &amp; ART</h3>
+
+        <div class="gudang-gate">
+            <label for="gudangSelect">Pilih Gudang</label>
+            <select id="gudangSelect" required>
+                <option value="">-- Pilih Gudang --</option>
+            </select>
+        </div>
+        <p class="gudang-hint">Pilih gudang tempat Anda bertugas terlebih dahulu — daftar nama karyawan &amp; stok barang akan menyesuaikan otomatis.</p>
+
+        <form id="formPermintaan">
+
+            <div id="formBodyGated" data-locked="1">
+
+            <div class="header-grid">
+                <div class="header-field">
+                    <label>Nama Karyawan</label><span class="colon">:</span>
+                    <div class="combo-wrapper">
+                        <input type="text" id="karyawanSearch" class="combo-input"
+                            placeholder="-- Pilih gudang dahulu --" autocomplete="off" required disabled>
+                        <input type="hidden" id="karyawanId">
+                        <div class="combo-dropdown" id="karyawanDropdown"></div>
+                    </div>
+                </div>
+                <div class="header-field">
+                    <label>Departement / Bagian</label><span class="colon">:</span>
+                    <input type="text" id="departemen" class="combo-input" placeholder="Departemen" readonly>
+                </div>
+                <div class="header-field">
+                    <label>NIK</label><span class="colon">:</span>
+                    <input type="text" id="nik" class="combo-input" placeholder="NIK" readonly>
+                </div>
+                <div class="header-field">
+                    <label>Tanggal</label><span class="colon">:</span>
+                    <input type="date" id="tanggal" class="combo-input" required>
+                </div>
+            </div>
+
+            <table class="tabel-barang">
+                <thead>
+                    <tr>
+                        <th style="width:34px;">No</th>
+                        <th>Jenis Barang</th>
+                        <th style="width:110px;">Type</th>
+                        <th style="width:110px;">Jumlah</th>
+                        <th style="width:90px;">Satuan</th>
+                        <th style="width:180px;">Keterangan</th>
+                        <th style="width:36px;"></th>
+                    </tr>
+                </thead>
+                <tbody id="detailRows"></tbody>
+            </table>
+            <button type="button" class="btn-tambah-baris" id="btnTambahBaris">➕ Tambah Barang</button>
+
+            <div class="signature-block">
+                <div class="signature-city" id="signatureCity">Surabaya, ..........................</div>
+                <div class="signature-grid">
+                    <div class="signature-col">
+                        <p>Yang bersangkutan</p>
+                        <div class="sig-line">Karyawan/wati</div>
+                    </div>
+                    <div class="signature-col">
+                        <p>Mengetahui</p>
+                        <div class="sig-line">Manager/Kabag....</div>
+                    </div>
+                    <div class="signature-col">
+                        <p>Menyetujui</p>
+                        <div class="sig-line">Manager HCS</div>
+                    </div>
+                </div>
+                <p class="tag-note">Tanda tangan basah dilakukan di atas kertas hasil cetak (tombol 🖨️ Cetak Form) — form ini hanya sebagai catatan digital &amp; pemotong stok otomatis. Setelah "Simpan &amp; Kurangi Stok", dialog cetak akan muncul otomatis.</p>
+            </div>
+
+            <div class="form-actions">
+                <button type="submit" id="btnSimpan">💾 Simpan &amp; Kurangi Stok</button>
+            </div>
+
+            </div><!-- /#formBodyGated -->
+
+        </form>
     </div>
 
-    <h3 class="form-title">PERMINTAAN / PENGAMBILAN ATK &amp; ART</h3>
-
-    <div class="gudang-gate">
-        <label for="gudangSelect">Pilih Gudang</label>
-        <select id="gudangSelect" required>
-            <option value="">-- Pilih Gudang --</option>
-        </select>
+    <!-- ===========================
+         RIWAYAT PENGAJUAN (khusus admin) — gabungan pengajuan dari
+         akun admin maupun dari link publik, karena keduanya tersimpan
+         di tabel barang_keluar yang sama.
+    =========================== -->
+    <div class="panel admin-only" id="riwayatPanel">
+        <div class="riwayat-head">
+            <h4>🗂️ Riwayat Pengajuan ATK/ART</h4>
+            <div class="riwayat-tools">
+                <input type="text" id="riwayatSearch" placeholder="Cari nama / barang / gudang...">
+                <button type="button" class="btn-mini" id="btnMuatUlangRiwayat">🔄 Muat Ulang</button>
+            </div>
+        </div>
+        <div id="riwayatTableWrap">
+            <div class="riwayat-loading">Memuat riwayat...</div>
+        </div>
+        <p class="tag-note">Menampilkan 300 pengajuan terakhir (digabung per transaksi). Klik ✏️ untuk mengubah jumlah/keterangan (stok otomatis disesuaikan selisihnya), 🗑️ untuk membatalkan pengajuan (stok dikembalikan), atau 🖨️ untuk mencetak ulang.</p>
     </div>
-    <p class="gudang-hint">Pilih gudang tempat Anda bertugas terlebih dahulu — daftar nama karyawan &amp; stok barang akan menyesuaikan otomatis.</p>
 
-    <form id="formPermintaan">
-
-        <div id="formBodyGated" data-locked="1">
-
-        <div class="header-grid">
-            <div class="header-field">
-                <label>Nama Karyawan</label><span class="colon">:</span>
-                <div class="combo-wrapper">
-                    <input type="text" id="karyawanSearch" class="combo-input"
-                        placeholder="-- Pilih gudang dahulu --" autocomplete="off" required disabled>
-                    <input type="hidden" id="karyawanId">
-                    <div class="combo-dropdown" id="karyawanDropdown"></div>
-                </div>
-            </div>
-            <div class="header-field">
-                <label>Departement / Bagian</label><span class="colon">:</span>
-                <input type="text" id="departemen" class="combo-input" placeholder="Departemen" readonly>
-            </div>
-            <div class="header-field">
-                <label>NIK</label><span class="colon">:</span>
-                <input type="text" id="nik" class="combo-input" placeholder="NIK" readonly>
-            </div>
-            <div class="header-field">
-                <label>Tanggal</label><span class="colon">:</span>
-                <input type="date" id="tanggal" class="combo-input" required>
-            </div>
-        </div>
-
-        <table class="tabel-barang">
-            <thead>
-                <tr>
-                    <th style="width:34px;">No</th>
-                    <th>Jenis Barang</th>
-                    <th style="width:110px;">Type</th>
-                    <th style="width:110px;">Jumlah</th>
-                    <th style="width:90px;">Satuan</th>
-                    <th style="width:180px;">Keterangan</th>
-                    <th style="width:36px;"></th>
-                </tr>
-            </thead>
-            <tbody id="detailRows"></tbody>
-        </table>
-        <button type="button" class="btn-tambah-baris" id="btnTambahBaris">➕ Tambah Barang</button>
-
-        <div class="signature-block">
-            <div class="signature-city" id="signatureCity">Surabaya, ..........................</div>
-            <div class="signature-grid">
-                <div class="signature-col">
-                    <p>Yang bersangkutan</p>
-                    <div class="sig-line">Karyawan/wati</div>
-                </div>
-                <div class="signature-col">
-                    <p>Mengetahui</p>
-                    <div class="sig-line">Manager/Kabag....</div>
-                </div>
-                <div class="signature-col">
-                    <p>Menyetujui</p>
-                    <div class="sig-line">Manager HCS</div>
-                </div>
-            </div>
-            <p class="tag-note">Tanda tangan basah dilakukan di atas kertas hasil cetak (tombol 🖨️ Cetak Form) — form ini hanya sebagai catatan digital &amp; pemotong stok otomatis.</p>
-        </div>
-
-        <div class="form-actions">
-            <button type="submit" id="btnSimpan">💾 Simpan &amp; Kurangi Stok</button>
-        </div>
-
-        </div><!-- /#formBodyGated -->
-
-    </form>
-</div>
-</div>
+  </div><!-- /content -->
+</div><!-- /main-wrap -->
 
 <!-- ============================================
      AREA CETAK — replika presisi form kertas FHCS-003
@@ -353,6 +527,26 @@
         </div>
     </div>
     <div class="print-rev">Rev.00</div>
+</div>
+
+<!-- ============================================
+     MODAL EDIT RIWAYAT (khusus admin)
+============================================= -->
+<div class="rw-modal-overlay" id="rwModalOverlay">
+    <div class="rw-modal-box">
+        <h3>✏️ Edit Pengajuan</h3>
+        <p class="rw-modal-sub" id="rwModalSub">-</p>
+        <table class="rw-edit-table">
+            <thead>
+                <tr><th>Barang</th><th style="width:110px;">Jumlah</th><th>Keterangan</th></tr>
+            </thead>
+            <tbody id="rwEditRows"></tbody>
+        </table>
+        <div class="rw-modal-actions">
+            <button type="button" class="rw-btn-batal" id="rwBtnBatal">Batal</button>
+            <button type="button" class="rw-btn-simpan" id="rwBtnSimpan">💾 Simpan Perubahan</button>
+        </div>
+    </div>
 </div>
 
 <script src="js/permintaan-atk-art-public.js"></script>
