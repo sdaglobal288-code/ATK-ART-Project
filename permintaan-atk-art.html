@@ -169,6 +169,7 @@
     #printArea{ display:none; }
 
     @media print{
+        @page{ size:A4; margin:15mm 14mm; }
         body *{ visibility:hidden; }
         #printArea, #printArea *{ visibility:visible; }
         #printArea{
