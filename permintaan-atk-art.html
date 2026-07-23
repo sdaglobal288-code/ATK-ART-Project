@@ -203,29 +203,24 @@
     }
 
     /* =========================================================
-       CHROME ADMIN (sidebar + topbar) — copy struktur dari
-       dashboard.html. Disembunyikan total secara default (mode
-       publik / tanpa login). Baru dimunculkan oleh JS lewat class
-       body.is-admin-view HANYA KALAU ada sessionStorage("user")
-       yang valid, yaitu saat halaman ini dibuka dari dalam sistem
-       admin (bukan link publik tanpa login).
+       TAMPILAN ADMIN — disamakan dengan barang-masuk.html.
+       Halaman ini TIDAK lagi menaruh sidebar/topbar replika
+       sendiri. Navigasi kembali ke sistem cukup lewat tombol
+       "🏠 Dashboard" di toolbar, sama persis seperti halaman
+       Barang Masuk. Bedanya, tombol itu (dan panel Validasi /
+       Riwayat) hanya muncul kalau halaman dibuka dari dalam
+       sistem admin (ada sessionStorage "user"); kalau dibuka
+       sebagai link publik, semuanya tetap tersembunyi seperti
+       sebelumnya dan tampilan tetap ramping/terpusat untuk publik.
     ========================================================= */
-    body.is-admin-view{ display:flex; }
-    body:not(.is-admin-view) .sidebar,
-    body:not(.is-admin-view) .topbar{ display:none !important; }
-    body:not(.is-admin-view) .main-wrap{ margin-left:0 !important; }
-
-    .main-wrap{ flex:1; min-height:100vh; display:flex; flex-direction:column; }
-    body.is-admin-view .main-wrap{ margin-left:var(--sidebar-w,260px); }
-
-    /* Sama seperti barang-masuk.html: full-width, padding besar untuk admin */
-    body.is-admin-view .content{ padding:28px; }
     body:not(.is-admin-view) .content{ padding:24px; max-width:900px; margin:0 auto; }
+    body.is-admin-view .content{ padding:28px; }
     body.is-admin-view #formPermintaanWrap,
     body.is-admin-view #validasiPanel,
     body.is-admin-view #riwayatPanel{ max-width:none; }
 
-    .toolbar{ display:flex !important; justify-content:flex-end; }
+    /* toolbar tombol Cetak Form Kosong (selalu tampil, publik & admin) */
+    .toolbar-print{ display:flex !important; justify-content:flex-end; }
 
     /* ===== panel-panel khusus admin ===== */
     .admin-only{ display:none; }
@@ -339,204 +334,156 @@
 </style>
 </head>
 <body>
+<div class="content">
+<h2>📝 Permintaan / Pengambilan ATK &amp; ART</h2>
+<br>
+<!-- ================= TOOLBAR (khusus admin, sama seperti Barang Masuk) ================= -->
+<div class="toolbar admin-only">
+<button
+class="btn-dashboard"
+onclick="location.href='dashboard.html'">
+🏠 Dashboard
+</button>
+</div>
+<br>
+<div class="toolbar-print">
+    <button type="button" class="btn-print" id="btnCetakForm">🖨️ Cetak Form Kosong</button>
+</div>
+<br>
 
-<!-- ===========================
-     SIDEBAR (khusus admin) — sama seperti dashboard.html.
-     Disembunyikan otomatis oleh CSS di atas kalau tidak ada sesi login.
-=========================== -->
-<div class="sidebar">
-  <div class="logo">
-    <span class="logo-icon">📦</span>
-    <h2>ATK &amp; ART</h2>
-    <p class="logo-sub">Management System</p>
-    <div class="logo-user">
-      <div class="avatar" id="avatarInit">?</div>
-      <div class="user-info">
-        <div class="user-name" id="userName">—</div>
-        <div class="user-role" id="userGudang">—</div>
-      </div>
+<div class="panel" id="formPermintaanWrap">
+
+    <div class="form-kop">
+        <div class="form-kop-brand">
+            <!-- Ganti file di images/logo-sda-global.png dengan logo asli Anda bila perlu -->
+            <img class="brand-logo" src="images/logo-sda-global.png" alt="PT. SDA Global - Fluid Power Company">
+            <p class="brand-name">PT. SDA GLOBAL</p>
+        </div>
+        <div class="form-kop-code">FHCS&nbsp;–&nbsp;003</div>
     </div>
-  </div>
-  <div class="menu">
-    <button onclick="goPage('dashboard.html')">🏠 Dashboard</button>
-    <button onclick="goPage('pengaturan-tema.html')">🎨 Pengaturan Tema</button>
-    <div class="menu-title">Transaksi</div>
-    <button onclick="goPage('barang-masuk.html')">📥 Barang Masuk</button>
-    <button onclick="goPage('barang-keluar.html')">📤 Barang Keluar</button>
-    <button class="active" onclick="goPage('permintaan-atk-art.html')">📝 Permintaan ATK/ART</button>
-    <button onclick="goPage('barang-transfer.html')">🔄 Transfer Barang</button>
-    <button onclick="goPage('database-barang.html')">📦 Database Barang</button>
-    <div class="menu-title">Master Data</div>
-    <button onclick="goPage('master-barang.html')">📋 Master Barang</button>
-    <button onclick="goPage('master-karyawan.html')">👥 Master Karyawan</button>
-    <button onclick="goPage('mutasi-karyawan.html')">🔄 Mutasi Karyawan</button>
-    <button onclick="goPage('master-departemen.html')">🏢 Master Departemen</button>
-    <button onclick="goPage('master-jabatan.html')">💼 Master Jabatan</button>
-    <button onclick="goPage('master-supplier.html')">🚚 Master Supplier</button>
-    <div class="menu-title">Laporan</div>
-    <button onclick="goPage('laporan.html')">📊 Laporan</button>
-    <hr>
-    <button class="btn-logout" onclick="logout()">🚪 Logout</button>
-  </div>
+
+    <h3 class="form-title">PERMINTAAN / PENGAMBILAN ATK &amp; ART</h3>
+
+    <div class="gudang-gate">
+        <label for="gudangSelect">Pilih Gudang</label>
+        <select id="gudangSelect" required>
+            <option value="">-- Pilih Gudang --</option>
+        </select>
+    </div>
+    <p class="gudang-hint">Pilih gudang tempat Anda bertugas terlebih dahulu — daftar nama karyawan &amp; stok barang akan menyesuaikan otomatis.</p>
+
+    <form id="formPermintaan">
+
+        <div id="formBodyGated" data-locked="1">
+
+        <div class="header-grid">
+            <div class="header-field">
+                <label>Nama Karyawan</label><span class="colon">:</span>
+                <div class="combo-wrapper">
+                    <input type="text" id="karyawanSearch" class="combo-input"
+                        placeholder="-- Pilih gudang dahulu --" autocomplete="off" required disabled>
+                    <input type="hidden" id="karyawanId">
+                    <div class="combo-dropdown" id="karyawanDropdown"></div>
+                </div>
+            </div>
+            <div class="header-field">
+                <label>Departement / Bagian</label><span class="colon">:</span>
+                <input type="text" id="departemen" class="combo-input" placeholder="Departemen" readonly>
+            </div>
+            <div class="header-field">
+                <label>NIK</label><span class="colon">:</span>
+                <input type="text" id="nik" class="combo-input" placeholder="NIK" readonly>
+            </div>
+            <div class="header-field">
+                <label>Tanggal</label><span class="colon">:</span>
+                <input type="date" id="tanggal" class="combo-input" required>
+            </div>
+        </div>
+
+        <table class="tabel-barang">
+            <thead>
+                <tr>
+                    <th style="width:34px;">No</th>
+                    <th>Jenis Barang</th>
+                    <th style="width:110px;">Type</th>
+                    <th style="width:110px;">Jumlah</th>
+                    <th style="width:90px;">Satuan</th>
+                    <th style="width:180px;">Keterangan</th>
+                    <th style="width:36px;"></th>
+                </tr>
+            </thead>
+            <tbody id="detailRows"></tbody>
+        </table>
+        <button type="button" class="btn-tambah-baris" id="btnTambahBaris">➕ Tambah Barang</button>
+
+        <div class="signature-block">
+            <div class="signature-city" id="signatureCity">Surabaya, ..........................</div>
+            <div class="signature-grid">
+                <div class="signature-col">
+                    <p>Yang bersangkutan</p>
+                    <div class="sig-line">Karyawan/wati</div>
+                </div>
+                <div class="signature-col">
+                    <p>Mengetahui</p>
+                    <div class="sig-line">Manager/Kabag....</div>
+                </div>
+                <div class="signature-col">
+                    <p>Menyetujui</p>
+                    <div class="sig-line">Manager HCS</div>
+                </div>
+            </div>
+            <p class="tag-note">Tanda tangan basah dilakukan di atas kertas hasil cetak. Permintaan akan berstatus <b>Menunggu Approval</b> dan stok baru terpotong otomatis setelah divalidasi oleh admin gudang.</p>
+        </div>
+
+        <div class="form-actions">
+            <button type="submit" class="btn-primer" id="btnSimpan">💾 Ajukan Permintaan</button>
+            <button type="button" class="btn-print" id="btnCetakUlangSimpan" style="display:none;">🖨️ Cetak Bukti Permintaan</button>
+            <button type="button" class="btn-mini" id="btnPermintaanBaru" style="display:none;">➕ Buat Permintaan Baru</button>
+        </div>
+
+        </div><!-- /#formBodyGated -->
+
+    </form>
 </div>
 
-<div class="main-wrap">
-
-  <!-- ===========================
-       TOPBAR (khusus admin)
-  =========================== -->
-  <div class="topbar">
-    <div class="topbar-left">
-      <h3>Permintaan / Pengambilan ATK &amp; ART</h3>
-      <p>Form FHCS-003 &middot; validasi manual sebelum stok terpotong</p>
-    </div>
-    <div class="topbar-right">
-      <div class="topbar-date" id="topbarDate">—</div>
-    </div>
-  </div>
-
-  <div class="content">
-    <h2 class="admin-hide-title">📝 Permintaan / Pengambilan ATK &amp; ART</h2>
-    <br>
-    <div class="toolbar">
-        <button type="button" class="btn-print" id="btnCetakForm">🖨️ Cetak Form Kosong</button>
-    </div>
-    <br>
-
-    <div class="panel" id="formPermintaanWrap">
-
-        <div class="form-kop">
-            <div class="form-kop-brand">
-                <!-- Ganti file di images/logo-sda-global.png dengan logo asli Anda bila perlu -->
-                <img class="brand-logo" src="images/logo-sda-global.png" alt="PT. SDA Global - Fluid Power Company">
-                <p class="brand-name">PT. SDA GLOBAL</p>
-            </div>
-            <div class="form-kop-code">FHCS&nbsp;–&nbsp;003</div>
+<!-- ===========================
+     VALIDASI PERMINTAAN (khusus admin) — permintaan berstatus
+     "Menunggu Approval" dari link publik maupun dari halaman ini.
+     Stok baru dipotong otomatis SETELAH admin menekan Setujui.
+=========================== -->
+<div class="panel admin-only" id="validasiPanel">
+    <div class="riwayat-head">
+        <h4>✅ Validasi Permintaan ATK/ART</h4>
+        <div class="riwayat-tools">
+            <button type="button" class="btn-mini" id="btnMuatUlangValidasi">🔄 Muat Ulang</button>
         </div>
-
-        <h3 class="form-title">PERMINTAAN / PENGAMBILAN ATK &amp; ART</h3>
-
-        <div class="gudang-gate">
-            <label for="gudangSelect">Pilih Gudang</label>
-            <select id="gudangSelect" required>
-                <option value="">-- Pilih Gudang --</option>
-            </select>
-        </div>
-        <p class="gudang-hint">Pilih gudang tempat Anda bertugas terlebih dahulu — daftar nama karyawan &amp; stok barang akan menyesuaikan otomatis.</p>
-
-        <form id="formPermintaan">
-
-            <div id="formBodyGated" data-locked="1">
-
-            <div class="header-grid">
-                <div class="header-field">
-                    <label>Nama Karyawan</label><span class="colon">:</span>
-                    <div class="combo-wrapper">
-                        <input type="text" id="karyawanSearch" class="combo-input"
-                            placeholder="-- Pilih gudang dahulu --" autocomplete="off" required disabled>
-                        <input type="hidden" id="karyawanId">
-                        <div class="combo-dropdown" id="karyawanDropdown"></div>
-                    </div>
-                </div>
-                <div class="header-field">
-                    <label>Departement / Bagian</label><span class="colon">:</span>
-                    <input type="text" id="departemen" class="combo-input" placeholder="Departemen" readonly>
-                </div>
-                <div class="header-field">
-                    <label>NIK</label><span class="colon">:</span>
-                    <input type="text" id="nik" class="combo-input" placeholder="NIK" readonly>
-                </div>
-                <div class="header-field">
-                    <label>Tanggal</label><span class="colon">:</span>
-                    <input type="date" id="tanggal" class="combo-input" required>
-                </div>
-            </div>
-
-            <table class="tabel-barang">
-                <thead>
-                    <tr>
-                        <th style="width:34px;">No</th>
-                        <th>Jenis Barang</th>
-                        <th style="width:110px;">Type</th>
-                        <th style="width:110px;">Jumlah</th>
-                        <th style="width:90px;">Satuan</th>
-                        <th style="width:180px;">Keterangan</th>
-                        <th style="width:36px;"></th>
-                    </tr>
-                </thead>
-                <tbody id="detailRows"></tbody>
-            </table>
-            <button type="button" class="btn-tambah-baris" id="btnTambahBaris">➕ Tambah Barang</button>
-
-            <div class="signature-block">
-                <div class="signature-city" id="signatureCity">Surabaya, ..........................</div>
-                <div class="signature-grid">
-                    <div class="signature-col">
-                        <p>Yang bersangkutan</p>
-                        <div class="sig-line">Karyawan/wati</div>
-                    </div>
-                    <div class="signature-col">
-                        <p>Mengetahui</p>
-                        <div class="sig-line">Manager/Kabag....</div>
-                    </div>
-                    <div class="signature-col">
-                        <p>Menyetujui</p>
-                        <div class="sig-line">Manager HCS</div>
-                    </div>
-                </div>
-                <p class="tag-note">Tanda tangan basah dilakukan di atas kertas hasil cetak. Permintaan akan berstatus <b>Menunggu Approval</b> dan stok baru terpotong otomatis setelah divalidasi oleh admin gudang.</p>
-            </div>
-
-            <div class="form-actions">
-                <button type="submit" class="btn-primer" id="btnSimpan">💾 Ajukan Permintaan</button>
-                <button type="button" class="btn-print" id="btnCetakUlangSimpan" style="display:none;">🖨️ Cetak Bukti Permintaan</button>
-                <button type="button" class="btn-mini" id="btnPermintaanBaru" style="display:none;">➕ Buat Permintaan Baru</button>
-            </div>
-
-            </div><!-- /#formBodyGated -->
-
-        </form>
     </div>
-
-    <!-- ===========================
-         VALIDASI PERMINTAAN (khusus admin) — permintaan berstatus
-         "Menunggu Approval" dari link publik maupun dari halaman ini.
-         Stok baru dipotong otomatis SETELAH admin menekan Setujui.
-    =========================== -->
-    <div class="panel admin-only" id="validasiPanel">
-        <div class="riwayat-head">
-            <h4>✅ Validasi Permintaan ATK/ART</h4>
-            <div class="riwayat-tools">
-                <button type="button" class="btn-mini" id="btnMuatUlangValidasi">🔄 Muat Ulang</button>
-            </div>
-        </div>
-        <div id="validasiTableWrap">
-            <div class="riwayat-loading">Memuat permintaan menunggu approval...</div>
-        </div>
-        <p class="tag-note">Anda dapat mengoreksi jumlah sebelum menekan ✅ Setujui. Stok hanya akan dipotong jika mencukupi.</p>
+    <div id="validasiTableWrap">
+        <div class="riwayat-loading">Memuat permintaan menunggu approval...</div>
     </div>
+    <p class="tag-note">Anda dapat mengoreksi jumlah sebelum menekan ✅ Setujui. Stok hanya akan dipotong jika mencukupi.</p>
+</div>
 
-    <!-- ===========================
-         RIWAYAT PENGAJUAN (khusus admin) — gabungan pengajuan dari
-         akun admin maupun dari link publik, karena keduanya tersimpan
-         di tabel barang_keluar yang sama.
-    =========================== -->
-    <div class="panel admin-only" id="riwayatPanel">
-        <div class="riwayat-head">
-            <h4>🗂️ Riwayat Pengajuan ATK/ART</h4>
-            <div class="riwayat-tools">
-                <input type="text" id="riwayatSearch" placeholder="Cari nama / barang / gudang...">
-                <button type="button" class="btn-mini" id="btnMuatUlangRiwayat">🔄 Muat Ulang</button>
-            </div>
+<!-- ===========================
+     RIWAYAT PENGAJUAN (khusus admin) — gabungan pengajuan dari
+     akun admin maupun dari link publik, karena keduanya tersimpan
+     di tabel barang_keluar yang sama.
+=========================== -->
+<div class="panel admin-only" id="riwayatPanel">
+    <div class="riwayat-head">
+        <h4>🗂️ Riwayat Pengajuan ATK/ART</h4>
+        <div class="riwayat-tools">
+            <input type="text" id="riwayatSearch" placeholder="Cari nama / barang / gudang...">
+            <button type="button" class="btn-mini" id="btnMuatUlangRiwayat">🔄 Muat Ulang</button>
         </div>
-        <div id="riwayatTableWrap">
-            <div class="riwayat-loading">Memuat riwayat...</div>
-        </div>
-        <p class="tag-note">Menampilkan 300 pengajuan terakhir (digabung per transaksi, semua status). Klik ✏️ untuk mengubah jumlah/keterangan permintaan yang sudah disetujui (stok otomatis disesuaikan selisihnya), 🗑️ untuk membatalkan (stok dikembalikan), atau 🖨️ untuk mencetak ulang.</p>
     </div>
+    <div id="riwayatTableWrap">
+        <div class="riwayat-loading">Memuat riwayat...</div>
+    </div>
+    <p class="tag-note">Menampilkan 300 pengajuan terakhir (digabung per transaksi, semua status). Klik ✏️ untuk mengubah jumlah/keterangan permintaan yang sudah disetujui (stok otomatis disesuaikan selisihnya), 🗑️ untuk membatalkan (stok dikembalikan), atau 🖨️ untuk mencetak ulang.</p>
+</div>
 
-  </div><!-- /content -->
-</div><!-- /main-wrap -->
+</div><!-- /content -->
 
 <!-- ============================================
      AREA CETAK — replika presisi form kertas FHCS-003
