@@ -304,35 +304,32 @@
         body > *:not(#printArea){ display:none !important; }
         #printArea{
             display:block !important; position:absolute; top:0; left:0; width:100%;
-            background:#fff; color:#000; padding:0; margin:0; font-family:"Times New Roman", Times, serif; font-size:15pt !important;
+            background:#fff; color:#000; padding:0; margin:0; font-family:"Times New Roman", Times, serif; font-size:11pt !important;
         }
         #printArea, #printArea *{ color:#000 !important; font-family:"Times New Roman", Times, serif !important; }
         .print-kop{ display:flex; justify-content:space-between; align-items:flex-start; padding-bottom:4px; margin-bottom:10px; }
         .print-kop-brand{ display:flex; flex-direction:column; align-items:flex-start; gap:2px; }
         .print-kop-brand img.brand-logo{ height:38px; width:auto; }
-        .print-kop-brand p.brand-name{ margin:0; font-size:15pt !important; font-weight:700; letter-spacing:.03em; }
-        .print-kop-code{ font-size:14pt !important; font-weight:600; }
-        .print-title{ text-align:center; font-weight:700; text-decoration:underline; margin:0 0 6px; font-size:16.5pt !important; }
-        .print-status-note{ text-align:center; font-size:15pt !important; font-style:italic; margin:0 0 12px; }
-        .print-header{ display:grid; grid-template-columns:1fr 1fr; row-gap:3px; column-gap:20px; margin-bottom:14px; font-size:15pt !important; text-transform:none !important; }
-        .print-header div{ display:flex; white-space:nowrap; font-size:15pt !important; text-transform:none !important; }
-        .print-header label{ width:168px; flex:0 0 168px; white-space:nowrap; font-size:15pt !important; text-transform:none !important; }
+        .print-kop-brand p.brand-name{ margin:0; font-size:11pt !important; font-weight:700; letter-spacing:.03em; }
+        .print-kop-code{ font-size:11pt !important; font-weight:600; }
+        .print-title{ text-align:center; font-weight:700; text-decoration:underline; margin:0 0 6px; font-size:12pt !important; }
+        .print-status-note{ text-align:center; font-size:10pt !important; font-style:italic; margin:0 0 12px; }
+        .print-header{ display:grid; grid-template-columns:1fr 1fr; row-gap:3px; column-gap:20px; margin-bottom:14px; font-size:11pt !important; text-transform:none !important; }
+        .print-header div{ display:flex; white-space:nowrap; font-size:11pt !important; text-transform:none !important; }
+        .print-header label{ width:168px; flex:0 0 168px; white-space:nowrap; font-size:11pt !important; text-transform:none !important; }
         .print-header span{ text-transform:none !important; }
-        table.print-table{ width:100%; border-collapse:collapse; margin-bottom:20px; border:1.4px solid #000; page-break-inside:avoid; table-layout:fixed; }
-        table.print-table th, table.print-table td{ border:1.4px solid #000; padding:6px 8px; font-size:15pt !important; text-align:center; overflow:hidden; text-overflow:ellipsis; }
-        table.print-table th{ text-transform:capitalize !important; }
-        table.print-table td:nth-child(2){ white-space:nowrap; }
-        table.print-table td:nth-child(6){ text-transform:uppercase !important; white-space:nowrap; }
+        table.print-table{ width:100%; border-collapse:collapse; margin-bottom:20px; border:1.4px solid #000; page-break-inside:avoid; }
+        table.print-table th, table.print-table td{ border:1.4px solid #000; padding:6px 8px; font-size:11pt !important; text-align:center; }
         table.print-table tr{ page-break-inside:avoid; }
         table.print-table th{ background:#f0f0f0; }
         table.print-table td.left{ text-align:left; }
         .print-signature{ margin-top:10px; }
-        .print-signature .city{ font-size:15pt !important; margin-bottom:18px; }
-        .print-signature-grid{ display:grid; grid-template-columns:1fr 1fr 1fr; text-align:center; font-size:15pt !important; }
+        .print-signature .city{ font-size:11pt !important; margin-bottom:18px; }
+        .print-signature-grid{ display:grid; grid-template-columns:1fr 1fr 1fr; text-align:center; font-size:11pt !important; }
         .print-signature-grid > div{ display:flex; flex-direction:column; align-items:center; }
-        .print-signature-grid p{ margin:0 0 60px; font-size:15pt !important; }
-        .print-signature-grid .sig-line{ display:inline-block; width:150px; border-top:1px solid #000; padding-top:4px; font-size:15pt !important; }
-        .print-rev{ text-align:right; font-size:13pt !important; margin-top:6px; }
+        .print-signature-grid p{ margin:0 0 60px; font-size:11pt !important; }
+        .print-signature-grid .sig-line{ display:inline-block; width:150px; border-top:1px solid #000; padding-top:4px; font-size:11pt !important; }
+        .print-rev{ text-align:right; font-size:9pt !important; margin-top:6px; }
     }
 </style>
 </head>
@@ -511,16 +508,8 @@ onclick="location.href='dashboard.html'">
     </div>
 
     <table class="print-table">
-        <colgroup>
-            <col style="width:30px;">
-            <col style="width:230px;">
-            <col style="width:70px;">
-            <col style="width:60px;">
-            <col style="width:60px;">
-            <col style="width:237px;">
-        </colgroup>
         <thead>
-            <tr><th>No</th><th>Jenis Barang</th><th>Type</th><th>Jumlah</th><th>Satuan</th><th>Keterangan</th></tr>
+            <tr><th width="40">No</th><th>Jenis Barang</th><th width="90">Type</th><th width="70">Jumlah</th><th width="70">Satuan</th><th>Keterangan</th></tr>
         </thead>
         <tbody id="printRowsBody"></tbody>
     </table>
