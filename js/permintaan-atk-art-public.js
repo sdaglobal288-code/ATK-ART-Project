@@ -5,6 +5,12 @@
 // karyawan & stok barang muncul (difilter sesuai gudang yang dipilih).
 // Tidak ada sessionStorage/login sama sekali di halaman ini.
 //
+// CATATAN: file ini adalah versi publik-saja (tanpa panel admin). Halaman
+// permintaan-atk-art.html yang dipakai sistem saat ini memuat
+// js/permintaan-atk-art.js (versi gabungan admin+publik). File ini
+// disertakan/diperbarui juga untuk berjaga-jaga bila ada halaman lain yang
+// masih memuat file publik-saja ini secara terpisah.
+//
 // PERUBAHAN UTAMA vs versi sebelumnya:
 // Permintaan yang diajukan lewat halaman ini TIDAK langsung memotong stok.
 // Setiap baris disimpan ke barang_keluar dengan status "Menunggu Approval".
@@ -12,6 +18,13 @@
 // di permintaan-atk-art.html — stok baru terpotong SETELAH disetujui.
 // Setelah berhasil diajukan, tombol "Ajukan Permintaan" digantikan tombol
 // "Cetak Bukti Permintaan" + "Buat Permintaan Baru".
+//
+// PERUBAHAN TERBARU (cetak & input keterangan):
+// - Kolom "Jenis Barang" & "Keterangan" pada hasil cetak otomatis mengecil
+//   ukuran fontnya bila teksnya panjang (butuh >1 baris), supaya seluruh
+//   isi tetap terbaca tanpa mengubah ukuran kolom lain.
+// - Input Keterangan pada form otomatis diubah menjadi HURUF KAPITAL saat
+//   diketik.
 //
 // PENTING (harus disiapkan di sisi Supabase, tidak bisa dilakukan dari sini):
 // Karena halaman ini publik (anon key, tanpa auth), Row Level Security (RLS)
@@ -410,6 +423,14 @@ detailWrapper.addEventListener("input", function(e){
     if(e.target.classList.contains("input-qty")){
         validasiQtyBaris(row);
     }
+
+    // Keterangan per baris otomatis diubah menjadi HURUF KAPITAL saat diketik,
+    // dengan posisi kursor tetap dijaga supaya pengetikan tidak "meloncat".
+    if(e.target.classList.contains("input-keterangan-row")){
+        const posisiKursor = e.target.selectionStart;
+        e.target.value = e.target.value.toUpperCase();
+        e.target.setSelectionRange(posisiKursor, posisiKursor);
+    }
 });
 
 detailWrapper.addEventListener("focus", function(e){
@@ -525,6 +546,18 @@ function formatTanggalIndo(tglStr){
     return `${d.getDate()} ${bulan[d.getMonth()]} ${d.getFullYear()}`;
 }
 
+// Menentukan kelas ukuran-font untuk sel "Jenis Barang" & "Keterangan" di
+// hasil cetak, berdasarkan panjang teksnya — supaya teks yang butuh lebih
+// dari 1 baris tetap mengecil otomatis dan seluruh isi tetap terbaca,
+// tanpa mengubah ukuran font kolom lain.
+function kelasUkuranTeksCetak(teks){
+    const panjang = (teks || "").length;
+    if(panjang > 70) return "text-shrink-3";
+    if(panjang > 45) return "text-shrink-2";
+    if(panjang > 26) return "text-shrink-1";
+    return "";
+}
+
 function siapkanAreaCetak(karyawan, tanggal, itemList, statusNote){
     document.getElementById("pNamaKaryawan").textContent = karyawan.nama;
     document.getElementById("pDepartemen").textContent = karyawan.departemen || "-";
@@ -539,14 +572,18 @@ function siapkanAreaCetak(karyawan, tanggal, itemList, statusNote){
     tbody.innerHTML = "";
 
     itemList.forEach(({ barang, qty, keteranganRow }, idx)=>{
+        const teksKeterangan = keteranganRow || "-";
+        const kelasBarang = kelasUkuranTeksCetak(barang.nama_barang);
+        const kelasKeterangan = kelasUkuranTeksCetak(teksKeterangan);
+
         tbody.innerHTML += `
             <tr>
                 <td>${idx + 1}</td>
-                <td class="left">${barang.nama_barang}</td>
+                <td class="left jenis-barang ${kelasBarang}">${barang.nama_barang}</td>
                 <td>${barang.kategori || "-"}</td>
                 <td>${qty}</td>
                 <td>${barang.satuan}</td>
-                <td class="left">${keteranganRow || "-"}</td>
+                <td class="left keterangan ${kelasKeterangan}">${teksKeterangan}</td>
             </tr>`;
     });
 
@@ -572,8 +609,8 @@ document.getElementById("btnCetakForm").addEventListener("click", function(){
 
 // =====================================
 // AJUKAN PERMINTAAN (insert ke barang_keluar berstatus "Menunggu Approval")
-// Stok TIDAK dipotong di sini — admin gudang yang memotong stok saat
-// menyetujui permintaan lewat panel Validasi. Setelah berhasil disimpan,
+// Stok TIDAK langsung dipotong — admin gudang yang memotong stok saat
+// menyetujui permintaan lewat panel Validasi. Setelah berhasil diajukan,
 // tombol "Ajukan Permintaan" digantikan tombol "Cetak Bukti Permintaan"
 // + "Buat Permintaan Baru".
 // =====================================
