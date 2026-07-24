@@ -33,6 +33,12 @@
 //    di lebar kolom aslinya, bukan sekadar tebak-tebakan dari jumlah
 //    karakter, supaya semua isi tetap terbaca. Input Keterangan pada form
 //    juga otomatis diubah menjadi HURUF KAPITAL saat diketik.
+// 6) Tombol "🔗 Copy Link Publik" (admin-only) di toolbar: menyalin URL
+//    halaman ini (tanpa query/hash) ke clipboard, supaya admin gudang
+//    tinggal klik lalu tempel (paste) link tersebut untuk dibagikan ke
+//    karyawan. Karena tampilan publik vs admin dibedakan lewat sesi login
+//    di browser (sessionStorage "user"), bukan URL yang berbeda, link yang
+//    disalin di sini SAMA PERSIS dengan URL halaman yang sedang dibuka.
 //
 // PENTING — MIGRASI DATABASE YANG DIPERLUKAN (Supabase):
 //   alter table barang_keluar add column if not exists status text default 'Disetujui';
@@ -106,6 +112,37 @@ function initAdminChrome(){
 
     const inputCari = document.getElementById("riwayatSearch");
     if(inputCari) inputCari.addEventListener("input", () => renderRiwayatTable());
+}
+
+// =====================================
+// COPY LINK PUBLIK (khusus admin) — tombol di toolbar, di sebelah
+// "Cetak Form Kosong". Karena publik vs admin dibedakan lewat sesi
+// login di browser (bukan URL berbeda), link publik = URL halaman ini
+// sendiri (tanpa query string/hash), supaya kalau dibuka orang lain
+// tanpa sesi admin, otomatis tampil sebagai form publik.
+// =====================================
+
+function ambilUrlLinkPublik(){
+    return location.origin + location.pathname;
+}
+
+async function salinLinkPublik(){
+    const linkPublik = ambilUrlLinkPublik();
+
+    try{
+        await navigator.clipboard.writeText(linkPublik);
+        alert(`Link publik berhasil disalin ke clipboard:\n${linkPublik}\n\nTinggal tempel (paste) & bagikan link ini ke karyawan yang ingin mengajukan permintaan ATK/ART.`);
+    }catch(err){
+        // fallback kalau browser/izin clipboard tidak tersedia — tampilkan
+        // link lewat prompt supaya admin tetap bisa menyalinnya manual
+        console.error(err);
+        prompt("Gagal menyalin otomatis. Salin link publik berikut secara manual (Ctrl+C):", linkPublik);
+    }
+}
+
+const btnCopyLinkPublikEl = document.getElementById("btnCopyLinkPublik");
+if(btnCopyLinkPublikEl){
+    btnCopyLinkPublikEl.addEventListener("click", salinLinkPublik);
 }
 
 // =====================================
