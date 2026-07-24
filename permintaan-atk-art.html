@@ -250,12 +250,18 @@
     .content{ padding:28px; }
     #formPermintaanWrap, #validasiPanel, #riwayatPanel{ max-width:none; }
 
-    /* toolbar tombol Cetak Form Kosong (selalu tampil, publik & admin) */
-    .toolbar-print{ display:flex !important; justify-content:flex-end; }
+    /* toolbar tombol Cetak Form Kosong / Copy Link Publik (selalu tampil
+       kontainer-nya; tombol Copy Link Publik sendiri hanya tampak untuk
+       admin lewat class admin-only). Ditambahkan gap supaya kedua tombol
+       tidak menempel. */
+    .toolbar-print{ display:flex !important; justify-content:flex-end; gap:10px; }
 
     /* ===== panel-panel khusus admin ===== */
     .admin-only{ display:none; }
     body.is-admin-view .admin-only{ display:block; }
+    /* tombol admin-only di toolbar butuh display:inline-flex saat tampil,
+       supaya sejajar dengan tombol Cetak Form Kosong (bukan block penuh) */
+    body.is-admin-view .toolbar-print .admin-only{ display:inline-flex; align-items:center; gap:6px; }
 
     #validasiPanel, #riwayatPanel{ margin-top:26px; }
     .riwayat-head{
@@ -390,6 +396,7 @@ onclick="location.href='dashboard.html'">
 </div>
 <br>
 <div class="toolbar-print">
+    <button type="button" class="btn-print admin-only" id="btnCopyLinkPublik" title="Salin link publik formulir ini untuk dibagikan ke karyawan">🔗 Copy Link Publik</button>
     <button type="button" class="btn-print" id="btnCetakForm">🖨️ Cetak Form Kosong</button>
 </div>
 <br>
