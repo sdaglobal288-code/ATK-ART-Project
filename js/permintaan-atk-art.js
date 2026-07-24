@@ -11,25 +11,28 @@
 // Navigasi kembali ke sistem cukup lewat tombol "🏠 Dashboard" di toolbar
 // (class admin-only), sama seperti halaman Barang Masuk / Barang Keluar.
 //
-// PERUBAHAN UTAMA vs versi sebelumnya:
-// 1) Permintaan dari form TIDAK langsung memotong stok. Baris yang di-insert
-//    ke barang_keluar diberi status "Menunggu Approval". Stok baru dipotong
-//    saat admin menekan "Setujui" di panel Validasi.
-// 2) Tombol "Simpan & Kurangi Stok" berganti nama jadi "Ajukan Permintaan",
+// PERUBAHAN UTAMA vs versi sebelumnya (stok terpotong saat pengajuan):
+// 1) Permintaan dari form SEKARANG langsung memotong stok begitu berhasil
+//    diajukan (status "Menunggu Approval"), TIDAK menunggu admin approve
+//    lagi seperti sebelumnya.
+// 2) Panel "Validasi Permintaan ATK/ART" (admin-only): tombol ✅ Setujui
+//    TIDAK memotong stok lagi dari awal (karena sudah terpotong saat
+//    pengajuan) — hanya SELISIH jumlah (kalau admin mengoreksi qty) yang
+//    disesuaikan ke stok. Tombol ❌ Tolak sekarang MENGEMBALIKAN stok yang
+//    sudah terpotong tadi (karena permintaannya batal), lalu ubah status
+//    jadi "Ditolak".
+// 3) Tombol "Simpan & Kurangi Stok" berganti nama jadi "Ajukan Permintaan",
 //    dan begitu berhasil disimpan, tombol itu disembunyikan lalu digantikan
 //    tombol "Cetak Bukti Permintaan" + "Buat Permintaan Baru".
-// 3) Panel baru "Validasi Permintaan ATK/ART" (admin-only) menampilkan semua
-//    baris berstatus "Menunggu Approval", dengan input jumlah yang bisa
-//    dikoreksi admin sebelum disetujui, tombol ✅ Setujui (memotong stok +
-//    ubah status jadi "Disetujui") dan ❌ Tolak (ubah status jadi "Ditolak",
-//    tanpa memotong stok).
-// 4) Panel "Riwayat Pengajuan" sekarang menampilkan kolom Status, dan tombol
-//    Edit/Hapus hanya aktif untuk baris berstatus "Disetujui" (karena hanya
-//    baris itu yang sudah memotong stok).
+// 4) Panel "Riwayat Pengajuan" menampilkan kolom Status, dan tombol
+//    Edit/Hapus hanya aktif untuk baris berstatus "Disetujui" (karena baris
+//    itu stoknya sudah pasti terpotong dan tidak akan dikembalikan lewat
+//    alur Tolak lagi).
 // 5) Kolom "Jenis Barang" & "Keterangan" pada hasil cetak otomatis mengecil
-//    ukuran fontnya bila teksnya panjang (butuh >1 baris), supaya semua isi
-//    tetap terbaca. Input Keterangan pada form juga otomatis diubah menjadi
-//    HURUF KAPITAL saat diketik.
+//    ukuran fontnya dengan MENGUKUR SUNGGUHAN (canvas) apakah teksnya muat
+//    di lebar kolom aslinya, bukan sekadar tebak-tebakan dari jumlah
+//    karakter, supaya semua isi tetap terbaca. Input Keterangan pada form
+//    juga otomatis diubah menjadi HURUF KAPITAL saat diketik.
 //
 // PENTING — MIGRASI DATABASE YANG DIPERLUKAN (Supabase):
 //   alter table barang_keluar add column if not exists status text default 'Disetujui';
@@ -41,7 +44,9 @@
 // Karena halaman ini bisa diakses publik (anon key, tanpa auth), RLS WAJIB:
 //   - SELECT master_karyawan (idealnya hanya kolom yang dipakai)
 //   - SELECT master_barang (katalog barang, aman)
-//   - SELECT + UPDATE + INSERT stok_gudang (baca & potong stok saat approve)
+//   - SELECT + UPDATE + INSERT stok_gudang (baca & potong stok — publik
+//     SEKARANG butuh ini juga, karena stok dipotong langsung saat
+//     pengajuan diajukan, bukan menunggu admin approve lagi)
 //   - INSERT ke barang_keluar dari publik (status akan "Menunggu Approval")
 //   - UPDATE + DELETE ke barang_keluar (diperlukan fitur validasi/edit/hapus
 //     riwayat) — karena aplikasi ini TIDAK memakai Supabase Auth (login
@@ -601,16 +606,55 @@ function formatTanggalIndo(tglStr){
     return `${d.getDate()} ${bulan[d.getMonth()]} ${d.getFullYear()}`;
 }
 
+// Lebar kolom "Jenis Barang" & "Keterangan" pada hasil cetak, dalam mm,
+// sudah dikurangi kira-kira padding sel — dipakai untuk MENGUKUR SUNGGUH-
+// SUNGGUH (bukan tebak-tebakan dari jumlah karakter) apakah sebuah teks
+// akan muat, supaya font-size otomatis mengecil hanya sebanyak yang
+// benar-benar diperlukan.
+// Halaman A4 - margin kiri/kanan 14mm = 182mm lebar konten.
+// Jenis Barang = 26% dari 182mm, Keterangan = 36% dari 182mm.
+const LEBAR_KOLOM_CETAK_MM = {
+    jenisBarang: (182 * 0.26) - 4.2,
+    keterangan:  (182 * 0.36) - 4.2,
+};
+
+// Mengukur lebar teks (dalam px) memakai <canvas>, supaya perhitungan
+// mengikuti font & ukuran sesungguhnya, bukan sekadar jumlah karakter.
+let _canvasUkurTeksCetak = null;
+function hitungLebarTeksPx(teks, fontSizePx){
+    if(!_canvasUkurTeksCetak) _canvasUkurTeksCetak = document.createElement("canvas");
+    const ctx = _canvasUkurTeksCetak.getContext("2d");
+    ctx.font = `${fontSizePx}px "Times New Roman", Times, serif`;
+    return ctx.measureText(teks || "").width;
+}
+
 // Menentukan kelas ukuran-font untuk sel "Jenis Barang" & "Keterangan" di
-// hasil cetak, berdasarkan panjang teksnya — supaya teks yang butuh lebih
-// dari 1 baris tetap mengecil otomatis dan seluruh isi tetap terbaca,
-// tanpa mengubah ukuran font kolom lain.
-function kelasUkuranTeksCetak(teks){
-    const panjang = (teks || "").length;
-    if(panjang > 70) return "text-shrink-3";
-    if(panjang > 45) return "text-shrink-2";
-    if(panjang > 26) return "text-shrink-1";
-    return "";
+// hasil cetak, dengan MENGUKUR apakah teks tsb muat dalam maksimal 2 baris
+// pada lebar kolom aslinya (lebarKolomMm). Kalau di ukuran normal (11pt)
+// sudah muat dalam 2 baris, tidak perlu mengecil. Kalau belum muat, coba
+// makin kecil sampai muat (atau sampai mentok di ukuran terkecil).
+function kelasUkuranTeksCetak(teks, lebarKolomMm){
+    if(!teks) return "";
+
+    const lebarTersediaPx = lebarKolomMm * 3.7795; // mm -> px (96dpi)
+    const MAKS_BARIS = 2;
+
+    const opsiFont = [
+        { pt: 11,  kelas: "" },
+        { pt: 9.5, kelas: "text-shrink-1" },
+        { pt: 8.5, kelas: "text-shrink-2" },
+        { pt: 7.5, kelas: "text-shrink-3" },
+    ];
+
+    for(const opsi of opsiFont){
+        const fontPx = opsi.pt * 1.3333; // pt -> px (96dpi)
+        const lebarTeksPx = hitungLebarTeksPx(teks, fontPx);
+        const jumlahBarisDiperkirakan = Math.ceil(lebarTeksPx / lebarTersediaPx) || 1;
+        if(jumlahBarisDiperkirakan <= MAKS_BARIS) return opsi.kelas;
+    }
+
+    // tetap tidak muat walau sudah paling kecil -> pakai yang terkecil saja
+    return "text-shrink-3";
 }
 
 function siapkanAreaCetak(karyawan, tanggal, itemList, statusNote){
@@ -628,8 +672,8 @@ function siapkanAreaCetak(karyawan, tanggal, itemList, statusNote){
 
     itemList.forEach(({ barang, qty, keteranganRow }, idx)=>{
         const teksKeterangan = keteranganRow || "-";
-        const kelasBarang = kelasUkuranTeksCetak(barang.nama_barang);
-        const kelasKeterangan = kelasUkuranTeksCetak(teksKeterangan);
+        const kelasBarang = kelasUkuranTeksCetak(barang.nama_barang, LEBAR_KOLOM_CETAK_MM.jenisBarang);
+        const kelasKeterangan = kelasUkuranTeksCetak(teksKeterangan, LEBAR_KOLOM_CETAK_MM.keterangan);
 
         tbody.innerHTML += `
             <tr>
@@ -664,9 +708,11 @@ document.getElementById("btnCetakForm").addEventListener("click", function(){
 
 // =====================================
 // AJUKAN PERMINTAAN (insert ke barang_keluar berstatus "Menunggu Approval")
-// Stok TIDAK langsung dipotong — baru dipotong saat admin menekan Setujui
-// di panel Validasi. Setelah berhasil, tombol "Ajukan Permintaan"
-// digantikan tombol "Cetak Bukti Permintaan" + "Buat Permintaan Baru".
+// Stok LANGSUNG dipotong saat pengajuan ini berhasil disimpan (tidak lagi
+// menunggu approval admin). Kalau nanti DITOLAK lewat panel Validasi, stok
+// yang sudah terpotong akan dikembalikan otomatis. Setelah berhasil, tombol
+// "Ajukan Permintaan" digantikan tombol "Cetak Bukti Permintaan" +
+// "Buat Permintaan Baru".
 // =====================================
 
 const form = document.getElementById("formPermintaan");
@@ -720,14 +766,14 @@ form.addEventListener("submit", async function(e){
         const itemList = validasiDanAmbilItem();
         if(!itemList) return;
 
-        // sanity-check stok saat ini supaya karyawan tahu lebih awal kalau
-        // stok kemungkinan tidak cukup — pengecekan FINAL tetap dilakukan
-        // admin saat approve (karena stok bisa berubah sebelum divalidasi)
+        // karena stok akan LANGSUNG dipotong begitu permintaan diajukan,
+        // pastikan dulu semua barang cukup stoknya SEBELUM insert apapun,
+        // supaya tidak ada barang yang stoknya sampai minus
         for(const { barang, qty } of itemList){
             const stokSaatIni = await ambilStokLive(barang.id);
             if(qty > stokSaatIni){
-                const lanjut = confirm(`Stok "${barang.nama_barang}" saat ini hanya ${stokSaatIni}, sementara Anda meminta ${qty}.\n\nPermintaan tetap bisa diajukan dan akan ditinjau admin. Lanjutkan?`);
-                if(!lanjut) return;
+                alert(`Stok "${barang.nama_barang}" saat ini hanya ${stokSaatIni}, sementara Anda meminta ${qty}.\n\nKurangi jumlah permintaan atau pilih barang lain.`);
+                return;
             }
         }
 
@@ -746,6 +792,16 @@ form.addEventListener("submit", async function(e){
         const { error } = await supabaseClient.from("barang_keluar").insert(transaksiList);
         if(error) throw error;
 
+        // baris berhasil disimpan -> langsung potong stok untuk tiap item
+        for(const { barang, qty } of itemList){
+            await kurangiStokGudangDiGudang(barang.id, selectedGudang, qty);
+        }
+
+        // muat ulang stok gudang supaya tampilan & pengajuan berikutnya
+        // (di gudang yang sama) memakai angka stok terbaru
+        await loadStokGudang();
+        refreshSemuaBarisStok();
+
         // simpan konteks untuk tombol "Cetak Bukti Permintaan"
         itemTerakhirDisimpan = itemList;
         karyawanTerakhirDisimpan = karyawan;
@@ -756,7 +812,7 @@ form.addEventListener("submit", async function(e){
         siapkanAreaCetak(karyawan, tanggal, itemList, "Status: MENUNGGU APPROVAL ADMIN GUDANG");
         window.print();
 
-        alert(`Permintaan ATK/ART berhasil diajukan (${transaksiList.length} item) dan menunggu approval admin gudang. Stok akan terpotong otomatis setelah disetujui.`);
+        alert(`Permintaan ATK/ART berhasil diajukan (${transaksiList.length} item) dan menunggu approval admin gudang. Stok sudah terpotong sekarang, dan akan dikembalikan otomatis jika permintaan ini ditolak.`);
 
         tampilkanModeSetelahSimpan();
 
@@ -798,9 +854,9 @@ function resetFormItemDanKaryawanSaja(){
 }
 
 // =====================================
-// helper stok untuk gudang tertentu (dipakai fitur validasi & riwayat,
-// karena baris riwayat/validasi bisa berasal dari gudang berbeda dari
-// gudang yang lagi dipilih di form utama / selectedGudang)
+// helper stok untuk gudang tertentu (dipakai fitur pengajuan, validasi &
+// riwayat, karena baris riwayat/validasi bisa berasal dari gudang berbeda
+// dari gudang yang lagi dipilih di form utama / selectedGudang)
 // =====================================
 async function ambilStokUntukGudang(barangId, gudang){
     if(!barangId || !gudang) return 0;
@@ -839,6 +895,11 @@ async function kurangiStokGudangDiGudang(barangId, gudang, qty){
 // =====================================
 // VALIDASI PERMINTAAN (khusus admin) — daftar permintaan berstatus
 // "Menunggu Approval", dikelompokkan seperti riwayat.
+//
+// CATATAN: stok untuk baris-baris ini SUDAH terpotong sejak diajukan.
+// ✅ Setujui TIDAK memotong stok lagi dari awal — hanya SELISIH qty (kalau
+// admin mengoreksi jumlah di sini) yang disesuaikan ke stok.
+// ❌ Tolak akan MENGEMBALIKAN stok yang sudah terpotong tadi.
 // =====================================
 
 let validasiGroupsCache = [];
@@ -947,11 +1008,16 @@ function renderValidasiTable(){
     });
 }
 
+// Menyetujui permintaan. Stok item-item ini SUDAH terpotong sejak
+// pengajuan diajukan, jadi di sini TIDAK memotong stok dari awal lagi —
+// hanya SELISIH qty (kalau admin mengoreksi jumlah) yang disesuaikan:
+// selisih positif (dinaikkan) -> potong tambahannya dari stok (divalidasi
+// dulu cukup/tidak), selisih negatif (diturunkan) -> kembalikan selisihnya.
 async function setujuiPermintaan(key){
     const grup = validasiGroupsCache.find(g => g.key === key);
     if(!grup) return;
 
-    if(!confirm(`Setujui permintaan dari ${grup.nama_pengambil} (Gudang ${grup.gudang})?\nStok akan otomatis dipotong.`)) return;
+    if(!confirm(`Setujui permintaan dari ${grup.nama_pengambil} (Gudang ${grup.gudang})?`)) return;
 
     try{
         // ambil jumlah terbaru dari input (admin bisa koreksi sebelum approve)
@@ -960,32 +1026,37 @@ async function setujuiPermintaan(key){
             qtyMap.set(String(inp.dataset.id), parseInt(inp.value) || 0);
         });
 
-        // validasi stok untuk SEMUA item dulu sebelum memotong apapun,
-        // supaya tidak ada pemotongan stok sebagian (partial) kalau salah
-        // satu item ternyata tidak cukup
+        // validasi dulu SEMUA item sebelum menyentuh stok apapun, supaya
+        // tidak ada penyesuaian stok sebagian (partial) kalau salah satu
+        // kenaikan qty ternyata stoknya tidak cukup
         for(const item of grup.items){
             const qtyFinal = qtyMap.get(String(item.id)) ?? item.qty;
             if(!qtyFinal || qtyFinal <= 0){ alert(`Jumlah untuk "${item.nama_barang}" harus lebih dari 0.`); return; }
 
-            const barangMaster = findBarangByKode(item.kode_barang);
-            if(!barangMaster){
-                alert(`Barang "${item.nama_barang}" tidak ditemukan di master, tidak bisa disetujui otomatis.`);
-                return;
-            }
-
-            const stokTersedia = await ambilStokUntukGudang(barangMaster.id, grup.gudang);
-            if(qtyFinal > stokTersedia){
-                alert(`Stok "${item.nama_barang}" di gudang ${grup.gudang} tidak mencukupi.\nStok tersedia: ${stokTersedia}, diminta: ${qtyFinal}`);
-                return;
+            const selisih = qtyFinal - item.qty; // qty asli sudah terpotong saat pengajuan
+            if(selisih > 0){
+                const barangMaster = findBarangByKode(item.kode_barang);
+                if(!barangMaster){
+                    alert(`Barang "${item.nama_barang}" tidak ditemukan di master, tidak bisa disetujui otomatis.`);
+                    return;
+                }
+                const stokTersedia = await ambilStokUntukGudang(barangMaster.id, grup.gudang);
+                if(selisih > stokTersedia){
+                    alert(`Stok "${item.nama_barang}" di gudang ${grup.gudang} tidak cukup untuk menambah jumlah.\nStok tersedia: ${stokTersedia}, tambahan diminta: ${selisih}`);
+                    return;
+                }
             }
         }
 
-        // semua item lolos validasi stok -> proses satu per satu
+        // semua item lolos validasi -> proses satu per satu
         for(const item of grup.items){
             const qtyFinal = qtyMap.get(String(item.id)) ?? item.qty;
-            const barangMaster = findBarangByKode(item.kode_barang);
+            const selisih = qtyFinal - item.qty;
 
-            await kurangiStokGudangDiGudang(barangMaster.id, grup.gudang, qtyFinal);
+            if(selisih !== 0){
+                const barangMaster = findBarangByKode(item.kode_barang);
+                if(barangMaster) await kurangiStokGudangDiGudang(barangMaster.id, grup.gudang, selisih);
+            }
 
             const { error } = await supabaseClient
                 .from("barang_keluar")
@@ -994,7 +1065,7 @@ async function setujuiPermintaan(key){
             if(error) throw error;
         }
 
-        alert("Permintaan disetujui & stok otomatis terpotong.");
+        alert("Permintaan disetujui.");
         await muatValidasiPermintaan();
         await muatRiwayatPengajuan();
         await loadStokGudang();
@@ -1006,6 +1077,8 @@ async function setujuiPermintaan(key){
     }
 }
 
+// Menolak permintaan. Stok yang sudah terpotong sejak pengajuan
+// dikembalikan otomatis di sini, karena permintaannya batal.
 async function tolakPermintaan(key){
     const grup = validasiGroupsCache.find(g => g.key === key);
     if(!grup) return;
@@ -1013,10 +1086,18 @@ async function tolakPermintaan(key){
     const alasan = prompt("Alasan penolakan (opsional, akan tercatat di keterangan):", "");
     if(alasan === null) return; // batal
 
-    if(!confirm(`Tolak permintaan dari ${grup.nama_pengambil} (Gudang ${grup.gudang})? Stok TIDAK akan terpotong.`)) return;
+    if(!confirm(`Tolak permintaan dari ${grup.nama_pengambil} (Gudang ${grup.gudang})?\nStok yang sudah terpotong saat pengajuan akan dikembalikan.`)) return;
 
     try{
         for(const item of grup.items){
+            const barangMaster = findBarangByKode(item.kode_barang);
+            if(barangMaster){
+                // kembalikan stok yang sudah terpotong sejak pengajuan
+                await kurangiStokGudangDiGudang(barangMaster.id, grup.gudang, -item.qty);
+            } else {
+                console.warn(`Barang dengan kode ${item.kode_barang} tidak ditemukan di master, stok tidak dikembalikan otomatis.`);
+            }
+
             const keteranganBaru = `${alasan ? alasan + " · " : ""}${TAG_FORM} [DITOLAK]`;
             const { error } = await supabaseClient
                 .from("barang_keluar")
@@ -1025,9 +1106,11 @@ async function tolakPermintaan(key){
             if(error) throw error;
         }
 
-        alert("Permintaan ditolak.");
+        alert("Permintaan ditolak & stok dikembalikan.");
         await muatValidasiPermintaan();
         await muatRiwayatPengajuan();
+        await loadStokGudang();
+        refreshSemuaBarisStok();
 
     }catch(err){
         console.error(err);
@@ -1214,7 +1297,8 @@ function cetakRiwayat(key){
 
 // ----- EDIT riwayat (qty & keterangan per item, stok otomatis disesuaikan) -----
 // Hanya tersedia untuk baris berstatus "Disetujui" (lihat renderRiwayatTable),
-// karena hanya baris itu yang sudah memotong stok gudang.
+// karena hanya baris itu yang dipastikan stoknya sedang terpotong dan tidak
+// akan dikembalikan lagi lewat alur Tolak.
 const rwModalOverlay = document.getElementById("rwModalOverlay");
 const rwEditRows     = document.getElementById("rwEditRows");
 const rwModalSub     = document.getElementById("rwModalSub");
@@ -1323,7 +1407,8 @@ if(rwBtnSimpan){
     });
 }
 
-// ----- HAPUS riwayat (batalkan pengajuan, stok dikembalikan bila sudah disetujui) -----
+// ----- HAPUS riwayat (batalkan pengajuan, stok dikembalikan karena baris
+// "Disetujui" ini pasti sedang terpotong stoknya) -----
 async function hapusRiwayat(key){
     const grup = cariGrupByKey(key);
     if(!grup) return;
