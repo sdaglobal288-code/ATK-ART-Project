@@ -132,6 +132,7 @@
         width:100%; padding:9px 10px; border-radius:6px;
         border:1px solid var(--pg-border); background:var(--pg-bg-1);
         color:var(--pg-text); font-family:inherit; font-size:13px; box-sizing:border-box;
+        text-transform:uppercase;
     }
     .stok-mini{ font-size:10.5px; color:var(--pg-faint); margin-top:4px; display:block; }
     .stok-mini.warning{ color:#f87171; }
@@ -213,11 +214,11 @@
        sebagai link publik, semuanya tetap tersembunyi seperti
        sebelumnya dan tampilan tetap ramping/terpusat untuk publik.
     ========================================================= */
-    body:not(.is-admin-view) .content{ padding:24px; max-width:900px; margin:0 auto; }
-    body.is-admin-view .content{ padding:28px; }
-    body.is-admin-view #formPermintaanWrap,
-    body.is-admin-view #validasiPanel,
-    body.is-admin-view #riwayatPanel{ max-width:none; }
+    /* Tampilan publik disamakan persis dengan tampilan admin (padding &
+       lebar konten sama), supaya tidak ada perbedaan ukuran antara link
+       publik dan saat dibuka dari dalam sistem admin. */
+    .content{ padding:28px; }
+    #formPermintaanWrap, #validasiPanel, #riwayatPanel{ max-width:none; }
 
     /* toolbar tombol Cetak Form Kosong (selalu tampil, publik & admin) */
     .toolbar-print{ display:flex !important; justify-content:flex-end; }
@@ -287,6 +288,7 @@
         width:100%; padding:6px 8px; border-radius:6px; border:1px solid var(--pg-border);
         background:var(--pg-bg-1); color:var(--pg-text); font-family:inherit; font-size:12.5px; box-sizing:border-box;
     }
+    table.rw-edit-table input.rw-input-ket{ text-transform:uppercase; }
     .rw-modal-actions{ display:flex; gap:10px; justify-content:flex-end; }
     .rw-modal-actions button{
         border-radius:8px; padding:9px 18px; cursor:pointer; font-weight:600; font-size:13px; border:1px solid var(--pg-border);
@@ -318,11 +320,21 @@
         .print-header div{ display:flex; white-space:nowrap; font-size:11pt !important; text-transform:none !important; }
         .print-header label{ width:168px; flex:0 0 168px; white-space:nowrap; font-size:11pt !important; text-transform:none !important; }
         .print-header span{ text-transform:none !important; }
-        table.print-table{ width:100%; border-collapse:collapse; margin-bottom:20px; border:1.4px solid #000; page-break-inside:avoid; }
-        table.print-table th, table.print-table td{ border:1.4px solid #000; padding:6px 8px; font-size:11pt !important; text-align:center; }
+        table.print-table{ width:100%; table-layout:fixed; border-collapse:collapse; margin-bottom:20px; border:1.4px solid #000; page-break-inside:avoid; }
+        table.print-table th, table.print-table td{ border:1.4px solid #000; padding:6px 8px; font-size:11pt !important; text-align:center; word-wrap:break-word; overflow-wrap:break-word; }
         table.print-table tr{ page-break-inside:avoid; }
-        table.print-table th{ background:#f0f0f0; }
+        /* Header hanya huruf depan tiap kata yang kapital (Title Case),
+           bukan huruf kapital semua. */
+        table.print-table th{ background:#f0f0f0; text-transform:capitalize !important; }
         table.print-table td.left{ text-align:left; }
+        /* Kolom Jenis Barang & Keterangan: teks rata kiri dan boleh turun
+           ke baris kedua; ukuran font otomatis mengecil (lihat kelas
+           text-shrink-* yang ditambahkan lewat JS) supaya isi tetap
+           terbaca seluruhnya tanpa mengubah ukuran kolom lain. */
+        table.print-table td.jenis-barang, table.print-table td.keterangan{ text-align:left; word-break:break-word; }
+        table.print-table td.text-shrink-1{ font-size:9.5pt !important; line-height:1.25; }
+        table.print-table td.text-shrink-2{ font-size:8.5pt !important; line-height:1.2; }
+        table.print-table td.text-shrink-3{ font-size:7.5pt !important; line-height:1.15; }
         .print-signature{ margin-top:10px; }
         .print-signature .city{ font-size:11pt !important; margin-bottom:18px; }
         .print-signature-grid{ display:grid; grid-template-columns:1fr 1fr 1fr; text-align:center; font-size:11pt !important; }
@@ -509,7 +521,7 @@ onclick="location.href='dashboard.html'">
 
     <table class="print-table">
         <thead>
-            <tr><th width="40">No</th><th>Jenis Barang</th><th width="90">Type</th><th width="70">Jumlah</th><th width="70">Satuan</th><th>Keterangan</th></tr>
+            <tr><th width="6%">No</th><th width="26%">Jenis Barang</th><th width="12%">Type</th><th width="10%">Jumlah</th><th width="10%">Satuan</th><th width="36%">Keterangan</th></tr>
         </thead>
         <tbody id="printRowsBody"></tbody>
     </table>
