@@ -28,6 +28,36 @@
     }
 
     /* =========================================================
+       TAMPILAN PUBLIK (link tanpa login): latar putih.
+       Halaman ini dipakai baik sebagai link publik (tanpa sesi admin,
+       body TIDAK punya class "is-admin-view") maupun dari dalam sistem
+       admin (body punya class "is-admin-view", ditambahkan oleh
+       initAdminChrome() di JS). Saat TIDAK ada sesi admin, semua variabel
+       warna tema gelap di atas ditimpa jadi tema terang/putih di sini,
+       supaya publik yang buka link ini melihat latar belakang putih.
+       Tampilan admin (di dalam sistem) TETAP memakai tema gelap seperti
+       sebelumnya, tidak berubah.
+    ========================================================= */
+    body:not(.is-admin-view){
+        --pg-border:#d1d5db;
+        --pg-bg-1:#ffffff;
+        --pg-text:#111827;
+        --pg-faint:#6b7280;
+        --pg-bg-2:#ffffff;
+        --pg-border-2:#e5e7eb;
+        --pg-hover-bg:#f3f4f6;
+        --pg-label:#374151;
+        --pg-bg-3:#f9fafb;
+        --pg-soft-bg:rgba(0,0,0,.02);
+        --pg-soft-bg-2:rgba(0,0,0,.045);
+        background:#ffffff !important;
+        color:var(--pg-text);
+    }
+    body:not(.is-admin-view) .content{
+        background:#ffffff !important;
+    }
+
+    /* =========================================================
        Semua rule di bawah ini di-scope ke #formPermintaanWrap
        dan pakai !important pada properti layout (display/grid/
        table) supaya tidak "ketarik berantakan" walau ada rule
@@ -329,7 +359,8 @@
         table.print-table td.left{ text-align:left; }
         /* Kolom Jenis Barang & Keterangan: teks rata kiri dan boleh turun
            ke baris kedua; ukuran font otomatis mengecil (lihat kelas
-           text-shrink-* yang ditambahkan lewat JS) supaya isi tetap
+           text-shrink-* yang ditambahkan lewat JS, berdasarkan pengukuran
+           lebar teks sesungguhnya terhadap lebar kolom) supaya isi tetap
            terbaca seluruhnya tanpa mengubah ukuran kolom lain. */
         table.print-table td.jenis-barang, table.print-table td.keterangan{ text-align:left; word-break:break-word; }
         table.print-table td.text-shrink-1{ font-size:9.5pt !important; line-height:1.25; }
@@ -444,7 +475,7 @@ onclick="location.href='dashboard.html'">
                     <div class="sig-line">Manager HCS</div>
                 </div>
             </div>
-            <p class="tag-note">Tanda tangan basah dilakukan di atas kertas hasil cetak. Permintaan akan berstatus <b>Menunggu Approval</b> dan stok baru terpotong otomatis setelah divalidasi oleh admin gudang.</p>
+            <p class="tag-note">Tanda tangan basah dilakukan di atas kertas hasil cetak. Permintaan akan berstatus <b>Menunggu Approval</b>. Stok akan langsung terpotong otomatis begitu permintaan ini diajukan, dan akan dikembalikan otomatis apabila permintaan ditolak oleh admin gudang.</p>
         </div>
 
         <div class="form-actions">
@@ -461,7 +492,9 @@ onclick="location.href='dashboard.html'">
 <!-- ===========================
      VALIDASI PERMINTAAN (khusus admin) — permintaan berstatus
      "Menunggu Approval" dari link publik maupun dari halaman ini.
-     Stok baru dipotong otomatis SETELAH admin menekan Setujui.
+     Stok item-item ini SUDAH terpotong sejak diajukan. ✅ Setujui hanya
+     menyesuaikan SELISIH jika admin mengoreksi jumlah; ❌ Tolak akan
+     MENGEMBALIKAN stok yang sudah terpotong tadi.
 =========================== -->
 <div class="panel admin-only" id="validasiPanel">
     <div class="riwayat-head">
@@ -473,7 +506,7 @@ onclick="location.href='dashboard.html'">
     <div id="validasiTableWrap">
         <div class="riwayat-loading">Memuat permintaan menunggu approval...</div>
     </div>
-    <p class="tag-note">Anda dapat mengoreksi jumlah sebelum menekan ✅ Setujui. Stok hanya akan dipotong jika mencukupi.</p>
+    <p class="tag-note">Stok sudah terpotong sejak permintaan ini diajukan. Anda dapat mengoreksi jumlah sebelum menekan ✅ Setujui — kalau jumlah dinaikkan, tambahannya akan dipotong dari stok (jika mencukupi); kalau diturunkan, selisihnya dikembalikan ke stok. Menekan ❌ Tolak akan mengembalikan seluruh stok yang sudah terpotong.</p>
 </div>
 
 <!-- ===========================
