@@ -26,6 +26,10 @@
 // 4) Panel "Riwayat Pengajuan" sekarang menampilkan kolom Status, dan tombol
 //    Edit/Hapus hanya aktif untuk baris berstatus "Disetujui" (karena hanya
 //    baris itu yang sudah memotong stok).
+// 5) Kolom "Jenis Barang" & "Keterangan" pada hasil cetak otomatis mengecil
+//    ukuran fontnya bila teksnya panjang (butuh >1 baris), supaya semua isi
+//    tetap terbaca. Input Keterangan pada form juga otomatis diubah menjadi
+//    HURUF KAPITAL saat diketik.
 //
 // PENTING — MIGRASI DATABASE YANG DIPERLUKAN (Supabase):
 //   alter table barang_keluar add column if not exists status text default 'Disetujui';
@@ -474,6 +478,14 @@ detailWrapper.addEventListener("input", function(e){
     if(e.target.classList.contains("input-qty")){
         validasiQtyBaris(row);
     }
+
+    // Keterangan per baris otomatis diubah menjadi HURUF KAPITAL saat diketik,
+    // dengan posisi kursor tetap dijaga supaya pengetikan tidak "meloncat".
+    if(e.target.classList.contains("input-keterangan-row")){
+        const posisiKursor = e.target.selectionStart;
+        e.target.value = e.target.value.toUpperCase();
+        e.target.setSelectionRange(posisiKursor, posisiKursor);
+    }
 });
 
 detailWrapper.addEventListener("focus", function(e){
@@ -589,6 +601,18 @@ function formatTanggalIndo(tglStr){
     return `${d.getDate()} ${bulan[d.getMonth()]} ${d.getFullYear()}`;
 }
 
+// Menentukan kelas ukuran-font untuk sel "Jenis Barang" & "Keterangan" di
+// hasil cetak, berdasarkan panjang teksnya — supaya teks yang butuh lebih
+// dari 1 baris tetap mengecil otomatis dan seluruh isi tetap terbaca,
+// tanpa mengubah ukuran font kolom lain.
+function kelasUkuranTeksCetak(teks){
+    const panjang = (teks || "").length;
+    if(panjang > 70) return "text-shrink-3";
+    if(panjang > 45) return "text-shrink-2";
+    if(panjang > 26) return "text-shrink-1";
+    return "";
+}
+
 function siapkanAreaCetak(karyawan, tanggal, itemList, statusNote){
     document.getElementById("pNamaKaryawan").textContent = karyawan.nama;
     document.getElementById("pDepartemen").textContent = karyawan.departemen || "-";
@@ -603,14 +627,18 @@ function siapkanAreaCetak(karyawan, tanggal, itemList, statusNote){
     tbody.innerHTML = "";
 
     itemList.forEach(({ barang, qty, keteranganRow }, idx)=>{
+        const teksKeterangan = keteranganRow || "-";
+        const kelasBarang = kelasUkuranTeksCetak(barang.nama_barang);
+        const kelasKeterangan = kelasUkuranTeksCetak(teksKeterangan);
+
         tbody.innerHTML += `
             <tr>
                 <td>${idx + 1}</td>
-                <td class="left">${barang.nama_barang}</td>
+                <td class="left jenis-barang ${kelasBarang}">${barang.nama_barang}</td>
                 <td>${barang.kategori || "-"}</td>
                 <td>${qty}</td>
                 <td>${barang.satuan}</td>
-                <td class="left">${keteranganRow || "-"}</td>
+                <td class="left keterangan ${kelasKeterangan}">${teksKeterangan}</td>
             </tr>`;
     });
 
@@ -1203,7 +1231,7 @@ function bukaModalEditRiwayat(key){
         <tr data-id="${it.id}">
             <td>${it.nama_barang}<br><span class="riwayat-item-badge">${it.satuan}</span></td>
             <td><input type="number" min="1" class="rw-input-qty" value="${it.qty}"></td>
-            <td><input type="text" class="rw-input-ket" value="${(it.keterangan || '').replace(TAG_FORM,'').trim()}"></td>
+            <td><input type="text" class="rw-input-ket" value="${(it.keterangan || '').replace(TAG_FORM,'').trim().toUpperCase()}"></td>
         </tr>
     `).join("");
 
@@ -1221,6 +1249,18 @@ if(rwBtnBatal) rwBtnBatal.addEventListener("click", tutupModalEditRiwayat);
 if(rwModalOverlay){
     rwModalOverlay.addEventListener("click", function(e){
         if(e.target === rwModalOverlay) tutupModalEditRiwayat();
+    });
+}
+
+// Keterangan di modal edit riwayat juga otomatis diubah menjadi HURUF KAPITAL
+// saat diketik, sama seperti keterangan di baris form utama.
+if(rwEditRows){
+    rwEditRows.addEventListener("input", function(e){
+        if(e.target.classList.contains("rw-input-ket")){
+            const posisiKursor = e.target.selectionStart;
+            e.target.value = e.target.value.toUpperCase();
+            e.target.setSelectionRange(posisiKursor, posisiKursor);
+        }
     });
 }
 
