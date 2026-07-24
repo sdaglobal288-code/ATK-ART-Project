@@ -56,6 +56,16 @@
     body:not(.is-admin-view) .content{
         background:#ffffff !important;
     }
+    /* Kotak formulir (.panel) & judul/label di dalamnya memakai styling
+       dari css/dashboard.css (tema gelap bawaan sistem admin), BUKAN dari
+       variabel --pg-* di atas, jadi harus ditimpa eksplisit juga supaya
+       benar-benar putih & teksnya hitam saat diakses publik. */
+    body:not(.is-admin-view) .panel{
+        background:#ffffff !important;
+        border:1px solid #e5e7eb !important;
+        color:#111827 !important;
+        box-shadow:none !important;
+    }
 
     /* =========================================================
        Semua rule di bawah ini di-scope ke #formPermintaanWrap
