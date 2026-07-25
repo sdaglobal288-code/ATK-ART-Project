@@ -190,8 +190,26 @@
         border:1px solid var(--pg-border); background:var(--pg-bg-3);
         overflow:hidden; display:flex; align-items:center; justify-content:center;
     }
-    .barang-thumb{ width:100%; height:100%; object-fit:cover; display:none; }
+    .barang-thumb{ width:100%; height:100%; object-fit:cover; display:none; cursor:zoom-in; }
     .barang-thumb-placeholder{ font-size:18px; line-height:1; color:var(--pg-faint); }
+
+    /* ===== lightbox — preview foto barang ukuran besar saat thumbnail
+       di-klik ===== */
+    .foto-lightbox-overlay{
+        display:none; position:fixed; inset:0; background:rgba(0,0,0,.85); z-index:2000;
+        align-items:center; justify-content:center; padding:24px; cursor:zoom-out;
+    }
+    .foto-lightbox-overlay.show{ display:flex; }
+    .foto-lightbox-overlay img{
+        max-width:90vw; max-height:85vh; border-radius:12px;
+        box-shadow:0 20px 60px rgba(0,0,0,.6); object-fit:contain; cursor:default;
+    }
+    .foto-lightbox-close{
+        position:absolute; top:18px; right:24px; background:rgba(255,255,255,.12);
+        color:#fff; border:1px solid rgba(255,255,255,.3); border-radius:8px;
+        width:36px; height:36px; font-size:18px; cursor:pointer; line-height:1;
+    }
+    .foto-lightbox-close:hover{ background:rgba(255,255,255,.22); }
 
     .input-readonly{
         width:100%; padding:9px 10px; border-radius:6px;
@@ -641,6 +659,14 @@ onclick="location.href='dashboard.html'">
             <button type="button" class="rw-btn-simpan" id="rwBtnSimpan">💾 Simpan Perubahan</button>
         </div>
     </div>
+</div>
+
+<!-- ============================================
+     LIGHTBOX — preview foto barang ukuran besar
+============================================= -->
+<div class="foto-lightbox-overlay" id="fotoLightboxOverlay">
+    <button type="button" class="foto-lightbox-close" id="fotoLightboxClose">✕</button>
+    <img id="fotoLightboxImg" src="" alt="Foto Barang">
 </div>
 
 <script src="js/permintaan-atk-art.js"></script>
