@@ -66,18 +66,6 @@
 //     diajukan, maupun saat cetak ulang dari Riwayat Pengajuan untuk baris
 //     berstatus Menunggu) — area cetak tidak lagi menampilkan baris
 //     keterangan status tersebut.
-// 12) Ukuran kertas cetak SEKARANG 1/2 HVS A4 (setara A5, 148 x 210mm),
-//     bukan A4 penuh seperti sebelumnya (lihat @page & style .print-*
-//     di permintaan-atk-art.html). Karena kertasnya lebih kecil, jumlah
-//     baris barang dibatasi maksimal 5 baris per halaman (lihat konstanta
-//     MAKS_BARIS_PER_HALAMAN) — kalau item yang diajukan lebih dari 5,
-//     sisanya OTOMATIS dilanjutkan ke halaman ke-2, ke-3, dan seterusnya
-//     (fungsi buatHalamanCetak() & siapkanAreaCetak()). Setiap halaman
-//     mereplikasi kop, info karyawan, dan blok tanda tangan sendiri
-//     (dengan penomoran "Halaman X dari Y" kalau lebih dari 1 halaman),
-//     supaya tiap lembar tetap sah ditandatangani basah sendiri-sendiri.
-//     Elemen #printArea di HTML sekarang kosong (tanpa markup statis) dan
-//     seluruh isinya dibangun lewat JS di sini.
 //
 // PENTING — MIGRASI DATABASE YANG DIPERLUKAN (Supabase):
 //   alter table barang_keluar add column if not exists status text default 'Disetujui';
@@ -759,26 +747,16 @@ function formatTanggalIndo(tglStr){
     return `${d.getDate()} ${bulan[d.getMonth()]} ${d.getFullYear()}`;
 }
 
-// Ukuran kertas cetak SEKARANG 1/2 HVS A4 (setara A5, 148 x 210mm, margin
-// 10mm atas/bawah & 8mm kiri/kanan). Supaya tabel tetap rapi di kertas
-// yang lebih kecil ini, jumlah baris barang DIBATASI maksimal
-// MAKS_BARIS_PER_HALAMAN baris per lembar; kalau item yang diajukan lebih
-// banyak dari itu, sisanya otomatis dilanjutkan ke halaman berikutnya
-// (dan seterusnya) — lihat buatHalamanCetak() & siapkanAreaCetak() di
-// bawah. Setiap halaman mereplikasi kop, info karyawan, dan blok tanda
-// tangan, supaya tiap lembar tetap sah ditandatangani basah sendiri-sendiri.
-const MAKS_BARIS_PER_HALAMAN = 5;
-
 // Lebar kolom "Jenis Barang" & "Keterangan" pada hasil cetak, dalam mm,
 // sudah dikurangi kira-kira padding sel — dipakai untuk MENGUKUR SUNGGUH-
 // SUNGGUH (bukan tebak-tebakan dari jumlah karakter) apakah sebuah teks
 // akan muat, supaya font-size otomatis mengecil hanya sebanyak yang
 // benar-benar diperlukan.
-// Kertas 1/2 HVS A4 (A5, 148mm) - margin kiri/kanan 8mm = 132mm lebar konten.
-// Jenis Barang = 26% dari 132mm, Keterangan = 36% dari 132mm.
+// Halaman A4 - margin kiri/kanan 14mm = 182mm lebar konten.
+// Jenis Barang = 26% dari 182mm, Keterangan = 36% dari 182mm.
 const LEBAR_KOLOM_CETAK_MM = {
-    jenisBarang: (132 * 0.26) - 3,
-    keterangan:  (132 * 0.36) - 3,
+    jenisBarang: (182 * 0.26) - 4.2,
+    keterangan:  (182 * 0.36) - 4.2,
 };
 
 // Mengukur lebar teks (dalam px) memakai <canvas>, supaya perhitungan
@@ -803,10 +781,10 @@ function kelasUkuranTeksCetak(teks, lebarKolomMm){
     const MAKS_BARIS = 2;
 
     const opsiFont = [
-        { pt: 9,   kelas: "" },
-        { pt: 7.8, kelas: "text-shrink-1" },
-        { pt: 7,   kelas: "text-shrink-2" },
-        { pt: 6.2, kelas: "text-shrink-3" },
+        { pt: 11,  kelas: "" },
+        { pt: 9.5, kelas: "text-shrink-1" },
+        { pt: 8.5, kelas: "text-shrink-2" },
+        { pt: 7.5, kelas: "text-shrink-3" },
     ];
 
     for(const opsi of opsiFont){
@@ -820,23 +798,27 @@ function kelasUkuranTeksCetak(teks, lebarKolomMm){
     return "text-shrink-3";
 }
 
-// Membangun HTML untuk SATU halaman cetak (satu lembar kertas 1/2 HVS A4),
-// lengkap dengan kop, judul, catatan status, info karyawan, tabel barang
-// (diisi maksimal MAKS_BARIS_PER_HALAMAN baris + baris kosong pengisi
-// supaya rapi), dan blok tanda tangan. nomorAwal dipakai supaya kolom
-// "No" tetap berlanjut (tidak mulai dari 1 lagi) di halaman kedua dst.
-function buatHalamanCetak(karyawan, tanggal, itemsHalamanIni, statusNote, nomorAwal, nomorHalaman, totalHalaman){
+function siapkanAreaCetak(karyawan, tanggal, itemList, statusNote){
+    document.getElementById("pNamaKaryawan").textContent = karyawan.nama;
+    document.getElementById("pDepartemen").textContent = karyawan.departemen || "-";
+    document.getElementById("pNik").textContent = karyawan.nik || "-";
+    document.getElementById("pTanggal").textContent = tanggal ? formatTanggalIndo(tanggal) : "-";
+    document.getElementById("pCity").textContent = `Surabaya, ${formatTanggalIndo(tanggal)}`;
 
-    let barisHtml = "";
+    const elStatusNote = document.getElementById("pStatusNote");
+    if(elStatusNote) elStatusNote.textContent = statusNote || "";
 
-    itemsHalamanIni.forEach(({ barang, qty, keteranganRow }, idx)=>{
+    const tbody = document.getElementById("printRowsBody");
+    tbody.innerHTML = "";
+
+    itemList.forEach(({ barang, qty, keteranganRow }, idx)=>{
         const teksKeterangan = keteranganRow || "-";
         const kelasBarang = kelasUkuranTeksCetak(barang.nama_barang, LEBAR_KOLOM_CETAK_MM.jenisBarang);
         const kelasKeterangan = kelasUkuranTeksCetak(teksKeterangan, LEBAR_KOLOM_CETAK_MM.keterangan);
 
-        barisHtml += `
+        tbody.innerHTML += `
             <tr>
-                <td>${nomorAwal + idx}</td>
+                <td>${idx + 1}</td>
                 <td class="left jenis-barang ${kelasBarang}">${barang.nama_barang}</td>
                 <td>${barang.kategori || "-"}</td>
                 <td>${qty}</td>
@@ -845,77 +827,10 @@ function buatHalamanCetak(karyawan, tanggal, itemsHalamanIni, statusNote, nomorA
             </tr>`;
     });
 
-    // baris kosong tambahan supaya tampilan tabel tetap mirip form kertas
-    // asli, mengisi sampai MAKS_BARIS_PER_HALAMAN baris di halaman ini
-    for(let i = itemsHalamanIni.length; i < MAKS_BARIS_PER_HALAMAN; i++){
-        barisHtml += `<tr><td>&nbsp;</td><td></td><td></td><td></td><td></td><td></td></tr>`;
+    // baris kosong tambahan supaya tampilan tabel tetap mirip form kertas asli
+    for(let i = itemList.length; i < Math.max(5, itemList.length); i++){
+        tbody.innerHTML += `<tr><td>&nbsp;</td><td></td><td></td><td></td><td></td><td></td></tr>`;
     }
-
-    const labelHalaman = totalHalaman > 1
-        ? `<div class="print-page-info">Halaman ${nomorHalaman} dari ${totalHalaman}</div>`
-        : "";
-
-    return `
-    <div class="print-page">
-        <div class="print-kop">
-            <div class="print-kop-brand">
-                <img class="brand-logo" src="images/logo-sda-global.png" alt="PT. SDA Global - Fluid Power Company">
-                <p class="brand-name">PT. SDA GLOBAL</p>
-            </div>
-            <div class="print-kop-code">FHCS – 003</div>
-        </div>
-
-        <div class="print-title">PERMINTAAN/PENGAMBILAN ATK &amp; ART</div>
-        ${statusNote ? `<div class="print-status-note">${statusNote}</div>` : ""}
-        ${labelHalaman}
-
-        <div class="print-header">
-            <div><label>Nama Karyawan</label><span>: <span>${karyawan.nama || "-"}</span></span></div>
-            <div><label>Departement / Bagian</label><span>: <span>${karyawan.departemen || "-"}</span></span></div>
-            <div><label>NIK</label><span>: <span>${karyawan.nik || "-"}</span></span></div>
-            <div><label>Tanggal</label><span>: <span>${tanggal ? formatTanggalIndo(tanggal) : "-"}</span></span></div>
-        </div>
-
-        <table class="print-table">
-            <thead>
-                <tr><th width="6%">No</th><th width="26%">Jenis Barang</th><th width="12%">Type</th><th width="10%">Jumlah</th><th width="10%">Satuan</th><th width="36%">Keterangan</th></tr>
-            </thead>
-            <tbody>${barisHtml}</tbody>
-        </table>
-
-        <div class="print-signature">
-            <div class="city">Surabaya, ${formatTanggalIndo(tanggal)}</div>
-            <div class="print-signature-grid">
-                <div><p>Yang bersangkutan</p><div class="sig-line">Karyawan/wati</div></div>
-                <div><p>Mengetahui</p><div class="sig-line">Manager/Kabag....</div></div>
-                <div><p>Menyetujui</p><div class="sig-line">Manager HCS</div></div>
-            </div>
-        </div>
-        <div class="print-rev">Rev.00</div>
-    </div>`;
-}
-
-// Menyiapkan #printArea untuk dicetak. Item barang otomatis dipecah jadi
-// beberapa halaman (.print-page) kalau jumlahnya lebih dari
-// MAKS_BARIS_PER_HALAMAN (5) baris — halaman ke-2, ke-3, dan seterusnya
-// dibuat otomatis mengikuti sisa item, masing-masing tetap satu lembar
-// kertas 1/2 HVS A4 lengkap dengan kop & tanda tangan sendiri.
-function siapkanAreaCetak(karyawan, tanggal, itemList, statusNote){
-    const printArea = document.getElementById("printArea");
-    if(!printArea) return;
-
-    const totalHalaman = Math.max(1, Math.ceil(itemList.length / MAKS_BARIS_PER_HALAMAN));
-
-    let html = "";
-    let nomorAwal = 1;
-
-    for(let h = 0; h < totalHalaman; h++){
-        const itemsHalamanIni = itemList.slice(h * MAKS_BARIS_PER_HALAMAN, (h + 1) * MAKS_BARIS_PER_HALAMAN);
-        html += buatHalamanCetak(karyawan, tanggal, itemsHalamanIni, statusNote, nomorAwal, h + 1, totalHalaman);
-        nomorAwal += itemsHalamanIni.length;
-    }
-
-    printArea.innerHTML = html;
 }
 
 document.getElementById("btnCetakForm").addEventListener("click", function(){
