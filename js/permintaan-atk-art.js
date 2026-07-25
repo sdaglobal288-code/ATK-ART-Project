@@ -53,6 +53,10 @@
 //    Kalau barang belum punya foto (atau tabel belum punya kolom foto
 //    sama sekali), otomatis tampil ikon placeholder 📦 — TIDAK error.
 //    Lihat komentar di ambilUrlFotoBarang() untuk saran migrasi kolomnya.
+// 9) Thumbnail foto barang tersebut SEKARANG bisa DIKLIK untuk preview
+//    ukuran besar (lightbox), memakai elemen #fotoLightboxOverlay di HTML
+//    & fungsi bukaLightboxFoto()/tutupLightboxFoto() di file ini. Bisa
+//    ditutup dengan klik di luar gambar, tombol ✕, atau tombol Escape.
 //
 // PENTING — MIGRASI DATABASE YANG DIPERLUKAN (Supabase):
 //   alter table barang_keluar add column if not exists status text default 'Disetujui';
@@ -489,17 +493,45 @@ function renderBarangDropdown(row, keyword){
     dropdown.classList.add("show");
 }
 
-// Mengambil URL foto barang dari master_barang. Mendukung beberapa
-// kemungkinan nama kolom supaya kompatibel apapun nama kolom foto yang
-// dipakai di database (foto_url / gambar_url / image_url / foto / gambar).
-// Kalau tabel master_barang BELUM punya kolom foto sama sekali, fungsi ini
-// otomatis mengembalikan string kosong dan thumbnail akan menampilkan
-// ikon placeholder 📦 (tidak error).
-//
-// SARAN MIGRASI (Supabase), kalau ingin mengaktifkan fitur foto barang:
-//   alter table master_barang add column if not exists foto_url text;
-// lalu isi kolom foto_url tiap baris barang dengan URL gambar (mis. link
-// dari Supabase Storage / Google Drive / hosting gambar lain).
+// =====================================
+// LIGHTBOX FOTO BARANG — preview ukuran besar saat thumbnail di-klik
+// =====================================
+
+const fotoLightboxOverlay = document.getElementById("fotoLightboxOverlay");
+const fotoLightboxImg     = document.getElementById("fotoLightboxImg");
+const fotoLightboxClose   = document.getElementById("fotoLightboxClose");
+
+function bukaLightboxFoto(url){
+    if(!url || !fotoLightboxOverlay || !fotoLightboxImg) return;
+    fotoLightboxImg.src = url;
+    fotoLightboxOverlay.classList.add("show");
+}
+
+function tutupLightboxFoto(){
+    if(!fotoLightboxOverlay) return;
+    fotoLightboxOverlay.classList.remove("show");
+    fotoLightboxImg.src = "";
+}
+
+if(fotoLightboxOverlay){
+    fotoLightboxOverlay.addEventListener("click", function(e){
+        if(e.target === fotoLightboxOverlay) tutupLightboxFoto();
+    });
+}
+if(fotoLightboxClose){
+    fotoLightboxClose.addEventListener("click", tutupLightboxFoto);
+}
+document.addEventListener("keydown", function(e){
+    if(e.key === "Escape" && fotoLightboxOverlay?.classList.contains("show")) tutupLightboxFoto();
+});
+
+// Mengambil URL foto barang dari master_barang. Kolom utamanya adalah
+// "foto_url" (sudah dikonfirmasi sesuai skema tabel master_barang yang
+// dipakai di halaman Master Barang / js/master-barang.js — kolom ini diisi
+// otomatis lewat upload foto ke Supabase Storage bucket "barang-photos").
+// Nama kolom alternatif lain tetap dicek juga sebagai jaga-jaga saja.
+// Kalau barang tertentu belum punya foto_url terisi, thumbnail otomatis
+// menampilkan ikon placeholder 📦 (tidak error).
 function ambilUrlFotoBarang(barang){
     if(!barang) return "";
     return barang.foto_url || barang.gambar_url || barang.image_url || barang.foto || barang.gambar || "";
@@ -520,10 +552,12 @@ function perbaruiThumbnailBarang(row, barang){
         img.onerror = function(){ img.style.display = "none"; placeholder.style.display = "flex"; };
         img.src = url;
         img.style.display = "block";
+        img.onclick = function(){ bukaLightboxFoto(url); };
         placeholder.style.display = "none";
     } else {
         img.removeAttribute("src");
         img.style.display = "none";
+        img.onclick = null;
         placeholder.style.display = "flex";
     }
 }
