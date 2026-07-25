@@ -45,6 +45,14 @@
 //    sukses tersimpan) — sejalan dengan tombol "Cetak Bukti Permintaan" &
 //    "Buat Permintaan Baru" yang juga baru muncul di titik yang sama.
 //    Tombol ini disembunyikan lagi begitu "Buat Permintaan Baru" diklik.
+// 8) Kolom "Jenis Barang" SEKARANG menampilkan thumbnail foto barang di
+//    sebelah kiri kotak pencarian, supaya karyawan/admin tahu wujud
+//    barang yang diminta sebelum mengajukan. Foto diambil dari kolom
+//    foto_url/gambar_url/image_url/foto/gambar pada master_barang (nama
+//    kolom fleksibel, dideteksi otomatis lewat ambilUrlFotoBarang()).
+//    Kalau barang belum punya foto (atau tabel belum punya kolom foto
+//    sama sekali), otomatis tampil ikon placeholder 📦 — TIDAK error.
+//    Lihat komentar di ambilUrlFotoBarang() untuk saran migrasi kolomnya.
 //
 // PENTING — MIGRASI DATABASE YANG DIPERLUKAN (Supabase):
 //   alter table barang_keluar add column if not exists status text default 'Disetujui';
@@ -411,11 +419,17 @@ function templateBarisBarang(){
     return `
         <td><span class="row-no"></span></td>
         <td>
-            <div class="combo-wrapper">
-                <input type="text" class="combo-input input-barang-search"
-                    placeholder="-- Cari Jenis Barang --" autocomplete="off" required>
-                <input type="hidden" class="input-barang-id">
-                <div class="combo-dropdown input-barang-dropdown"></div>
+            <div class="barang-cell">
+                <div class="barang-thumb-wrap">
+                    <img class="barang-thumb" alt="" style="display:none;">
+                    <span class="barang-thumb-placeholder">📦</span>
+                </div>
+                <div class="combo-wrapper">
+                    <input type="text" class="combo-input input-barang-search"
+                        placeholder="-- Cari Jenis Barang --" autocomplete="off" required>
+                    <input type="hidden" class="input-barang-id">
+                    <div class="combo-dropdown input-barang-dropdown"></div>
+                </div>
             </div>
         </td>
         <td><input type="text" class="input-readonly input-kategori" placeholder="Type" readonly></td>
@@ -475,6 +489,45 @@ function renderBarangDropdown(row, keyword){
     dropdown.classList.add("show");
 }
 
+// Mengambil URL foto barang dari master_barang. Mendukung beberapa
+// kemungkinan nama kolom supaya kompatibel apapun nama kolom foto yang
+// dipakai di database (foto_url / gambar_url / image_url / foto / gambar).
+// Kalau tabel master_barang BELUM punya kolom foto sama sekali, fungsi ini
+// otomatis mengembalikan string kosong dan thumbnail akan menampilkan
+// ikon placeholder 📦 (tidak error).
+//
+// SARAN MIGRASI (Supabase), kalau ingin mengaktifkan fitur foto barang:
+//   alter table master_barang add column if not exists foto_url text;
+// lalu isi kolom foto_url tiap baris barang dengan URL gambar (mis. link
+// dari Supabase Storage / Google Drive / hosting gambar lain).
+function ambilUrlFotoBarang(barang){
+    if(!barang) return "";
+    return barang.foto_url || barang.gambar_url || barang.image_url || barang.foto || barang.gambar || "";
+}
+
+// Menampilkan (atau mereset) thumbnail foto barang pada sebuah baris
+// detail. Dipanggil setiap kali barang dipilih dari dropdown, dan saat
+// baris dikosongkan lagi (karyawan mengetik ulang pencarian).
+function perbaruiThumbnailBarang(row, barang){
+    const img = row.querySelector(".barang-thumb");
+    const placeholder = row.querySelector(".barang-thumb-placeholder");
+    if(!img || !placeholder) return;
+
+    const url = ambilUrlFotoBarang(barang);
+
+    if(url){
+        img.onload = function(){ placeholder.style.display = "none"; };
+        img.onerror = function(){ img.style.display = "none"; placeholder.style.display = "flex"; };
+        img.src = url;
+        img.style.display = "block";
+        placeholder.style.display = "none";
+    } else {
+        img.removeAttribute("src");
+        img.style.display = "none";
+        placeholder.style.display = "flex";
+    }
+}
+
 function refreshStokBaris(row){
     const mini = row.querySelector(".stok-mini");
     const barangId = row.querySelector(".input-barang-id").value;
@@ -521,6 +574,7 @@ detailWrapper.addEventListener("input", function(e){
         row.querySelector(".input-satuan").value = "";
         renderBarangDropdown(row, e.target.value);
         refreshStokBaris(row);
+        perbaruiThumbnailBarang(row, null);
     }
 
     if(e.target.classList.contains("input-qty")){
@@ -593,6 +647,7 @@ detailWrapper.addEventListener("click", function(e){
         row.querySelector(".input-satuan").value = barang.satuan;
         row.querySelector(".input-barang-dropdown").classList.remove("show");
         refreshStokBaris(row);
+        perbaruiThumbnailBarang(row, barang);
     }
 });
 
