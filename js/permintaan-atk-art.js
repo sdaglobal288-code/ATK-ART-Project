@@ -39,6 +39,12 @@
 //    karyawan. Karena tampilan publik vs admin dibedakan lewat sesi login
 //    di browser (sessionStorage "user"), bukan URL yang berbeda, link yang
 //    disalin di sini SAMA PERSIS dengan URL halaman yang sedang dibuka.
+// 7) Tombol "🖨️ Cetak Form" (dulu "Cetak Form Kosong") di toolbar atas
+//    SEKARANG disembunyikan secara default, dan baru MUNCUL setelah
+//    permintaan berhasil diajukan (tombol "Ajukan Permintaan" diklik &
+//    sukses tersimpan) — sejalan dengan tombol "Cetak Bukti Permintaan" &
+//    "Buat Permintaan Baru" yang juga baru muncul di titik yang sama.
+//    Tombol ini disembunyikan lagi begitu "Buat Permintaan Baru" diklik.
 //
 // PENTING — MIGRASI DATABASE YANG DIPERLUKAN (Supabase):
 //   alter table barang_keluar add column if not exists status text default 'Disetujui';
@@ -749,13 +755,15 @@ document.getElementById("btnCetakForm").addEventListener("click", function(){
 // menunggu approval admin). Kalau nanti DITOLAK lewat panel Validasi, stok
 // yang sudah terpotong akan dikembalikan otomatis. Setelah berhasil, tombol
 // "Ajukan Permintaan" digantikan tombol "Cetak Bukti Permintaan" +
-// "Buat Permintaan Baru".
+// "Buat Permintaan Baru", dan tombol "Cetak Form" di toolbar atas SEKARANG
+// baru dimunculkan juga (sebelumnya disembunyikan).
 // =====================================
 
 const form = document.getElementById("formPermintaan");
 const btnSimpanEl = document.getElementById("btnSimpan");
 const btnCetakUlangSimpanEl = document.getElementById("btnCetakUlangSimpan");
 const btnPermintaanBaruEl = document.getElementById("btnPermintaanBaru");
+const btnCetakFormEl = document.getElementById("btnCetakForm");
 
 let itemTerakhirDisimpan = null;
 let karyawanTerakhirDisimpan = null;
@@ -765,12 +773,14 @@ function tampilkanModeSetelahSimpan(){
     if(btnSimpanEl) btnSimpanEl.style.display = "none";
     if(btnCetakUlangSimpanEl) btnCetakUlangSimpanEl.style.display = "inline-block";
     if(btnPermintaanBaruEl) btnPermintaanBaruEl.style.display = "inline-block";
+    if(btnCetakFormEl) btnCetakFormEl.style.display = "inline-block";
 }
 
 function tampilkanModeSebelumSimpan(){
     if(btnSimpanEl) btnSimpanEl.style.display = "inline-block";
     if(btnCetakUlangSimpanEl) btnCetakUlangSimpanEl.style.display = "none";
     if(btnPermintaanBaruEl) btnPermintaanBaruEl.style.display = "none";
+    if(btnCetakFormEl) btnCetakFormEl.style.display = "none";
 }
 
 if(btnCetakUlangSimpanEl){
