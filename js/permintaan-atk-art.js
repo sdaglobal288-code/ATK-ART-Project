@@ -57,6 +57,15 @@
 //    ukuran besar (lightbox), memakai elemen #fotoLightboxOverlay di HTML
 //    & fungsi bukaLightboxFoto()/tutupLightboxFoto() di file ini. Bisa
 //    ditutup dengan klik di luar gambar, tombol ✕, atau tombol Escape.
+// 10) Setelah "Ajukan Permintaan" berhasil disimpan, halaman TIDAK LAGI
+//     otomatis membuka dialog cetak (window.print()) — karyawan/admin
+//     yang mau mencetak tinggal klik tombol "🖨️ Cetak Bukti Permintaan"
+//     atau "🖨️ Cetak Form" secara manual.
+// 11) Catatan status "Status: MENUNGGU APPROVAL ADMIN GUDANG" pada hasil
+//     cetak SUDAH DIHILANGKAN (baik saat cetak bukti permintaan yang baru
+//     diajukan, maupun saat cetak ulang dari Riwayat Pengajuan untuk baris
+//     berstatus Menunggu) — area cetak tidak lagi menampilkan baris
+//     keterangan status tersebut.
 //
 // PENTING — MIGRASI DATABASE YANG DIPERLUKAN (Supabase):
 //   alter table barang_keluar add column if not exists status text default 'Disetujui';
@@ -845,7 +854,8 @@ document.getElementById("btnCetakForm").addEventListener("click", function(){
 // yang sudah terpotong akan dikembalikan otomatis. Setelah berhasil, tombol
 // "Ajukan Permintaan" digantikan tombol "Cetak Bukti Permintaan" +
 // "Buat Permintaan Baru", dan tombol "Cetak Form" di toolbar atas SEKARANG
-// baru dimunculkan juga (sebelumnya disembunyikan).
+// baru dimunculkan juga (sebelumnya disembunyikan). Dialog cetak TIDAK lagi
+// dibuka otomatis di sini — pengguna mencetak secara manual lewat tombol.
 // =====================================
 
 const form = document.getElementById("formPermintaan");
@@ -875,7 +885,7 @@ function tampilkanModeSebelumSimpan(){
 if(btnCetakUlangSimpanEl){
     btnCetakUlangSimpanEl.addEventListener("click", function(){
         if(!itemTerakhirDisimpan || !karyawanTerakhirDisimpan) return;
-        siapkanAreaCetak(karyawanTerakhirDisimpan, tanggalTerakhirDisimpan, itemTerakhirDisimpan, "Status: MENUNGGU APPROVAL ADMIN GUDANG");
+        siapkanAreaCetak(karyawanTerakhirDisimpan, tanggalTerakhirDisimpan, itemTerakhirDisimpan, "");
         window.print();
     });
 }
@@ -943,10 +953,10 @@ form.addEventListener("submit", async function(e){
         karyawanTerakhirDisimpan = karyawan;
         tanggalTerakhirDisimpan = tanggal;
 
-        // langsung tampilkan dialog cetak juga, supaya karyawan bisa
-        // langsung mencetak bukti pengajuan & minta tanda tangan basah
-        siapkanAreaCetak(karyawan, tanggal, itemList, "Status: MENUNGGU APPROVAL ADMIN GUDANG");
-        window.print();
+        // siapkan area cetak (isinya) supaya siap dipakai kalau nanti tombol
+        // "Cetak Bukti Permintaan" / "Cetak Form" diklik, TANPA langsung
+        // membuka dialog cetak di sini
+        siapkanAreaCetak(karyawan, tanggal, itemList, "");
 
         alert(`Permintaan ATK/ART berhasil diajukan (${transaksiList.length} item) dan menunggu approval admin gudang. Stok sudah terpotong sekarang, dan akan dikembalikan otomatis jika permintaan ini ditolak.`);
 
@@ -1405,6 +1415,9 @@ function cariGrupByKey(key){
 }
 
 // ----- CETAK ULANG dari riwayat -----
+// Catatan status ("Menunggu Approval Admin Gudang" / "Ditolak") pada hasil
+// cetak sudah tidak ditampilkan lagi — hasil cetak ulang dari sini polos
+// tanpa keterangan status apapun, sama seperti cetak form biasa.
 function cetakRiwayat(key){
     const grup = cariGrupByKey(key);
     if(!grup) return;
@@ -1421,13 +1434,7 @@ function cetakRiwayat(key){
         nik: grup.nik
     };
 
-    const statusNote = grup.status === STATUS_MENUNGGU
-        ? "Status: MENUNGGU APPROVAL ADMIN GUDANG"
-        : grup.status === STATUS_DITOLAK
-            ? "Status: DITOLAK"
-            : "";
-
-    siapkanAreaCetak(karyawanUntukCetak, grup.tanggal, itemListUntukCetak, statusNote);
+    siapkanAreaCetak(karyawanUntukCetak, grup.tanggal, itemListUntukCetak, "");
     window.print();
 }
 
