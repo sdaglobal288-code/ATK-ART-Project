@@ -397,50 +397,31 @@
     .rw-btn-simpan{ background:#3b82f6; color:#fff; border-color:#3b82f6; }
     .rw-btn-simpan:hover{ background:#2563eb; }
 
-    /* ===== tampilan cetak: replika presisi form kertas FHCS-003, ukuran
-       kertas 1/2 HVS A4 (setara A5, 148 x 210mm). Kalau item barang lebih
-       dari 5 baris, JS (siapkanAreaCetak/buatHalamanCetak di
-       js/permintaan-atk-art.js) otomatis memecah isi jadi beberapa
-       halaman cetak (elemen .print-page), maksimal 5 baris barang per
-       halaman, dan seterusnya untuk halaman-halaman berikutnya. Isi
-       #printArea SEKARANG dibangun sepenuhnya lewat JS (bukan markup
-       statis lagi), supaya jumlah halaman bisa dinamis mengikuti jumlah
-       item. ===== */
+    /* ===== tampilan cetak: replika presisi form kertas FHCS-003 ===== */
     #printArea{ display:none; }
 
     @media print{
-        @page{ size:148mm 210mm; margin:10mm 8mm; }
+        @page{ size:A4; margin:15mm 14mm; }
         html, body{ height:auto !important; margin:0 !important; padding:0 !important; overflow:visible !important; }
         body > *:not(#printArea){ display:none !important; }
         #printArea{
             display:block !important; position:absolute; top:0; left:0; width:100%;
-            background:#fff; color:#000; padding:0; margin:0; font-family:"Times New Roman", Times, serif; font-size:9pt !important;
+            background:#fff; color:#000; padding:0; margin:0; font-family:"Times New Roman", Times, serif; font-size:11pt !important;
         }
         #printArea, #printArea *{ color:#000 !important; font-family:"Times New Roman", Times, serif !important; }
-
-        /* setiap .print-page = 1 halaman fisik kertas 1/2 HVS A4. Kalau
-           ada lebih dari 1 halaman, halaman berikutnya otomatis mulai di
-           lembar kertas baru (page-break), dan kop + info karyawan +
-           blok tanda tangan direplikasi di tiap halaman supaya tiap
-           lembar tetap sah dipakai tanda tangan basah sendiri-sendiri. */
-        .print-page{ page-break-inside:avoid; }
-        .print-page:not(:last-child){ page-break-after:always; }
-
-        .print-page-info{ text-align:right; font-size:7.5pt !important; font-style:italic; margin:0 0 4px; }
-
-        .print-kop{ display:flex; justify-content:space-between; align-items:flex-start; padding-bottom:3px; margin-bottom:7px; }
-        .print-kop-brand{ display:flex; flex-direction:column; align-items:flex-start; gap:1px; }
-        .print-kop-brand img.brand-logo{ height:28px; width:auto; }
-        .print-kop-brand p.brand-name{ margin:0; font-size:9pt !important; font-weight:700; letter-spacing:.03em; }
-        .print-kop-code{ font-size:9pt !important; font-weight:600; }
-        .print-title{ text-align:center; font-weight:700; text-decoration:underline; margin:0 0 4px; font-size:10pt !important; }
-        .print-status-note{ text-align:center; font-size:8pt !important; font-style:italic; margin:0 0 8px; }
-        .print-header{ display:grid; grid-template-columns:1fr 1fr; row-gap:2px; column-gap:10px; margin-bottom:8px; font-size:8.5pt !important; text-transform:none !important; }
-        .print-header div{ display:flex; white-space:nowrap; font-size:8.5pt !important; text-transform:none !important; }
-        .print-header label{ width:100px; flex:0 0 100px; white-space:nowrap; font-size:8.5pt !important; text-transform:none !important; }
+        .print-kop{ display:flex; justify-content:space-between; align-items:flex-start; padding-bottom:4px; margin-bottom:10px; }
+        .print-kop-brand{ display:flex; flex-direction:column; align-items:flex-start; gap:2px; }
+        .print-kop-brand img.brand-logo{ height:38px; width:auto; }
+        .print-kop-brand p.brand-name{ margin:0; font-size:11pt !important; font-weight:700; letter-spacing:.03em; }
+        .print-kop-code{ font-size:11pt !important; font-weight:600; }
+        .print-title{ text-align:center; font-weight:700; text-decoration:underline; margin:0 0 6px; font-size:12pt !important; }
+        .print-status-note{ text-align:center; font-size:10pt !important; font-style:italic; margin:0 0 12px; }
+        .print-header{ display:grid; grid-template-columns:1fr 1fr; row-gap:3px; column-gap:20px; margin-bottom:14px; font-size:11pt !important; text-transform:none !important; }
+        .print-header div{ display:flex; white-space:nowrap; font-size:11pt !important; text-transform:none !important; }
+        .print-header label{ width:168px; flex:0 0 168px; white-space:nowrap; font-size:11pt !important; text-transform:none !important; }
         .print-header span{ text-transform:none !important; }
-        table.print-table{ width:100%; table-layout:fixed; border-collapse:collapse; margin-bottom:10px; border:1px solid #000; page-break-inside:avoid; }
-        table.print-table th, table.print-table td{ border:1px solid #000; padding:3px 4px; font-size:9pt !important; text-align:center; word-wrap:break-word; overflow-wrap:break-word; }
+        table.print-table{ width:100%; table-layout:fixed; border-collapse:collapse; margin-bottom:20px; border:1.4px solid #000; page-break-inside:avoid; }
+        table.print-table th, table.print-table td{ border:1.4px solid #000; padding:6px 8px; font-size:11pt !important; text-align:center; word-wrap:break-word; overflow-wrap:break-word; }
         table.print-table tr{ page-break-inside:avoid; }
         /* Header hanya huruf depan tiap kata yang kapital (Title Case),
            bukan huruf kapital semua. */
@@ -452,16 +433,16 @@
            lebar teks sesungguhnya terhadap lebar kolom) supaya isi tetap
            terbaca seluruhnya tanpa mengubah ukuran kolom lain. */
         table.print-table td.jenis-barang, table.print-table td.keterangan{ text-align:left; word-break:break-word; }
-        table.print-table td.text-shrink-1{ font-size:7.8pt !important; line-height:1.2; }
-        table.print-table td.text-shrink-2{ font-size:7pt !important; line-height:1.15; }
-        table.print-table td.text-shrink-3{ font-size:6.2pt !important; line-height:1.1; }
-        .print-signature{ margin-top:6px; }
-        .print-signature .city{ font-size:8.5pt !important; margin-bottom:10px; }
-        .print-signature-grid{ display:grid; grid-template-columns:1fr 1fr 1fr; text-align:center; font-size:8.5pt !important; gap:4px; }
+        table.print-table td.text-shrink-1{ font-size:9.5pt !important; line-height:1.25; }
+        table.print-table td.text-shrink-2{ font-size:8.5pt !important; line-height:1.2; }
+        table.print-table td.text-shrink-3{ font-size:7.5pt !important; line-height:1.15; }
+        .print-signature{ margin-top:10px; }
+        .print-signature .city{ font-size:11pt !important; margin-bottom:18px; }
+        .print-signature-grid{ display:grid; grid-template-columns:1fr 1fr 1fr; text-align:center; font-size:11pt !important; }
         .print-signature-grid > div{ display:flex; flex-direction:column; align-items:center; }
-        .print-signature-grid p{ margin:0 0 30px; font-size:8.5pt !important; }
-        .print-signature-grid .sig-line{ display:inline-block; width:100%; border-top:1px solid #000; padding-top:3px; font-size:8pt !important; }
-        .print-rev{ text-align:right; font-size:7pt !important; margin-top:4px; }
+        .print-signature-grid p{ margin:0 0 60px; font-size:11pt !important; }
+        .print-signature-grid .sig-line{ display:inline-block; width:150px; border-top:1px solid #000; padding-top:4px; font-size:11pt !important; }
+        .print-rev{ text-align:right; font-size:9pt !important; margin-top:6px; }
     }
 </style>
 </head>
@@ -621,14 +602,44 @@ onclick="location.href='dashboard.html'">
 </div><!-- /content -->
 
 <!-- ============================================
-     AREA CETAK — replika presisi form kertas FHCS-003, ukuran kertas
-     1/2 HVS A4. Isi elemen ini SEKARANG dibangun sepenuhnya lewat JS
-     (fungsi siapkanAreaCetak/buatHalamanCetak di
-     js/permintaan-atk-art.js), termasuk pemecahan otomatis jadi
-     beberapa halaman (.print-page) kalau item barang lebih dari 5
-     baris — sehingga TIDAK ada lagi markup statis di sini.
+     AREA CETAK — replika presisi form kertas FHCS-003
 ============================================= -->
-<div id="printArea"></div>
+<div id="printArea">
+    <div class="print-kop">
+        <div class="print-kop-brand">
+            <img class="brand-logo" src="images/logo-sda-global.png" alt="PT. SDA Global - Fluid Power Company">
+            <p class="brand-name">PT. SDA GLOBAL</p>
+        </div>
+        <div class="print-kop-code">FHCS – 003</div>
+    </div>
+
+    <div class="print-title">PERMINTAAN/PENGAMBILAN ATK &amp; ART</div>
+    <div class="print-status-note" id="pStatusNote"></div>
+
+    <div class="print-header">
+        <div><label>Nama Karyawan</label><span>: <span id="pNamaKaryawan"></span></span></div>
+        <div><label>Departement / Bagian</label><span>: <span id="pDepartemen"></span></span></div>
+        <div><label>NIK</label><span>: <span id="pNik"></span></span></div>
+        <div><label>Tanggal</label><span>: <span id="pTanggal"></span></span></div>
+    </div>
+
+    <table class="print-table">
+        <thead>
+            <tr><th width="6%">No</th><th width="26%">Jenis Barang</th><th width="12%">Type</th><th width="10%">Jumlah</th><th width="10%">Satuan</th><th width="36%">Keterangan</th></tr>
+        </thead>
+        <tbody id="printRowsBody"></tbody>
+    </table>
+
+    <div class="print-signature">
+        <div class="city" id="pCity"></div>
+        <div class="print-signature-grid">
+            <div><p>Yang bersangkutan</p><div class="sig-line">Karyawan/wati</div></div>
+            <div><p>Mengetahui</p><div class="sig-line">Manager/Kabag....</div></div>
+            <div><p>Menyetujui</p><div class="sig-line">Manager HCS</div></div>
+        </div>
+    </div>
+    <div class="print-rev">Rev.00</div>
+</div>
 
 <!-- ============================================
      MODAL EDIT RIWAYAT (khusus admin)
