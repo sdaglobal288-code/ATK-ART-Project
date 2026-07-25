@@ -179,6 +179,20 @@
     table.tabel-barang td .combo-dropdown,
     table.tabel-barang td [class*="dropdown"]{ z-index:80; box-shadow:0 12px 28px rgba(0,0,0,.55); }
 
+    /* ===== foto/thumbnail barang, tampil di sebelah kiri kolom
+       "Jenis Barang" supaya karyawan/admin tahu wujud barang yang
+       diminta sebelum mengajukan. Kalau barang belum punya foto,
+       otomatis menampilkan ikon placeholder 📦. ===== */
+    .barang-cell{ display:flex !important; align-items:center; gap:8px; }
+    .barang-cell .combo-wrapper{ flex:1; min-width:0; }
+    .barang-thumb-wrap{
+        flex:0 0 42px; width:42px; height:42px; border-radius:8px;
+        border:1px solid var(--pg-border); background:var(--pg-bg-3);
+        overflow:hidden; display:flex; align-items:center; justify-content:center;
+    }
+    .barang-thumb{ width:100%; height:100%; object-fit:cover; display:none; }
+    .barang-thumb-placeholder{ font-size:18px; line-height:1; color:var(--pg-faint); }
+
     .input-readonly{
         width:100%; padding:9px 10px; border-radius:6px;
         border:1px dashed var(--pg-border); background:var(--pg-bg-3);
