@@ -401,7 +401,10 @@
     #printArea{ display:none; }
 
     @media print{
-        @page{ size:A4; margin:15mm 14mm; }
+        /* Margin atas dipangkas supaya kop/logo naik dan sejajar dengan
+           garis merah kop surat cetak (kertas letterhead), tanpa mengubah
+           margin kiri/kanan/bawah. */
+        @page{ size:A4; margin:6mm 14mm 15mm 14mm; }
         html, body{ height:auto !important; margin:0 !important; padding:0 !important; overflow:visible !important; }
         body > *:not(#printArea){ display:none !important; }
         #printArea{
@@ -409,7 +412,7 @@
             background:#fff; color:#000; padding:0; margin:0; font-family:"Times New Roman", Times, serif; font-size:11pt !important;
         }
         #printArea, #printArea *{ color:#000 !important; font-family:"Times New Roman", Times, serif !important; }
-        .print-kop{ display:flex; justify-content:space-between; align-items:flex-start; padding-bottom:4px; margin-bottom:10px; }
+        .print-kop{ display:flex; justify-content:space-between; align-items:flex-start; padding-bottom:4px; margin-bottom:8px; margin-top:0; }
         .print-kop-brand{ display:flex; flex-direction:column; align-items:flex-start; gap:2px; }
         .print-kop-brand img.brand-logo{ height:38px; width:auto; }
         .print-kop-brand p.brand-name{ margin:0; font-size:11pt !important; font-weight:700; letter-spacing:.03em; }
@@ -420,8 +423,8 @@
         .print-header div{ display:flex; white-space:nowrap; font-size:11pt !important; text-transform:none !important; }
         .print-header label{ width:168px; flex:0 0 168px; white-space:nowrap; font-size:11pt !important; text-transform:none !important; }
         .print-header span{ text-transform:none !important; }
-        table.print-table{ width:100%; table-layout:fixed; border-collapse:collapse; margin-bottom:20px; border:1.4px solid #000; page-break-inside:avoid; }
-        table.print-table th, table.print-table td{ border:1.4px solid #000; padding:6px 8px; font-size:11pt !important; text-align:center; word-wrap:break-word; overflow-wrap:break-word; }
+        table.print-table{ width:100% !important; max-width:100% !important; table-layout:fixed !important; border-collapse:collapse; margin-bottom:20px; border:1.4px solid #000; page-break-inside:avoid; }
+        table.print-table th, table.print-table td{ border:1.4px solid #000; padding:6px 8px; font-size:11pt !important; text-align:center; word-wrap:break-word; overflow-wrap:break-word; word-break:break-word; white-space:normal !important; overflow:hidden; }
         table.print-table tr{ page-break-inside:avoid; }
         /* Header hanya huruf depan tiap kata yang kapital (Title Case),
            bukan huruf kapital semua. */
@@ -624,6 +627,14 @@ onclick="location.href='dashboard.html'">
     </div>
 
     <table class="print-table">
+        <colgroup>
+            <col style="width:6%">
+            <col style="width:26%">
+            <col style="width:12%">
+            <col style="width:10%">
+            <col style="width:10%">
+            <col style="width:36%">
+        </colgroup>
         <thead>
             <tr><th width="6%">No</th><th width="26%">Jenis Barang</th><th width="12%">Type</th><th width="10%">Jumlah</th><th width="10%">Satuan</th><th width="36%">Keterangan</th></tr>
         </thead>
