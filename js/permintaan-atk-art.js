@@ -962,7 +962,7 @@ form.addEventListener("submit", async function(e){
         // membuka dialog cetak di sini
         siapkanAreaCetak(karyawan, tanggal, itemList, "");
 
-        alert(`Permintaan ATK/ART berhasil diajukan (${transaksiList.length} item) dan menunggu approval admin gudang. Stok sudah terpotong sekarang, dan akan dikembalikan otomatis jika permintaan ini ditolak.`);
+        alert(`Permintaan ATK/ART berhasil diajukan (${transaksiList.length} item).\nForm Permintaan ATK/ART silahkan di print dan di tandatangani, dan kasihkan ke HCS.\nTerimakasih`);
 
         tampilkanModeSetelahSimpan();
 
