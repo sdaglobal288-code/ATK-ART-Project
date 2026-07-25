@@ -769,33 +769,37 @@ function hitungLebarTeksPx(teks, fontSizePx){
     return ctx.measureText(teks || "").width;
 }
 
-// Menentukan kelas ukuran-font untuk sel "Jenis Barang" & "Keterangan" di
-// hasil cetak, dengan MENGUKUR apakah teks tsb muat dalam maksimal 2 baris
-// pada lebar kolom aslinya (lebarKolomMm). Kalau di ukuran normal (11pt)
-// sudah muat dalam 2 baris, tidak perlu mengecil. Kalau belum muat, coba
-// makin kecil sampai muat (atau sampai mentok di ukuran terkecil).
-function kelasUkuranTeksCetak(teks, lebarKolomMm){
-    if(!teks) return "";
+// Menentukan ukuran font (dalam pt) untuk sel "Jenis Barang" & "Keterangan"
+// di hasil cetak, dengan MENGUKUR lebar teks sesungguhnya (canvas) terhadap
+// lebar kolom aslinya (lebarKolomMm).
+//
+// PRIORITAS: selalu coba muat dalam SATU BARIS dulu, mengecil bertahap
+// selangkah demi selangkah, supaya tinggi barisnya SAMA PERSIS dengan
+// baris kosong lain di tabel (tinggi baris ditentukan oleh kolom lain yang
+// tetap 11pt satu baris, jadi selama Jenis Barang/Keterangan juga hanya
+// satu baris, tinggi barisnya otomatis tetap seragam — kolom TIDAK
+// membesar/berubah ukuran hanya karena teksnya panjang).
+// Teks TIDAK PERNAH dipotong: kalau di ukuran terkecil pun masih belum
+// muat dalam satu baris (teks sangat panjang), baru diizinkan turun ke
+// baris kedua memakai ukuran font terkecil, supaya seluruh isi tetap
+// terbaca lengkap.
+const OPSI_FONT_PT_CETAK = [11, 10, 9, 8, 7.2, 6.5, 6, 5.5];
+
+function ukuranFontCetakPt(teks, lebarKolomMm){
+    if(!teks) return 11;
 
     const lebarTersediaPx = lebarKolomMm * 3.7795; // mm -> px (96dpi)
-    const MAKS_BARIS = 2;
 
-    const opsiFont = [
-        { pt: 11,  kelas: "" },
-        { pt: 9.5, kelas: "text-shrink-1" },
-        { pt: 8.5, kelas: "text-shrink-2" },
-        { pt: 7.5, kelas: "text-shrink-3" },
-    ];
-
-    for(const opsi of opsiFont){
-        const fontPx = opsi.pt * 1.3333; // pt -> px (96dpi)
+    for(const pt of OPSI_FONT_PT_CETAK){
+        const fontPx = pt * 1.3333; // pt -> px (96dpi)
         const lebarTeksPx = hitungLebarTeksPx(teks, fontPx);
-        const jumlahBarisDiperkirakan = Math.ceil(lebarTeksPx / lebarTersediaPx) || 1;
-        if(jumlahBarisDiperkirakan <= MAKS_BARIS) return opsi.kelas;
+        if(lebarTeksPx <= lebarTersediaPx) return pt; // muat dalam 1 baris
     }
 
-    // tetap tidak muat walau sudah paling kecil -> pakai yang terkecil saja
-    return "text-shrink-3";
+    // teks sangat panjang — walau di ukuran terkecil pun tidak muat dalam
+    // 1 baris, tetap pakai ukuran terkecil dan izinkan turun ke baris
+    // berikutnya (CSS word-wrap yang menangani), supaya tidak terpotong.
+    return OPSI_FONT_PT_CETAK[OPSI_FONT_PT_CETAK.length - 1];
 }
 
 function siapkanAreaCetak(karyawan, tanggal, itemList, statusNote){
@@ -813,17 +817,17 @@ function siapkanAreaCetak(karyawan, tanggal, itemList, statusNote){
 
     itemList.forEach(({ barang, qty, keteranganRow }, idx)=>{
         const teksKeterangan = keteranganRow || "-";
-        const kelasBarang = kelasUkuranTeksCetak(barang.nama_barang, LEBAR_KOLOM_CETAK_MM.jenisBarang);
-        const kelasKeterangan = kelasUkuranTeksCetak(teksKeterangan, LEBAR_KOLOM_CETAK_MM.keterangan);
+        const fontBarang = ukuranFontCetakPt(barang.nama_barang, LEBAR_KOLOM_CETAK_MM.jenisBarang);
+        const fontKeterangan = ukuranFontCetakPt(teksKeterangan, LEBAR_KOLOM_CETAK_MM.keterangan);
 
         tbody.innerHTML += `
             <tr>
                 <td>${idx + 1}</td>
-                <td class="left jenis-barang ${kelasBarang}">${barang.nama_barang}</td>
+                <td class="left jenis-barang" style="font-size:${fontBarang}pt !important;">${barang.nama_barang}</td>
                 <td>${barang.kategori || "-"}</td>
                 <td>${qty}</td>
                 <td>${barang.satuan}</td>
-                <td class="left keterangan ${kelasKeterangan}">${teksKeterangan}</td>
+                <td class="left keterangan" style="font-size:${fontKeterangan}pt !important;">${teksKeterangan}</td>
             </tr>`;
     });
 
