@@ -355,10 +355,9 @@
                 "satuan satuan"
                 "ket ket";
             column-gap:10px; row-gap:0;
-            border:1px solid var(--pg-border); border-radius:14px;
+            border:1px solid var(--pg-border); border-radius:10px;
             padding:14px; margin-bottom:16px;
             background:var(--pg-bg-1);
-            box-shadow:0 1px 4px rgba(0,0,0,.05);
         }
 
         table.tabel-barang tr.detail-row td{
@@ -439,6 +438,24 @@
         /* input min 16px supaya Safari/Chrome iOS tidak auto-zoom saat fokus */
         .combo-input, .input-qty, .input-ket-row, .input-readonly,
         .gudang-gate select{ font-size:16px; }
+
+        /* SAMAKAN ukuran & gaya semua kotak isian di halaman ini —
+           Nama Karyawan/Departemen/NIK/Tanggal di atas HARUS terlihat
+           identik (tinggi, padding, radius, warna border) dengan
+           Jenis Barang/Type/Jumlah/Satuan/Keterangan di kartu barang,
+           supaya tampilannya rapi & konsisten dari atas sampai bawah. */
+        .header-field .combo-input,
+        .barang-cell .combo-input,
+        .input-qty,
+        .input-readonly,
+        .input-ket-row,
+        .gudang-gate select{
+            height:44px;
+            padding:0 12px !important;
+            border-radius:8px !important;
+            border:1px solid var(--pg-border) !important;
+            box-sizing:border-box;
+        }
 
         /* panel admin (Validasi/Riwayat) tetap bisa digeser mendatar di
            layar sempit alih-alih memampatkan kolom sampai tidak terbaca */
