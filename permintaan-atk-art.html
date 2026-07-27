@@ -337,51 +337,58 @@
         table.tabel-barang thead{ display:none !important; }
         table.tabel-barang{ border:none; margin-bottom:4px; }
 
-        /* setiap baris barang jadi 1 kartu. td "No" & td "hapus" ditaruh
-           berdampingan di baris paling atas kartu (lewat flex-order),
-           sisanya (Jenis Barang/Type/Jumlah/Satuan/Keterangan) ditumpuk
-           penuh lebar di bawahnya. */
+        /* setiap baris barang jadi 1 kartu, disusun pakai CSS GRID dengan
+           area bernama supaya posisinya PASTI (tidak bergantung pada
+           urutan wrap seperti flexbox, yang ternyata bikin ada kotak
+           kosong aneh melebar di beberapa perangkat). Baris paling atas
+           kartu: badge nomor (kiri) + tombol hapus (kanan). Baris-baris
+           di bawahnya (Jenis Barang s/d Keterangan) masing-masing
+           memenuhi lebar penuh kartu. */
         table.tabel-barang tr.detail-row{
-            display:flex !important; flex-wrap:wrap; align-items:flex-start;
+            display:grid !important;
+            grid-template-columns:1fr auto;
+            grid-template-areas:
+                "badge hapus"
+                "jenis jenis"
+                "type type"
+                "jumlah jumlah"
+                "satuan satuan"
+                "ket ket";
             column-gap:10px; row-gap:0;
             border:1px solid var(--pg-border); border-radius:14px;
-            padding:12px 14px 16px; margin-bottom:16px;
+            padding:14px; margin-bottom:16px;
             background:var(--pg-bg-1);
             box-shadow:0 1px 4px rgba(0,0,0,.05);
         }
 
         table.tabel-barang tr.detail-row td{
             display:block !important; border:none !important; padding:0 !important;
-            flex:1 1 100%; min-width:0;
+            min-width:0; width:auto !important;
         }
 
         /* baris header kartu: nomor urut barang (kiri) + tombol hapus
-           (kanan), sejajar di baris paling atas — bukan lagi tombol
-           merah selebar penuh yang terkesan seperti pesan galat. */
-        table.tabel-barang tr.detail-row td:first-child{
-            order:-2; flex:0 0 auto; align-self:center;
+           (kanan) — bukan lagi tombol merah selebar penuh yang terkesan
+           seperti pesan galat. */
+        table.tabel-barang tr.detail-row td:nth-child(1){
+            grid-area:badge; justify-self:start; align-self:center;
             background:var(--pg-soft-bg-2); border:1px solid var(--pg-border) !important;
-            border-radius:999px; padding:4px 12px !important;
-            margin-top:10px; margin-bottom:12px;
+            border-radius:999px; padding:4px 12px !important; margin-bottom:12px;
             font-size:11.5px; font-weight:600; color:var(--pg-label); line-height:1.6;
         }
-        table.tabel-barang tr.detail-row td:first-child::before{
+        table.tabel-barang tr.detail-row td:nth-child(1)::before{
             content:"Barang "; text-transform:none; font-weight:400; display:inline; margin:0;
         }
-        table.tabel-barang tr.detail-row td:first-child .row-no{ font-weight:700; color:var(--pg-text); }
+        table.tabel-barang tr.detail-row td:nth-child(1) .row-no{ font-weight:700; color:var(--pg-text); }
 
-        /* tombol hapus didorong rapat ke sisi kanan header kartu, sejajar
-           dengan badge "Barang N" di sisi kiri */
-        table.tabel-barang tr.detail-row td:last-child{
-            order:-1; flex:0 0 auto; align-self:center;
-            margin-top:10px; margin-bottom:12px; margin-left:auto;
+        table.tabel-barang tr.detail-row td:nth-child(7){
+            grid-area:hapus; justify-self:end; align-self:center; margin-bottom:12px;
         }
-        table.tabel-barang tr.detail-row td:last-child .btn-hapus-baris{
+        table.tabel-barang tr.detail-row td:nth-child(7) .btn-hapus-baris{
             width:auto !important; height:auto !important; line-height:1.4;
             padding:6px 12px; border-radius:8px; font-size:12px; font-weight:600;
             background:rgba(239,68,68,.08); color:#dc2626; border:1px solid rgba(239,68,68,.35);
         }
-        table.tabel-barang tr.detail-row td:last-child .btn-hapus-baris::after{ content:" Hapus"; }
+        table.tabel-barang tr.detail-row td:nth-child(7) .btn-hapus-baris::after{ content:" Hapus"; }
 
         /* garis pemisah tipis antara header kartu (Barang N / Hapus) dan
            isian field di bawahnya, supaya terlihat sebagai 2 kelompok
@@ -390,8 +397,14 @@
             border-top:1px solid var(--pg-border-2) !important;
         }
 
-        /* field isian (Jenis Barang → Keterangan): masing-masing diberi
-           label kecil di atasnya + sedikit jarak antar field */
+        /* field isian (Jenis Barang → Keterangan): masing-masing memenuhi
+           lebar penuh kartu & diberi label kecil di atasnya */
+        table.tabel-barang tr.detail-row td:nth-child(2){ grid-area:jenis; }
+        table.tabel-barang tr.detail-row td:nth-child(3){ grid-area:type; }
+        table.tabel-barang tr.detail-row td:nth-child(4){ grid-area:jumlah; }
+        table.tabel-barang tr.detail-row td:nth-child(5){ grid-area:satuan; }
+        table.tabel-barang tr.detail-row td:nth-child(6){ grid-area:ket; }
+
         table.tabel-barang tr.detail-row td:nth-child(n+2):nth-child(-n+6){
             padding-top:12px !important;
         }
