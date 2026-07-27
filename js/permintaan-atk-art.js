@@ -66,6 +66,16 @@
 //     diajukan, maupun saat cetak ulang dari Riwayat Pengajuan untuk baris
 //     berstatus Menunggu) — area cetak tidak lagi menampilkan baris
 //     keterangan status tersebut.
+// 12) Panel "Validasi Permintaan ATK/ART" & "Riwayat Pengajuan ATK/ART"
+//     (admin-only) SEKARANG otomatis DIFILTER sesuai gudang tempat admin
+//     login (adminUser.gudang, diisi oleh sessionStorage "user" saat
+//     login.html). Admin yang login di gudang "Margo" hanya akan melihat
+//     permintaan/riwayat dari gudang "Margo" saja, admin yang login di
+//     gudang "Raden Saleh" hanya melihat gudang "Raden Saleh" saja, dst.
+//     Kalau (untuk alasan tertentu) akun admin TIDAK punya field "gudang"
+//     tersimpan di sessionStorage "user", filter ini otomatis dilewati
+//     (fallback aman) supaya panel tetap menampilkan semua gudang seperti
+//     sebelumnya, bukan malah kosong.
 //
 // PENTING — MIGRASI DATABASE YANG DIPERLUKAN (Supabase):
 //   alter table barang_keluar add column if not exists status text default 'Disetujui';
@@ -1046,6 +1056,15 @@ async function kurangiStokGudangDiGudang(barangId, gudang, qty){
 // VALIDASI PERMINTAAN (khusus admin) — daftar permintaan berstatus
 // "Menunggu Approval", dikelompokkan seperti riwayat.
 //
+// FILTER GUDANG SESUAI SESI ADMIN: panel ini SEKARANG hanya menampilkan
+// permintaan dari gudang tempat admin yang login bertugas (adminUser.gudang,
+// diisi oleh sessionStorage "user" saat login.html). Admin gudang "Margo"
+// hanya melihat permintaan gudang "Margo", admin gudang "Raden Saleh" hanya
+// melihat permintaan gudang "Raden Saleh", dst. Kalau field "gudang" pada
+// sessionStorage "user" kosong/tidak ada, filter ini otomatis dilewati
+// (fallback aman) supaya panel tetap menampilkan semua gudang seperti
+// sebelumnya, bukan malah kosong.
+//
 // CATATAN: stok untuk baris-baris ini SUDAH terpotong sejak diajukan.
 // ✅ Setujui TIDAK memotong stok lagi dari awal — hanya SELISIH qty (kalau
 // admin mengoreksi jumlah di sini) yang disesuaikan ke stok.
@@ -1066,12 +1085,18 @@ async function muatValidasiPermintaan(){
     wrap.innerHTML = `<div class="riwayat-loading">Memuat permintaan menunggu approval...</div>`;
 
     try{
-        const { data, error } = await supabaseClient
+        let query = supabaseClient
             .from("barang_keluar")
             .select("*")
             .ilike("keterangan", `%${TAG_FORM}%`)
-            .eq("status", STATUS_MENUNGGU)
-            .order("created_at", { ascending: true });
+            .eq("status", STATUS_MENUNGGU);
+
+        // filter sesuai gudang admin yang sedang login (kalau ada)
+        if(adminUser && adminUser.gudang){
+            query = query.eq("gudang", adminUser.gudang);
+        }
+
+        const { data, error } = await query.order("created_at", { ascending: true });
 
         if(error) throw error;
 
@@ -1272,6 +1297,14 @@ async function tolakPermintaan(key){
 // RIWAYAT PENGAJUAN (khusus admin) — gabungan pengajuan dari akun
 // admin maupun dari link publik, semua status (Menunggu/Disetujui/Ditolak).
 //
+// FILTER GUDANG SESUAI SESI ADMIN: sama seperti panel Validasi di atas,
+// panel Riwayat ini SEKARANG juga otomatis difilter berdasarkan gudang
+// tempat admin login (adminUser.gudang). Admin gudang "Margo" hanya
+// melihat riwayat gudang "Margo", admin gudang "Raden Saleh" hanya
+// melihat riwayat gudang "Raden Saleh", dst. Kalau sessionStorage "user"
+// tidak memiliki field "gudang", filter ini dilewati (fallback aman)
+// supaya riwayat tetap tampil menampilkan semua gudang seperti sebelumnya.
+//
 // CATATAN PENTING soal pengelompokan:
 // Skema tabel barang_keluar TIDAK menyimpan "nomor pengajuan" — setiap
 // baris item disimpan terpisah. Supaya beberapa item yang disubmit
@@ -1292,10 +1325,17 @@ async function muatRiwayatPengajuan(){
     wrap.innerHTML = `<div class="riwayat-loading">Memuat riwayat...</div>`;
 
     try{
-        const { data, error } = await supabaseClient
+        let query = supabaseClient
             .from("barang_keluar")
             .select("*")
-            .ilike("keterangan", `%${TAG_FORM}%`)
+            .ilike("keterangan", `%${TAG_FORM}%`);
+
+        // filter sesuai gudang admin yang sedang login (kalau ada)
+        if(adminUser && adminUser.gudang){
+            query = query.eq("gudang", adminUser.gudang);
+        }
+
+        const { data, error } = await query
             .order("created_at", { ascending: false })
             .limit(300);
 
