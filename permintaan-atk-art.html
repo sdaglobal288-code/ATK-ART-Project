@@ -450,24 +450,26 @@
            input type="date" & type="number" sering dirender oleh HP
            dengan tinggi/padding internal sendiri yang beda dari kotak
            teks biasa walau CSS height-nya sudah disamakan. */
-        .header-field .combo-input,
-        .header-field input[type="date"],
-        .barang-cell .combo-input,
-        .input-qty,
-        .input-readonly,
-        .input-ket-row,
+        #formPermintaanWrap .header-field .combo-input,
+        #formPermintaanWrap .header-field input[type="date"],
+        #formPermintaanWrap .barang-cell .combo-input,
+        #formPermintaanWrap .input-qty,
+        #formPermintaanWrap .input-readonly,
+        #formPermintaanWrap .input-ket-row,
+        #formPermintaanWrap .gudang-gate select,
         .gudang-gate select{
             width:100% !important;
             height:44px !important;
             min-height:44px !important;
             max-height:44px !important;
-            line-height:normal;
+            line-height:normal !important;
             padding:0 12px !important;
             border-radius:8px !important;
             border:1px solid var(--pg-border) !important;
             box-sizing:border-box !important;
-            -webkit-appearance:none;
-            appearance:none;
+            -webkit-appearance:none !important;
+            appearance:none !important;
+            font-size:16px !important;
         }
         /* lebar kolom "Jenis Barang" dikurangi lebar thumbnail foto +
            gap-nya, supaya kotak inputnya tetap sama tinggi & konsisten
