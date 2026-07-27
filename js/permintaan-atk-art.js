@@ -76,6 +76,12 @@
 //     tersimpan di sessionStorage "user", filter ini otomatis dilewati
 //     (fallback aman) supaya panel tetap menampilkan semua gudang seperti
 //     sebelumnya, bukan malah kosong.
+// 13) Panel "Riwayat Pengajuan ATK/ART": tombol 🖨️ Cetak SEKARANG hanya
+//     ditampilkan untuk baris yang BUKAN berstatus "Ditolak" (Menunggu
+//     & Disetujui tetap bisa dicetak seperti biasa). Baris berstatus
+//     "Ditolak" tidak lagi menampilkan tombol Cetak sama sekali, karena
+//     permintaan tersebut dibatalkan dan bukan lagi transaksi keluar yang
+//     sah untuk dicetak sebagai bukti.
 //
 // PENTING — MIGRASI DATABASE YANG DIPERLUKAN (Supabase):
 //   alter table barang_keluar add column if not exists status text default 'Disetujui';
@@ -1404,6 +1410,11 @@ function renderRiwayatTable(){
         const daftarBarang = g.items.map(it => `${it.nama_barang} (${it.qty} ${it.satuan})`).join(", ");
         const bisaDiubah = g.status === STATUS_DISETUJUI;
 
+        // Tombol 🖨️ Cetak HANYA ditampilkan untuk baris yang BUKAN berstatus
+        // "Ditolak" — permintaan yang sudah ditolak dibatalkan & bukan lagi
+        // transaksi keluar yang sah untuk dicetak sebagai bukti.
+        const bisaDicetak = g.status !== STATUS_DITOLAK;
+
         return `
         <tr>
             <td>${idx + 1}</td>
@@ -1416,7 +1427,7 @@ function renderRiwayatTable(){
             <td>${g.created_by || "-"}</td>
             <td>
                 <div class="riwayat-aksi">
-                    <button type="button" class="btn-cetak" data-key="${g.key}" title="Cetak ulang">🖨️ Cetak</button>
+                    ${bisaDicetak ? `<button type="button" class="btn-cetak" data-key="${g.key}" title="Cetak ulang">🖨️ Cetak</button>` : ""}
                     ${bisaDiubah ? `<button type="button" class="btn-edit" data-key="${g.key}" title="Edit">✏️ Edit</button>` : ""}
                     ${bisaDiubah ? `<button type="button" class="btn-hapus" data-key="${g.key}" title="Hapus">🗑️ Hapus</button>` : ""}
                 </div>
@@ -1461,7 +1472,10 @@ function cariGrupByKey(key){
 // ----- CETAK ULANG dari riwayat -----
 // Catatan status ("Menunggu Approval Admin Gudang" / "Ditolak") pada hasil
 // cetak sudah tidak ditampilkan lagi — hasil cetak ulang dari sini polos
-// tanpa keterangan status apapun, sama seperti cetak form biasa.
+// tanpa keterangan status apapun, sama seperti cetak form biasa. Tombol
+// ini sendiri sudah tidak dirender lagi untuk baris berstatus "Ditolak"
+// (lihat renderRiwayatTable()), jadi fungsi ini praktis hanya dipanggil
+// untuk baris "Menunggu" atau "Disetujui".
 function cetakRiwayat(key){
     const grup = cariGrupByKey(key);
     if(!grup) return;
