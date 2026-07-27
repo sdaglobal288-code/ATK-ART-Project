@@ -1141,11 +1141,18 @@ async function loadKeluar() {
 }
 
 // ===========================
-// NOTIFIKASI APPROVAL (Transfer / Retur / Permanenkan)
+// NOTIFIKASI APPROVAL (Transfer / Retur / Permanenkan / Mutasi Karyawan /
+// Permintaan ATK/ART)
 // Ada 2 jenis notifikasi:
 //
 // 1) "Menunggu Approval" -> untuk gudang user yang login (dia yang harus
 //    menyetujui). Ini yang munculkan POPUP sekali di awal sesi login.
+//    Termasuk di sini: Transfer Barang, Retur, Permanenkan, Mutasi
+//    Karyawan, dan (SEKARANG) Permintaan ATK/ART yang berstatus
+//    "Menunggu Approval" di gudang user ini — persis sama perlakuannya
+//    dengan Transfer Barang & Mutasi Karyawan, supaya admin gudang tidak
+//    perlu membuka panel Validasi ATK/ART secara manual untuk tahu ada
+//    permintaan baru yang perlu di-approve.
 //
 // 2) "Sudah Disetujui" -> untuk permintaan yang DIBUAT SENDIRI oleh user
 //    ini (created_by = user.nama) yang statusnya baru saja Approved /
@@ -1155,12 +1162,18 @@ async function loadKeluar() {
 //    localStorage (bertahan walau logout/login lagi / tutup tab).
 // ===========================
 
+// tag yang dipakai halaman Permintaan ATK/ART (permintaan-atk-art.js) untuk
+// menandai baris barang_keluar yang berasal dari form FHCS-003, supaya baris
+// pengeluaran biasa (bukan dari form ATK/ART) tidak ikut terhitung di sini.
+const TAG_FORM_ATK_ART = "[Formulir Permintaan ATK/ART]";
+
 // menyimpan hasil cek terakhir supaya bisa dipakai saat lonceng diklik
 let lastNotifState = {
     totalTransfer: 0,
     totalRetur: 0,
     totalPermanenkan: 0,
     totalMutasi: 0,
+    totalAtkArt: 0,
     disetujuiItems: []
 };
 
@@ -1345,6 +1358,7 @@ async function cekNotifikasiApproval() {
             { count: cRetur },
             { count: cPermanenkan },
             { count: cMutasi },
+            { count: cAtkArt },
             disetujuiItems
         ] = await Promise.all([
             supabaseClient.from("barang_transfer")
@@ -1363,6 +1377,14 @@ async function cekNotifikasiApproval() {
                 .select("*", { count:"exact", head:true })
                 .eq("gudang_baru", gudang)
                 .eq("status", "Pending"),
+            // Permintaan ATK/ART (form FHCS-003) yang menunggu approval di
+            // gudang ini — disaring lewat tag TAG_FORM_ATK_ART supaya baris
+            // pengeluaran biasa (bukan dari form ATK/ART) tidak ikut terhitung
+            supabaseClient.from("barang_keluar")
+                .select("*", { count:"exact", head:true })
+                .eq("gudang", gudang)
+                .eq("status", "Menunggu Approval")
+                .ilike("keterangan", `%${TAG_FORM_ATK_ART}%`),
             ambilNotifikasiDisetujui()
         ]);
 
@@ -1370,10 +1392,11 @@ async function cekNotifikasiApproval() {
         const totalRetur        = cRetur ?? 0;
         const totalPermanenkan  = cPermanenkan ?? 0;
         const totalMutasi       = cMutasi ?? 0;
-        const totalPending      = totalTransfer + totalRetur + totalPermanenkan + totalMutasi;
+        const totalAtkArt       = cAtkArt ?? 0;
+        const totalPending      = totalTransfer + totalRetur + totalPermanenkan + totalMutasi + totalAtkArt;
         const totalBadge        = totalPending + disetujuiItems.length;
 
-        lastNotifState = { totalTransfer, totalRetur, totalPermanenkan, totalMutasi, disetujuiItems };
+        lastNotifState = { totalTransfer, totalRetur, totalPermanenkan, totalMutasi, totalAtkArt, disetujuiItems };
 
         updateNotifBadge(totalBadge);
         renderNotifDropdown(lastNotifState);
@@ -1385,7 +1408,7 @@ async function cekNotifikasiApproval() {
 
         if (totalPending > 0 && !sudahTampil) {
 
-            tampilkanPopupNotifikasi({ totalTransfer, totalRetur, totalPermanenkan, totalMutasi, total: totalPending });
+            tampilkanPopupNotifikasi({ totalTransfer, totalRetur, totalPermanenkan, totalMutasi, totalAtkArt, total: totalPending });
 
             sessionStorage.setItem("notifPopupShown", "1");
 
@@ -1419,7 +1442,7 @@ function updateNotifBadge(total) {
 
 }
 
-function renderNotifDropdown({ totalTransfer, totalRetur, totalPermanenkan, totalMutasi, disetujuiItems }) {
+function renderNotifDropdown({ totalTransfer, totalRetur, totalPermanenkan, totalMutasi, totalAtkArt, disetujuiItems }) {
 
     const list = document.getElementById("notifList");
 
@@ -1471,6 +1494,17 @@ function renderNotifDropdown({ totalTransfer, totalRetur, totalPermanenkan, tota
 
     }
 
+    if (totalAtkArt > 0) {
+
+        items.push({
+            icon: "📝",
+            bg: "rgba(62,207,142,.14)",
+            text: `${totalAtkArt} Permintaan ATK/ART menunggu approval Anda`,
+            page: "permintaan-atk-art.html"
+        });
+
+    }
+
     let html = "";
 
     if (items.length > 0) {
@@ -1508,7 +1542,7 @@ function renderNotifDropdown({ totalTransfer, totalRetur, totalPermanenkan, tota
 
 }
 
-function tampilkanPopupNotifikasi({ totalTransfer, totalRetur, totalPermanenkan, totalMutasi, total }) {
+function tampilkanPopupNotifikasi({ totalTransfer, totalRetur, totalPermanenkan, totalMutasi, totalAtkArt, total }) {
 
     const overlay = document.getElementById("notifModalOverlay");
     const textEl  = document.getElementById("notifModalText");
@@ -1521,23 +1555,29 @@ function tampilkanPopupNotifikasi({ totalTransfer, totalRetur, totalPermanenkan,
     if (totalRetur > 0)       rincian.push(`${totalRetur} Permintaan Retur`);
     if (totalPermanenkan > 0) rincian.push(`${totalPermanenkan} Permintaan Permanenkan`);
     if (totalMutasi > 0)      rincian.push(`${totalMutasi} Mutasi Karyawan`);
+    if (totalAtkArt > 0)      rincian.push(`${totalAtkArt} Permintaan ATK/ART`);
 
     textEl.textContent =
         `Anda memiliki ${total} permintaan (${rincian.join(", ")}) yang masih menunggu approval di gudang ${userGudang}.`;
 
     // arahkan tombol "Lihat Sekarang" ke halaman yang relevan: kalau
-    // yang menunggu HANYA mutasi karyawan, arahkan ke halaman itu;
-    // selain itu (ada Transfer/Retur/Permanenkan), arahkan ke Transfer Barang
+    // yang menunggu HANYA mutasi karyawan, arahkan ke halaman itu; kalau
+    // yang menunggu HANYA permintaan ATK/ART, arahkan ke halaman itu;
+    // selain itu (ada Transfer/Retur/Permanenkan, atau campuran beberapa
+    // jenis sekaligus), arahkan ke Transfer Barang seperti sebelumnya
     const btnLihat = document.getElementById("notifModalBtnLihat");
 
     if (btnLihat) {
 
-        const hanyaMutasi = totalMutasi > 0 && (totalTransfer + totalRetur + totalPermanenkan) === 0;
+        const totalTransferGroup = totalTransfer + totalRetur + totalPermanenkan;
+        const hanyaMutasi = totalMutasi > 0 && totalTransferGroup === 0 && totalAtkArt === 0;
+        const hanyaAtkArt = totalAtkArt > 0 && totalTransferGroup === 0 && totalMutasi === 0;
 
-        btnLihat.setAttribute(
-            "onclick",
-            hanyaMutasi ? "location.href='mutasi-karyawan.html'" : "location.href='barang-transfer.html'"
-        );
+        let tujuan = "barang-transfer.html";
+        if (hanyaMutasi) tujuan = "mutasi-karyawan.html";
+        else if (hanyaAtkArt) tujuan = "permintaan-atk-art.html";
+
+        btnLihat.setAttribute("onclick", `location.href='${tujuan}'`);
 
     }
 
@@ -1577,7 +1617,8 @@ if (notifBellBtnEl && notifDropdownEl) {
                 lastNotifState.totalTransfer +
                 lastNotifState.totalRetur +
                 lastNotifState.totalPermanenkan +
-                (lastNotifState.totalMutasi || 0);
+                (lastNotifState.totalMutasi || 0) +
+                (lastNotifState.totalAtkArt || 0);
 
             updateNotifBadge(totalPendingSaja);
 
@@ -1631,6 +1672,10 @@ function aktifkanRealtimeNotifikasi() {
     )
     .on("postgres_changes",
         { event:"*", schema:"public", table:"mutasi_karyawan" },
+        cekNotifikasiApproval
+    )
+    .on("postgres_changes",
+        { event:"*", schema:"public", table:"barang_keluar" },
         cekNotifikasiApproval
     )
 
