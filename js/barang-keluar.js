@@ -527,14 +527,17 @@ function aktifkanRealtimeStok(){
 // =====================================
 // LOAD & TAMPIL HISTORI
 //
-// CATATAN: baris yang berasal dari Formulir Permintaan ATK/ART dan
-// berstatus "Ditolak" SENGAJA dikecualikan dari histori ini, karena
-// stok yang sempat terpotong untuk baris tersebut sudah dikembalikan
-// otomatis saat admin menolaknya (lihat js/permintaan-atk-art.js ->
-// tolakPermintaan()), sehingga baris itu bukan transaksi keluar yang
-// sah dan tidak seharusnya tercatat di Histori Barang Keluar.
-// Baris lama yang belum memiliki kolom "status" (NULL) tetap tampil
-// seperti biasa.
+// CATATAN: histori ini SEKARANG hanya menampilkan baris yang berstatus
+// "Disetujui" (atau baris lama yang belum memiliki kolom "status" sama
+// sekali / NULL — dianggap "Disetujui" sesuai fallback `row.status ||
+// 'Disetujui'` yang dipakai di js/permintaan-atk-art.js). Baris yang
+// berasal dari Formulir Permintaan ATK/ART dan masih berstatus
+// "Menunggu Approval" ATAUPUN sudah "Ditolak" TIDAK ditampilkan di sini,
+// karena:
+// - "Menunggu Approval": belum final, belum tentu disetujui admin.
+// - "Ditolak": stok yang sempat terpotong sudah dikembalikan otomatis
+//   saat admin menolaknya (lihat js/permintaan-atk-art.js ->
+//   tolakPermintaan()), jadi baris ini bukan transaksi keluar yang sah.
 // =====================================
 
 async function loadBarangKeluar() {
@@ -545,7 +548,7 @@ async function loadBarangKeluar() {
             .from("barang_keluar")
             .select("*")
             .eq("gudang", user.gudang)
-            .or("status.is.null,status.neq.Ditolak")
+            .or("status.is.null,status.eq.Disetujui")
             .order("tanggal", { ascending: false })
             .order("id", { ascending: false });
 
@@ -875,9 +878,10 @@ async function hapusBarangKeluar(id){
 // =====================================
 // EXPORT EXCEL (MODAL PILIH RANGE TANGGAL)
 //
-// CATATAN: sama seperti loadBarangKeluar(), baris berstatus "Ditolak"
-// juga dikecualikan di sini supaya laporan Excel yang di-export tidak
-// ikut menyertakan pengajuan ATK/ART yang sudah ditolak.
+// CATATAN: sama seperti loadBarangKeluar(), export ini hanya mengambil
+// baris berstatus "Disetujui" (atau NULL, dianggap "Disetujui"), supaya
+// laporan Excel yang di-export tidak ikut menyertakan pengajuan ATK/ART
+// yang masih "Menunggu Approval" ataupun yang sudah "Ditolak".
 // =====================================
 
 function bukaModalExportRange(){
@@ -924,7 +928,7 @@ async function exportExcel(dariTanggal, sampaiTanggal){
             .from("barang_keluar")
             .select("*")
             .eq("gudang", user.gudang)
-            .or("status.is.null,status.neq.Ditolak");
+            .or("status.is.null,status.eq.Disetujui");
 
         if(dariTanggal) query = query.gte("tanggal", dariTanggal);
         if(sampaiTanggal) query = query.lte("tanggal", sampaiTanggal);
