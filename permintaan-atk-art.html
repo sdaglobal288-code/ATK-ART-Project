@@ -329,53 +329,79 @@
 
         /* ===== tabel barang dirombak jadi kartu bertumpuk (1 kartu per
            baris barang) supaya tidak berdesakan di layar sempit. Ini
-           murni tampilan CSS: urutan kolom asli dari HTML/JS tetap sama,
-           label kolom ditambahkan lewat ::before berdasarkan urutannya. ===== */
+           murni tampilan CSS: urutan kolom asli dari HTML/JS tetap sama
+           (No, Jenis Barang, Type, Jumlah, Satuan, Keterangan, hapus) —
+           hanya tata letaknya yang dirombak lewat flex + ::before. ===== */
         table.tabel-barang, table.tabel-barang thead, table.tabel-barang tbody,
-        table.tabel-barang tr, table.tabel-barang th{ display:block !important; }
+        table.tabel-barang th{ display:block !important; }
         table.tabel-barang thead{ display:none !important; }
         table.tabel-barang{ border:none; margin-bottom:4px; }
 
+        /* setiap baris barang jadi 1 kartu. td "No" & td "hapus" ditaruh
+           berdampingan di baris paling atas kartu (lewat flex-order),
+           sisanya (Jenis Barang/Type/Jumlah/Satuan/Keterangan) ditumpuk
+           penuh lebar di bawahnya. */
         table.tabel-barang tr.detail-row{
-            position:relative;
-            border:1px solid var(--pg-border); border-radius:12px;
-            padding:14px 14px 8px; margin-bottom:14px;
+            display:flex !important; flex-wrap:wrap; align-items:flex-start;
+            column-gap:10px; row-gap:0;
+            border:1px solid var(--pg-border); border-radius:14px;
+            padding:12px 14px 16px; margin-bottom:16px;
             background:var(--pg-bg-1);
-            box-shadow:0 1px 3px rgba(0,0,0,.06);
+            box-shadow:0 1px 4px rgba(0,0,0,.05);
         }
 
         table.tabel-barang tr.detail-row td{
-            display:block !important; border:none !important;
-            padding:8px 0; border-bottom:1px dashed var(--pg-border-2) !important;
+            display:block !important; border:none !important; padding:0 !important;
+            flex:1 1 100%; min-width:0;
         }
-        table.tabel-barang tr.detail-row td:last-child{ border-bottom:none !important; padding-top:12px; }
 
-        table.tabel-barang tr.detail-row td::before{
+        /* baris header kartu: nomor urut barang (kiri) + tombol hapus
+           (kanan), sejajar di baris paling atas — bukan lagi tombol
+           merah selebar penuh yang terkesan seperti pesan galat. */
+        table.tabel-barang tr.detail-row td:first-child{
+            order:-2; flex:0 0 auto;
+            background:var(--pg-soft-bg-2); border:1px solid var(--pg-border) !important;
+            border-radius:999px; padding:4px 12px !important; margin:10px 0 12px;
+            font-size:11.5px; font-weight:600; color:var(--pg-label);
+        }
+        table.tabel-barang tr.detail-row td:first-child::before{
+            content:"Barang "; text-transform:none; font-weight:400; display:inline; margin:0;
+        }
+        table.tabel-barang tr.detail-row td:first-child .row-no{ font-weight:700; color:var(--pg-text); }
+
+        table.tabel-barang tr.detail-row td:last-child{
+            order:-1; flex:0 0 auto; margin:10px 0 12px 0 auto;
+        }
+        table.tabel-barang tr.detail-row td:last-child .btn-hapus-baris{
+            width:auto !important; height:auto !important;
+            padding:6px 12px; border-radius:8px; font-size:12px; font-weight:600;
+            background:rgba(239,68,68,.08); color:#dc2626; border:1px solid rgba(239,68,68,.35);
+        }
+        table.tabel-barang tr.detail-row td:last-child .btn-hapus-baris::after{ content:" Hapus"; }
+
+        /* field isian (Jenis Barang → Keterangan): masing-masing diberi
+           label kecil di atasnya + sedikit jarak antar field */
+        table.tabel-barang tr.detail-row td:nth-child(n+2):nth-child(-n+6){
+            padding-top:10px !important;
+        }
+        table.tabel-barang tr.detail-row td:nth-child(n+2):nth-child(-n+6)::before{
             display:block; font-size:10.5px; font-weight:700; letter-spacing:.04em;
             text-transform:uppercase; color:var(--pg-label); margin-bottom:5px;
         }
         table.tabel-barang tr.detail-row td:nth-child(2)::before{ content:"Jenis Barang"; }
-        table.tabel-barang tr.detail-row td:nth-child(3)::before{ content:"Type"; }
+        table.tabel-barang tr.detail-row td:nth-child(3)::before{ content:"Type / Kategori"; }
         table.tabel-barang tr.detail-row td:nth-child(4)::before{ content:"Jumlah"; }
         table.tabel-barang tr.detail-row td:nth-child(5)::before{ content:"Satuan"; }
         table.tabel-barang tr.detail-row td:nth-child(6)::before{ content:"Keterangan"; }
 
-        /* nomor urut baris jadi badge kecil di pojok kanan atas kartu */
-        table.tabel-barang tr.detail-row td:first-child{
-            position:absolute; top:12px; right:14px; width:auto;
-            padding:0; border:none !important;
+        /* kotak readonly (Type/Satuan) dibuat jelas terlihat sebagai
+           kotak isian (border solid + latar jelas), supaya label di
+           atasnya tidak "menyatu" dengan isi kotak yang samar seperti
+           sebelumnya */
+        table.tabel-barang tr.detail-row .input-readonly{
+            border-style:solid !important; background:var(--pg-bg-3) !important;
+            color:var(--pg-text) !important; font-weight:500 !important;
         }
-        table.tabel-barang tr.detail-row td:first-child .row-no{
-            background:var(--pg-soft-bg-2); border:1px solid var(--pg-border);
-            border-radius:999px; padding:2px 10px; font-size:11px; font-weight:700;
-        }
-        table.tabel-barang tr.detail-row td:first-child .row-no::before{ content:"No "; font-weight:400; }
-
-        /* tombol hapus baris jadi tombol penuh di bagian bawah kartu */
-        table.tabel-barang tr.detail-row td:last-child .btn-hapus-baris{
-            width:100%; height:40px; font-size:12.5px;
-        }
-        table.tabel-barang tr.detail-row td:last-child .btn-hapus-baris::after{ content:" Hapus Barang Ini"; }
 
         .btn-tambah-baris{ width:100%; text-align:center; }
 
@@ -384,7 +410,7 @@
         .form-actions button{ width:100%; }
 
         .signature-grid{ grid-template-columns:1fr; gap:28px; }
-        .signature-col p{ margin-bottom:44px; }
+        .signature-col p{ margin-bottom:40px; }
 
         /* input min 16px supaya Safari/Chrome iOS tidak auto-zoom saat fokus */
         .combo-input, .input-qty, .input-ket-row, .input-readonly,
