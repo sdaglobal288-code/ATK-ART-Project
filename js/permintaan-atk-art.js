@@ -1415,6 +1415,11 @@ function renderRiwayatTable(){
         // transaksi keluar yang sah untuk dicetak sebagai bukti.
         const bisaDicetak = g.status !== STATUS_DITOLAK;
 
+        // Untuk baris berstatus "Ditolak" (tidak bisa dicetak/edit/hapus),
+        // tampilkan tombol 👁️ Lihat sebagai gantinya, supaya admin tetap
+        // bisa melihat detail barang & jumlah yang diajukan sebelum ditolak.
+        const perluTombolLihat = g.status === STATUS_DITOLAK;
+
         return `
         <tr>
             <td>${idx + 1}</td>
@@ -1430,6 +1435,7 @@ function renderRiwayatTable(){
                     ${bisaDicetak ? `<button type="button" class="btn-cetak" data-key="${g.key}" title="Cetak ulang">🖨️ Cetak</button>` : ""}
                     ${bisaDiubah ? `<button type="button" class="btn-edit" data-key="${g.key}" title="Edit">✏️ Edit</button>` : ""}
                     ${bisaDiubah ? `<button type="button" class="btn-hapus" data-key="${g.key}" title="Hapus">🗑️ Hapus</button>` : ""}
+                    ${perluTombolLihat ? `<button type="button" class="btn-lihat" data-key="${g.key}" title="Lihat detail barang yang ditolak">👁️ Lihat</button>` : ""}
                 </div>
             </td>
         </tr>`;
@@ -1462,6 +1468,9 @@ function renderRiwayatTable(){
     });
     wrap.querySelectorAll(".btn-hapus").forEach(btn=>{
         btn.addEventListener("click", () => hapusRiwayat(btn.dataset.key));
+    });
+    wrap.querySelectorAll(".btn-lihat").forEach(btn=>{
+        btn.addEventListener("click", () => bukaModalLihatRiwayat(btn.dataset.key));
     });
 }
 
@@ -1519,6 +1528,39 @@ function bukaModalEditRiwayat(key){
             <td><input type="text" class="rw-input-ket" value="${(it.keterangan || '').replace(TAG_FORM,'').trim().toUpperCase()}"></td>
         </tr>
     `).join("");
+
+    // pastikan tombol Simpan tampil normal (bisa saja tersembunyi kalau
+    // sebelumnya modal ini dibuka lewat mode 👁️ Lihat)
+    if(rwBtnSimpan) rwBtnSimpan.style.display = "inline-block";
+
+    rwModalOverlay.classList.add("show");
+}
+
+// ----- LIHAT detail riwayat (khusus baris berstatus "Ditolak") -----
+// Memakai modal yang sama dengan Edit, tapi seluruh input dibuat
+// read-only (disabled) dan tombol "💾 Simpan Perubahan" disembunyikan,
+// karena permintaan yang sudah ditolak tidak lagi bisa diubah — tombol
+// ini hanya untuk melihat barang & jumlah apa saja yang diajukan sebelum
+// ditolak, termasuk alasan penolakan (kalau ada) pada kolom keterangan.
+function bukaModalLihatRiwayat(key){
+    const grup = cariGrupByKey(key);
+    if(!grup || !rwModalOverlay || !rwEditRows) return;
+
+    rwEditingKey = null; // bukan mode edit, jadi tombol Simpan tidak boleh memproses apapun
+
+    rwModalSub.textContent = `👁️ Lihat (Ditolak) — ${grup.nama_pengambil || "-"} · ${grup.departemen || "-"} · Gudang ${grup.gudang || "-"} · ${formatTanggalIndo(grup.tanggal)}`;
+
+    rwEditRows.innerHTML = grup.items.map(it => `
+        <tr data-id="${it.id}">
+            <td>${it.nama_barang}<br><span class="riwayat-item-badge">${it.satuan}</span></td>
+            <td><input type="number" min="1" class="rw-input-qty" value="${it.qty}" disabled></td>
+            <td><input type="text" class="rw-input-ket" value="${(it.keterangan || '').replace(TAG_FORM,'').replace('[DITOLAK]','').trim().toUpperCase()}" disabled></td>
+        </tr>
+    `).join("");
+
+    // sembunyikan tombol Simpan karena mode ini hanya untuk melihat, tidak
+    // untuk mengubah data
+    if(rwBtnSimpan) rwBtnSimpan.style.display = "none";
 
     rwModalOverlay.classList.add("show");
 }
