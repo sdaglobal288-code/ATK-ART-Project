@@ -359,30 +359,41 @@
            (kanan), sejajar di baris paling atas — bukan lagi tombol
            merah selebar penuh yang terkesan seperti pesan galat. */
         table.tabel-barang tr.detail-row td:first-child{
-            order:-2; flex:0 0 auto;
+            order:-2; flex:0 0 auto; align-self:center;
             background:var(--pg-soft-bg-2); border:1px solid var(--pg-border) !important;
-            border-radius:999px; padding:4px 12px !important; margin:10px 0 12px;
-            font-size:11.5px; font-weight:600; color:var(--pg-label);
+            border-radius:999px; padding:4px 12px !important;
+            margin-top:10px; margin-bottom:12px;
+            font-size:11.5px; font-weight:600; color:var(--pg-label); line-height:1.6;
         }
         table.tabel-barang tr.detail-row td:first-child::before{
             content:"Barang "; text-transform:none; font-weight:400; display:inline; margin:0;
         }
         table.tabel-barang tr.detail-row td:first-child .row-no{ font-weight:700; color:var(--pg-text); }
 
+        /* tombol hapus didorong rapat ke sisi kanan header kartu, sejajar
+           dengan badge "Barang N" di sisi kiri */
         table.tabel-barang tr.detail-row td:last-child{
-            order:-1; flex:0 0 auto; margin:10px 0 12px 0 auto;
+            order:-1; flex:0 0 auto; align-self:center;
+            margin-top:10px; margin-bottom:12px; margin-left:auto;
         }
         table.tabel-barang tr.detail-row td:last-child .btn-hapus-baris{
-            width:auto !important; height:auto !important;
+            width:auto !important; height:auto !important; line-height:1.4;
             padding:6px 12px; border-radius:8px; font-size:12px; font-weight:600;
             background:rgba(239,68,68,.08); color:#dc2626; border:1px solid rgba(239,68,68,.35);
         }
         table.tabel-barang tr.detail-row td:last-child .btn-hapus-baris::after{ content:" Hapus"; }
 
+        /* garis pemisah tipis antara header kartu (Barang N / Hapus) dan
+           isian field di bawahnya, supaya terlihat sebagai 2 kelompok
+           yang jelas alih-alih menyatu */
+        table.tabel-barang tr.detail-row td:nth-child(2){
+            border-top:1px solid var(--pg-border-2) !important;
+        }
+
         /* field isian (Jenis Barang → Keterangan): masing-masing diberi
            label kecil di atasnya + sedikit jarak antar field */
         table.tabel-barang tr.detail-row td:nth-child(n+2):nth-child(-n+6){
-            padding-top:10px !important;
+            padding-top:12px !important;
         }
         table.tabel-barang tr.detail-row td:nth-child(n+2):nth-child(-n+6)::before{
             display:block; font-size:10.5px; font-weight:700; letter-spacing:.04em;
