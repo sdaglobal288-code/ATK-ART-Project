@@ -289,12 +289,114 @@
         font-family:inherit; font-size:12.5px;
     }
 
+    /* =========================================================
+       TAMPILAN MOBILE (≤760px) — dirombak supaya rapi & profesional,
+       terutama untuk tampilan PUBLIK (tanpa login) yang dibuka lewat HP.
+       Hanya CSS yang disesuaikan di sini; struktur HTML & seluruh logic
+       JS (permintaan-atk-art.js) TIDAK diubah sama sekali — urutan
+       kolom tabel barang (No, Jenis Barang, Type, Jumlah, Satuan,
+       Keterangan, hapus) tetap sama persis seperti sebelumnya, hanya
+       susunan tampilannya yang dirapikan lewat CSS untuk layar sempit.
+    ========================================================= */
     @media (max-width: 760px){
-        .header-grid{ grid-template-columns:1fr; }
-        .signature-grid{ grid-template-columns:1fr; gap:30px; }
-        .header-field label{ flex:0 0 120px; }
-        .gudang-gate{ flex-direction:column; align-items:stretch !important; }
-        .gudang-gate label{ flex:0 0 auto; }
+        .content{ padding:14px; }
+        h2{ font-size:18px; line-height:1.35; }
+
+        .toolbar{ flex-wrap:wrap; }
+        .toolbar-print{ flex-wrap:wrap; }
+        .toolbar-print button{ flex:1 1 auto; }
+
+        .panel{ padding:16px !important; border-radius:10px; }
+
+        /* kop surat: logo & nama perusahaan tetap rapi meski sempit */
+        .form-kop{ flex-wrap:wrap; gap:8px; padding-bottom:10px; }
+        .form-kop-brand img.brand-logo{ height:42px; }
+        .form-kop-brand p.brand-name{ font-size:11.5px; }
+        .form-kop-code{ font-size:11px; }
+        .form-title{ font-size:14px; margin-bottom:14px; }
+
+        /* gerbang pilih gudang: label di atas, select penuh lebar */
+        .gudang-gate{ flex-direction:column; align-items:stretch !important; gap:6px; padding:12px 14px; }
+        .gudang-gate label{ flex:0 0 auto; font-weight:600; }
+        .gudang-hint{ margin-top:-10px; }
+
+        /* data karyawan: setiap field jadi 1 kolom, label di atas input
+           supaya tidak berdesakan/terpotong seperti sebelumnya */
+        .header-grid{ grid-template-columns:1fr; gap:14px; margin-bottom:16px; }
+        .header-field{ flex-direction:column; align-items:stretch; gap:4px; }
+        .header-field label{ flex:0 0 auto; font-weight:600; font-size:12.5px; }
+        .header-field .colon{ display:none; }
+
+        /* ===== tabel barang dirombak jadi kartu bertumpuk (1 kartu per
+           baris barang) supaya tidak berdesakan di layar sempit. Ini
+           murni tampilan CSS: urutan kolom asli dari HTML/JS tetap sama,
+           label kolom ditambahkan lewat ::before berdasarkan urutannya. ===== */
+        table.tabel-barang, table.tabel-barang thead, table.tabel-barang tbody,
+        table.tabel-barang tr, table.tabel-barang th{ display:block !important; }
+        table.tabel-barang thead{ display:none !important; }
+        table.tabel-barang{ border:none; margin-bottom:4px; }
+
+        table.tabel-barang tr.detail-row{
+            position:relative;
+            border:1px solid var(--pg-border); border-radius:12px;
+            padding:14px 14px 8px; margin-bottom:14px;
+            background:var(--pg-bg-1);
+            box-shadow:0 1px 3px rgba(0,0,0,.06);
+        }
+
+        table.tabel-barang tr.detail-row td{
+            display:block !important; border:none !important;
+            padding:8px 0; border-bottom:1px dashed var(--pg-border-2) !important;
+        }
+        table.tabel-barang tr.detail-row td:last-child{ border-bottom:none !important; padding-top:12px; }
+
+        table.tabel-barang tr.detail-row td::before{
+            display:block; font-size:10.5px; font-weight:700; letter-spacing:.04em;
+            text-transform:uppercase; color:var(--pg-label); margin-bottom:5px;
+        }
+        table.tabel-barang tr.detail-row td:nth-child(2)::before{ content:"Jenis Barang"; }
+        table.tabel-barang tr.detail-row td:nth-child(3)::before{ content:"Type"; }
+        table.tabel-barang tr.detail-row td:nth-child(4)::before{ content:"Jumlah"; }
+        table.tabel-barang tr.detail-row td:nth-child(5)::before{ content:"Satuan"; }
+        table.tabel-barang tr.detail-row td:nth-child(6)::before{ content:"Keterangan"; }
+
+        /* nomor urut baris jadi badge kecil di pojok kanan atas kartu */
+        table.tabel-barang tr.detail-row td:first-child{
+            position:absolute; top:12px; right:14px; width:auto;
+            padding:0; border:none !important;
+        }
+        table.tabel-barang tr.detail-row td:first-child .row-no{
+            background:var(--pg-soft-bg-2); border:1px solid var(--pg-border);
+            border-radius:999px; padding:2px 10px; font-size:11px; font-weight:700;
+        }
+        table.tabel-barang tr.detail-row td:first-child .row-no::before{ content:"No "; font-weight:400; }
+
+        /* tombol hapus baris jadi tombol penuh di bagian bawah kartu */
+        table.tabel-barang tr.detail-row td:last-child .btn-hapus-baris{
+            width:100%; height:40px; font-size:12.5px;
+        }
+        table.tabel-barang tr.detail-row td:last-child .btn-hapus-baris::after{ content:" Hapus Barang Ini"; }
+
+        .btn-tambah-baris{ width:100%; text-align:center; }
+
+        /* tombol aksi form ditumpuk penuh lebar supaya mudah disentuh */
+        .form-actions{ flex-direction:column; }
+        .form-actions button{ width:100%; }
+
+        .signature-grid{ grid-template-columns:1fr; gap:28px; }
+        .signature-col p{ margin-bottom:44px; }
+
+        /* input min 16px supaya Safari/Chrome iOS tidak auto-zoom saat fokus */
+        .combo-input, .input-qty, .input-ket-row, .input-readonly,
+        .gudang-gate select{ font-size:16px; }
+
+        /* panel admin (Validasi/Riwayat) tetap bisa digeser mendatar di
+           layar sempit alih-alih memampatkan kolom sampai tidak terbaca */
+        .riwayat-head{ flex-direction:column; align-items:stretch; gap:10px; }
+        .riwayat-tools{ width:100%; }
+        .riwayat-tools input[type="text"]{ flex:1; min-width:0; width:100%; }
+        #validasiTableWrap, #riwayatTableWrap{ overflow-x:auto; -webkit-overflow-scrolling:touch; }
+        table.tabel-riwayat{ min-width:640px; }
     }
 
     /* =========================================================
@@ -396,6 +498,11 @@
     .rw-btn-batal{ background:var(--pg-soft-bg-2); color:var(--pg-text); }
     .rw-btn-simpan{ background:#3b82f6; color:#fff; border-color:#3b82f6; }
     .rw-btn-simpan:hover{ background:#2563eb; }
+
+    @media (max-width: 480px){
+        .rw-modal-box{ padding:16px; }
+        table.rw-edit-table{ font-size:11.5px; }
+    }
 
     /* ===== tampilan cetak: replika presisi form kertas FHCS-003 ===== */
     #printArea{ display:none; }
