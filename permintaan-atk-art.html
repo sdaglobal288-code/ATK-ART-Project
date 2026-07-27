@@ -85,7 +85,7 @@
     body:not(.is-admin-view) .input-readonly{
         background:#f3f4f6 !important;
         color:#111827 !important;
-        border:1px dashed #9ca3af !important;
+        border:1px dashed var(--pg-border) !important;
         font-weight:600 !important;
     }
 
@@ -423,7 +423,7 @@
            sebelumnya */
         table.tabel-barang tr.detail-row .input-readonly{
             border-style:solid !important; background:var(--pg-bg-3) !important;
-            color:var(--pg-text) !important; font-weight:500 !important;
+            color:var(--pg-label) !important; font-weight:400 !important;
         }
 
         .btn-tambah-baris{ width:100%; text-align:center; }
@@ -441,21 +441,39 @@
 
         /* SAMAKAN ukuran & gaya semua kotak isian di halaman ini —
            Nama Karyawan/Departemen/NIK/Tanggal di atas HARUS terlihat
-           identik (tinggi, padding, radius, warna border) dengan
+           identik (tinggi, lebar, padding, radius, warna border) dengan
            Jenis Barang/Type/Jumlah/Satuan/Keterangan di kartu barang,
-           supaya tampilannya rapi & konsisten dari atas sampai bawah. */
+           supaya tampilannya rapi & konsisten dari atas sampai bawah.
+           Tinggi dikunci PERSIS sama (min/max-height, bukan cuma height)
+           dan tampilan bawaan browser pada input tanggal/angka direset
+           (-webkit-appearance/appearance), karena kalau tidak direset,
+           input type="date" & type="number" sering dirender oleh HP
+           dengan tinggi/padding internal sendiri yang beda dari kotak
+           teks biasa walau CSS height-nya sudah disamakan. */
         .header-field .combo-input,
+        .header-field input[type="date"],
         .barang-cell .combo-input,
         .input-qty,
         .input-readonly,
         .input-ket-row,
         .gudang-gate select{
-            height:44px;
+            width:100% !important;
+            height:44px !important;
+            min-height:44px !important;
+            max-height:44px !important;
+            line-height:normal;
             padding:0 12px !important;
             border-radius:8px !important;
             border:1px solid var(--pg-border) !important;
-            box-sizing:border-box;
+            box-sizing:border-box !important;
+            -webkit-appearance:none;
+            appearance:none;
         }
+        /* lebar kolom "Jenis Barang" dikurangi lebar thumbnail foto +
+           gap-nya, supaya kotak inputnya tetap sama tinggi & konsisten
+           dengan kotak lain meski ada ikon foto di sampingnya */
+        .barang-cell{ align-items:stretch; }
+        .barang-cell .barang-thumb-wrap{ align-self:stretch; height:44px; }
 
         /* panel admin (Validasi/Riwayat) tetap bisa digeser mendatar di
            layar sempit alih-alih memampatkan kolom sampai tidak terbaca */
