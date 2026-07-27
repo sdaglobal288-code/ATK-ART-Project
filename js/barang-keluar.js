@@ -2,6 +2,20 @@
 // BARANG KELUAR (MULTI ITEM + PENCARIAN + STOK REALTIME)
 // Edit sekarang lewat MODAL POPUP (samagaya dengan Barang Masuk),
 // dan Export Excel sudah jalan beneran (SheetJS).
+//
+// PERUBAHAN TERBARU:
+// - Histori Barang Keluar & Export Excel SEKARANG mengecualikan baris
+//   yang berasal dari Formulir Permintaan ATK/ART berstatus "Ditolak".
+//   Baris yang ditolak tetap tersimpan di database (supaya tetap
+//   tercatat & bisa dilihat di panel "Riwayat Pengajuan ATK/ART" pada
+//   halaman permintaan-atk-art.html), tapi TIDAK ditampilkan lagi di
+//   halaman Histori Barang Keluar ini maupun ikut ter-export ke Excel,
+//   karena stok yang sempat terpotong untuk baris itu sudah dikembalikan
+//   otomatis saat ditolak (sehingga baris itu bukan lagi transaksi
+//   keluar yang sah).
+//   Baris lama yang belum punya kolom "status" (NULL, sebelum migrasi
+//   status ditambahkan) tetap ditampilkan seperti biasa — filter hanya
+//   menyembunyikan baris yang status-nya PERSIS "Ditolak".
 // =====================================
 
 const user = JSON.parse(sessionStorage.getItem("user"));
@@ -512,6 +526,15 @@ function aktifkanRealtimeStok(){
 
 // =====================================
 // LOAD & TAMPIL HISTORI
+//
+// CATATAN: baris yang berasal dari Formulir Permintaan ATK/ART dan
+// berstatus "Ditolak" SENGAJA dikecualikan dari histori ini, karena
+// stok yang sempat terpotong untuk baris tersebut sudah dikembalikan
+// otomatis saat admin menolaknya (lihat js/permintaan-atk-art.js ->
+// tolakPermintaan()), sehingga baris itu bukan transaksi keluar yang
+// sah dan tidak seharusnya tercatat di Histori Barang Keluar.
+// Baris lama yang belum memiliki kolom "status" (NULL) tetap tampil
+// seperti biasa.
 // =====================================
 
 async function loadBarangKeluar() {
@@ -522,6 +545,7 @@ async function loadBarangKeluar() {
             .from("barang_keluar")
             .select("*")
             .eq("gudang", user.gudang)
+            .or("status.is.null,status.neq.Ditolak")
             .order("tanggal", { ascending: false })
             .order("id", { ascending: false });
 
@@ -850,6 +874,10 @@ async function hapusBarangKeluar(id){
 
 // =====================================
 // EXPORT EXCEL (MODAL PILIH RANGE TANGGAL)
+//
+// CATATAN: sama seperti loadBarangKeluar(), baris berstatus "Ditolak"
+// juga dikecualikan di sini supaya laporan Excel yang di-export tidak
+// ikut menyertakan pengajuan ATK/ART yang sudah ditolak.
 // =====================================
 
 function bukaModalExportRange(){
@@ -892,7 +920,12 @@ async function exportExcel(dariTanggal, sampaiTanggal){
     try{
         if(typeof XLSX === "undefined"){ alert("Library Excel belum termuat, silakan refresh halaman lalu coba lagi."); return; }
 
-        let query = supabaseClient.from("barang_keluar").select("*").eq("gudang", user.gudang);
+        let query = supabaseClient
+            .from("barang_keluar")
+            .select("*")
+            .eq("gudang", user.gudang)
+            .or("status.is.null,status.neq.Ditolak");
+
         if(dariTanggal) query = query.gte("tanggal", dariTanggal);
         if(sampaiTanggal) query = query.lte("tanggal", sampaiTanggal);
         query = query.order("tanggal", {ascending:false}).order("id", {ascending:false});
