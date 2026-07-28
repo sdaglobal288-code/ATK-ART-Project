@@ -82,6 +82,11 @@
 //     "Ditolak" tidak lagi menampilkan tombol Cetak sama sekali, karena
 //     permintaan tersebut dibatalkan dan bukan lagi transaksi keluar yang
 //     sah untuk dicetak sebagai bukti.
+// 14) Panel "Riwayat Pengajuan ATK/ART": kolom "Barang" untuk baris yang
+//     berisi LEBIH DARI SATU barang SEKARANG ditampilkan sebagai daftar
+//     bertingkat (list, satu barang per baris dengan tanda bullet •),
+//     bukan lagi digabung dengan koma dalam satu baris teks. Baris yang
+//     hanya berisi satu barang tetap ditampilkan biasa (tanpa bullet).
 //
 // PENTING — MIGRASI DATABASE YANG DIPERLUKAN (Supabase):
 //   alter table barang_keluar add column if not exists status text default 'Disetujui';
@@ -1384,6 +1389,23 @@ function badgeStatusHtml(status){
     return `<span class="status-badge status-disetujui">Disetujui</span>`;
 }
 
+// Membentuk isi kolom "Barang" pada tabel Riwayat Pengajuan. Kalau hanya
+// 1 barang, ditampilkan biasa (teks polos, tanpa bullet). Kalau LEBIH
+// DARI 1 barang, ditampilkan sebagai daftar bertingkat (list, satu
+// barang per baris dengan tanda bullet •) supaya lebih mudah dibaca
+// dibanding sebelumnya yang digabung koma dalam satu baris teks panjang.
+function daftarBarangHtml(items){
+    if(!items || items.length === 0) return "-";
+
+    if(items.length === 1){
+        const it = items[0];
+        return `${it.nama_barang} (${it.qty} ${it.satuan})`;
+    }
+
+    const liList = items.map(it => `<li>${it.nama_barang} (${it.qty} ${it.satuan})</li>`).join("");
+    return `<ul class="daftar-barang-list">${liList}</ul>`;
+}
+
 function renderRiwayatTable(){
     const wrap = document.getElementById("riwayatTableWrap");
     if(!wrap) return;
@@ -1407,7 +1429,7 @@ function renderRiwayatTable(){
     }
 
     const baris = groups.map((g, idx)=>{
-        const daftarBarang = g.items.map(it => `${it.nama_barang} (${it.qty} ${it.satuan})`).join(", ");
+        const daftarBarang = daftarBarangHtml(g.items);
         const bisaDiubah = g.status === STATUS_DISETUJUI;
 
         // Tombol 🖨️ Cetak HANYA ditampilkan untuk baris yang BUKAN berstatus
