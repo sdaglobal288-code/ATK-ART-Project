@@ -368,16 +368,8 @@
            di bawahnya (Jenis Barang s/d Keterangan) masing-masing
            memenuhi lebar penuh kartu. */
         table.tabel-barang tr.detail-row{
-            display:grid !important;
-            grid-template-columns:1fr auto;
-            grid-template-areas:
-                "badge  hapus"
-                "jenis  ."
-                "type   ."
-                "jumlah ."
-                "satuan ."
-                "ket    .";
-            column-gap:10px; row-gap:0;
+            display:block !important;
+            position:relative;
             border:1px solid var(--pg-border); border-radius:10px;
             padding:14px; margin-bottom:16px;
             background:var(--pg-bg-1);
@@ -388,11 +380,14 @@
             min-width:0; width:auto !important;
         }
 
-        /* baris header kartu: nomor urut barang (kiri) + tombol hapus
-           (kanan) — bukan lagi tombol merah selebar penuh yang terkesan
-           seperti pesan galat. */
+        /* baris header kartu: nomor urut barang (kiri, mengalir normal) +
+           tombol hapus (kanan, mengambang lewat position:absolute) — cara
+           ini menggantikan CSS Grid 2 kolom sebelumnya yang di beberapa HP
+           membuat kolom kanan melebar jadi kotak kosong besar. Dengan
+           position:absolute, tombol Hapus TIDAK ikut memakan lebar/kolom
+           apa pun, jadi tidak mungkin muncul kotak kosong lagi. */
         table.tabel-barang tr.detail-row td:nth-child(1){
-            grid-area:badge; justify-self:start; align-self:center;
+            display:inline-block !important;
             background:var(--pg-soft-bg-2); border:1px solid var(--pg-border) !important;
             border-radius:999px; padding:4px 12px !important; margin-bottom:12px;
             font-size:11.5px; font-weight:600; color:var(--pg-label); line-height:1.6;
@@ -404,7 +399,7 @@
         table.tabel-barang tr.detail-row td:nth-child(1) .row-no{ font-weight:700; color:var(--pg-text); }
 
         table.tabel-barang tr.detail-row td:nth-child(7){
-            grid-area:hapus; justify-self:end; align-self:center; margin-bottom:12px;
+            position:absolute; top:14px; right:14px; margin:0;
         }
         table.tabel-barang tr.detail-row td:nth-child(7) .btn-hapus-baris{
             width:auto !important; height:auto !important; line-height:1.4;
@@ -422,8 +417,9 @@
         }
 
         /* field isian (Jenis Barang → Keterangan): masing-masing memenuhi
-           lebar penuh kartu & diberi label kecil di atasnya */
-        table.tabel-barang tr.detail-row td:nth-child(2){ grid-area:jenis; }
+           lebar penuh kartu & diberi label kecil di atasnya. Urutan tampil
+           mengikuti urutan kolom asli di HTML/JS (mengalir dari atas ke
+           bawah sebagai block biasa, tanpa CSS Grid). */
 
         /* Lebar kotak "Jenis Barang" dikecilkan di HP (tidak full lebar
            kartu). UBAH ANGKA PERSEN DI BAWAH INI untuk mengatur lebarnya:
@@ -440,10 +436,6 @@
         table.tabel-barang tr.detail-row td:nth-child(6) .input-ket-row{
             max-width:35%;
         }
-        table.tabel-barang tr.detail-row td:nth-child(3){ grid-area:type; }
-        table.tabel-barang tr.detail-row td:nth-child(4){ grid-area:jumlah; }
-        table.tabel-barang tr.detail-row td:nth-child(5){ grid-area:satuan; }
-        table.tabel-barang tr.detail-row td:nth-child(6){ grid-area:ket; }
 
         table.tabel-barang tr.detail-row td:nth-child(n+2):nth-child(-n+6){
             padding-top:12px !important;
