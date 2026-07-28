@@ -289,6 +289,18 @@
         font-family:inherit; font-size:12.5px;
     }
 
+    /* ===== daftar barang (list) di kolom "Barang" pada tabel Riwayat
+       Pengajuan — dipakai saat 1 baris riwayat berisi lebih dari 1
+       barang, supaya setiap barang tampil di baris tersendiri dengan
+       tanda bullet, bukan digabung koma dalam satu baris teks. ===== */
+    ul.daftar-barang-list{
+        margin:0; padding-left:18px; list-style:disc;
+    }
+    ul.daftar-barang-list li{
+        margin:0 0 4px; line-height:1.4;
+    }
+    ul.daftar-barang-list li:last-child{ margin-bottom:0; }
+
     /* =========================================================
        TAMPILAN MOBILE (≤760px) — dirombak supaya rapi & profesional,
        terutama untuk tampilan PUBLIK (tanpa login) yang dibuka lewat HP.
