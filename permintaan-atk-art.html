@@ -333,8 +333,18 @@
         .gudang-hint{ margin-top:-10px; }
 
         /* data karyawan: setiap field jadi 1 kolom, label di atas input
-           supaya tidak berdesakan/terpotong seperti sebelumnya */
-        .header-grid{ grid-template-columns:1fr; gap:14px; margin-bottom:16px; }
+           supaya tidak berdesakan/terpotong seperti sebelumnya. Seluruh
+           grup field (Nama Karyawan s/d Tanggal) dibungkus jadi SATU
+           kartu bertepi (border+radius+padding), persis seperti kartu
+           barang di bawahnya (table.tabel-barang tr.detail-row), supaya
+           tampilannya konsisten & rapi alih-alih "mengambang" tanpa
+           bingkai seperti sebelumnya. */
+        .header-grid{
+            grid-template-columns:1fr; gap:14px;
+            border:1px solid var(--pg-border); border-radius:10px;
+            padding:14px; margin-bottom:16px;
+            background:var(--pg-bg-1);
+        }
         .header-field{ flex-direction:column; align-items:stretch; gap:4px; }
         .header-field label{ flex:0 0 auto; font-weight:600; font-size:12.5px; }
         .header-field .colon{ display:none; }
@@ -445,6 +455,16 @@
         .form-actions{ flex-direction:column; }
         .form-actions button{ width:100%; }
 
+        /* blok tanda tangan: dibungkus jadi 1 kartu bertepi juga (border
+           penuh + radius + padding + background), konsisten dengan kartu
+           Data Karyawan & kartu Barang di atasnya, menggantikan garis
+           putus-putus tipis yang sebelumnya terlihat "kurang rapi" di
+           layar sempit. */
+        .signature-block{
+            border:1px solid var(--pg-border) !important; border-radius:10px;
+            padding:14px !important; margin-top:16px !important;
+            background:var(--pg-bg-1);
+        }
         .signature-grid{ grid-template-columns:1fr; gap:28px; }
         .signature-col p{ margin-bottom:40px; }
 
