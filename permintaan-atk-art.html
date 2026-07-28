@@ -338,6 +338,7 @@
         .header-field{ flex-direction:column; align-items:stretch; gap:4px; }
         .header-field label{ flex:0 0 auto; font-weight:600; font-size:12.5px; }
         .header-field .colon{ display:none; }
+        .header-field .combo-wrapper{ width:100%; }
 
         /* ===== tabel barang dirombak jadi kartu bertumpuk (1 kartu per
            baris barang) supaya tidak berdesakan di layar sempit. Ini
@@ -456,6 +457,11 @@
            identik (tinggi, lebar, padding, radius, warna border) dengan
            Jenis Barang/Type/Jumlah/Satuan/Keterangan di kartu barang,
            supaya tampilannya rapi & konsisten dari atas sampai bawah.
+           Satu blok aturan TUNGGAL (satu deret selector) dipakai untuk
+           SEMUA kotak isian supaya tidak ada dua rule dengan spesifisitas
+           berbeda yang bisa saling menimpa sebagian properti saja
+           (itu penyebab sebelumnya ada kotak yang "kepanjangan"/beda
+           tinggi walau sudah pakai !important di properti height).
            Tinggi dikunci PERSIS sama (min/max-height, bukan cuma height)
            dan tampilan bawaan browser pada input tanggal/angka direset
            (-webkit-appearance/appearance), karena kalau tidak direset,
@@ -469,12 +475,17 @@
         #formPermintaanWrap .input-readonly,
         #formPermintaanWrap .input-ket-row,
         #formPermintaanWrap .gudang-gate select,
+        #formPermintaanWrap input:not([type="hidden"]):not([type="checkbox"]):not([type="radio"]),
+        #formPermintaanWrap select,
+        #formPermintaanWrap textarea,
         .gudang-gate select{
+            display:block !important;
             width:100% !important;
             height:44px !important;
             min-height:44px !important;
             max-height:44px !important;
             line-height:normal !important;
+            margin:0 !important;
             padding:0 12px !important;
             border-radius:8px !important;
             border:1px solid var(--pg-border) !important;
@@ -482,28 +493,16 @@
             -webkit-appearance:none !important;
             appearance:none !important;
             font-size:16px !important;
-        }
-        /* JARING PENGAMAN: apa pun nama class-nya, SEMUA <input>/<select>/
-           <textarea> di dalam form ini (baik di header Nama/Departemen/
-           NIK/Tanggal maupun di kartu barang) dipaksa tinggi 44px yang
-           sama persis. Ini berlaku di atas aturan per-class di atas,
-           supaya kalau ada elemen yang class-nya berbeda dari yang
-           diasumsikan (mis. field baru dari JS), tetap ikut seragam. */
-        #formPermintaanWrap input:not([type="hidden"]):not([type="checkbox"]):not([type="radio"]),
-        #formPermintaanWrap select,
-        #formPermintaanWrap textarea{
-            height:44px !important;
-            min-height:44px !important;
-            max-height:44px !important;
-            line-height:normal !important;
-            padding:0 12px !important;
-            border-radius:8px !important;
-            box-sizing:border-box !important;
-            -webkit-appearance:none !important;
-            appearance:none !important;
-            font-size:16px !important;
             vertical-align:middle !important;
         }
+        /* kembalikan gaya khas kotak readonly (Type/Satuan) di atas kotak
+           seragam barusan, TANPA mengubah ukurannya (border tetap solid
+           di mobile supaya jelas terlihat sebagai kotak isian) */
+        #formPermintaanWrap .input-readonly{
+            background:var(--pg-bg-3) !important;
+            color:var(--pg-label) !important;
+        }
+
         /* lebar kolom "Jenis Barang" dikurangi lebar thumbnail foto +
            gap-nya, supaya kotak inputnya tetap sama tinggi & konsisten
            dengan kotak lain meski ada ikon foto di sampingnya */
