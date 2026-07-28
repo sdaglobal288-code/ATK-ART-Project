@@ -366,10 +366,16 @@
            kosong aneh melebar di beberapa perangkat). Baris paling atas
            kartu: badge nomor (kiri) + tombol hapus (kanan). Baris-baris
            di bawahnya (Jenis Barang s/d Keterangan) masing-masing
-           memenuhi lebar penuh kartu. */
+           memenuhi lebar penuh kartu.
+           Kartu diperkecil ke 65% lebar kontainer (dan diberi margin
+           auto supaya tetap berada di tengah) sesuai permintaan —
+           UBAH ANGKA PERSEN DI max-width BERIKUT untuk mengatur seberapa
+           sempit kartunya: 70% = agak sempit, 60% = lebih sempit lagi. */
         table.tabel-barang tr.detail-row{
             display:block !important;
             position:relative;
+            max-width:65%;
+            margin-left:auto !important; margin-right:auto !important;
             border:1px solid var(--pg-border); border-radius:10px;
             padding:14px; margin-bottom:16px;
             background:var(--pg-bg-1);
@@ -419,22 +425,19 @@
         /* field isian (Jenis Barang → Keterangan): masing-masing memenuhi
            lebar penuh kartu & diberi label kecil di atasnya. Urutan tampil
            mengikuti urutan kolom asli di HTML/JS (mengalir dari atas ke
-           bawah sebagai block biasa, tanpa CSS Grid). */
-
-        /* Lebar kotak "Jenis Barang" dikecilkan di HP (tidak full lebar
-           kartu). UBAH ANGKA PERSEN DI BAWAH INI untuk mengatur lebarnya:
-           85% = agak dikecilkan sedikit, 60% = setengah lebih, dst. */
+           bawah sebagai block biasa, tanpa CSS Grid). Karena kartu itu
+           sendiri sudah diperkecil ke 65% di atas, kotak input di sini
+           dibiarkan mengisi penuh (100%) lebar kartu yang sudah sempit
+           tersebut. */
         table.tabel-barang tr.detail-row td:nth-child(2) .barang-cell .combo-wrapper{
-            max-width:35%;
+            max-width:100%;
         }
 
-        /* Lebar kotak Type/Kategori, Jumlah, Satuan, dan Keterangan juga
-           dikecilkan jadi 35% (sama seperti Jenis Barang) di tampilan HP. */
         table.tabel-barang tr.detail-row td:nth-child(3) .input-readonly,
         table.tabel-barang tr.detail-row td:nth-child(4) .input-qty,
         table.tabel-barang tr.detail-row td:nth-child(5) .input-readonly,
         table.tabel-barang tr.detail-row td:nth-child(6) .input-ket-row{
-            max-width:35%;
+            max-width:100%;
         }
 
         table.tabel-barang tr.detail-row td:nth-child(n+2):nth-child(-n+6){
