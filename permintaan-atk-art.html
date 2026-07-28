@@ -565,7 +565,8 @@
     /* Tampilan publik disamakan persis dengan tampilan admin (padding &
        lebar konten sama), supaya tidak ada perbedaan ukuran antara link
        publik dan saat dibuka dari dalam sistem admin. */
-    .content{ padding:1px; max-width:none !important; width:100% !important; margin:0 !important; box-sizing:border-box !important; }
+    html, body{ overflow-x:hidden !important; width:100% !important; max-width:100% !important; }
+    .content{ padding:1px; max-width:none !important; width:100% !important; margin:0 !important; box-sizing:border-box !important; overflow-x:hidden !important; }
     #formPermintaanWrap, #validasiPanel, #riwayatPanel{ max-width:none !important; width:100% !important; }
 
     /* toolbar tombol Cetak Form Kosong / Copy Link Publik (selalu tampil
