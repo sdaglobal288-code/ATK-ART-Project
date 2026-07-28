@@ -510,29 +510,6 @@
         .barang-cell{ align-items:stretch; }
         .barang-cell .barang-thumb-wrap{ align-self:stretch; height:44px; }
 
-        /* PASTIKAN kartu barang & kotak isian di dalamnya (Jenis Barang,
-           Type, Jumlah, Satuan, Keterangan) TIDAK PERNAH melebar sampai
-           keluar layar seperti kotak Nama Karyawan/Departemen/NIK/Tanggal
-           di atasnya — lebarnya harus sama persis. Kalau isinya teks
-           panjang (mis. nama barang panjang), teks dipotong otomatis
-           dengan "..." (ellipsis) di dalam kotak, kartunya sendiri TIDAK
-           ikut melebar ke samping. */
-        table.tabel-barang, table.tabel-barang tr.detail-row{
-            width:100% !important; max-width:100% !important; overflow:hidden !important;
-        }
-        table.tabel-barang tr.detail-row td{ max-width:100% !important; overflow:hidden !important; }
-        .barang-cell{ max-width:100%; }
-        .barang-cell .combo-wrapper{ min-width:0 !important; max-width:100%; }
-        #formPermintaanWrap .combo-input,
-        #formPermintaanWrap .input-qty,
-        #formPermintaanWrap .input-readonly,
-        #formPermintaanWrap .input-ket-row{
-            max-width:100% !important;
-            overflow:hidden !important;
-            text-overflow:ellipsis !important;
-            white-space:nowrap !important;
-        }
-
         /* panel admin (Validasi/Riwayat) tetap bisa digeser mendatar di
            layar sempit alih-alih memampatkan kolom sampai tidak terbaca */
         .riwayat-head{ flex-direction:column; align-items:stretch; gap:10px; }
