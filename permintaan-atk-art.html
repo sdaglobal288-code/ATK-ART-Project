@@ -471,6 +471,27 @@
             appearance:none !important;
             font-size:16px !important;
         }
+        /* JARING PENGAMAN: apa pun nama class-nya, SEMUA <input>/<select>/
+           <textarea> di dalam form ini (baik di header Nama/Departemen/
+           NIK/Tanggal maupun di kartu barang) dipaksa tinggi 44px yang
+           sama persis. Ini berlaku di atas aturan per-class di atas,
+           supaya kalau ada elemen yang class-nya berbeda dari yang
+           diasumsikan (mis. field baru dari JS), tetap ikut seragam. */
+        #formPermintaanWrap input:not([type="hidden"]):not([type="checkbox"]):not([type="radio"]),
+        #formPermintaanWrap select,
+        #formPermintaanWrap textarea{
+            height:44px !important;
+            min-height:44px !important;
+            max-height:44px !important;
+            line-height:normal !important;
+            padding:0 12px !important;
+            border-radius:8px !important;
+            box-sizing:border-box !important;
+            -webkit-appearance:none !important;
+            appearance:none !important;
+            font-size:16px !important;
+            vertical-align:middle !important;
+        }
         /* lebar kolom "Jenis Barang" dikurangi lebar thumbnail foto +
            gap-nya, supaya kotak inputnya tetap sama tinggi & konsisten
            dengan kotak lain meski ada ikon foto di sampingnya */
