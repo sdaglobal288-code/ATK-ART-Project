@@ -278,6 +278,9 @@ function esc(str) {
   div.textContent = str || '';
   return div.innerHTML;
 }
+function b(checked, text) {
+  return checked ? `<b>${text}</b>` : text;
+}
 
 async function init() {
   if (!token) { showState('errorState'); return; }
@@ -326,6 +329,8 @@ function renderMemoPreview(k) {
   const nextKe = (k.kontrak_ke_terakhir != null ? k.kontrak_ke_terakhir : riwayat.length) + 1;
   const nextRow = `<tr><th>Kontrak ke ${nextKe}</th><td><span class="blank-line">&nbsp;</span></td></tr>`;
 
+  const rekom = k.rekomendasi;
+
   return `
     <div class="memo-title">INTERNAL MEMO</div>
     <div class="memo-number">${esc(k.nomor_memo || '—/A.01/HRD/—/—')}</div>
@@ -344,7 +349,7 @@ function renderMemoPreview(k) {
       ${riwayatRows}
       ${nextRow}
     </table>
-    <p>Untuk selanjutnya mohon dilengkapi dengan pengisian form penilaian sebagaimana terlampir. Balasan internal memo maksimal 30 hari sebelum kontrak karyawan berakhir, jika melebihi batas waktu yang telah ditetapkan maka hal-hal yang berkaitan dengan legalitas karyawan (status kekaryawanan) menjadi tanggungan Departemen.</p>
+    <p>Untuk selanjutnya apabila ${b(rekom==='diperpanjang','diperpanjang')} ( ${b(k.durasi_perpanjangan==='3','3')} / ${b(k.durasi_perpanjangan==='6','6')} / ${b(k.durasi_perpanjangan==='12','12')} bulan ) / ${b(rekom==='tidak_diperpanjang','Tidak diperpanjang')} / ${b(rekom==='karyawan_tetap','Diusulkan sebagai karyawan tetap')}, dilengkapi dengan pengisian form sebagaimana terlampir. Balasan internal memo maksimal 30 hari sebelum kontrak karyawan berakhir, jika melebihi batas waktu yang telah ditetapkan maka hal - hal yang berkaitan dengan legalitas karyawan (status kekaryawanan) menjadi tanggungan Departemen.</p>
     <p>Demikian pemberitahuan dari kami atas perhatian dan kerjasamanya kami sampaikan terima kasih.</p>
   `;
 }
