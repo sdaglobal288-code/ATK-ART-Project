@@ -1,0 +1,467 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Approval Penilaian Tahunan</title>
+
+<!-- Sesuaikan path ini dengan lokasi file init Supabase Anda yang sudah ada -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="supabase/config.js"></script>
+
+<style>
+  :root{
+    --bg: #241a12;
+    --panel: #3a2b1e;
+    --panel-2: #302213;
+    --border: #4f3d29;
+    --text: #f2e9dc;
+    --text-muted: #b6a48c;
+    --gold: #d4a24c;
+    --teal: #4dd0c4;
+    --orange: #e8873a;
+    --pink: #e06b8b;
+  }
+  *{ box-sizing:border-box; }
+  body{
+    margin:0;
+    background: var(--bg);
+    color: var(--text);
+    font-family:'Segoe UI', system-ui, -apple-system, sans-serif;
+    padding: 28px 16px 80px;
+  }
+  .wrap{ max-width:720px; margin:0 auto; }
+
+  .brand{ display:flex; align-items:center; gap:10px; margin-bottom:20px; }
+  .brand-mark{
+    width:34px; height:34px; border-radius:9px;
+    background: linear-gradient(135deg, var(--gold), var(--orange));
+    display:flex; align-items:center; justify-content:center; font-weight:700; color:#241a12;
+  }
+  .brand-name{ font-size:13px; letter-spacing:1.5px; color:var(--text-muted); text-transform:uppercase; }
+
+  .card{
+    background:var(--panel); border:1px solid var(--border); border-radius:16px;
+    padding:24px; margin-bottom:18px;
+  }
+  h1{ font-size:19px; margin:0 0 4px; }
+  .muted{ color:var(--text-muted); font-size:13px; }
+
+  .info-grid{ display:grid; grid-template-columns:1fr 1fr; gap:10px 20px; margin-top:16px; }
+  @media (max-width:520px){ .info-grid{ grid-template-columns:1fr; } }
+  .info-item .l{ font-size:11px; color:var(--text-muted); text-transform:uppercase; letter-spacing:.4px; }
+  .info-item .v{ font-size:13px; margin-top:2px; }
+
+  .role-pill{
+    display:inline-block; background:rgba(212,162,76,0.15); color:var(--gold);
+    padding:6px 14px; border-radius:20px; font-size:12px; font-weight:700; margin-top:10px;
+  }
+
+  table.kriteria{ width:100%; border-collapse:collapse; margin-top:6px; }
+  table.kriteria th, table.kriteria td{ border:1px solid var(--border); padding:8px 10px; font-size:13px; text-align:left; }
+  table.kriteria th{ background:var(--panel-2); color:var(--gold); font-size:12px; }
+  table.kriteria td.skor{ width:70px; text-align:center; font-weight:700; }
+  table.kriteria tr.kategori td{ font-weight:700; background:var(--panel-2); }
+  table.kriteria tr.rata td{ font-style:italic; font-weight:600; background:rgba(212,162,76,0.06); }
+
+  .total-box{
+    display:flex; justify-content:space-between; align-items:center;
+    background:rgba(77,208,196,0.08); border:1px solid rgba(77,208,196,0.3);
+    border-radius:10px; padding:12px 16px; margin-top:12px;
+  }
+  .total-box .n{ font-size:20px; font-weight:700; color:var(--teal); }
+
+  .note-block{ margin-top:14px; }
+  .note-block .l{ font-size:11px; color:var(--gold); text-transform:uppercase; letter-spacing:.4px; margin-bottom:4px; }
+  .note-block .v{ font-size:13px; color:var(--text); white-space:pre-wrap; background:var(--panel-2); border:1px solid var(--border); border-radius:8px; padding:10px 12px; }
+
+  label{ font-size:12px; color:var(--text-muted); display:block; margin-bottom:6px; }
+  textarea{
+    width:100%; background:var(--panel-2); border:1px solid var(--border); color:var(--text);
+    padding:10px 12px; border-radius:8px; font-size:13px; font-family:inherit; min-height:70px; resize:vertical;
+  }
+
+  .sig-wrap{
+    background:var(--panel-2); border:1px dashed var(--border); border-radius:12px;
+    padding:10px; margin-top:6px;
+  }
+  canvas{ width:100%; height:180px; display:block; background:#fdfaf5; border-radius:8px; touch-action:none; }
+  .sig-actions{ display:flex; justify-content:space-between; margin-top:8px; }
+  .sig-actions .hint{ font-size:11px; color:var(--text-muted); }
+  .link-btn{ background:none; border:none; color:var(--gold); font-size:12px; cursor:pointer; }
+
+  .btn{
+    background: linear-gradient(135deg, var(--gold), #c98a3a);
+    color:#241a12; border:none; padding:13px 22px; border-radius:10px;
+    font-weight:700; font-size:14px; cursor:pointer; width:100%;
+  }
+  .btn:disabled{ opacity:.5; cursor:not-allowed; }
+
+  .status-msg{ font-size:13px; margin-top:10px; text-align:center; }
+  .status-msg.error{ color:var(--pink); }
+  .status-msg.ok{ color:var(--teal); }
+
+  .center-state{ text-align:center; padding:50px 20px; }
+  .center-state .icon{ font-size:40px; margin-bottom:14px; }
+  .center-state h2{ font-size:17px; margin:0 0 8px; }
+  .center-state p{ color:var(--text-muted); font-size:13px; }
+
+  .hidden{ display:none !important; }
+  .signed-img{ max-width:220px; border-radius:8px; border:1px solid var(--border); background:#fff; margin-top:8px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="brand">
+    <div class="brand-mark">S</div>
+    <div class="brand-name">Approval Penilaian Tahunan</div>
+  </div>
+
+  <div id="loadingState" class="card">
+    <div class="center-state"><div class="icon">⏳</div><p>Memuat data penilaian...</p></div>
+  </div>
+
+  <div id="errorState" class="card hidden">
+    <div class="center-state">
+      <div class="icon">⚠️</div>
+      <h2 id="errorTitle">Link Tidak Valid</h2>
+      <p id="errorMsg">Link ini tidak ditemukan atau sudah tidak berlaku.</p>
+    </div>
+  </div>
+
+  <div id="alreadySignedState" class="card hidden">
+    <div class="center-state">
+      <div class="icon">✅</div>
+      <h2>Sudah Ditandatangani</h2>
+      <p id="alreadySignedMsg">Anda sudah menandatangani penilaian ini sebelumnya.</p>
+      <img id="alreadySignedImg" class="signed-img" />
+    </div>
+  </div>
+
+  <div id="mainContent" class="hidden">
+
+    <div class="card" id="infoCard">
+      <h1 id="namaKaryawan">-</h1>
+      <div class="muted" id="periodeInfo">-</div>
+      <div class="role-pill" id="rolePill">-</div>
+
+      <div class="info-grid">
+        <div class="info-item"><div class="l">NIK</div><div class="v" id="vNik">-</div></div>
+        <div class="info-item"><div class="l">Jabatan</div><div class="v" id="vJabatan">-</div></div>
+        <div class="info-item"><div class="l">Departemen</div><div class="v" id="vDepartemen">-</div></div>
+        <div class="info-item"><div class="l">Unit</div><div class="v" id="vUnit">-</div></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h1 style="font-size:15px;">Kriteria Penilaian</h1>
+      <div id="kriteriaContainer"></div>
+      <div class="total-box">
+        <div>Total rata-rata</div>
+        <div class="n" id="totalRataRata">-</div>
+      </div>
+
+      <div id="saranContainer"></div>
+    </div>
+
+    <div class="card">
+      <h1 style="font-size:15px;">Catatan Anda (opsional)</h1>
+      <div class="field" style="margin-top:10px;">
+        <textarea id="catatanInput" placeholder="Tambahkan catatan sebagai penandatangan..."></textarea>
+      </div>
+    </div>
+
+    <div class="card">
+      <h1 style="font-size:15px;">Tanda Tangan</h1>
+      <div class="muted">Gambar tanda tangan Anda di kotak di bawah ini.</div>
+      <div class="sig-wrap">
+        <canvas id="sigCanvas"></canvas>
+        <div class="sig-actions">
+          <span class="hint" id="sigHint">Belum ada tanda tangan</span>
+          <button class="link-btn" id="btnClearSig">Bersihkan</button>
+        </div>
+      </div>
+
+      <div style="margin-top:18px;">
+        <button class="btn" id="btnSubmit">Setujui &amp; Kirim Tanda Tangan</button>
+        <div class="status-msg" id="submitStatus"></div>
+      </div>
+    </div>
+
+  </div>
+
+</div>
+
+<script>
+const FORM_LABELS = { C: 'Form C', B: 'Form B', WORKER: 'Form Worker' };
+const APPROVAL_LABELS = {
+  C: ['Atasan Langsung','Atasan satu tingkat diatas atasan langsung','Atasan Dua tingkat diatas atasan langsung','HCS Unit'],
+  B: ['SPV','Atasan langsung SPV','Atasan tidak langsung SPV','HCS Unit'],
+  WORKER: ['SPV','Atasan langsung SPV','Atasan Tidak langsung SPV','HCS Unit']
+};
+
+const params = new URLSearchParams(window.location.search);
+const token = params.get('token');
+
+let approvalRow = null;
+let penilaian = null;
+
+function showState(id) {
+  ['loadingState','errorState','alreadySignedState','mainContent'].forEach(s => {
+    document.getElementById(s).classList.toggle('hidden', s !== id);
+  });
+}
+
+function escapeHtml(str) {
+  const div = document.createElement('div');
+  div.textContent = str || '';
+  return div.innerHTML;
+}
+
+async function init() {
+  if (!token) {
+    showState('errorState');
+    document.getElementById('errorTitle').textContent = 'Link Tidak Lengkap';
+    document.getElementById('errorMsg').textContent = 'Token approval tidak ditemukan di URL.';
+    return;
+  }
+
+  const { data, error } = await supabaseClient
+    .from('penilaian_approval')
+    .select('*, penilaian:penilaian_karyawan(*), approver:master_karyawan(nama)')
+    .eq('token', token)
+    .single();
+
+  if (error || !data) {
+    showState('errorState');
+    return;
+  }
+
+  approvalRow = data;
+  penilaian = data.penilaian;
+
+  // Sudah ditandatangani
+  if (approvalRow.status === 'approved') {
+    showState('alreadySignedState');
+    document.getElementById('alreadySignedMsg').textContent =
+      `Ditandatangani pada ${new Date(approvalRow.signed_at).toLocaleString('id-ID')} oleh ${approvalRow.approver?.nama || ''}.`;
+    if (approvalRow.signature_image) {
+      document.getElementById('alreadySignedImg').src = approvalRow.signature_image;
+    } else {
+      document.getElementById('alreadySignedImg').classList.add('hidden');
+    }
+    return;
+  }
+
+  // Kedaluwarsa
+  const expired = approvalRow.expires_at && new Date(approvalRow.expires_at) < new Date();
+  if (expired) {
+    if (approvalRow.status !== 'expired') {
+      await supabaseClient.from('penilaian_approval').update({ status: 'expired' }).eq('token', token);
+    }
+    showState('errorState');
+    document.getElementById('errorTitle').textContent = 'Link Sudah Kedaluwarsa';
+    document.getElementById('errorMsg').textContent = 'Link approval ini sudah lewat masa berlaku 7 hari. Minta admin untuk membuat link baru.';
+    return;
+  }
+
+  renderContent();
+  showState('mainContent');
+}
+
+function renderContent() {
+  const tipe = penilaian.tipe_form;
+  document.getElementById('namaKaryawan').textContent = penilaian.nama_snapshot || '-';
+  document.getElementById('periodeInfo').textContent = `${FORM_LABELS[tipe] || tipe} · Periode ${penilaian.periode}`;
+
+  const labels = APPROVAL_LABELS[tipe] || APPROVAL_LABELS.B;
+  document.getElementById('rolePill').textContent = labels[approvalRow.urutan - 1] || approvalRow.tahap;
+
+  document.getElementById('vNik').textContent = penilaian.nik_snapshot || '-';
+  document.getElementById('vJabatan').textContent = `${penilaian.jabatan_snapshot || '-'}${penilaian.level_snapshot ? ' ('+penilaian.level_snapshot+')' : ''}`;
+  document.getElementById('vDepartemen').textContent = `${penilaian.departemen_snapshot || '-'}${penilaian.sub_departemen_snapshot ? ' / '+penilaian.sub_departemen_snapshot : ''}`;
+  document.getElementById('vUnit').textContent = penilaian.unit_snapshot || '-';
+
+  document.getElementById('totalRataRata').textContent =
+    penilaian.total_rata_rata != null ? Number(penilaian.total_rata_rata).toFixed(2) : '-';
+
+  loadKriteria();
+
+  const saranContainer = document.getElementById('saranContainer');
+  saranContainer.innerHTML = '';
+  if (tipe !== 'WORKER') {
+    if (penilaian.saran_kekuatan) {
+      saranContainer.innerHTML += `<div class="note-block"><div class="l">Kekuatan</div><div class="v">${escapeHtml(penilaian.saran_kekuatan)}</div></div>`;
+    }
+    if (penilaian.saran_pengembangan) {
+      saranContainer.innerHTML += `<div class="note-block"><div class="l">Area Pengembangan</div><div class="v">${escapeHtml(penilaian.saran_pengembangan)}</div></div>`;
+    }
+    if (penilaian.catatan_atasan) {
+      saranContainer.innerHTML += `<div class="note-block"><div class="l">Catatan Atasan Sebelumnya</div><div class="v">${escapeHtml(penilaian.catatan_atasan)}</div></div>`;
+    }
+  }
+
+  initSignaturePad();
+}
+
+async function loadKriteria() {
+  const { data, error } = await supabaseClient
+    .from('penilaian_detail')
+    .select('*')
+    .eq('penilaian_id', penilaian.id)
+    .order('id', { ascending: true });
+
+  const container = document.getElementById('kriteriaContainer');
+  if (error || !data || !data.length) {
+    container.innerHTML = '<p class="muted">Belum ada rincian kriteria.</p>';
+    return;
+  }
+
+  const groups = {};
+  const order = [];
+  data.forEach(row => {
+    if (!groups[row.kategori]) { groups[row.kategori] = []; order.push(row.kategori); }
+    groups[row.kategori].push(row);
+  });
+
+  let html = '';
+  order.forEach(kategori => {
+    const items = groups[kategori];
+    const scores = items.map(i => i.skor).filter(v => v !== null && v !== undefined);
+    const avg = scores.length ? (scores.reduce((a,b)=>a+b,0) / scores.length) : null;
+
+    html += `<table class="kriteria"><tr class="kategori"><td colspan="2">${kategori}</td><td>Skor</td></tr>`;
+    items.forEach(i => {
+      html += `<tr><td colspan="2">${i.kode}. ${i.label}</td><td class="skor">${i.skor ?? '-'}</td></tr>`;
+    });
+    html += `<tr class="rata"><td colspan="2">Rata-rata</td><td class="skor">${avg !== null ? avg.toFixed(2) : '-'}</td></tr></table>`;
+  });
+
+  container.innerHTML = html;
+}
+
+// =====================================================
+// SIGNATURE PAD (vanilla canvas, mouse + touch)
+// =====================================================
+let canvas, ctx, drawing = false, hasSignature = false, lastPoint = null;
+
+function initSignaturePad() {
+  canvas = document.getElementById('sigCanvas');
+  const ratio = window.devicePixelRatio || 1;
+  const rect = canvas.getBoundingClientRect();
+  canvas.width = rect.width * ratio;
+  canvas.height = rect.height * ratio;
+  ctx = canvas.getContext('2d');
+  ctx.scale(ratio, ratio);
+  ctx.lineWidth = 2.2;
+  ctx.lineCap = 'round';
+  ctx.strokeStyle = '#241a12';
+
+  function getPos(e) {
+    const r = canvas.getBoundingClientRect();
+    const point = e.touches ? e.touches[0] : e;
+    return { x: point.clientX - r.left, y: point.clientY - r.top };
+  }
+
+  function start(e) {
+    e.preventDefault();
+    drawing = true;
+    lastPoint = getPos(e);
+  }
+  function move(e) {
+    if (!drawing) return;
+    e.preventDefault();
+    const p = getPos(e);
+    ctx.beginPath();
+    ctx.moveTo(lastPoint.x, lastPoint.y);
+    ctx.lineTo(p.x, p.y);
+    ctx.stroke();
+    lastPoint = p;
+    if (!hasSignature) {
+      hasSignature = true;
+      document.getElementById('sigHint').textContent = 'Tanda tangan tersimpan';
+    }
+  }
+  function end() { drawing = false; }
+
+  canvas.addEventListener('mousedown', start);
+  canvas.addEventListener('mousemove', move);
+  window.addEventListener('mouseup', end);
+  canvas.addEventListener('touchstart', start, { passive:false });
+  canvas.addEventListener('touchmove', move, { passive:false });
+  canvas.addEventListener('touchend', end);
+
+  document.getElementById('btnClearSig').addEventListener('click', () => {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    hasSignature = false;
+    document.getElementById('sigHint').textContent = 'Belum ada tanda tangan';
+  });
+}
+
+// =====================================================
+// SUBMIT
+// =====================================================
+document.getElementById('btnSubmit').addEventListener('click', async () => {
+  const statusEl = document.getElementById('submitStatus');
+  statusEl.textContent = '';
+  statusEl.className = 'status-msg';
+
+  if (!hasSignature) {
+    statusEl.textContent = 'Silakan gambar tanda tangan Anda terlebih dahulu.';
+    statusEl.className = 'status-msg error';
+    return;
+  }
+
+  const btn = document.getElementById('btnSubmit');
+  btn.disabled = true;
+  btn.textContent = 'Menyimpan...';
+
+  try {
+    const signatureDataUrl = canvas.toDataURL('image/png');
+    const catatan = document.getElementById('catatanInput').value;
+
+    const { error: errUpdate } = await supabaseClient
+      .from('penilaian_approval')
+      .update({
+        status: 'approved',
+        signature_image: signatureDataUrl,
+        catatan: catatan,
+        signed_at: new Date().toISOString()
+      })
+      .eq('token', token)
+      .eq('status', 'pending'); // guard: hanya update kalau masih pending
+
+    if (errUpdate) throw errUpdate;
+
+    // Cek apakah semua tahap sudah approved, update status penilaian_karyawan
+    const { data: allSteps } = await supabaseClient
+      .from('penilaian_approval')
+      .select('status')
+      .eq('penilaian_id', penilaian.id);
+
+    const allApproved = allSteps && allSteps.every(s => s.status === 'approved');
+    await supabaseClient
+      .from('penilaian_karyawan')
+      .update({ status: allApproved ? 'Selesai' : 'Proses', updated_at: new Date().toISOString() })
+      .eq('id', penilaian.id);
+
+    statusEl.textContent = 'Tanda tangan berhasil disimpan. Terima kasih!';
+    statusEl.className = 'status-msg ok';
+    btn.textContent = 'Tersimpan';
+
+    setTimeout(() => window.location.reload(), 1500);
+
+  } catch (err) {
+    console.error(err);
+    statusEl.textContent = 'Gagal menyimpan: ' + (err.message || 'terjadi kesalahan.');
+    statusEl.className = 'status-msg error';
+    btn.disabled = false;
+    btn.textContent = 'Setujui & Kirim Tanda Tangan';
+  }
+});
+
+init();
+</script>
+</body>
+</html>
