@@ -344,7 +344,7 @@ function renderMemoPreview(k) {
     <table>
       <tr><th>Nama</th><td>${esc(k.nama_snapshot)}</td></tr>
       <tr><th>Unit</th><td>${esc(k.unit_snapshot || '-')}</td></tr>
-      <tr><th>Bagian</th><td>${esc(k.bagian_snapshot || '-')}</td></tr>
+      <tr><th>Bagian</th><td>${esc(k.jabatan_snapshot || '-')}</td></tr>
       <tr><th>Tanggal Masuk</th><td>${fmtDate(k.tanggal_masuk)}</td></tr>
       ${riwayatRows}
       ${nextRow}
