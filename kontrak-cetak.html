@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cetak Internal Memo Perpanjangan Kontrak</title>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="supabase/config.js"></script>
+
+<style>
+  :root{
+    --bg:#241a12; --panel:#3a2b1e; --border:#4f3d29; --text:#f2e9dc; --text-muted:#b6a48c; --pink:#e06b8b;
+  }
+  *{ box-sizing:border-box; }
+  body{ margin:0; background:var(--bg); font-family:'Segoe UI', system-ui, -apple-system, sans-serif; color:var(--text); padding:24px 16px 80px; }
+
+  .toolbar{ max-width:800px; margin:0 auto 18px; display:flex; justify-content:space-between; align-items:center; }
+  .back{ color:var(--text-muted); text-decoration:none; font-size:13px; }
+  .btn{ background:linear-gradient(135deg, var(--pink), #c14e70); color:#241a12; border:none; padding:10px 18px; border-radius:8px; font-weight:700; font-size:13px; cursor:pointer; }
+
+  .sheet{
+    background:#fff; color:#111; max-width:800px; margin:0 auto 24px; padding:40px 46px;
+    font-family: Georgia, 'Times New Roman', serif; font-size:13px; line-height:1.55;
+    border-radius:4px; box-shadow:0 8px 30px rgba(0,0,0,.35);
+  }
+  .letterhead{ display:flex; align-items:center; gap:14px; border-bottom:3px solid #1b3a63; padding-bottom:12px; margin-bottom:18px; }
+  .logo-mark{ width:52px; height:52px; border-radius:8px; background:#1b3a63; color:#fff; display:flex; align-items:center; justify-content:center; font-weight:700; font-size:20px; font-family:Arial, sans-serif; }
+  .letterhead .co-name{ font-weight:700; font-size:16px; color:#1b3a63; font-family:Arial, sans-serif; letter-spacing:.5px; }
+  .letterhead .co-tag{ font-size:11px; color:#555; font-family:Arial, sans-serif; }
+
+  .memo-title{ text-align:center; font-weight:700; letter-spacing:1px; margin:10px 0 2px; font-family:Arial, sans-serif; }
+  .memo-number{ text-align:center; font-size:12px; color:#333; margin-bottom:18px; font-family:Arial, sans-serif; }
+
+  .memo-meta{ margin-bottom:16px; }
+  .memo-meta table{ border-collapse:collapse; }
+  .memo-meta td{ padding:2px 6px 2px 0; vertical-align:top; font-size:13px; }
+  .memo-meta td.k{ width:80px; }
+
+  .memo-body p{ margin:0 0 12px; text-align:justify; }
+
+  table.riwayat-print{ width:100%; border-collapse:collapse; margin:14px 0; font-size:12px; }
+  table.riwayat-print th, table.riwayat-print td{ border:1px solid #333; padding:6px 8px; text-align:left; }
+  table.riwayat-print th{ background:#f0f0f0; }
+
+  .rekom-list{ margin:14px 0; }
+  .rekom-list .item{ margin-bottom:4px; }
+  .checkbox{ display:inline-block; width:12px; height:12px; border:1px solid #333; margin-right:6px; vertical-align:middle; position:relative; top:-1px; }
+  .checkbox.checked{ background:#1b3a63; }
+
+  .sign-block{ display:flex; justify-content:flex-end; margin-top:30px; }
+  .sign-box{ text-align:center; width:220px; }
+  .sign-box .place-date{ margin-bottom:60px; }
+  .sign-box .name{ font-weight:700; text-decoration:underline; }
+  .sign-box .role{ font-size:12px; }
+
+  .form-title{ text-align:center; font-weight:700; font-family:Arial, sans-serif; margin-bottom:2px; }
+  .form-sub{ text-align:center; font-size:12px; color:#333; font-family:Arial, sans-serif; margin-bottom:16px; }
+
+  .karyawan-info{ display:grid; grid-template-columns:1fr 1fr; gap:2px 24px; font-size:12.5px; margin-bottom:16px; font-family:Arial, sans-serif; }
+  .karyawan-info div{ display:flex; }
+  .karyawan-info .l{ width:150px; flex-shrink:0; }
+
+  table.kriteria-print{ width:100%; border-collapse:collapse; font-size:12px; margin-bottom:10px; font-family:Arial, sans-serif; }
+  table.kriteria-print th, table.kriteria-print td{ border:1px solid #333; padding:6px 8px; }
+  table.kriteria-print th{ background:#f0f0f0; text-align:left; }
+  table.kriteria-print td.skor{ width:70px; text-align:center; font-weight:700; }
+  table.kriteria-print tr.kategori td{ font-weight:700; background:#f7f4ee; }
+  table.kriteria-print tr.rata td{ font-style:italic; font-weight:700; background:#fbf6ea; }
+
+  .notes-box{ font-family:Arial, sans-serif; font-size:12px; margin-top:10px; }
+  .notes-box .l{ font-weight:700; margin-top:8px; }
+
+  .rekom-check-list{ font-family:Arial, sans-serif; font-size:12.5px; margin-top:14px; }
+  .rekom-check-list .row{ margin-bottom:6px; }
+
+  .sign-row-4{ display:flex; justify-content:space-between; margin-top:50px; font-family:Arial, sans-serif; font-size:12px; text-align:center; }
+  .sign-row-4 .box{ width:23%; }
+  .sign-row-4 .box .name{ margin-top:55px; border-top:1px solid #333; padding-top:4px; }
+
+  @media print {
+    body{ background:#fff; padding:0; }
+    .toolbar{ display:none; }
+    .sheet{ box-shadow:none; margin:0 auto; page-break-after:always; }
+  }
+</style>
+</head>
+<body>
+
+  <div class="toolbar">
+    <a class="back" href="kontrak.html">← Kembali ke daftar memo</a>
+    <button class="btn" onclick="window.print()">🖨 Cetak / Simpan PDF</button>
+  </div>
+
+  <div id="content">
+    <div class="sheet"><p style="font-family:Arial, sans-serif;">Memuat data...</p></div>
+  </div>
+
+<script>
+const REKOMENDASI_LABELS = {
+  lulus_percobaan: 'Lulus Masa Percobaan',
+  tidak_lulus_percobaan: 'Tidak Lulus Masa Percobaan',
+  diperpanjang: 'Kontrak Diperpanjang',
+  tidak_diperpanjang: 'Tidak Diperpanjang Kontrak',
+  lulus_akting: 'Lulus Masa Akting',
+  tidak_lulus_akting: 'Tidak Lulus Masa Akting',
+  karyawan_tetap: 'Diangkat Menjadi Karyawan Tetap'
+};
+
+const FORM_KRITERIA = {
+  FORM1: {
+    title: 'Form 1',
+    sub: 'Karyawan memiliki anak buah',
+    sections: [
+      { kategori: 'I. Sikap', items: ['Tanggung Jawab pekerjaan','Kemampuan pengendalian diri','Semangat dalam bekerja','Kemauan belajar hal baru','Disiplin'] },
+      { kategori: 'II. Penguasaan Pekerjaan', items: ['Kemampuan Teknikal','Pengetahuan Teknikal'] },
+      { kategori: 'III. People Management', items: ['Mengembangkan orang lain','Coaching and Counseling','Delegasi','Kerjasama team'] }
+    ]
+  },
+  FORM2: {
+    title: 'Form 2',
+    sub: 'Karyawan tidak memiliki anak buah',
+    sections: [
+      { kategori: 'I. Sikap', items: ['Tanggung Jawab pekerjaan','Kemampuan pengendalian diri','Semangat dalam bekerja','Kemauan belajar hal baru','Disiplin'] },
+      { kategori: 'II. Penguasaan Pekerjaan', items: ['Kemampuan Teknikal','Pengetahuan Teknikal'] }
+    ]
+  }
+};
+
+const params = new URLSearchParams(window.location.search);
+const id = params.get('id');
+
+function fmtDate(d, opt) {
+  if (!d) return '-';
+  return new Date(d).toLocaleDateString('id-ID', opt || { day:'numeric', month:'long', year:'numeric' });
+}
+function esc(str) {
+  const div = document.createElement('div');
+  div.textContent = str || '';
+  return div.innerHTML;
+}
+function cb(checked) { return `<span class="checkbox${checked ? ' checked' : ''}"></span>`; }
+
+async function load() {
+  if (!id) { renderError('Parameter id tidak ditemukan.'); return; }
+
+  const { data, error } = await supabaseClient.from('im_kontrak').select('*').eq('id', id).single();
+  if (error || !data) { renderError('Data memo tidak ditemukan.'); return; }
+
+  const { data: approvals } = await supabaseClient
+    .from('im_kontrak_approval')
+    .select('*')
+    .eq('kontrak_id', id);
+
+  const hcsRow = (approvals || []).find(a => a.tahap === 'hcs');
+  data.hcs_penandatangan_nama = hcsRow ? hcsRow.approver_nama : '';
+
+  render(data);
+}
+
+
+function renderError(msg) {
+  document.getElementById('content').innerHTML = `<div class="sheet"><p style="font-family:Arial, sans-serif;">${esc(msg)}</p></div>`;
+}
+
+function render(k) {
+  const riwayat = Array.isArray(k.riwayat_kontrak) ? k.riwayat_kontrak : [];
+  const riwayatRows = riwayat.map(r => `
+    <tr>
+      <td>Kontrak ke ${r.ke ?? '-'}</td>
+      <td>${fmtDate(r.mulai, {day:'2-digit',month:'2-digit',year:'numeric'})} — ${fmtDate(r.selesai, {day:'2-digit',month:'2-digit',year:'numeric'})}</td>
+    </tr>
+  `).join('') || `<tr><td colspan="2">Belum ada riwayat kontrak tercatat.</td></tr>`;
+
+  const rekom = k.rekomendasi;
+  const memoBody = `
+    <div class="sheet">
+      <div class="letterhead">
+        <div class="logo-mark">SDA</div>
+        <div>
+          <div class="co-name">SDA FLUID POWER COMPANY</div>
+          <div class="co-tag">Hydraulics, Pneumatics &amp; Engineering</div>
+        </div>
+      </div>
+
+      <div class="memo-title">INTERNAL MEMO</div>
+      <div class="memo-number">${esc(k.nomor_memo || '—/—/HRD/—/—')}</div>
+
+      <div class="memo-meta">
+        <table>
+          <tr><td class="k">Kepada</td><td>: ${esc(k.kepada_jabatan || '-')}${k.kepada_nama ? '<br>Up. ' + esc(k.kepada_nama) : ''}</td></tr>
+          <tr><td class="k">Dari</td><td>: ${esc(k.dari || 'Dept. HCS')}</td></tr>
+          <tr><td class="k">Perihal</td><td>: Masa Berakhirnya Kontrak Kerja</td></tr>
+        </table>
+      </div>
+
+      <div class="memo-body">
+        <p>Dengan hormat,</p>
+        <p>Dengan ini kami informasikan, bahwa berdasarkan data perjanjian kerja karyawan yang tersebut di bawah ini telah berakhir masa perjanjian kontraknya:</p>
+      </div>
+
+      <table class="riwayat-print">
+        <tr><th style="width:35%;">Nama</th><td colspan="1">${esc(k.nama_snapshot)}</td></tr>
+        <tr><th>Unit</th><td>${esc(k.unit_snapshot || '-')}</td></tr>
+        <tr><th>Bagian</th><td>${esc(k.bagian_snapshot || '-')}</td></tr>
+        <tr><th>Tanggal Masuk</th><td>${fmtDate(k.tanggal_masuk, {day:'2-digit',month:'2-digit',year:'numeric'})}</td></tr>
+      </table>
+
+      <table class="riwayat-print">
+        <tr><th>Riwayat Kontrak</th><th>Periode</th></tr>
+        ${riwayatRows}
+      </table>
+
+      <div class="memo-body">
+        <p>Untuk selanjutnya apabila diperpanjang ( ${cb(rekom==='diperpanjang' && k.durasi_perpanjangan==='3')} 3 / ${cb(rekom==='diperpanjang' && k.durasi_perpanjangan==='6')} 6 / ${cb(rekom==='diperpanjang' && k.durasi_perpanjangan==='12')} 12 bulan ) / Ditidak diperpanjang ${cb(rekom==='tidak_diperpanjang')} / Dimutasikan sebagai karyawan tetap ${cb(rekom==='karyawan_tetap')}, dilengkapi dengan pengisian form sebagaimana terlampir. Batasan internal memo yang tertulis maksimal 30 hari sebelum kontrak karyawan berakhir, jika melebihi batas waktu yang ditetapkan maka hal - hal yang berkaitan dengan legalitas karyawan (status kekaryawanan) menjadi tanggungjawab Departemen.</p>
+        <p>Demikian pemberitahuan dari kami atas perhatian dan kerjasamanya kami sampaikan terima kasih.</p>
+      </div>
+
+      <div class="sign-block">
+        <div class="sign-box">
+          <div class="place-date">Surabaya, ${fmtDate(k.tanggal_memo)}<br>Hormat Saya,</div>
+          <div class="name">${esc(k.hcs_penandatangan_nama || '____________________')}</div>
+          <div class="role">HCS Supervisor</div>
+        </div>
+      </div>
+    </div>
+  `;
+
+  const tpl = FORM_KRITERIA[k.tipe_form] || FORM_KRITERIA.FORM2;
+  const skorMap = {};
+  (Array.isArray(k.skor_detail) ? k.skor_detail : []).forEach(s => { skorMap[`${s.kategori}||${s.label}`] = s.skor; });
+
+  const kriteriaRows = tpl.sections.map(sec => {
+    const rows = sec.items.map((label, i) => {
+      const skor = skorMap[`${sec.kategori}||${label}`];
+      return `<tr><td colspan="2">${String.fromCharCode(97+i)}. ${esc(label)}</td><td class="skor">${skor ?? '-'}</td></tr>`;
+    }).join('');
+    const scores = sec.items.map(label => skorMap[`${sec.kategori}||${label}`]).filter(v => v != null);
+    const avg = scores.length ? (scores.reduce((a,b)=>a+b,0)/scores.length).toFixed(2) : '-';
+    return `<tr class="kategori"><td colspan="3">${esc(sec.kategori)}</td></tr>${rows}<tr class="rata"><td colspan="2">Rata-rata</td><td class="skor">${avg}</td></tr>`;
+  }).join('');
+
+  const formBody = `
+    <div class="sheet">
+      <div class="form-title">FORMULIR PENILAIAN KARYAWAN</div>
+      <div class="form-sub">${esc(tpl.title)} — ${esc(tpl.sub)}</div>
+
+      <div class="karyawan-info">
+        <div><span class="l">Nama</span>: ${esc(k.nama_snapshot)}</div>
+        <div><span class="l">Departemen</span>: ${esc(k.bagian_snapshot || '-')}</div>
+        <div><span class="l">NIK</span>: ${esc(k.nik_snapshot)}</div>
+        <div><span class="l">Tanggal Masuk</span>: ${fmtDate(k.tanggal_masuk, {day:'2-digit',month:'2-digit',year:'numeric'})}</div>
+        <div><span class="l">Jabatan</span>: ${esc(k.jabatan_snapshot || '-')}</div>
+        <div><span class="l">Masa Akhir Kontrak</span>: ${fmtDate(k.masa_akhir_kontrak, {day:'2-digit',month:'2-digit',year:'numeric'})}</div>
+        <div><span class="l">Nama Atasan</span>: ${esc(k.nama_atasan_penilai || '-')}</div>
+      </div>
+
+      <table class="kriteria-print">
+        <tr><th colspan="2">Kriteria Evaluasi</th><th style="width:70px;">Penilaian</th></tr>
+        ${kriteriaRows}
+      </table>
+
+      <div class="notes-box">
+        ${k.kekuatan ? `<div class="l">Kekuatan</div><div>${esc(k.kekuatan)}</div>` : ''}
+        ${k.area_pengembangan ? `<div class="l">Area Pengembangan</div><div>${esc(k.area_pengembangan)}</div>` : ''}
+        ${k.catatan_penilai ? `<div class="l">Catatan</div><div>${esc(k.catatan_penilai)}</div>` : ''}
+      </div>
+
+      <div class="rekom-check-list">
+        <div style="font-weight:700; margin-bottom:6px;">Rekomendasi dari Atasan:</div>
+        <div class="row">${cb(rekom==='lulus_percobaan')} Lulus Masa Percobaan &nbsp;&nbsp; ${cb(rekom==='tidak_lulus_percobaan')} Tidak Lulus Masa Percobaan</div>
+        <div class="row">${cb(rekom==='diperpanjang')} Perpanjang Kontrak${rekom==='diperpanjang' && k.durasi_perpanjangan ? ' (' + k.durasi_perpanjangan + ' bulan)' : ''} &nbsp;&nbsp; ${cb(rekom==='tidak_diperpanjang')} Tidak Diperpanjang Kontrak</div>
+        <div class="row">${cb(rekom==='lulus_akting')} Lulus Masa Akting &nbsp;&nbsp; ${cb(rekom==='tidak_lulus_akting')} Tidak Lulus Masa Akting</div>
+        <div class="row">${cb(rekom==='karyawan_tetap')} Diangkat Menjadi Karyawan Tetap</div>
+      </div>
+
+      <div style="font-family:Arial, sans-serif; font-size:12px; margin-top:24px;">Surabaya, ${fmtDate(k.tanggal_memo)}</div>
+
+      <div class="sign-row-4">
+        <div class="box">Diajukan oleh,<div class="name">${esc(k.nama_atasan_penilai || '')}</div>Atasan Langsung</div>
+        <div class="box">Disetujui oleh,<div class="name">&nbsp;</div>Atasan Tidak Langsung</div>
+        <div class="box">Diketahui oleh,<div class="name">${esc(k.hcs_penandatangan_nama || '')}</div>HCS / Manajer Direktur</div>
+        <div class="box">Diterima,<div class="name">&nbsp;</div>Karyawan</div>
+      </div>
+    </div>
+  `;
+
+  document.getElementById('content').innerHTML = memoBody + formBody;
+}
+
+load();
+</script>
+</body>
+</html>
