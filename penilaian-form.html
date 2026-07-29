@@ -1,0 +1,548 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Buat Penilaian Tahunan</title>
+
+<!-- Sesuaikan path ini dengan lokasi file init Supabase Anda yang sudah ada -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="supabase/config.js"></script>
+
+<style>
+  :root{
+    --bg: #241a12;
+    --panel: #3a2b1e;
+    --panel-2: #302213;
+    --border: #4f3d29;
+    --text: #f2e9dc;
+    --text-muted: #b6a48c;
+    --gold: #d4a24c;
+    --teal: #4dd0c4;
+    --danger: #e06b8b;
+  }
+  *{ box-sizing:border-box; }
+  body{
+    margin:0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    padding: 28px 20px 80px;
+  }
+  .wrap{ max-width: 880px; margin: 0 auto; }
+  .topbar{ display:flex; align-items:center; justify-content:space-between; margin-bottom:24px; }
+  .back{ color: var(--text-muted); text-decoration:none; font-size:13px; }
+  .back:hover{ color: var(--gold); }
+  h1{ font-size:22px; margin: 4px 0 4px; }
+  .muted{ color: var(--text-muted); font-size:13px; }
+
+  .card{
+    background: var(--panel);
+    border:1px solid var(--border);
+    border-radius:14px;
+    padding:22px;
+    margin-bottom:20px;
+  }
+  .card h2{ font-size:15px; margin:0 0 16px; color: var(--gold); }
+
+  .grid2{ display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+  @media (max-width:640px){ .grid2{ grid-template-columns:1fr; } }
+
+  label{ font-size:12px; color: var(--text-muted); display:block; margin-bottom:6px; }
+  input, select, textarea{
+    width:100%;
+    background: var(--panel-2);
+    border:1px solid var(--border);
+    color: var(--text);
+    padding:9px 11px;
+    border-radius:8px;
+    font-size:13px;
+    font-family:inherit;
+  }
+  textarea{ min-height:70px; resize:vertical; }
+  .field{ margin-bottom:14px; }
+
+  .form-type-options{ display:flex; gap:12px; flex-wrap:wrap; }
+  .form-type{
+    flex:1; min-width:220px;
+    border:1px solid var(--border);
+    border-radius:10px;
+    padding:14px;
+    cursor:pointer;
+    transition: border-color .15s, background .15s;
+  }
+  .form-type:hover{ border-color: var(--gold); }
+  .form-type.active{ border-color: var(--gold); background: rgba(212,162,76,0.08); }
+  .form-type input{ display:none; }
+  .form-type .t{ font-weight:600; font-size:13px; margin-bottom:4px; }
+  .form-type .d{ font-size:12px; color: var(--text-muted); }
+
+  table.kriteria{ width:100%; border-collapse:collapse; margin-bottom:6px; }
+  table.kriteria th, table.kriteria td{
+    border:1px solid var(--border);
+    padding:8px 10px;
+    font-size:13px;
+    text-align:left;
+  }
+  table.kriteria th{ background: var(--panel-2); color: var(--gold); font-size:12px; }
+  table.kriteria td.skor-col{ width:90px; }
+  table.kriteria tr.rata td{ font-style:italic; font-weight:600; background: rgba(212,162,76,0.06); }
+  table.kriteria select{ padding:6px 8px; }
+
+  .total-box{
+    display:flex; justify-content:space-between; align-items:center;
+    background: rgba(77,208,196,0.08);
+    border:1px solid rgba(77,208,196,0.3);
+    border-radius:10px;
+    padding:14px 18px;
+    margin-top: 8px;
+  }
+  .total-box .n{ font-size:24px; font-weight:700; color: var(--teal); }
+
+  .approver-row{
+    display:grid; grid-template-columns: 220px 1fr; gap:14px; align-items:center;
+    padding:10px 0; border-bottom:1px solid var(--border);
+  }
+  .approver-row:last-child{ border-bottom:none; }
+  .approver-row .role{ font-size:13px; color: var(--text); }
+  .approver-row .role small{ display:block; color:var(--text-muted); font-size:11px; margin-top:2px; }
+
+  .btn{
+    background: linear-gradient(135deg, var(--gold), #c98a3a);
+    color:#241a12; border:none; padding:12px 22px; border-radius:10px;
+    font-weight:700; font-size:14px; cursor:pointer;
+  }
+  .btn:disabled{ opacity:.5; cursor:not-allowed; }
+  .btn.secondary{ background:transparent; border:1px solid var(--border); color: var(--text); }
+
+  .status-msg{ font-size:13px; margin-top:10px; }
+  .status-msg.error{ color: var(--danger); }
+  .status-msg.ok{ color: var(--teal); }
+
+  .hidden{ display:none !important; }
+
+  .result-link{
+    background: var(--panel-2); border:1px solid var(--border); border-radius:8px;
+    padding:10px 12px; font-size:12px; margin-bottom:8px; word-break:break-all;
+  }
+  .result-link b{ color: var(--gold); display:block; margin-bottom:4px; font-size:12px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="topbar">
+    <div>
+      <a class="back" href="penilaian.html">← Kembali ke daftar penilaian</a>
+      <h1>Buat Penilaian Tahunan</h1>
+      <div class="muted">Periode <span id="periodeLabel"></span></div>
+    </div>
+  </div>
+
+  <!-- STEP 1: Pilih Karyawan -->
+  <div class="card">
+    <h2>1. Pilih Karyawan yang Dinilai</h2>
+    <div class="field">
+      <label>Cari nama / NIK karyawan</label>
+      <input list="karyawanList" id="karyawanSearch" placeholder="Ketik nama atau NIK...">
+      <datalist id="karyawanList"></datalist>
+    </div>
+    <div class="grid2">
+      <div class="field"><label>NIK</label><input id="fNik" readonly></div>
+      <div class="field"><label>Nama</label><input id="fNama" readonly></div>
+      <div class="field"><label>Jabatan</label><input id="fJabatan"></div>
+      <div class="field"><label>Level (contoh: Staff, SPV, Junior Manager)</label><input id="fLevel"></div>
+      <div class="field"><label>Department</label><input id="fDepartemen" readonly></div>
+      <div class="field"><label>Sub. Departement</label><input id="fSubDepartemen"></div>
+      <div class="field"><label>Unit</label><input id="fUnit"></div>
+      <div class="field" id="wrapTglMasuk"><label>Tanggal Masuk Kerja (khusus Form Worker)</label><input type="date" id="fTglMasuk"></div>
+    </div>
+  </div>
+
+  <!-- STEP 2: Pilih Tipe Form -->
+  <div class="card">
+    <h2>2. Pilih Tipe Form Penilaian</h2>
+    <div class="form-type-options" id="formTypeOptions">
+      <label class="form-type" data-type="C">
+        <input type="radio" name="tipeForm" value="C">
+        <div class="t">Form C</div>
+        <div class="d">Karyawan yang memiliki anak buah (ada penilaian People Management)</div>
+      </label>
+      <label class="form-type" data-type="B">
+        <input type="radio" name="tipeForm" value="B">
+        <div class="t">Form B</div>
+        <div class="d">Karyawan tidak memiliki anak buah (staff/individual contributor)</div>
+      </label>
+      <label class="form-type" data-type="WORKER">
+        <input type="radio" name="tipeForm" value="WORKER">
+        <div class="t">Form Worker</div>
+        <div class="d">Worker, Helper, Driver, Security, OB, CS, Tukang</div>
+      </label>
+    </div>
+  </div>
+
+  <!-- STEP 3: Kriteria Penilaian (render dinamis) -->
+  <div class="card hidden" id="kriteriaCard">
+    <h2>3. Kriteria Penilaian</h2>
+    <div id="kriteriaContainer"></div>
+    <div class="total-box">
+      <div>Total rata-rata</div>
+      <div class="n" id="totalRataRata">-</div>
+    </div>
+  </div>
+
+  <!-- STEP 4: Saran & Catatan (hanya Form C / B) -->
+  <div class="card hidden" id="saranCard">
+    <h2>4. Saran, Pengembangan &amp; Catatan Atasan</h2>
+    <div class="field"><label>Kekuatan</label><textarea id="fKekuatan" placeholder="Isi kekuatan karyawan..."></textarea></div>
+    <div class="field"><label>Area pengembangan</label><textarea id="fAreaPengembangan" placeholder="Isi area yang perlu dikembangkan..."></textarea></div>
+    <div class="field"><label>Catatan atasan</label><textarea id="fCatatanAtasan" placeholder="Catatan tambahan dari atasan..."></textarea></div>
+  </div>
+
+  <!-- STEP 5: Pilih Approver -->
+  <div class="card hidden" id="approverCard">
+    <h2 id="approverTitle">5. Pilih Penandatangan</h2>
+    <div id="approverContainer"></div>
+  </div>
+
+  <div class="card hidden" id="submitCard">
+    <button class="btn" id="btnSubmit">Simpan &amp; Kirim untuk Approval</button>
+    <div class="status-msg" id="submitStatus"></div>
+  </div>
+
+  <!-- Hasil setelah submit -->
+  <div class="card hidden" id="resultCard">
+    <h2>Penilaian Berhasil Dibuat</h2>
+    <p class="muted">Bagikan link di bawah ini ke masing-masing penandatangan secara berurutan (email/WhatsApp). Link berlaku 7 hari.</p>
+    <div id="resultLinks"></div>
+    <a class="btn secondary" href="penilaian.html" style="display:inline-block;margin-top:10px;text-decoration:none;">Selesai</a>
+  </div>
+
+</div>
+
+<script>
+// =====================================================
+// KONFIGURASI TEMPLATE 3 TIPE FORM
+// =====================================================
+const FORM_TEMPLATES = {
+  C: {
+    label: 'Form C',
+    sections: [
+      { kategori: 'I - Sikap', items: [
+        {kode:'a', label:'Tanggung jawab pada pekerjaan'},
+        {kode:'b', label:'Kemampuan mengendalikan diri'},
+        {kode:'c', label:'Semangat kerja'},
+        {kode:'d', label:'Kemauan untuk belajar hal baru'},
+        {kode:'e', label:'Disiplin'}
+      ]},
+      { kategori: 'II - Penguasaan Pekerjaan', items: [
+        {kode:'a', label:'Kemampuan / skill'},
+        {kode:'b', label:'Pengetahuan teknis'}
+      ]},
+      { kategori: 'III - People Management', items: [
+        {kode:'a', label:'Mengembangkan orang lain'},
+        {kode:'b', label:'Coaching and Counseling'},
+        {kode:'c', label:'Delegasi'},
+        {kode:'d', label:'Kerjasama team'}
+      ]}
+    ],
+    showSaran: true,
+    approvalLabels: ['Atasan Langsung','Atasan satu tingkat diatas atasan langsung','Atasan Dua tingkat diatas atasan langsung','HCS Unit'],
+    signRowLabels: ['Dinilai oleh','Disetujui','Diketahui','Diterima']
+  },
+  B: {
+    label: 'Form B',
+    sections: [
+      { kategori: 'I - Sikap', items: [
+        {kode:'a', label:'Tanggung jawab pada pekerjaan'},
+        {kode:'b', label:'Kemampuan mengendalikan diri'},
+        {kode:'c', label:'Semangat kerja'},
+        {kode:'d', label:'Kemauan untuk belajar hal baru'},
+        {kode:'e', label:'Disiplin'}
+      ]},
+      { kategori: 'II - Penguasaan Pekerjaan', items: [
+        {kode:'a', label:'Kemampuan / skill'},
+        {kode:'b', label:'Pengetahuan teknis'}
+      ]}
+    ],
+    showSaran: true,
+    approvalLabels: ['SPV','Atasan langsung SPV','Atasan tidak langsung SPV','HCS Unit'],
+    signRowLabels: ['Dinilai oleh','Disetujui','Diketahui','Diterima']
+  },
+  WORKER: {
+    label: 'Form Worker',
+    sections: [
+      { kategori: 'Penilaian Kinerja', items: [
+        {kode:'a', label:'Pencapaian hasil kerja'},
+        {kode:'b', label:'Kualitas hasil pekerjaan'},
+        {kode:'c', label:'Sikap bekerja'},
+        {kode:'d', label:'Disiplin / absensi'},
+        {kode:'e', label:'Potensi dikembangkan'}
+      ]}
+    ],
+    showSaran: false,
+    approvalLabels: ['SPV','Atasan langsung SPV','Atasan Tidak langsung SPV','HCS Unit'],
+    signRowLabels: ['Penilai','Disetujui','Diketahui','Diterima']
+  }
+};
+
+let karyawanCache = [];
+let selectedKaryawan = null;
+let selectedTipe = null;
+
+document.getElementById('periodeLabel').textContent = new Date().getFullYear();
+document.getElementById('wrapTglMasuk').classList.add('hidden');
+
+// =====================================================
+// GUARD LOGIN SEDERHANA
+// =====================================================
+const currentUser = JSON.parse(sessionStorage.getItem('user') || 'null');
+if (!currentUser) {
+  window.location.href = 'login.html';
+}
+
+// =====================================================
+// LOAD DAFTAR KARYAWAN AKTIF
+// =====================================================
+async function loadKaryawan() {
+  const { data, error } = await supabaseClient
+    .from('master_karyawan')
+    .select('*')
+    .eq('status', 'Aktif')
+    .order('nama', { ascending: true });
+  if (error) { console.error(error); return; }
+  karyawanCache = data || [];
+  const dl = document.getElementById('karyawanList');
+  dl.innerHTML = karyawanCache.map(k => `<option value="${k.nama} - ${k.nik}">`).join('');
+}
+loadKaryawan();
+
+document.getElementById('karyawanSearch').addEventListener('input', (e) => {
+  const val = e.target.value;
+  const found = karyawanCache.find(k => `${k.nama} - ${k.nik}` === val);
+  if (!found) return;
+  selectedKaryawan = found;
+  document.getElementById('fNik').value = found.nik || '';
+  document.getElementById('fNama').value = found.nama || '';
+  document.getElementById('fJabatan').value = found.jabatan || '';
+  document.getElementById('fDepartemen').value = found.departemen || '';
+  document.getElementById('fUnit').value = found.gudang || '';
+  document.getElementById('fSubDepartemen').value = '';
+  document.getElementById('fLevel').value = '';
+});
+
+// =====================================================
+// PILIH TIPE FORM
+// =====================================================
+document.querySelectorAll('.form-type').forEach(el => {
+  el.addEventListener('click', () => {
+    document.querySelectorAll('.form-type').forEach(x => x.classList.remove('active'));
+    el.classList.add('active');
+    el.querySelector('input').checked = true;
+    selectedTipe = el.dataset.type;
+    document.getElementById('wrapTglMasuk').classList.toggle('hidden', selectedTipe !== 'WORKER');
+    renderKriteria();
+    renderApprovers();
+  });
+});
+
+// =====================================================
+// RENDER TABEL KRITERIA SESUAI TIPE FORM
+// =====================================================
+function renderKriteria() {
+  const tpl = FORM_TEMPLATES[selectedTipe];
+  const container = document.getElementById('kriteriaContainer');
+  container.innerHTML = '';
+
+  tpl.sections.forEach((sec) => {
+    const table = document.createElement('table');
+    table.className = 'kriteria';
+    table.dataset.kategori = sec.kategori;
+    let rows = `<tr><th colspan="2">${sec.kategori}</th><th style="width:90px;">Skor</th></tr>`;
+    sec.items.forEach(item => {
+      rows += `
+        <tr data-kode="${item.kode}" data-label="${item.label}">
+          <td colspan="2">${item.kode}. ${item.label}</td>
+          <td class="skor-col">
+            <select class="skor-input">
+              <option value="">-</option>
+              <option value="1">1</option>
+              <option value="2">2</option>
+              <option value="3">3</option>
+              <option value="4">4</option>
+              <option value="5">5</option>
+            </select>
+          </td>
+        </tr>`;
+    });
+    rows += `<tr class="rata"><td colspan="2">Rata-rata</td><td class="rata-value">-</td></tr>`;
+    table.innerHTML = rows;
+    container.appendChild(table);
+  });
+
+  container.querySelectorAll('.skor-input').forEach(sel => {
+    sel.addEventListener('change', hitungRataRata);
+  });
+
+  document.getElementById('kriteriaCard').classList.remove('hidden');
+  document.getElementById('saranCard').classList.toggle('hidden', !tpl.showSaran);
+  document.getElementById('approverCard').classList.remove('hidden');
+  document.getElementById('submitCard').classList.remove('hidden');
+  hitungRataRata();
+}
+
+function hitungRataRata() {
+  const tables = document.querySelectorAll('#kriteriaContainer table.kriteria');
+  let sectionAverages = [];
+  let allScores = [];
+
+  tables.forEach(table => {
+    const scores = [...table.querySelectorAll('.skor-input')]
+      .map(s => s.value ? parseFloat(s.value) : null)
+      .filter(v => v !== null);
+    allScores.push(...scores);
+    const avg = scores.length ? (scores.reduce((a,b)=>a+b,0) / scores.length) : 0;
+    table.querySelector('.rata-value').textContent = scores.length ? avg.toFixed(2) : '-';
+    if (scores.length) sectionAverages.push(avg);
+  });
+
+  let total;
+  if (selectedTipe === 'WORKER') {
+    total = allScores.length ? (allScores.reduce((a,b)=>a+b,0) / allScores.length) : null;
+  } else {
+    total = sectionAverages.length ? (sectionAverages.reduce((a,b)=>a+b,0) / sectionAverages.length) : null;
+  }
+  document.getElementById('totalRataRata').textContent = total !== null ? total.toFixed(2) : '-';
+}
+
+// =====================================================
+// RENDER PILIHAN APPROVER
+// =====================================================
+function renderApprovers() {
+  const tpl = FORM_TEMPLATES[selectedTipe];
+  const container = document.getElementById('approverContainer');
+  const stages = ['pimpinan_langsung','pimpinan_tidak_langsung','atasan_lebih_tinggi','hcs'];
+  container.innerHTML = '';
+  tpl.approvalLabels.forEach((label, i) => {
+    const row = document.createElement('div');
+    row.className = 'approver-row';
+    row.dataset.tahap = stages[i];
+    row.innerHTML = `
+      <div class="role">${label}<small>${tpl.signRowLabels[i]}</small></div>
+      <div>
+        <input list="karyawanList" class="approver-input" placeholder="Cari nama / NIK karyawan...">
+      </div>`;
+    container.appendChild(row);
+  });
+}
+
+// =====================================================
+// SUBMIT
+// =====================================================
+document.getElementById('btnSubmit').addEventListener('click', async () => {
+  const statusEl = document.getElementById('submitStatus');
+  statusEl.textContent = '';
+  statusEl.className = 'status-msg';
+
+  if (!selectedKaryawan) { statusEl.textContent = 'Pilih karyawan yang dinilai terlebih dahulu.'; statusEl.className='status-msg error'; return; }
+  if (!selectedTipe) { statusEl.textContent = 'Pilih tipe form terlebih dahulu.'; statusEl.className='status-msg error'; return; }
+
+  const approverRows = [...document.querySelectorAll('.approver-row')];
+  const approvers = [];
+  for (const row of approverRows) {
+    const val = row.querySelector('.approver-input').value;
+    const found = karyawanCache.find(k => `${k.nama} - ${k.nik}` === val);
+    if (!found) { statusEl.textContent = 'Lengkapi semua penandatangan.'; statusEl.className='status-msg error'; return; }
+    approvers.push({ tahap: row.dataset.tahap, karyawan: found });
+  }
+
+  const btn = document.getElementById('btnSubmit');
+  btn.disabled = true; btn.textContent = 'Menyimpan...';
+
+  try {
+    const tpl = FORM_TEMPLATES[selectedTipe];
+    const totalRataRata = parseFloat(document.getElementById('totalRataRata').textContent) || null;
+
+    const { data: penilaian, error: errPenilaian } = await supabaseClient
+      .from('penilaian_karyawan')
+      .insert({
+        karyawan_id: selectedKaryawan.id,
+        periode: String(new Date().getFullYear()),
+        dibuat_oleh: currentUser?.nama || currentUser?.username || 'Admin',
+        status: 'Proses',
+        tipe_form: selectedTipe,
+        nik_snapshot: document.getElementById('fNik').value,
+        nama_snapshot: document.getElementById('fNama').value,
+        jabatan_snapshot: document.getElementById('fJabatan').value,
+        level_snapshot: document.getElementById('fLevel').value,
+        departemen_snapshot: document.getElementById('fDepartemen').value,
+        sub_departemen_snapshot: document.getElementById('fSubDepartemen').value,
+        unit_snapshot: document.getElementById('fUnit').value,
+        tgl_masuk_kerja: document.getElementById('fTglMasuk').value || null,
+        catatan_atasan: tpl.showSaran ? document.getElementById('fCatatanAtasan').value : null,
+        saran_kekuatan: tpl.showSaran ? document.getElementById('fKekuatan').value : null,
+        saran_pengembangan: tpl.showSaran ? document.getElementById('fAreaPengembangan').value : null,
+        total_rata_rata: totalRataRata
+      })
+      .select()
+      .single();
+    if (errPenilaian) throw errPenilaian;
+
+    const detailRows = [];
+    document.querySelectorAll('#kriteriaContainer table.kriteria').forEach(table => {
+      const kategori = table.dataset.kategori;
+      table.querySelectorAll('tr[data-kode]').forEach(tr => {
+        detailRows.push({
+          penilaian_id: penilaian.id,
+          kategori,
+          kode: tr.dataset.kode,
+          label: tr.dataset.label,
+          skor: tr.querySelector('.skor-input').value ? parseFloat(tr.querySelector('.skor-input').value) : null
+        });
+      });
+    });
+    if (detailRows.length) {
+      const { error: errDetail } = await supabaseClient.from('penilaian_detail').insert(detailRows);
+      if (errDetail) throw errDetail;
+    }
+
+    const approvalRows = approvers.map((a, i) => ({
+      penilaian_id: penilaian.id,
+      tahap: a.tahap,
+      urutan: i + 1,
+      approver_karyawan_id: a.karyawan.id
+    }));
+    const { data: insertedApprovals, error: errApproval } = await supabaseClient
+      .from('penilaian_approval')
+      .insert(approvalRows)
+      .select();
+    if (errApproval) throw errApproval;
+
+    const resultLinks = document.getElementById('resultLinks');
+    resultLinks.innerHTML = '';
+    insertedApprovals
+      .sort((a,b) => a.urutan - b.urutan)
+      .forEach((row, i) => {
+        const label = tpl.approvalLabels[i];
+        const namaApprover = approvers[i].karyawan.nama;
+        const link = `${window.location.origin}${window.location.pathname.replace('penilaian-form.html','')}approval.html?token=${row.token}`;
+        const div = document.createElement('div');
+        div.className = 'result-link';
+        div.innerHTML = `<b>${label} — ${namaApprover}</b>${link}`;
+        resultLinks.appendChild(div);
+      });
+
+    document.getElementById('resultCard').classList.remove('hidden');
+    ['kriteriaCard','saranCard','approverCard','submitCard'].forEach(id => document.getElementById(id).classList.add('hidden'));
+    window.scrollTo({ top: document.getElementById('resultCard').offsetTop - 20, behavior:'smooth' });
+
+  } catch (err) {
+    console.error(err);
+    statusEl.textContent = 'Gagal menyimpan: ' + (err.message || 'terjadi kesalahan.');
+    statusEl.className = 'status-msg error';
+    btn.disabled = false; btn.textContent = 'Simpan & Kirim untuk Approval';
+  }
+});
+</script>
+</body>
+</html>
