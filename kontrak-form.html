@@ -66,8 +66,11 @@
   .status-msg.ok{ color:var(--teal); }
   .hidden{ display:none !important; }
 
-  .result-link{ background:var(--panel-2); border:1px solid var(--border); border-radius:8px; padding:10px 12px; font-size:12px; margin-bottom:8px; word-break:break-all; }
+  .result-link{ background:var(--panel-2); border:1px solid var(--border); border-radius:8px; padding:10px 12px; font-size:12px; margin-bottom:8px; display:flex; align-items:center; justify-content:space-between; gap:10px; }
+  .result-link .info{ min-width:0; word-break:break-all; }
   .result-link b{ color:var(--gold); display:block; margin-bottom:4px; font-size:12px; }
+  .copy-link-btn{ flex-shrink:0; background:var(--panel); border:1px solid var(--border); color:var(--text); font-size:12px; padding:8px 14px; border-radius:8px; cursor:pointer; white-space:nowrap; }
+  .copy-link-btn:hover{ color:var(--gold); border-color:var(--gold); }
 </style>
 </head>
 <body>
@@ -208,7 +211,7 @@ async function generateNomorMemo() {
 
   if (error) console.error(error);
 
-  const nomorUrut = (count || 0) + 1;
+  const nomorUrut = String((count || 0) + 1).padStart(3, '0');
   return `${nomorUrut}/A.01/HRD/${toRomanMonth(now.getMonth() + 1)}/${year}`;
 }
 
@@ -457,8 +460,20 @@ document.getElementById('btnSubmit').addEventListener('click', async () => {
       const link = `${window.location.origin}${window.location.pathname.replace('kontrak-form.html','')}kontrak-approval.html?token=${row.token}`;
       const div = document.createElement('div');
       div.className = 'result-link';
-      div.innerHTML = `<b>${APPROVAL_LABELS[row.tahap]} — ${row.approver_nama}</b>${link}`;
+      div.innerHTML = `
+        <div class="info"><b>${APPROVAL_LABELS[row.tahap]} — ${row.approver_nama}</b>${link}</div>
+        <button type="button" class="copy-link-btn" data-link="${link}">Salin Link</button>
+      `;
       resultLinks.appendChild(div);
+    });
+    resultLinks.querySelectorAll('.copy-link-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        navigator.clipboard.writeText(btn.dataset.link).then(() => {
+          const orig = btn.textContent;
+          btn.textContent = 'Tersalin!';
+          setTimeout(() => btn.textContent = orig, 1500);
+        });
+      });
     });
 
     document.getElementById('resultCard').classList.remove('hidden');
