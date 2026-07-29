@@ -164,7 +164,7 @@
     /* ===== tabel item — dibuat pakai <table> sungguhan supaya kolomnya
        selalu presisi sejajar seperti form kertas, apapun CSS luarnya ===== */
     table.tabel-barang{
-        width:100%; border-collapse:collapse; margin-bottom:10px;
+        width:100%; min-width:0; border-collapse:collapse; margin-bottom:10px;
         border:1px solid var(--pg-border); border-radius:8px; overflow:visible;
     }
     table.tabel-barang th{
@@ -358,7 +358,7 @@
         table.tabel-barang, table.tabel-barang thead, table.tabel-barang tbody,
         table.tabel-barang th{ display:block !important; }
         table.tabel-barang, table.tabel-barang tbody{
-            width:100% !important; max-width:100% !important; box-sizing:border-box !important;
+            width:100% !important; max-width:100% !important; min-width:0 !important; box-sizing:border-box !important;
         }
         table.tabel-barang thead{ display:none !important; }
         table.tabel-barang{ border:none; margin-bottom:4px; }
