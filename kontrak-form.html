@@ -76,7 +76,7 @@
   <div class="topbar">
     <div>
       <a class="back" href="kontrak.html">← Kembali ke daftar memo</a>
-      <h1>Buat Memo Perpanjangan Kontrak</h1>
+      <h1 id="pageTitle">Buat Memo Perpanjangan Kontrak</h1>
       <div class="muted">Internal memo &amp; pengajuan penilaian kontrak karyawan</div>
     </div>
   </div>
@@ -102,6 +102,7 @@
   <!-- STEP 2: Riwayat Kontrak -->
   <div class="card">
     <h2>2. Riwayat &amp; Masa Berakhirnya Kontrak Kerja</h2>
+    <div class="muted" style="margin-bottom:10px;">Tampilkan 3 riwayat kontrak terakhir (baris paling bawah = kontrak yang sedang berjalan / dinilai).</div>
     <table class="riwayat" id="riwayatTable">
       <thead>
         <tr><th style="width:70px;">Kontrak Ke</th><th>Mulai</th><th>Selesai</th><th class="act"></th></tr>
@@ -110,9 +111,9 @@
     </table>
     <button type="button" class="add-row-btn" onclick="addRiwayatRow()">+ Tambah baris riwayat kontrak</button>
 
-    <div class="grid2" style="margin-top:16px;">
-      <div class="field"><label>Kontrak Ke (terakhir / yang dinilai)</label><input type="number" id="fKontrakKe" min="1"></div>
-      <div class="field"><label>Masa Akhir Kontrak Saat Ini</label><input type="date" id="fMasaAkhir"></div>
+    <div class="field" style="margin-top:16px; max-width:320px;">
+      <label>Masa Akhir Kontrak Saat Ini</label>
+      <input type="date" id="fMasaAkhir">
     </div>
 
     <div class="grid2">
@@ -122,7 +123,7 @@
     <div class="field">
       <label>Nomor Memo</label>
       <input id="fNomorMemo" readonly>
-      <div class="muted" style="margin-top:6px;">Nomor memo dibuat otomatis: <b>urut/A.01/HRD/bulan romawi/tahun</b> — bulan &amp; tahun mengikuti saat memo ini diajukan. Nomor urut dihitung otomatis saat disimpan.</div>
+      <div class="muted" style="margin-top:6px;">Nomor memo dibuat otomatis oleh sistem: <b>urut/A.01/HRD/bulan romawi/tahun</b>. Tidak perlu diisi manual.</div>
     </div>
   </div>
 
@@ -177,16 +178,22 @@ const ROMAN_MONTHS = ['I','II','III','IV','V','VI','VII','VIII','IX','X','XI','X
 function toRomanMonth(monthIndex1to12) { return ROMAN_MONTHS[monthIndex1to12 - 1]; }
 
 let karyawanCache = [];
+let departemenCache = [];
 let selectedKaryawan = null;
 let selectedTipe = null;
+let existingApprovals = [];
+
+const params = new URLSearchParams(window.location.search);
+const editId = params.get('id');
+const isEditMode = !!editId;
 
 const currentUser = JSON.parse(sessionStorage.getItem('user') || 'null');
 if (!currentUser) window.location.href = 'login.html';
 
-let departemenCache = [];
-
-// Tampilkan pratinjau format nomor memo (nomor urut baru dihitung saat disimpan)
+// Tampilkan pratinjau format nomor memo (nomor urut baru dihitung saat disimpan).
+// Dalam mode edit, nomor memo yang sudah ada akan ditampilkan oleh loadExistingKontrak().
 (function showNomorMemoPreview() {
+  if (isEditMode) return;
   const now = new Date();
   document.getElementById('fNomorMemo').value = `.../A.01/HRD/${toRomanMonth(now.getMonth() + 1)}/${now.getFullYear()}`;
 })();
@@ -221,7 +228,6 @@ async function loadKaryawan() {
   const dl = document.getElementById('karyawanList');
   dl.innerHTML = karyawanCache.map(k => `<option value="${k.nama} - ${k.nik}">`).join('');
 }
-loadKaryawan();
 
 async function loadDepartemen() {
   const { data, error } = await supabaseClient
@@ -233,7 +239,6 @@ async function loadDepartemen() {
   const dl = document.getElementById('departemenList');
   dl.innerHTML = departemenCache.map(d => `<option value="Pimpinan Dept. ${d.nama_departemen}">`).join('');
 }
-loadDepartemen();
 
 document.getElementById('karyawanSearch').addEventListener('input', (e) => {
   const found = karyawanCache.find(k => `${k.nama} - ${k.nik}` === e.target.value);
@@ -268,8 +273,6 @@ function addRiwayatRow(ke = '', mulai = '', selesai = '') {
   `;
   tbody.appendChild(tr);
 }
-addRiwayatRow();
-addRiwayatRow();
 
 // ---- Pilih tipe form ----
 document.querySelectorAll('.form-type').forEach(el => {
@@ -280,6 +283,70 @@ document.querySelectorAll('.form-type').forEach(el => {
     selectedTipe = el.dataset.type;
   });
 });
+
+// ---- Muat data existing untuk mode edit ----
+async function loadExistingKontrak() {
+  const { data: k, error } = await supabaseClient.from('im_kontrak').select('*').eq('id', editId).single();
+  if (error || !k) { alert('Data memo tidak ditemukan.'); window.location.href = 'kontrak.html'; return; }
+  if (k.status === 'Selesai') { alert('Memo yang sudah selesai tidak dapat diedit.'); window.location.href = 'kontrak.html'; return; }
+
+  const { data: approvals } = await supabaseClient.from('im_kontrak_approval').select('*').eq('kontrak_id', editId);
+  existingApprovals = approvals || [];
+
+  selectedKaryawan = karyawanCache.find(x => x.id === k.karyawan_id) || { id: k.karyawan_id, nama: k.nama_snapshot, nik: k.nik_snapshot };
+  document.getElementById('karyawanSearch').value = `${k.nama_snapshot || ''} - ${k.nik_snapshot || ''}`;
+  document.getElementById('fNik').value = k.nik_snapshot || '';
+  document.getElementById('fNama').value = k.nama_snapshot || '';
+  document.getElementById('fJabatan').value = k.jabatan_snapshot || '';
+  document.getElementById('fUnit').value = k.unit_snapshot || '';
+  document.getElementById('fBagian').value = k.bagian_snapshot || '';
+  document.getElementById('fTglMasuk').value = k.tanggal_masuk || '';
+
+  const riwayat = (Array.isArray(k.riwayat_kontrak) ? k.riwayat_kontrak : []).slice(-3);
+  document.getElementById('riwayatBody').innerHTML = '';
+  if (riwayat.length) {
+    riwayat.forEach(r => addRiwayatRow(r.ke ?? '', r.mulai ?? '', r.selesai ?? ''));
+  } else {
+    addRiwayatRow(); addRiwayatRow(); addRiwayatRow();
+  }
+
+  document.getElementById('fMasaAkhir').value = k.masa_akhir_kontrak || '';
+  document.getElementById('fKepadaJabatan').value = k.kepada_jabatan || '';
+  document.getElementById('fKepadaNama').value = k.kepada_nama || '';
+  document.getElementById('fNomorMemo').value = k.nomor_memo || '(belum diterbitkan)';
+
+  if (k.tipe_form) {
+    selectedTipe = k.tipe_form;
+    const el = document.querySelector(`.form-type[data-type="${k.tipe_form}"]`);
+    if (el) { el.classList.add('active'); el.querySelector('input').checked = true; }
+  }
+
+  const hcsApproval = existingApprovals.find(a => a.tahap === 'hcs');
+  const penilaiApproval = existingApprovals.find(a => a.tahap === 'penilai');
+  if (hcsApproval) {
+    const hcsKaryawan = karyawanCache.find(x => x.id === hcsApproval.approver_karyawan_id);
+    document.getElementById('fHcsInput').value = `${hcsApproval.approver_nama}${hcsKaryawan ? ' - ' + hcsKaryawan.nik : ''}`;
+  }
+  if (penilaiApproval) {
+    const penilaiKaryawan = karyawanCache.find(x => x.id === penilaiApproval.approver_karyawan_id);
+    document.getElementById('fPenilaiInput').value = `${penilaiApproval.approver_nama}${penilaiKaryawan ? ' - ' + penilaiKaryawan.nik : ''}`;
+  }
+
+  document.getElementById('pageTitle').textContent = 'Edit Memo Perpanjangan Kontrak';
+  document.getElementById('btnSubmit').textContent = 'Simpan Perubahan';
+}
+
+async function init() {
+  await Promise.all([loadKaryawan(), loadDepartemen()]);
+  if (isEditMode) {
+    await loadExistingKontrak();
+  } else {
+    addRiwayatRow();
+    addRiwayatRow();
+    addRiwayatRow();
+  }
+}
+init();
 
 // ---- Submit ----
 document.getElementById('btnSubmit').addEventListener('click', async () => {
@@ -302,10 +369,55 @@ document.getElementById('btnSubmit').addEventListener('click', async () => {
     selesai: tr.querySelector('.r-selesai').value || null
   })).filter(r => r.ke || r.mulai || r.selesai);
 
+  // Kontrak ke (terakhir/dinilai) dihitung otomatis dari baris riwayat terakhir yang diisi.
+  const kontrakKeTerakhir = riwayat.length ? riwayat[riwayat.length - 1].ke : null;
+
   const btn = document.getElementById('btnSubmit');
   btn.disabled = true; btn.textContent = 'Menyimpan...';
 
   try {
+    if (isEditMode) {
+      const { error: errUpdate } = await supabaseClient
+        .from('im_kontrak')
+        .update({
+          karyawan_id: selectedKaryawan.id,
+          nik_snapshot: document.getElementById('fNik').value,
+          nama_snapshot: document.getElementById('fNama').value,
+          unit_snapshot: document.getElementById('fUnit').value,
+          bagian_snapshot: document.getElementById('fBagian').value,
+          jabatan_snapshot: document.getElementById('fJabatan').value,
+          tanggal_masuk: document.getElementById('fTglMasuk').value || null,
+          kepada_jabatan: document.getElementById('fKepadaJabatan').value,
+          kepada_nama: resolveNamaFromInput(document.getElementById('fKepadaNama').value),
+          riwayat_kontrak: riwayat,
+          kontrak_ke_terakhir: kontrakKeTerakhir,
+          masa_akhir_kontrak: document.getElementById('fMasaAkhir').value || null,
+          tipe_form: selectedTipe,
+          nama_atasan_penilai: penilai.nama,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', editId);
+      if (errUpdate) throw errUpdate;
+
+      const hcsApproval = existingApprovals.find(a => a.tahap === 'hcs');
+      const penilaiApproval = existingApprovals.find(a => a.tahap === 'penilai');
+      if (hcsApproval) {
+        await supabaseClient.from('im_kontrak_approval')
+          .update({ approver_karyawan_id: hcs.id, approver_nama: hcs.nama })
+          .eq('id', hcsApproval.id);
+      }
+      if (penilaiApproval) {
+        await supabaseClient.from('im_kontrak_approval')
+          .update({ approver_karyawan_id: penilai.id, approver_nama: penilai.nama })
+          .eq('id', penilaiApproval.id);
+      }
+
+      statusEl.textContent = 'Perubahan berhasil disimpan.';
+      statusEl.className = 'status-msg ok';
+      setTimeout(() => window.location.href = 'kontrak.html', 900);
+      return;
+    }
+
     const nomorMemo = await generateNomorMemo();
 
     const { data: kontrak, error: errKontrak } = await supabaseClient
@@ -322,7 +434,7 @@ document.getElementById('btnSubmit').addEventListener('click', async () => {
         kepada_jabatan: document.getElementById('fKepadaJabatan').value,
         kepada_nama: resolveNamaFromInput(document.getElementById('fKepadaNama').value),
         riwayat_kontrak: riwayat,
-        kontrak_ke_terakhir: document.getElementById('fKontrakKe').value ? parseInt(document.getElementById('fKontrakKe').value) : null,
+        kontrak_ke_terakhir: kontrakKeTerakhir,
         masa_akhir_kontrak: document.getElementById('fMasaAkhir').value || null,
         tipe_form: selectedTipe,
         nama_atasan_penilai: penilai.nama,
@@ -360,7 +472,7 @@ document.getElementById('btnSubmit').addEventListener('click', async () => {
     console.error(err);
     statusEl.textContent = 'Gagal menyimpan: ' + (err.message || 'terjadi kesalahan.');
     statusEl.className = 'status-msg error';
-    btn.disabled = false; btn.textContent = 'Simpan & Kirim ke HCS';
+    btn.disabled = false; btn.textContent = isEditMode ? 'Simpan Perubahan' : 'Simpan & Kirim ke HCS';
   }
 });
 </script>
