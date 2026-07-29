@@ -580,7 +580,7 @@
        kontainer-nya; tombol Copy Link Publik sendiri hanya tampak untuk
        admin lewat class admin-only). Ditambahkan gap supaya kedua tombol
        tidak menempel. */
-    .toolbar-print{ display:flex !important; justify-content:flex-end; gap:10px; min-height:8px; }
+    .toolbar-print{ display:flex !important; justify-content:flex-end; gap:10px; min-height:0; }
 
     /* ===== panel-panel khusus admin ===== */
     .admin-only{ display:none; }
@@ -728,12 +728,10 @@ onclick="location.href='dashboard.html'">
 🏠 Dashboard
 </button>
 </div>
-<br>
 <div class="toolbar-print">
     <button type="button" class="btn-print admin-only" id="btnCopyLinkPublik" title="Salin link publik formulir ini untuk dibagikan ke karyawan">🔗 Copy Link Publik</button>
     <button type="button" class="btn-print" id="btnCetakForm" style="display:none;">🖨️ Cetak Form</button>
 </div>
-<br>
 
 <div class="panel" id="formPermintaanWrap">
 
