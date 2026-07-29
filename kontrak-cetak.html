@@ -24,8 +24,9 @@
     font-family: Georgia, 'Times New Roman', serif; font-size:13px; line-height:1.55;
     border-radius:4px; box-shadow:0 8px 30px rgba(0,0,0,.35);
   }
-  .letterhead{ display:flex; align-items:center; gap:14px; border-bottom:3px solid #1b3a63; padding-bottom:12px; margin-bottom:18px; }
-  .logo-mark{ width:52px; height:52px; border-radius:8px; background:#1b3a63; color:#fff; display:flex; align-items:center; justify-content:center; font-weight:700; font-size:20px; font-family:Arial, sans-serif; }
+  .letterhead{ display:flex; align-items:center; gap:14px; padding-bottom:12px; margin-bottom:18px; }
+  .logo-mark{ width:52px; height:52px; border-radius:8px; overflow:hidden; display:flex; align-items:center; justify-content:center; }
+  .logo-mark img{ width:100%; height:100%; object-fit:contain; }
   .letterhead .co-name{ font-weight:700; font-size:16px; color:#1b3a63; font-family:Arial, sans-serif; letter-spacing:.5px; }
   .letterhead .co-tag{ font-size:11px; color:#555; font-family:Arial, sans-serif; }
 
@@ -176,7 +177,7 @@ function render(k) {
   const memoBody = `
     <div class="sheet">
       <div class="letterhead">
-        <div class="logo-mark">SDA</div>
+        <div class="logo-mark"><img src="images/logo-sda-global.png" alt="Logo"></div>
         <div>
           <div class="co-name">SDA FLUID POWER COMPANY</div>
           <div class="co-tag">Hydraulics, Pneumatics &amp; Engineering</div>
