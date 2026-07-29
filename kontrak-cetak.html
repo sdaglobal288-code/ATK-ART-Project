@@ -147,6 +147,7 @@ function esc(str) {
   return div.innerHTML;
 }
 function cb(checked) { return `<span class="checkbox${checked ? ' checked' : ''}"></span>`; }
+function b(checked, text) { return checked ? `<b>${text}</b>` : text; }
 
 async function load() {
   if (!id) { renderError('Parameter id tidak ditemukan.'); return; }
@@ -214,7 +215,7 @@ function render(k) {
       </table>
 
       <div class="memo-body">
-        <p>Untuk selanjutnya apabila diperpanjang ( ${cb(rekom==='diperpanjang' && k.durasi_perpanjangan==='3')} 3 / ${cb(rekom==='diperpanjang' && k.durasi_perpanjangan==='6')} 6 / ${cb(rekom==='diperpanjang' && k.durasi_perpanjangan==='12')} 12 bulan ) / Ditidak diperpanjang ${cb(rekom==='tidak_diperpanjang')} / Dimutasikan sebagai karyawan tetap ${cb(rekom==='karyawan_tetap')}, dilengkapi dengan pengisian form sebagaimana terlampir. Batasan internal memo yang tertulis maksimal 30 hari sebelum kontrak karyawan berakhir, jika melebihi batas waktu yang ditetapkan maka hal - hal yang berkaitan dengan legalitas karyawan (status kekaryawanan) menjadi tanggungjawab Departemen.</p>
+        <p>Untuk selanjutnya apabila ${b(rekom==='diperpanjang','diperpanjang')} ( ${b(k.durasi_perpanjangan==='3','3')} / ${b(k.durasi_perpanjangan==='6','6')} / ${b(k.durasi_perpanjangan==='12','12')} bulan ) / ${b(rekom==='tidak_diperpanjang','Tidak diperpanjang')} / ${b(rekom==='karyawan_tetap','Diusulkan sebagai karyawan tetap')}, dilengkapi dengan pengisian form sebagaimana terlampir. Balasan internal memo maksimal 30 hari sebelum kontrak karyawan berakhir, jika melebihi batas waktu yang telah ditetapkan maka hal - hal yang berkaitan dengan legalitas karyawan (status kekaryawanan) menjadi tanggungan Departemen.</p>
         <p>Demikian pemberitahuan dari kami atas perhatian dan kerjasamanya kami sampaikan terima kasih.</p>
       </div>
 
