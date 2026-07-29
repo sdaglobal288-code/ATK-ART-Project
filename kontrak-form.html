@@ -119,7 +119,7 @@
       <div class="field"><label>Kepada (Jabatan)</label><input list="departemenList" id="fKepadaJabatan" placeholder="Cari departemen..."><datalist id="departemenList"></datalist></div>
       <div class="field"><label>Up. (Nama Atasan)</label><input list="karyawanList" id="fKepadaNama" placeholder="Cari nama / NIK atasan..."></div>
     </div>
-    <div class="field"><label>Nomor Memo (opsional, boleh dikosongkan &amp; diisi HCS saat cetak)</label><input id="fNomorMemo" placeholder="contoh: 199/A.01/HRD/VII/2026"></div>
+    <div class="field"><label>Nomor Memo (opsional, boleh dikosongkan &amp; dikonfirmasi HCS saat approval)</label><input id="fNomorMemo" placeholder="contoh: 199/A.01/HRD/VII/2026"></div>
   </div>
 
   <!-- STEP 3: Tipe Form Penilaian -->
@@ -142,25 +142,25 @@
   <!-- STEP 4: Penandatangan -->
   <div class="card">
     <h2>4. Penandatangan</h2>
-    <div class="approver-row" data-tahap="penilai">
-      <div class="role">Penilai (Atasan Langsung)<small>Mengisi Form penilaian &amp; rekomendasi</small></div>
-      <div><input list="karyawanList" class="approver-input" id="fPenilaiInput" placeholder="Cari nama / NIK atasan..."></div>
-    </div>
     <div class="approver-row" data-tahap="hcs">
-      <div class="role">HCS Supervisor<small>Menyetujui &amp; menerbitkan memo</small></div>
+      <div class="role">HCS Supervisor<small>Menyetujui internal memo &amp; menerbitkan nomor memo (tahap pertama)</small></div>
       <div><input list="karyawanList" class="approver-input" id="fHcsInput" placeholder="Cari nama / NIK HCS..."></div>
+    </div>
+    <div class="approver-row" data-tahap="penilai">
+      <div class="role">Penilai (Atasan Langsung)<small>Melihat internal memo &amp; mengisi Form penilaian + rekomendasi (tahap kedua)</small></div>
+      <div><input list="karyawanList" class="approver-input" id="fPenilaiInput" placeholder="Cari nama / NIK atasan..."></div>
     </div>
   </div>
 
   <div class="card">
-    <button class="btn" id="btnSubmit">Simpan &amp; Kirim untuk Penilaian</button>
+    <button class="btn" id="btnSubmit">Simpan &amp; Kirim ke HCS</button>
     <div class="status-msg" id="submitStatus"></div>
   </div>
 
   <!-- Hasil -->
   <div class="card hidden" id="resultCard">
     <h2>Memo Berhasil Dibuat</h2>
-    <p class="muted">Bagikan link di bawah ini secara berurutan (WhatsApp/email). Link berlaku 30 hari.</p>
+    <p class="muted">Bagikan link di bawah ini secara berurutan (WhatsApp/email). HCS akan diminta menyetujui &amp; menerbitkan nomor memo terlebih dahulu, baru link untuk Penilai (Atasan Langsung) aktif — Penilai akan bisa melihat internal memo sekaligus mengisi form penilaian. Link berlaku 30 hari.</p>
     <div id="resultLinks"></div>
     <a class="btn secondary" href="kontrak.html" style="margin-top:10px;">Selesai</a>
   </div>
@@ -168,7 +168,7 @@
 </div>
 
 <script>
-const APPROVAL_LABELS = { penilai: 'Penilai (Atasan Langsung)', hcs: 'HCS Supervisor' };
+const APPROVAL_LABELS = { hcs: 'HCS Supervisor', penilai: 'Penilai (Atasan Langsung)' };
 
 let karyawanCache = [];
 let selectedKaryawan = null;
@@ -293,7 +293,7 @@ document.getElementById('btnSubmit').addEventListener('click', async () => {
         masa_akhir_kontrak: document.getElementById('fMasaAkhir').value || null,
         tipe_form: selectedTipe,
         nama_atasan_penilai: penilai.nama,
-        status: 'Menunggu Penilaian',
+        status: 'Menunggu Persetujuan HCS',
         dibuat_oleh: currentUser?.nama || currentUser?.username || 'HCS'
       })
       .select()
@@ -301,8 +301,8 @@ document.getElementById('btnSubmit').addEventListener('click', async () => {
     if (errKontrak) throw errKontrak;
 
     const approvalRows = [
-      { kontrak_id: kontrak.id, tahap: 'penilai', urutan: 1, approver_karyawan_id: penilai.id, approver_nama: penilai.nama },
-      { kontrak_id: kontrak.id, tahap: 'hcs', urutan: 2, approver_karyawan_id: hcs.id, approver_nama: hcs.nama }
+      { kontrak_id: kontrak.id, tahap: 'hcs', urutan: 1, approver_karyawan_id: hcs.id, approver_nama: hcs.nama },
+      { kontrak_id: kontrak.id, tahap: 'penilai', urutan: 2, approver_karyawan_id: penilai.id, approver_nama: penilai.nama }
     ];
     const { data: insertedApprovals, error: errApproval } = await supabaseClient
       .from('im_kontrak_approval')
@@ -327,7 +327,7 @@ document.getElementById('btnSubmit').addEventListener('click', async () => {
     console.error(err);
     statusEl.textContent = 'Gagal menyimpan: ' + (err.message || 'terjadi kesalahan.');
     statusEl.className = 'status-msg error';
-    btn.disabled = false; btn.textContent = 'Simpan & Kirim untuk Penilaian';
+    btn.disabled = false; btn.textContent = 'Simpan & Kirim ke HCS';
   }
 });
 </script>
