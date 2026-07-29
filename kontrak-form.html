@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Buat Memo Perpanjangan Kontrak</title>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="supabase/config.js"></script>
+
+<style>
+  :root{
+    --bg: #241a12; --panel: #3a2b1e; --panel-2: #302213; --border: #4f3d29;
+    --text: #f2e9dc; --text-muted: #b6a48c; --gold: #d4a24c; --teal: #4dd0c4;
+    --pink: #e06b8b; --orange:#e8873a;
+  }
+  *{ box-sizing:border-box; }
+  body{ margin:0; background:var(--bg); color:var(--text); font-family:'Segoe UI', system-ui, -apple-system, sans-serif; padding:28px 20px 80px; }
+  .wrap{ max-width:880px; margin:0 auto; }
+  .topbar{ display:flex; align-items:center; justify-content:space-between; margin-bottom:24px; }
+  .back{ color:var(--text-muted); text-decoration:none; font-size:13px; }
+  .back:hover{ color:var(--gold); }
+  h1{ font-size:22px; margin:4px 0 4px; }
+  .muted{ color:var(--text-muted); font-size:13px; }
+
+  .card{ background:var(--panel); border:1px solid var(--border); border-radius:14px; padding:22px; margin-bottom:20px; }
+  .card h2{ font-size:15px; margin:0 0 16px; color:var(--pink); }
+
+  .grid2{ display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+  @media (max-width:640px){ .grid2{ grid-template-columns:1fr; } }
+
+  label{ font-size:12px; color:var(--text-muted); display:block; margin-bottom:6px; }
+  input, select, textarea{
+    width:100%; background:var(--panel-2); border:1px solid var(--border); color:var(--text);
+    padding:9px 11px; border-radius:8px; font-size:13px; font-family:inherit;
+  }
+  textarea{ min-height:60px; resize:vertical; }
+  .field{ margin-bottom:14px; }
+
+  table.riwayat{ width:100%; border-collapse:collapse; margin-bottom:10px; }
+  table.riwayat th, table.riwayat td{ border:1px solid var(--border); padding:7px 8px; font-size:12px; text-align:left; }
+  table.riwayat th{ background:var(--panel-2); color:var(--gold); font-size:11px; }
+  table.riwayat input{ padding:6px 7px; font-size:12px; }
+  table.riwayat td.act{ width:36px; text-align:center; }
+  .rm-row{ cursor:pointer; color:var(--pink); font-weight:700; }
+  .add-row-btn{ font-size:12px; color:var(--teal); cursor:pointer; background:none; border:none; padding:0; }
+
+  .form-type-options{ display:flex; gap:12px; flex-wrap:wrap; }
+  .form-type{ flex:1; min-width:220px; border:1px solid var(--border); border-radius:10px; padding:14px; cursor:pointer; transition:border-color .15s, background .15s; }
+  .form-type:hover{ border-color:var(--pink); }
+  .form-type.active{ border-color:var(--pink); background:rgba(224,107,139,0.08); }
+  .form-type input{ display:none; }
+  .form-type .t{ font-weight:600; font-size:13px; margin-bottom:4px; }
+  .form-type .d{ font-size:12px; color:var(--text-muted); }
+
+  .approver-row{ display:grid; grid-template-columns:220px 1fr; gap:14px; align-items:center; padding:10px 0; border-bottom:1px solid var(--border); }
+  .approver-row:last-child{ border-bottom:none; }
+  .approver-row .role small{ display:block; color:var(--text-muted); font-size:11px; margin-top:2px; }
+
+  .btn{ background:linear-gradient(135deg, var(--pink), #c14e70); color:#241a12; border:none; padding:12px 22px; border-radius:10px; font-weight:700; font-size:14px; cursor:pointer; }
+  .btn:disabled{ opacity:.5; cursor:not-allowed; }
+  .btn.secondary{ background:transparent; border:1px solid var(--border); color:var(--text); text-decoration:none; display:inline-block; }
+
+  .status-msg{ font-size:13px; margin-top:10px; }
+  .status-msg.error{ color:var(--pink); }
+  .status-msg.ok{ color:var(--teal); }
+  .hidden{ display:none !important; }
+
+  .result-link{ background:var(--panel-2); border:1px solid var(--border); border-radius:8px; padding:10px 12px; font-size:12px; margin-bottom:8px; word-break:break-all; }
+  .result-link b{ color:var(--gold); display:block; margin-bottom:4px; font-size:12px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="topbar">
+    <div>
+      <a class="back" href="kontrak.html">← Kembali ke daftar memo</a>
+      <h1>Buat Memo Perpanjangan Kontrak</h1>
+      <div class="muted">Internal memo &amp; pengajuan penilaian kontrak karyawan</div>
+    </div>
+  </div>
+
+  <!-- STEP 1: Karyawan -->
+  <div class="card">
+    <h2>1. Data Karyawan</h2>
+    <div class="field">
+      <label>Cari nama / NIK karyawan</label>
+      <input list="karyawanList" id="karyawanSearch" placeholder="Ketik nama atau NIK...">
+      <datalist id="karyawanList"></datalist>
+    </div>
+    <div class="grid2">
+      <div class="field"><label>NIK</label><input id="fNik" readonly></div>
+      <div class="field"><label>Nama</label><input id="fNama" readonly></div>
+      <div class="field"><label>Jabatan / Bagian</label><input id="fJabatan"></div>
+      <div class="field"><label>Unit (Perusahaan)</label><input id="fUnit" value="PT SDA Global"></div>
+      <div class="field"><label>Departemen / Bagian</label><input id="fBagian" readonly></div>
+      <div class="field"><label>Tanggal Masuk Kerja</label><input type="date" id="fTglMasuk"></div>
+    </div>
+  </div>
+
+  <!-- STEP 2: Riwayat Kontrak -->
+  <div class="card">
+    <h2>2. Riwayat &amp; Masa Berakhirnya Kontrak Kerja</h2>
+    <table class="riwayat" id="riwayatTable">
+      <thead>
+        <tr><th style="width:70px;">Kontrak Ke</th><th>Mulai</th><th>Selesai</th><th class="act"></th></tr>
+      </thead>
+      <tbody id="riwayatBody"></tbody>
+    </table>
+    <button type="button" class="add-row-btn" onclick="addRiwayatRow()">+ Tambah baris riwayat kontrak</button>
+
+    <div class="grid2" style="margin-top:16px;">
+      <div class="field"><label>Kontrak Ke (terakhir / yang dinilai)</label><input type="number" id="fKontrakKe" min="1"></div>
+      <div class="field"><label>Masa Akhir Kontrak Saat Ini</label><input type="date" id="fMasaAkhir"></div>
+    </div>
+
+    <div class="grid2">
+      <div class="field"><label>Kepada (Jabatan)</label><input id="fKepadaJabatan" placeholder="Pimpinan Dept Technical &amp; Machining"></div>
+      <div class="field"><label>Up. (Nama Atasan)</label><input id="fKepadaNama" placeholder="Bambang Iswanto"></div>
+    </div>
+    <div class="field"><label>Nomor Memo (opsional, boleh dikosongkan &amp; diisi HCS saat cetak)</label><input id="fNomorMemo" placeholder="contoh: 199/A.01/HRD/VII/2026"></div>
+  </div>
+
+  <!-- STEP 3: Tipe Form Penilaian -->
+  <div class="card">
+    <h2>3. Tipe Form Penilaian Kontrak</h2>
+    <div class="form-type-options" id="formTypeOptions">
+      <label class="form-type" data-type="FORM1">
+        <input type="radio" name="tipeForm" value="FORM1">
+        <div class="t">Form 1</div>
+        <div class="d">Karyawan memiliki anak buah (ada penilaian People Management)</div>
+      </label>
+      <label class="form-type" data-type="FORM2">
+        <input type="radio" name="tipeForm" value="FORM2">
+        <div class="t">Form 2</div>
+        <div class="d">Karyawan tidak memiliki anak buah</div>
+      </label>
+    </div>
+  </div>
+
+  <!-- STEP 4: Penandatangan -->
+  <div class="card">
+    <h2>4. Penandatangan</h2>
+    <div class="approver-row" data-tahap="penilai">
+      <div class="role">Penilai (Atasan Langsung)<small>Mengisi Form penilaian &amp; rekomendasi</small></div>
+      <div><input list="karyawanList" class="approver-input" id="fPenilaiInput" placeholder="Cari nama / NIK atasan..."></div>
+    </div>
+    <div class="approver-row" data-tahap="hcs">
+      <div class="role">HCS Supervisor<small>Menyetujui &amp; menerbitkan memo</small></div>
+      <div><input list="karyawanList" class="approver-input" id="fHcsInput" placeholder="Cari nama / NIK HCS..."></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <button class="btn" id="btnSubmit">Simpan &amp; Kirim untuk Penilaian</button>
+    <div class="status-msg" id="submitStatus"></div>
+  </div>
+
+  <!-- Hasil -->
+  <div class="card hidden" id="resultCard">
+    <h2>Memo Berhasil Dibuat</h2>
+    <p class="muted">Bagikan link di bawah ini secara berurutan (WhatsApp/email). Link berlaku 30 hari.</p>
+    <div id="resultLinks"></div>
+    <a class="btn secondary" href="kontrak.html" style="margin-top:10px;">Selesai</a>
+  </div>
+
+</div>
+
+<script>
+const APPROVAL_LABELS = { penilai: 'Penilai (Atasan Langsung)', hcs: 'HCS Supervisor' };
+
+let karyawanCache = [];
+let selectedKaryawan = null;
+let selectedTipe = null;
+
+const currentUser = JSON.parse(sessionStorage.getItem('user') || 'null');
+if (!currentUser) window.location.href = 'login.html';
+
+async function loadKaryawan() {
+  const { data, error } = await supabaseClient
+    .from('master_karyawan')
+    .select('*')
+    .eq('status', 'Aktif')
+    .order('nama', { ascending: true });
+  if (error) { console.error(error); return; }
+  karyawanCache = data || [];
+  const dl = document.getElementById('karyawanList');
+  dl.innerHTML = karyawanCache.map(k => `<option value="${k.nama} - ${k.nik}">`).join('');
+}
+loadKaryawan();
+
+document.getElementById('karyawanSearch').addEventListener('input', (e) => {
+  const found = karyawanCache.find(k => `${k.nama} - ${k.nik}` === e.target.value);
+  if (!found) return;
+  selectedKaryawan = found;
+  document.getElementById('fNik').value = found.nik || '';
+  document.getElementById('fNama').value = found.nama || '';
+  document.getElementById('fJabatan').value = found.jabatan || '';
+  document.getElementById('fBagian').value = found.departemen || '';
+});
+
+// ---- Riwayat kontrak dinamis ----
+function addRiwayatRow(ke = '', mulai = '', selesai = '') {
+  const tbody = document.getElementById('riwayatBody');
+  const tr = document.createElement('tr');
+  tr.innerHTML = `
+    <td><input type="number" class="r-ke" min="1" value="${ke}"></td>
+    <td><input type="date" class="r-mulai" value="${mulai}"></td>
+    <td><input type="date" class="r-selesai" value="${selesai}"></td>
+    <td class="act"><span class="rm-row" onclick="this.closest('tr').remove()">✕</span></td>
+  `;
+  tbody.appendChild(tr);
+}
+addRiwayatRow();
+addRiwayatRow();
+
+// ---- Pilih tipe form ----
+document.querySelectorAll('.form-type').forEach(el => {
+  el.addEventListener('click', () => {
+    document.querySelectorAll('.form-type').forEach(x => x.classList.remove('active'));
+    el.classList.add('active');
+    el.querySelector('input').checked = true;
+    selectedTipe = el.dataset.type;
+  });
+});
+
+// ---- Submit ----
+document.getElementById('btnSubmit').addEventListener('click', async () => {
+  const statusEl = document.getElementById('submitStatus');
+  statusEl.textContent = ''; statusEl.className = 'status-msg';
+
+  if (!selectedKaryawan) { statusEl.textContent = 'Pilih karyawan terlebih dahulu.'; statusEl.className='status-msg error'; return; }
+  if (!selectedTipe) { statusEl.textContent = 'Pilih tipe form penilaian terlebih dahulu.'; statusEl.className='status-msg error'; return; }
+
+  const penilaiVal = document.getElementById('fPenilaiInput').value;
+  const hcsVal = document.getElementById('fHcsInput').value;
+  const penilai = karyawanCache.find(k => `${k.nama} - ${k.nik}` === penilaiVal);
+  const hcs = karyawanCache.find(k => `${k.nama} - ${k.nik}` === hcsVal);
+  if (!penilai || !hcs) { statusEl.textContent = 'Lengkapi Penilai dan HCS Supervisor.'; statusEl.className='status-msg error'; return; }
+
+  const riwayat = [...document.querySelectorAll('#riwayatBody tr')].map(tr => ({
+    ke: tr.querySelector('.r-ke').value ? parseInt(tr.querySelector('.r-ke').value) : null,
+    mulai: tr.querySelector('.r-mulai').value || null,
+    selesai: tr.querySelector('.r-selesai').value || null
+  })).filter(r => r.ke || r.mulai || r.selesai);
+
+  const btn = document.getElementById('btnSubmit');
+  btn.disabled = true; btn.textContent = 'Menyimpan...';
+
+  try {
+    const { data: kontrak, error: errKontrak } = await supabaseClient
+      .from('im_kontrak')
+      .insert({
+        nomor_memo: document.getElementById('fNomorMemo').value || null,
+        karyawan_id: selectedKaryawan.id,
+        nik_snapshot: document.getElementById('fNik').value,
+        nama_snapshot: document.getElementById('fNama').value,
+        unit_snapshot: document.getElementById('fUnit').value,
+        bagian_snapshot: document.getElementById('fBagian').value,
+        jabatan_snapshot: document.getElementById('fJabatan').value,
+        tanggal_masuk: document.getElementById('fTglMasuk').value || null,
+        kepada_jabatan: document.getElementById('fKepadaJabatan').value,
+        kepada_nama: document.getElementById('fKepadaNama').value,
+        riwayat_kontrak: riwayat,
+        kontrak_ke_terakhir: document.getElementById('fKontrakKe').value ? parseInt(document.getElementById('fKontrakKe').value) : null,
+        masa_akhir_kontrak: document.getElementById('fMasaAkhir').value || null,
+        tipe_form: selectedTipe,
+        nama_atasan_penilai: penilai.nama,
+        status: 'Menunggu Penilaian',
+        dibuat_oleh: currentUser?.nama || currentUser?.username || 'HCS'
+      })
+      .select()
+      .single();
+    if (errKontrak) throw errKontrak;
+
+    const approvalRows = [
+      { kontrak_id: kontrak.id, tahap: 'penilai', urutan: 1, approver_karyawan_id: penilai.id, approver_nama: penilai.nama },
+      { kontrak_id: kontrak.id, tahap: 'hcs', urutan: 2, approver_karyawan_id: hcs.id, approver_nama: hcs.nama }
+    ];
+    const { data: insertedApprovals, error: errApproval } = await supabaseClient
+      .from('im_kontrak_approval')
+      .insert(approvalRows)
+      .select();
+    if (errApproval) throw errApproval;
+
+    const resultLinks = document.getElementById('resultLinks');
+    resultLinks.innerHTML = '';
+    insertedApprovals.sort((a,b) => a.urutan - b.urutan).forEach(row => {
+      const link = `${window.location.origin}${window.location.pathname.replace('kontrak-form.html','')}kontrak-approval.html?token=${row.token}`;
+      const div = document.createElement('div');
+      div.className = 'result-link';
+      div.innerHTML = `<b>${APPROVAL_LABELS[row.tahap]} — ${row.approver_nama}</b>${link}`;
+      resultLinks.appendChild(div);
+    });
+
+    document.getElementById('resultCard').classList.remove('hidden');
+    window.scrollTo({ top: document.getElementById('resultCard').offsetTop - 20, behavior:'smooth' });
+
+  } catch (err) {
+    console.error(err);
+    statusEl.textContent = 'Gagal menyimpan: ' + (err.message || 'terjadi kesalahan.');
+    statusEl.className = 'status-msg error';
+    btn.disabled = false; btn.textContent = 'Simpan & Kirim untuk Penilaian';
+  }
+});
+</script>
+</body>
+</html>
