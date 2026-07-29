@@ -149,10 +149,11 @@
           <th>Status</th>
           <th>Rekomendasi</th>
           <th>Dibuat</th>
+          <th>Aksi</th>
         </tr>
       </thead>
       <tbody id="listBody">
-        <tr><td colspan="7"><div class="loading">Memuat data...</div></td></tr>
+        <tr><td colspan="8"><div class="loading">Memuat data...</div></td></tr>
       </tbody>
     </table>
   </div>
@@ -188,7 +189,7 @@ async function loadData() {
     .select('*')
     .order('created_at', { ascending: false });
 
-  if (err1) { console.error(err1); document.getElementById('listBody').innerHTML = `<tr><td colspan="7"><div class="empty">Gagal memuat data. Pastikan tabel im_kontrak sudah dibuat (lihat sql/kontrak_schema.sql).</div></td></tr>`; return; }
+  if (err1) { console.error(err1); document.getElementById('listBody').innerHTML = `<tr><td colspan="8"><div class="empty">Gagal memuat data. Pastikan tabel im_kontrak sudah dibuat (lihat sql/kontrak_schema.sql).</div></td></tr>`; return; }
 
   const { data: approvals, error: err2 } = await supabaseClient
     .from('im_kontrak_approval')
@@ -239,7 +240,7 @@ function renderTable() {
   const filtered = getFiltered();
 
   if (!filtered.length) {
-    body.innerHTML = `<tr><td colspan="7"><div class="empty">Belum ada data memo yang cocok.</div></td></tr>`;
+    body.innerHTML = `<tr><td colspan="8"><div class="empty">Belum ada data memo yang cocok.</div></td></tr>`;
     return;
   }
 
@@ -254,9 +255,13 @@ function renderTable() {
         <td><span class="badge ${STATUS_BADGE[p.status] || 'draft'}">${p.status}</span></td>
         <td>${p.rekomendasi ? REKOMENDASI_LABELS[p.rekomendasi] || p.rekomendasi : '-'}</td>
         <td>${tanggal}</td>
+        <td>
+          ${p.status !== 'Selesai' ? `<a class="edit-link" href="kontrak-form.html?id=${p.id}">✎ Edit</a>` : ''}
+          ${p.status === 'Selesai' ? `<a class="print-link" href="kontrak-cetak.html?id=${p.id}" target="_blank">🖨 Cetak</a>` : ''}
+        </td>
       </tr>
       <tr class="detail-row hidden" data-detail-for="${p.id}">
-        <td colspan="7"><div class="detail-panel">${renderDetailPanel(p, approvalByKontrak[p.id] || [])}</div></td>
+        <td colspan="8"><div class="detail-panel">${renderDetailPanel(p, approvalByKontrak[p.id] || [])}</div></td>
       </tr>
     `;
   }).join('');
