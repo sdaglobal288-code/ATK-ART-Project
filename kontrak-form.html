@@ -119,7 +119,11 @@
       <div class="field"><label>Kepada (Jabatan)</label><input list="departemenList" id="fKepadaJabatan" placeholder="Cari departemen..."><datalist id="departemenList"></datalist></div>
       <div class="field"><label>Up. (Nama Atasan)</label><input list="karyawanList" id="fKepadaNama" placeholder="Cari nama / NIK atasan..."></div>
     </div>
-    <div class="field"><label>Nomor Memo (opsional, boleh dikosongkan &amp; dikonfirmasi HCS saat approval)</label><input id="fNomorMemo" placeholder="contoh: 199/A.01/HRD/VII/2026"></div>
+    <div class="field">
+      <label>Nomor Memo</label>
+      <input id="fNomorMemo" readonly>
+      <div class="muted" style="margin-top:6px;">Nomor memo dibuat otomatis: <b>urut/A.01/HRD/bulan romawi/tahun</b> — bulan &amp; tahun mengikuti saat memo ini diajukan. Nomor urut dihitung otomatis saat disimpan.</div>
+    </div>
   </div>
 
   <!-- STEP 3: Tipe Form Penilaian -->
@@ -169,6 +173,8 @@
 
 <script>
 const APPROVAL_LABELS = { hcs: 'HCS Supervisor', penilai: 'Penilai (Atasan Langsung)' };
+const ROMAN_MONTHS = ['I','II','III','IV','V','VI','VII','VIII','IX','X','XI','XII'];
+function toRomanMonth(monthIndex1to12) { return ROMAN_MONTHS[monthIndex1to12 - 1]; }
 
 let karyawanCache = [];
 let selectedKaryawan = null;
@@ -178,6 +184,31 @@ const currentUser = JSON.parse(sessionStorage.getItem('user') || 'null');
 if (!currentUser) window.location.href = 'login.html';
 
 let departemenCache = [];
+
+// Tampilkan pratinjau format nomor memo (nomor urut baru dihitung saat disimpan)
+(function showNomorMemoPreview() {
+  const now = new Date();
+  document.getElementById('fNomorMemo').value = `.../A.01/HRD/${toRomanMonth(now.getMonth() + 1)}/${now.getFullYear()}`;
+})();
+
+// Hitung nomor urut berikutnya berdasarkan jumlah memo yang sudah dibuat pada tahun berjalan
+async function generateNomorMemo() {
+  const now = new Date();
+  const year = now.getFullYear();
+  const yearStart = `${year}-01-01T00:00:00.000Z`;
+  const yearEnd = `${year + 1}-01-01T00:00:00.000Z`;
+
+  const { count, error } = await supabaseClient
+    .from('im_kontrak')
+    .select('*', { count: 'exact', head: true })
+    .gte('created_at', yearStart)
+    .lt('created_at', yearEnd);
+
+  if (error) console.error(error);
+
+  const nomorUrut = (count || 0) + 1;
+  return `${nomorUrut}/A.01/HRD/${toRomanMonth(now.getMonth() + 1)}/${year}`;
+}
 
 async function loadKaryawan() {
   const { data, error } = await supabaseClient
@@ -275,10 +306,12 @@ document.getElementById('btnSubmit').addEventListener('click', async () => {
   btn.disabled = true; btn.textContent = 'Menyimpan...';
 
   try {
+    const nomorMemo = await generateNomorMemo();
+
     const { data: kontrak, error: errKontrak } = await supabaseClient
       .from('im_kontrak')
       .insert({
-        nomor_memo: document.getElementById('fNomorMemo').value || null,
+        nomor_memo: nomorMemo,
         karyawan_id: selectedKaryawan.id,
         nik_snapshot: document.getElementById('fNik').value,
         nama_snapshot: document.getElementById('fNama').value,
