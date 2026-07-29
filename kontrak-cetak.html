@@ -39,15 +39,11 @@
 
   .memo-body p{ margin:0 0 12px; text-align:justify; }
 
-  table.riwayat-print{ width:100%; border-collapse:collapse; margin:0 0 14px; font-size:12px; }
-  table.riwayat-print th, table.riwayat-print td{ border:none; padding:3px 8px 3px 0; text-align:left; font-weight:normal; }
-  table.riwayat-print th{ width:35%; }
-  table.riwayat-print th::after{ content:":"; float:right; }
-
-  table.info-table{ width:100%; border-collapse:collapse; margin:14px 0 0; font-size:12px; }
-  table.info-table th, table.info-table td{ border:none; padding:3px 8px 3px 0; text-align:left; font-weight:normal; }
+  table.info-table{ width:100%; border-collapse:collapse; margin:14px 0 14px; font-size:12px; table-layout:fixed; }
+  table.info-table th, table.info-table td{ border:none; padding:3px 8px 3px 0; text-align:left; font-weight:normal; vertical-align:top; }
   table.info-table th{ width:35%; }
   table.info-table th::after{ content:":"; float:right; }
+  table.info-table .blank-line{ display:inline-block; width:240px; border-bottom:1px solid #333; height:14px; }
 
   .rekom-list{ margin:14px 0; }
   .rekom-list .item{ margin-bottom:4px; }
@@ -178,7 +174,11 @@ function render(k) {
       <th>Kontrak ke ${r.ke ?? '-'}</th>
       <td>${fmtDate(r.mulai, {day:'2-digit',month:'2-digit',year:'numeric'})} — ${fmtDate(r.selesai, {day:'2-digit',month:'2-digit',year:'numeric'})}</td>
     </tr>
-  `).join('') || `<tr><td colspan="2">Belum ada riwayat kontrak tercatat.</td></tr>`;
+  `).join('');
+
+  // Baris kontrak selanjutnya (yang sedang diajukan/dinilai) — dikosongkan untuk diisi manual setelah keputusan.
+  const nextKe = (k.kontrak_ke_terakhir != null ? k.kontrak_ke_terakhir : riwayat.length) + 1;
+  const nextRow = `<tr><th>Kontrak ke ${nextKe}</th><td><span class="blank-line">&nbsp;</span></td></tr>`;
 
   const rekom = k.rekomendasi;
   const memoBody = `
@@ -188,7 +188,7 @@ function render(k) {
       </div>
 
       <div class="memo-title">INTERNAL MEMO</div>
-      <div class="memo-number">${esc(k.nomor_memo || '—/—/HRD/—/—')}</div>
+      <div class="memo-number">${esc(k.nomor_memo || '—/A.01/HRD/—/—')}</div>
 
       <div class="memo-meta">
         <table>
@@ -204,14 +204,12 @@ function render(k) {
       </div>
 
       <table class="info-table">
-        <tr><th style="width:35%;">Nama</th><td colspan="1">${esc(k.nama_snapshot)}</td></tr>
+        <tr><th>Nama</th><td>${esc(k.nama_snapshot)}</td></tr>
         <tr><th>Unit</th><td>${esc(k.unit_snapshot || '-')}</td></tr>
         <tr><th>Bagian</th><td>${esc(k.bagian_snapshot || '-')}</td></tr>
         <tr><th>Tanggal Masuk</th><td>${fmtDate(k.tanggal_masuk, {day:'2-digit',month:'2-digit',year:'numeric'})}</td></tr>
-      </table>
-
-      <table class="riwayat-print">
         ${riwayatRows}
+        ${nextRow}
       </table>
 
       <div class="memo-body">
