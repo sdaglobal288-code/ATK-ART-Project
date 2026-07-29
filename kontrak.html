@@ -97,6 +97,9 @@
   .copy-btn:hover{ color:var(--gold); border-color:var(--gold); }
   .print-link{ font-size:12px; color:var(--teal); text-decoration:none; }
   .print-link:hover{ text-decoration:underline; }
+  .edit-link{ font-size:12px; color:var(--gold); text-decoration:none; }
+  .edit-link:hover{ text-decoration:underline; }
+  .actions-line{ margin-top:12px; display:flex; gap:16px; flex-wrap:wrap; }
 </style>
 </head>
 <body>
@@ -260,7 +263,7 @@ function renderTable() {
 
   body.querySelectorAll('.main-row').forEach(row => {
     row.addEventListener('click', (e) => {
-      if (e.target.closest('.copy-btn') || e.target.closest('.print-link')) return;
+      if (e.target.closest('.copy-btn') || e.target.closest('.print-link') || e.target.closest('.edit-link')) return;
       const id = row.dataset.id;
       const detailRow = body.querySelector(`.detail-row[data-detail-for="${id}"]`);
       detailRow.classList.toggle('hidden');
@@ -282,6 +285,8 @@ function renderTable() {
 function renderDetailPanel(p, steps) {
   const baseUrl = `${window.location.origin}${window.location.pathname.replace('kontrak.html','')}kontrak-approval.html`;
 
+  const canEdit = p.status !== 'Selesai';
+
   const infoHtml = `
     <div>
       <h3>Informasi Karyawan</h3>
@@ -297,7 +302,10 @@ function renderDetailPanel(p, steps) {
       ${p.kekuatan ? `<div class="info-line" style="margin-top:10px;"><b>Kekuatan</b><br>${escapeHtml(p.kekuatan)}</div>` : ''}
       ${p.area_pengembangan ? `<div class="info-line"><b>Area pengembangan</b><br>${escapeHtml(p.area_pengembangan)}</div>` : ''}
       ${p.catatan_penilai ? `<div class="info-line"><b>Catatan penilai</b><br>${escapeHtml(p.catatan_penilai)}</div>` : ''}
-      ${p.status === 'Selesai' ? `<div style="margin-top:12px;"><a class="print-link" href="kontrak-cetak.html?id=${p.id}" target="_blank">🖨 Cetak Internal Memo &amp; Form Penilaian →</a></div>` : ''}
+      <div class="actions-line">
+        ${canEdit ? `<a class="edit-link" href="kontrak-form.html?id=${p.id}">✎ Edit Memo →</a>` : ''}
+        ${p.status === 'Selesai' ? `<a class="print-link" href="kontrak-cetak.html?id=${p.id}" target="_blank">🖨 Cetak Internal Memo &amp; Form Penilaian →</a>` : ''}
+      </div>
     </div>
   `;
 
