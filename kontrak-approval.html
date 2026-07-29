@@ -68,6 +68,17 @@
   .center-state p{ color:var(--text-muted); font-size:13px; }
 
   .hidden{ display:none !important; }
+
+  /* Memo preview (Internal Memo) shown to HCS & to Penilai/Atasan Langsung */
+  .memo-preview{ font-family:'Times New Roman', Times, serif; background:#fff; color:#111; border-radius:8px; padding:20px 24px; font-size:13px; line-height:1.55; }
+  .memo-preview .memo-title{ font-weight:700; text-decoration:underline; margin-bottom:2px; }
+  .memo-preview .memo-number{ font-size:12px; color:#333; margin-bottom:10px; }
+  .memo-preview table{ border-collapse:collapse; width:100%; margin-bottom:10px; }
+  .memo-preview td, .memo-preview th{ padding:2px 8px 2px 0; font-size:12.5px; text-align:left; vertical-align:top; }
+  .memo-preview th{ width:110px; font-weight:normal; }
+  .memo-preview th::after{ content:":"; float:right; }
+  .memo-preview p{ margin:0 0 10px; text-align:justify; }
+  .memo-preview .riwayat-row th{ width:35%; }
 </style>
 </head>
 <body>
@@ -101,12 +112,42 @@
   <div id="waitingState" class="card hidden">
     <div class="center-state">
       <div class="icon">⏱️</div>
-      <h2>Menunggu Tahap Sebelumnya</h2>
-      <p>Penilai belum menyelesaikan penilaian. Anda akan bisa memproses memo ini setelah tahap penilaian selesai.</p>
+      <h2>Menunggu Persetujuan HCS</h2>
+      <p>Internal memo ini belum disetujui &amp; diterbitkan nomor memonya oleh HCS. Anda akan bisa melihat internal memo dan mengisi form penilaian setelah HCS menyetujui.</p>
     </div>
   </div>
 
-  <!-- ==== FORM PENILAI ==== -->
+  <!-- ==== HCS APPROVAL (tahap pertama) ==== -->
+  <div id="hcsContent" class="hidden">
+    <div class="card">
+      <h1 id="namaKaryawanHcs">-</h1>
+      <div class="muted" id="jabatanInfoHcs">-</div>
+      <div class="role-pill">HCS Supervisor — Tahap 1: Persetujuan Internal Memo</div>
+      <div class="info-grid">
+        <div class="info-item"><div class="l">NIK</div><div class="v" id="vNikHcs">-</div></div>
+        <div class="info-item"><div class="l">Unit / Bagian</div><div class="v" id="vUnitHcs">-</div></div>
+        <div class="info-item"><div class="l">Tanggal Masuk</div><div class="v" id="vTglMasukHcs">-</div></div>
+        <div class="info-item"><div class="l">Kontrak Ke / Masa Akhir</div><div class="v" id="vKontrakHcs">-</div></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Pratinjau Internal Memo</h2>
+      <div class="memo-preview" id="memoPreviewHcs"></div>
+    </div>
+
+    <div class="card">
+      <h2>Nomor Memo</h2>
+      <div class="field"><input id="fNomorMemoHcs" placeholder="contoh: 199/A.01/HRD/VII/2026"></div>
+    </div>
+
+    <div class="card">
+      <button class="btn" id="btnSubmitHcs">Setujui &amp; Kirim ke Penilai (Atasan Langsung)</button>
+      <div class="status-msg" id="submitStatusHcs"></div>
+    </div>
+  </div>
+
+  <!-- ==== FORM PENILAI (tahap kedua, bisa melihat internal memo) ==== -->
   <div id="penilaiContent" class="hidden">
     <div class="card">
       <h1 id="namaKaryawan">-</h1>
@@ -118,6 +159,11 @@
         <div class="info-item"><div class="l">Tanggal Masuk</div><div class="v" id="vTglMasuk">-</div></div>
         <div class="info-item"><div class="l">Kontrak Ke / Masa Akhir</div><div class="v" id="vKontrak">-</div></div>
       </div>
+    </div>
+
+    <div class="card">
+      <h2>Internal Memo (sudah disetujui HCS)</h2>
+      <div class="memo-preview" id="memoPreviewPenilai"></div>
     </div>
 
     <div class="card">
@@ -155,32 +201,8 @@
     </div>
 
     <div class="card">
-      <button class="btn" id="btnSubmitPenilai">Simpan Penilaian &amp; Kirim ke HCS</button>
+      <button class="btn" id="btnSubmitPenilai">Simpan Penilaian &amp; Selesaikan</button>
       <div class="status-msg" id="submitStatus"></div>
-    </div>
-  </div>
-
-  <!-- ==== HCS APPROVAL ==== -->
-  <div id="hcsContent" class="hidden">
-    <div class="card">
-      <h1 id="namaKaryawanHcs">-</h1>
-      <div class="role-pill">HCS Supervisor</div>
-      <div class="info-grid">
-        <div class="info-item"><div class="l">NIK</div><div class="v" id="vNikHcs">-</div></div>
-        <div class="info-item"><div class="l">Unit / Bagian</div><div class="v" id="vUnitHcs">-</div></div>
-        <div class="info-item"><div class="l">Total Rata-rata</div><div class="v" id="vTotalHcs">-</div></div>
-        <div class="info-item"><div class="l">Rekomendasi Penilai</div><div class="v" id="vRekomHcs">-</div></div>
-      </div>
-    </div>
-
-    <div class="card">
-      <h2>Nomor Memo</h2>
-      <div class="field"><input id="fNomorMemoHcs" placeholder="contoh: 199/A.01/HRD/VII/2026"></div>
-    </div>
-
-    <div class="card">
-      <button class="btn" id="btnSubmitHcs">Setujui &amp; Terbitkan Memo</button>
-      <div class="status-msg" id="submitStatusHcs"></div>
     </div>
   </div>
 
@@ -252,6 +274,15 @@ function fmtDate(d) {
   if (!d) return '-';
   return new Date(d).toLocaleDateString('id-ID', { day:'numeric', month:'short', year:'numeric' });
 }
+function fmtDateLong(d) {
+  if (!d) return '-';
+  return new Date(d).toLocaleDateString('id-ID', { day:'numeric', month:'long', year:'numeric' });
+}
+function esc(str) {
+  const div = document.createElement('div');
+  div.textContent = str || '';
+  return div.innerHTML;
+}
 
 async function init() {
   if (!token) { showState('errorState'); return; }
@@ -280,13 +311,99 @@ async function init() {
     return;
   }
 
-  if (approvalRow.tahap === 'penilai') {
-    renderPenilai();
-  } else if (approvalRow.tahap === 'hcs') {
-    if (kontrak.status === 'Menunggu Penilaian') { showState('waitingState'); return; }
+  // Tahap pertama: HCS menyetujui & menerbitkan nomor memo terlebih dahulu.
+  if (approvalRow.tahap === 'hcs') {
     renderHcs();
+  } else if (approvalRow.tahap === 'penilai') {
+    if (kontrak.status === 'Menunggu Persetujuan HCS') { showState('waitingState'); return; }
+    renderPenilai();
   }
 }
+
+function renderMemoPreview(k) {
+  const riwayat = Array.isArray(k.riwayat_kontrak) ? k.riwayat_kontrak : [];
+  const riwayatRows = riwayat.map(r => `
+    <tr class="riwayat-row">
+      <th>Kontrak ke ${r.ke ?? '-'}</th>
+      <td>${fmtDate(r.mulai)} — ${fmtDate(r.selesai)}</td>
+    </tr>
+  `).join('') || `<tr><td colspan="2">Belum ada riwayat kontrak tercatat.</td></tr>`;
+
+  return `
+    <div class="memo-title">INTERNAL MEMO</div>
+    <div class="memo-number">${esc(k.nomor_memo || '—/—/HRD/—/—')}</div>
+    <table>
+      <tr><th>Kepada</th><td>${esc(k.kepada_jabatan || '-')}${k.kepada_nama ? '<br>Up. ' + esc(k.kepada_nama) : ''}</td></tr>
+      <tr><th>Dari</th><td>${esc(k.dari || 'Dept. HCS')}</td></tr>
+      <tr><th>Perihal</th><td>Masa Berakhirnya Kontrak Kerja</td></tr>
+    </table>
+    <p>Dengan hormat,</p>
+    <p>Dengan ini kami informasikan, bahwa berdasarkan data perjanjian kerja karyawan yang tersebut di bawah ini telah berakhir masa perjanjian kontraknya:</p>
+    <table>
+      <tr><th>Nama</th><td>${esc(k.nama_snapshot)}</td></tr>
+      <tr><th>Unit</th><td>${esc(k.unit_snapshot || '-')}</td></tr>
+      <tr><th>Bagian</th><td>${esc(k.bagian_snapshot || '-')}</td></tr>
+      <tr><th>Tanggal Masuk</th><td>${fmtDate(k.tanggal_masuk)}</td></tr>
+    </table>
+    <table>${riwayatRows}</table>
+    <p>Untuk selanjutnya mohon dilengkapi dengan pengisian form penilaian sebagaimana terlampir. Balasan internal memo maksimal 30 hari sebelum kontrak karyawan berakhir, jika melebihi batas waktu yang telah ditetapkan maka hal-hal yang berkaitan dengan legalitas karyawan (status kekaryawanan) menjadi tanggungan Departemen.</p>
+    <p>Demikian pemberitahuan dari kami atas perhatian dan kerjasamanya kami sampaikan terima kasih.</p>
+  `;
+}
+
+function renderHcs() {
+  document.getElementById('namaKaryawanHcs').textContent = kontrak.nama_snapshot || '-';
+  document.getElementById('jabatanInfoHcs').textContent = `${kontrak.jabatan_snapshot || '-'} · ${kontrak.bagian_snapshot || '-'}`;
+  document.getElementById('vNikHcs').textContent = kontrak.nik_snapshot || '-';
+  document.getElementById('vUnitHcs').textContent = `${kontrak.unit_snapshot || '-'} / ${kontrak.bagian_snapshot || '-'}`;
+  document.getElementById('vTglMasukHcs').textContent = fmtDate(kontrak.tanggal_masuk);
+  document.getElementById('vKontrakHcs').textContent = `Ke ${kontrak.kontrak_ke_terakhir ?? '-'} · berakhir ${fmtDate(kontrak.masa_akhir_kontrak)}`;
+
+  document.getElementById('memoPreviewHcs').innerHTML = renderMemoPreview(kontrak);
+  document.getElementById('fNomorMemoHcs').value = kontrak.nomor_memo || '';
+
+  showState('hcsContent');
+}
+
+document.getElementById('btnSubmitHcs').addEventListener('click', async () => {
+  const statusEl = document.getElementById('submitStatusHcs');
+  statusEl.textContent = ''; statusEl.className = 'status-msg';
+
+  const nomorMemo = document.getElementById('fNomorMemoHcs').value.trim();
+  if (!nomorMemo) { statusEl.textContent = 'Isi nomor memo terlebih dahulu.'; statusEl.className = 'status-msg error'; return; }
+
+  const btn = document.getElementById('btnSubmitHcs');
+  btn.disabled = true; btn.textContent = 'Menyimpan...';
+
+  try {
+    const { error: errUpdate } = await supabaseClient
+      .from('im_kontrak')
+      .update({
+        nomor_memo: nomorMemo,
+        tanggal_memo: kontrak.tanggal_memo || new Date().toISOString(),
+        status: 'Menunggu Penilaian',
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', kontrak.id);
+    if (errUpdate) throw errUpdate;
+
+    const { error: errApproval } = await supabaseClient
+      .from('im_kontrak_approval')
+      .update({ status: 'approved', signed_at: new Date().toISOString() })
+      .eq('token', token);
+    if (errApproval) throw errApproval;
+
+    statusEl.textContent = 'Internal memo disetujui. Link Penilai (Atasan Langsung) kini aktif.';
+    statusEl.className = 'status-msg ok';
+    setTimeout(() => showState('alreadySignedState'), 1200);
+
+  } catch (err) {
+    console.error(err);
+    statusEl.textContent = 'Gagal menyimpan: ' + (err.message || 'terjadi kesalahan.');
+    statusEl.className = 'status-msg error';
+    btn.disabled = false; btn.textContent = 'Setujui & Kirim ke Penilai (Atasan Langsung)';
+  }
+});
 
 function renderPenilai() {
   document.getElementById('namaKaryawan').textContent = kontrak.nama_snapshot || '-';
@@ -295,6 +412,8 @@ function renderPenilai() {
   document.getElementById('vUnit').textContent = `${kontrak.unit_snapshot || '-'} / ${kontrak.bagian_snapshot || '-'}`;
   document.getElementById('vTglMasuk').textContent = fmtDate(kontrak.tanggal_masuk);
   document.getElementById('vKontrak').textContent = `Ke ${kontrak.kontrak_ke_terakhir ?? '-'} · berakhir ${fmtDate(kontrak.masa_akhir_kontrak)}`;
+
+  document.getElementById('memoPreviewPenilai').innerHTML = renderMemoPreview(kontrak);
 
   const tpl = FORM_KRITERIA[kontrak.tipe_form] || FORM_KRITERIA.FORM2;
   document.getElementById('kriteriaTitle').textContent = tpl.label;
@@ -388,52 +507,6 @@ document.getElementById('btnSubmitPenilai').addEventListener('click', async () =
         catatan_penilai: document.getElementById('fCatatan').value,
         rekomendasi: rekomValue,
         durasi_perpanjangan: durasi,
-        status: 'Menunggu Persetujuan HCS',
-        updated_at: new Date().toISOString()
-      })
-      .eq('id', kontrak.id);
-    if (errUpdate) throw errUpdate;
-
-    const { error: errApproval } = await supabaseClient
-      .from('im_kontrak_approval')
-      .update({ status: 'approved', signed_at: new Date().toISOString() })
-      .eq('token', token);
-    if (errApproval) throw errApproval;
-
-    statusEl.textContent = 'Penilaian berhasil disimpan dan dikirim ke HCS.';
-    statusEl.className = 'status-msg ok';
-    setTimeout(() => showState('alreadySignedState'), 1200);
-
-  } catch (err) {
-    console.error(err);
-    statusEl.textContent = 'Gagal menyimpan: ' + (err.message || 'terjadi kesalahan.');
-    statusEl.className = 'status-msg error';
-    btn.disabled = false; btn.textContent = 'Simpan Penilaian & Kirim ke HCS';
-  }
-});
-
-function renderHcs() {
-  document.getElementById('namaKaryawanHcs').textContent = kontrak.nama_snapshot || '-';
-  document.getElementById('vNikHcs').textContent = kontrak.nik_snapshot || '-';
-  document.getElementById('vUnitHcs').textContent = `${kontrak.unit_snapshot || '-'} / ${kontrak.bagian_snapshot || '-'}`;
-  document.getElementById('vTotalHcs').textContent = kontrak.total_rata_rata != null ? Number(kontrak.total_rata_rata).toFixed(2) : '-';
-  document.getElementById('vRekomHcs').textContent = kontrak.rekomendasi ? (REKOMENDASI_LABELS[kontrak.rekomendasi] + (kontrak.durasi_perpanjangan ? ` (${kontrak.durasi_perpanjangan} bulan)` : '')) : '-';
-  document.getElementById('fNomorMemoHcs').value = kontrak.nomor_memo || '';
-  showState('hcsContent');
-}
-
-document.getElementById('btnSubmitHcs').addEventListener('click', async () => {
-  const statusEl = document.getElementById('submitStatusHcs');
-  statusEl.textContent = ''; statusEl.className = 'status-msg';
-
-  const btn = document.getElementById('btnSubmitHcs');
-  btn.disabled = true; btn.textContent = 'Menyimpan...';
-
-  try {
-    const { error: errUpdate } = await supabaseClient
-      .from('im_kontrak')
-      .update({
-        nomor_memo: document.getElementById('fNomorMemoHcs').value || null,
         status: 'Selesai',
         updated_at: new Date().toISOString()
       })
@@ -446,7 +519,7 @@ document.getElementById('btnSubmitHcs').addEventListener('click', async () => {
       .eq('token', token);
     if (errApproval) throw errApproval;
 
-    statusEl.textContent = 'Memo berhasil diterbitkan.';
+    statusEl.textContent = 'Penilaian berhasil disimpan. Proses selesai.';
     statusEl.className = 'status-msg ok';
     setTimeout(() => showState('alreadySignedState'), 1200);
 
@@ -454,7 +527,7 @@ document.getElementById('btnSubmitHcs').addEventListener('click', async () => {
     console.error(err);
     statusEl.textContent = 'Gagal menyimpan: ' + (err.message || 'terjadi kesalahan.');
     statusEl.className = 'status-msg error';
-    btn.disabled = false; btn.textContent = 'Setujui & Terbitkan Memo';
+    btn.disabled = false; btn.textContent = 'Simpan Penilaian & Selesaikan';
   }
 });
 
