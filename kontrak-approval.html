@@ -49,8 +49,6 @@
   textarea{ min-height:70px; resize:vertical; }
   .field{ margin-bottom:14px; }
 
-  .nomor-memo-display{ font-size:16px; font-weight:700; color:var(--gold); background:var(--panel-2); border:1px solid var(--border); border-radius:8px; padding:12px 14px; }
-
   .rekom-options{ display:flex; flex-direction:column; gap:10px; }
   .rekom-option{ border:1px solid var(--border); border-radius:10px; padding:12px 14px; cursor:pointer; display:flex; align-items:center; gap:10px; }
   .rekom-option.active{ border-color:var(--pink); background:rgba(224,107,139,0.08); }
@@ -136,12 +134,6 @@
     <div class="card">
       <h2>Pratinjau Internal Memo</h2>
       <div class="memo-preview" id="memoPreviewHcs"></div>
-    </div>
-
-    <div class="card">
-      <h2>Nomor Memo</h2>
-      <div class="nomor-memo-display" id="nomorMemoDisplay">-</div>
-      <div class="muted" style="margin-top:8px;">Nomor memo dibuat otomatis oleh sistem saat memo ini diajukan — tidak perlu diisi ulang.</div>
     </div>
 
     <div class="card">
@@ -366,7 +358,6 @@ function renderHcs() {
   document.getElementById('vKontrakHcs').textContent = `Ke ${kontrak.kontrak_ke_terakhir ?? '-'} · berakhir ${fmtDate(kontrak.masa_akhir_kontrak)}`;
 
   document.getElementById('memoPreviewHcs').innerHTML = renderMemoPreview(kontrak);
-  document.getElementById('nomorMemoDisplay').textContent = kontrak.nomor_memo || '(belum diterbitkan)';
 
   showState('hcsContent');
 }
