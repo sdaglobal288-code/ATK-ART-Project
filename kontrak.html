@@ -69,8 +69,8 @@
 
   .badge{ display:inline-block; padding:4px 10px; border-radius:20px; font-size:11px; font-weight:700; }
   .badge.draft{ background:rgba(182,164,140,0.15); color:var(--text-muted); }
-  .badge.penilaian{ background:rgba(232,135,58,0.15); color:var(--orange); }
   .badge.hcs{ background:rgba(212,162,76,0.15); color:var(--gold); }
+  .badge.penilaian{ background:rgba(232,135,58,0.15); color:var(--orange); }
   .badge.selesai{ background:rgba(77,208,196,0.15); color:var(--teal); }
 
   .empty{ padding:40px; text-align:center; color:var(--text-muted); font-size:13px; }
@@ -106,7 +106,7 @@
     <div>
       <a class="back" href="pilih-modul.html">← Kembali ke pilih modul</a>
       <h1>IM Perpanjangan Kontrak</h1>
-      <div class="muted">Daftar internal memo perpanjangan kontrak kerja &amp; status approval</div>
+      <div class="muted">Daftar internal memo perpanjangan kontrak kerja &amp; status approval. Alur: HCS menyetujui &amp; menerbitkan nomor memo terlebih dahulu, baru internal memo &amp; form penilaian dikirim ke Penilai (Atasan Langsung).</div>
     </div>
     <a class="btn" href="kontrak-form.html">+ Buat Memo Baru</a>
   </div>
@@ -114,8 +114,8 @@
   <div class="stats">
     <div class="stat-card"><div class="label">Total Memo</div><div class="num" id="statTotal">-</div></div>
     <div class="stat-card"><div class="label">Draft</div><div class="num" id="statDraft">-</div></div>
+    <div class="stat-card"><div class="label">Menunggu Persetujuan HCS</div><div class="num" id="statHcs">-</div></div>
     <div class="stat-card"><div class="label">Menunggu Penilaian</div><div class="num" id="statPenilaian">-</div></div>
-    <div class="stat-card"><div class="label">Menunggu HCS</div><div class="num" id="statHcs">-</div></div>
     <div class="stat-card"><div class="label">Selesai</div><div class="num" id="statSelesai">-</div></div>
   </div>
 
@@ -124,8 +124,8 @@
     <select id="statusFilter">
       <option value="">Semua Status</option>
       <option value="Draft">Draft</option>
-      <option value="Menunggu Penilaian">Menunggu Penilaian</option>
       <option value="Menunggu Persetujuan HCS">Menunggu Persetujuan HCS</option>
+      <option value="Menunggu Penilaian">Menunggu Penilaian</option>
       <option value="Selesai">Selesai</option>
     </select>
     <select id="tipeFilter">
@@ -168,8 +168,8 @@ const REKOMENDASI_LABELS = {
 };
 const STATUS_BADGE = {
   'Draft':'draft',
-  'Menunggu Penilaian':'penilaian',
   'Menunggu Persetujuan HCS':'hcs',
+  'Menunggu Penilaian':'penilaian',
   'Selesai':'selesai'
 };
 
@@ -208,8 +208,8 @@ async function loadData() {
 function renderStats() {
   document.getElementById('statTotal').textContent = kontrakList.length;
   document.getElementById('statDraft').textContent = kontrakList.filter(p => p.status === 'Draft').length;
-  document.getElementById('statPenilaian').textContent = kontrakList.filter(p => p.status === 'Menunggu Penilaian').length;
   document.getElementById('statHcs').textContent = kontrakList.filter(p => p.status === 'Menunggu Persetujuan HCS').length;
+  document.getElementById('statPenilaian').textContent = kontrakList.filter(p => p.status === 'Menunggu Penilaian').length;
   document.getElementById('statSelesai').textContent = kontrakList.filter(p => p.status === 'Selesai').length;
 }
 
@@ -292,6 +292,7 @@ function renderDetailPanel(p, steps) {
       <div class="info-line">Tanggal Masuk: ${fmtDate(p.tanggal_masuk)}</div>
       <div class="info-line">Kontrak ke: ${p.kontrak_ke_terakhir ?? '-'} &middot; berakhir ${fmtDate(p.masa_akhir_kontrak)}</div>
       <div class="info-line">Tipe form: ${p.tipe_form === 'FORM1' ? 'Form 1 (punya anak buah)' : p.tipe_form === 'FORM2' ? 'Form 2 (tanpa anak buah)' : '-'}</div>
+      ${p.nomor_memo ? `<div class="info-line">Nomor memo: <b>${escapeHtml(p.nomor_memo)}</b></div>` : ''}
       ${p.total_rata_rata != null ? `<div class="info-line">Total rata-rata: <b>${Number(p.total_rata_rata).toFixed(2)}</b></div>` : ''}
       ${p.kekuatan ? `<div class="info-line" style="margin-top:10px;"><b>Kekuatan</b><br>${escapeHtml(p.kekuatan)}</div>` : ''}
       ${p.area_pengembangan ? `<div class="info-line"><b>Area pengembangan</b><br>${escapeHtml(p.area_pengembangan)}</div>` : ''}
@@ -300,7 +301,7 @@ function renderDetailPanel(p, steps) {
     </div>
   `;
 
-  const stepLabels = { penilai: 'Penilai (Atasan Langsung)', hcs: 'HCS Supervisor' };
+  const stepLabels = { hcs: 'HCS Supervisor', penilai: 'Penilai (Atasan Langsung)' };
   const stepsHtml = steps.map(s => {
     const isExpired = s.status === 'pending' && s.expires_at && new Date(s.expires_at) < new Date();
     const statusKey = isExpired ? 'expired' : s.status;
