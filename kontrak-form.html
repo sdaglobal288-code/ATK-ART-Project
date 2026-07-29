@@ -116,7 +116,7 @@
     </div>
 
     <div class="grid2">
-      <div class="field"><label>Kepada (Jabatan)</label><select id="fKepadaJabatan"><option value="">-- Pilih Departemen --</option></select></div>
+      <div class="field"><label>Kepada (Jabatan)</label><input list="departemenList" id="fKepadaJabatan" placeholder="Cari departemen..."><datalist id="departemenList"></datalist></div>
       <div class="field"><label>Up. (Nama Atasan)</label><input list="karyawanList" id="fKepadaNama" placeholder="Cari nama / NIK atasan..."></div>
     </div>
     <div class="field"><label>Nomor Memo (opsional, boleh dikosongkan &amp; diisi HCS saat cetak)</label><input id="fNomorMemo" placeholder="contoh: 199/A.01/HRD/VII/2026"></div>
@@ -199,9 +199,8 @@ async function loadDepartemen() {
     .order('nama_departemen', { ascending: true });
   if (error) { console.error(error); return; }
   departemenCache = data || [];
-  const sel = document.getElementById('fKepadaJabatan');
-  sel.innerHTML = `<option value="">-- Pilih Departemen --</option>` +
-    departemenCache.map(d => `<option value="Pimpinan Dept. ${d.nama_departemen}">Pimpinan Dept. ${d.nama_departemen}</option>`).join('');
+  const dl = document.getElementById('departemenList');
+  dl.innerHTML = departemenCache.map(d => `<option value="Pimpinan Dept. ${d.nama_departemen}">`).join('');
 }
 loadDepartemen();
 
@@ -214,10 +213,10 @@ document.getElementById('karyawanSearch').addEventListener('input', (e) => {
   document.getElementById('fJabatan').value = found.jabatan || '';
   document.getElementById('fBagian').value = found.departemen || '';
 
-  // auto-pilih "Kepada" sesuai departemen karyawan (bisa diubah manual jika perlu)
-  const sel = document.getElementById('fKepadaJabatan');
-  const match = [...sel.options].find(o => o.value === `Pimpinan Dept. ${found.departemen}`);
-  if (match) sel.value = match.value;
+  // auto-isi "Kepada" sesuai departemen karyawan (masih bisa dicari/diubah manual)
+  const targetVal = `Pimpinan Dept. ${found.departemen}`;
+  const match = departemenCache.find(d => `Pimpinan Dept. ${d.nama_departemen}` === targetVal);
+  if (match) document.getElementById('fKepadaJabatan').value = targetVal;
 });
 
 function resolveNamaFromInput(val) {
