@@ -95,6 +95,8 @@
   .status-dot.expired{ background:var(--pink); }
   .copy-btn{ background:var(--panel); border:1px solid var(--border); color:var(--text-muted); font-size:11px; padding:5px 10px; border-radius:6px; cursor:pointer; }
   .copy-btn:hover{ color:var(--gold); border-color:var(--gold); }
+  .open-link{ background:var(--panel); border:1px solid var(--border); color:var(--text-muted); font-size:11px; padding:5px 10px; border-radius:6px; cursor:pointer; text-decoration:none; display:inline-block; }
+  .open-link:hover{ color:var(--gold); border-color:var(--gold); }
   .print-link{ font-size:12px; color:var(--teal); text-decoration:none; }
   .print-link:hover{ text-decoration:underline; }
   .edit-link{ font-size:12px; color:var(--gold); text-decoration:none; }
@@ -268,7 +270,7 @@ function renderTable() {
 
   body.querySelectorAll('.main-row').forEach(row => {
     row.addEventListener('click', (e) => {
-      if (e.target.closest('.copy-btn') || e.target.closest('.print-link') || e.target.closest('.edit-link')) return;
+      if (e.target.closest('.copy-btn') || e.target.closest('.open-link') || e.target.closest('.print-link') || e.target.closest('.edit-link')) return;
       const id = row.dataset.id;
       const detailRow = body.querySelector(`.detail-row[data-detail-for="${id}"]`);
       detailRow.classList.toggle('hidden');
@@ -329,7 +331,7 @@ function renderDetailPanel(p, steps) {
         <div class="action">
           <span class="status-dot ${statusKey}"></span>
           <span class="muted">${statusText}</span>
-          ${s.status !== 'approved' ? `<button class="copy-btn" data-link="${link}">Salin Link</button>` : ''}
+          ${s.status !== 'approved' ? `<a class="open-link" href="${link}" target="_blank" rel="noopener">Buka Link</a><button class="copy-btn" data-link="${link}">Salin Link</button>` : ''}
         </div>
       </div>
     `;
