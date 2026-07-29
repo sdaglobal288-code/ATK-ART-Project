@@ -219,6 +219,10 @@ async function generateNomorMemo() {
   return `${nomorUrut}/A.01/HRD/${toRomanMonth(now.getMonth() + 1)}/${year}`;
 }
 
+function karyawanLabel(k) {
+  return `${toTitleCase(k.nama)} - ${k.nik}`;
+}
+
 async function loadKaryawan() {
   const { data, error } = await supabaseClient
     .from('master_karyawan')
@@ -228,7 +232,7 @@ async function loadKaryawan() {
   if (error) { console.error(error); return; }
   karyawanCache = data || [];
   const dl = document.getElementById('karyawanList');
-  dl.innerHTML = karyawanCache.map(k => `<option value="${k.nama} - ${k.nik}">`).join('');
+  dl.innerHTML = karyawanCache.map(k => `<option value="${karyawanLabel(k)}">`).join('');
 }
 
 async function loadDepartemen() {
@@ -243,13 +247,13 @@ async function loadDepartemen() {
 }
 
 document.getElementById('karyawanSearch').addEventListener('input', (e) => {
-  const found = karyawanCache.find(k => `${k.nama} - ${k.nik}` === e.target.value);
+  const found = karyawanCache.find(k => karyawanLabel(k) === e.target.value);
   if (!found) return;
   selectedKaryawan = found;
   document.getElementById('fNik').value = found.nik || '';
   document.getElementById('fNama').value = found.nama || '';
   document.getElementById('fJabatan').value = found.jabatan || '';
-  document.getElementById('fBagian').value = found.jabatan || '';
+  document.getElementById('fBagian').value = found.departemen || '';
 
   // auto-isi "Kepada" sesuai departemen karyawan (masih bisa dicari/diubah manual)
   const targetVal = `Pimpinan Dept. ${toTitleCase(found.departemen)}`;
@@ -259,7 +263,7 @@ document.getElementById('karyawanSearch').addEventListener('input', (e) => {
 
 function resolveNamaFromInput(val) {
   if (!val) return '';
-  const found = karyawanCache.find(k => `${k.nama} - ${k.nik}` === val);
+  const found = karyawanCache.find(k => karyawanLabel(k) === val);
   return found ? found.nama : val;
 }
 
@@ -296,7 +300,7 @@ async function loadExistingKontrak() {
   existingApprovals = approvals || [];
 
   selectedKaryawan = karyawanCache.find(x => x.id === k.karyawan_id) || { id: k.karyawan_id, nama: k.nama_snapshot, nik: k.nik_snapshot };
-  document.getElementById('karyawanSearch').value = `${k.nama_snapshot || ''} - ${k.nik_snapshot || ''}`;
+  document.getElementById('karyawanSearch').value = `${toTitleCase(k.nama_snapshot) || ''} - ${k.nik_snapshot || ''}`;
   document.getElementById('fNik').value = k.nik_snapshot || '';
   document.getElementById('fNama').value = k.nama_snapshot || '';
   document.getElementById('fJabatan').value = k.jabatan_snapshot || '';
@@ -326,11 +330,11 @@ async function loadExistingKontrak() {
   const penilaiApproval = existingApprovals.find(a => a.tahap === 'penilai');
   if (hcsApproval) {
     const hcsKaryawan = karyawanCache.find(x => x.id === hcsApproval.approver_karyawan_id);
-    document.getElementById('fHcsInput').value = `${hcsApproval.approver_nama}${hcsKaryawan ? ' - ' + hcsKaryawan.nik : ''}`;
+    document.getElementById('fHcsInput').value = `${toTitleCase(hcsApproval.approver_nama)}${hcsKaryawan ? ' - ' + hcsKaryawan.nik : ''}`;
   }
   if (penilaiApproval) {
     const penilaiKaryawan = karyawanCache.find(x => x.id === penilaiApproval.approver_karyawan_id);
-    document.getElementById('fPenilaiInput').value = `${penilaiApproval.approver_nama}${penilaiKaryawan ? ' - ' + penilaiKaryawan.nik : ''}`;
+    document.getElementById('fPenilaiInput').value = `${toTitleCase(penilaiApproval.approver_nama)}${penilaiKaryawan ? ' - ' + penilaiKaryawan.nik : ''}`;
   }
 
   document.getElementById('pageTitle').textContent = 'Edit Memo Perpanjangan Kontrak';
@@ -359,8 +363,8 @@ document.getElementById('btnSubmit').addEventListener('click', async () => {
 
   const penilaiVal = document.getElementById('fPenilaiInput').value;
   const hcsVal = document.getElementById('fHcsInput').value;
-  const penilai = karyawanCache.find(k => `${k.nama} - ${k.nik}` === penilaiVal);
-  const hcs = karyawanCache.find(k => `${k.nama} - ${k.nik}` === hcsVal);
+  const penilai = karyawanCache.find(k => karyawanLabel(k) === penilaiVal);
+  const hcs = karyawanCache.find(k => karyawanLabel(k) === hcsVal);
   if (!penilai || !hcs) { statusEl.textContent = 'Lengkapi Penilai dan HCS Supervisor.'; statusEl.className='status-msg error'; return; }
   if (!document.getElementById('fKepadaJabatan').value) { statusEl.textContent = 'Pilih Kepada (Departemen) terlebih dahulu.'; statusEl.className='status-msg error'; return; }
 
