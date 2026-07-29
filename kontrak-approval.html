@@ -1,0 +1,464 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Approval Perpanjangan Kontrak</title>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="supabase/config.js"></script>
+
+<style>
+  :root{
+    --bg: #241a12; --panel: #3a2b1e; --panel-2: #302213; --border: #4f3d29;
+    --text: #f2e9dc; --text-muted: #b6a48c; --gold: #d4a24c; --teal: #4dd0c4;
+    --pink: #e06b8b; --orange:#e8873a;
+  }
+  *{ box-sizing:border-box; }
+  body{ margin:0; background:var(--bg); color:var(--text); font-family:'Segoe UI', system-ui, -apple-system, sans-serif; padding:28px 16px 80px; }
+  .wrap{ max-width:720px; margin:0 auto; }
+
+  .brand{ display:flex; align-items:center; gap:10px; margin-bottom:20px; }
+  .brand-mark{ width:34px; height:34px; border-radius:9px; background:linear-gradient(135deg, var(--pink), var(--orange)); display:flex; align-items:center; justify-content:center; font-weight:700; color:#241a12; }
+  .brand-name{ font-size:13px; letter-spacing:1.5px; color:var(--text-muted); text-transform:uppercase; }
+
+  .card{ background:var(--panel); border:1px solid var(--border); border-radius:16px; padding:24px; margin-bottom:18px; }
+  h1{ font-size:19px; margin:0 0 4px; }
+  h2{ font-size:15px; margin:0 0 12px; }
+  .muted{ color:var(--text-muted); font-size:13px; }
+
+  .info-grid{ display:grid; grid-template-columns:1fr 1fr; gap:10px 20px; margin-top:16px; }
+  @media (max-width:520px){ .info-grid{ grid-template-columns:1fr; } }
+  .info-item .l{ font-size:11px; color:var(--text-muted); text-transform:uppercase; letter-spacing:.4px; }
+  .info-item .v{ font-size:13px; margin-top:2px; }
+
+  .role-pill{ display:inline-block; background:rgba(224,107,139,0.15); color:var(--pink); padding:6px 14px; border-radius:20px; font-size:12px; font-weight:700; margin-top:10px; }
+
+  table.kriteria{ width:100%; border-collapse:collapse; margin-top:6px; }
+  table.kriteria th, table.kriteria td{ border:1px solid var(--border); padding:8px 10px; font-size:13px; text-align:left; }
+  table.kriteria th{ background:var(--panel-2); color:var(--gold); font-size:12px; }
+  table.kriteria td.skor-col{ width:90px; }
+  table.kriteria tr.rata td{ font-style:italic; font-weight:600; background:rgba(212,162,76,0.06); }
+  table.kriteria select{ padding:6px 8px; }
+
+  .total-box{ display:flex; justify-content:space-between; align-items:center; background:rgba(77,208,196,0.08); border:1px solid rgba(77,208,196,0.3); border-radius:10px; padding:12px 16px; margin-top:12px; }
+  .total-box .n{ font-size:20px; font-weight:700; color:var(--teal); }
+
+  label{ font-size:12px; color:var(--text-muted); display:block; margin-bottom:6px; }
+  input, select, textarea{ width:100%; background:var(--panel-2); border:1px solid var(--border); color:var(--text); padding:10px 12px; border-radius:8px; font-size:13px; font-family:inherit; }
+  textarea{ min-height:70px; resize:vertical; }
+  .field{ margin-bottom:14px; }
+
+  .rekom-options{ display:flex; flex-direction:column; gap:10px; }
+  .rekom-option{ border:1px solid var(--border); border-radius:10px; padding:12px 14px; cursor:pointer; display:flex; align-items:center; gap:10px; }
+  .rekom-option.active{ border-color:var(--pink); background:rgba(224,107,139,0.08); }
+  .rekom-option input{ width:auto; }
+  .durasi-wrap{ margin-top:10px; }
+
+  .btn{ background:linear-gradient(135deg, var(--pink), #c14e70); color:#241a12; border:none; padding:13px 22px; border-radius:10px; font-weight:700; font-size:14px; cursor:pointer; width:100%; }
+  .btn:disabled{ opacity:.5; cursor:not-allowed; }
+
+  .status-msg{ font-size:13px; margin-top:10px; text-align:center; }
+  .status-msg.error{ color:var(--pink); }
+  .status-msg.ok{ color:var(--teal); }
+
+  .center-state{ text-align:center; padding:50px 20px; }
+  .center-state .icon{ font-size:40px; margin-bottom:14px; }
+  .center-state h2{ margin:0 0 8px; }
+  .center-state p{ color:var(--text-muted); font-size:13px; }
+
+  .hidden{ display:none !important; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="brand">
+    <div class="brand-mark">S</div>
+    <div class="brand-name">Approval IM Perpanjangan Kontrak</div>
+  </div>
+
+  <div id="loadingState" class="card">
+    <div class="center-state"><div class="icon">⏳</div><p>Memuat data...</p></div>
+  </div>
+
+  <div id="errorState" class="card hidden">
+    <div class="center-state">
+      <div class="icon">⚠️</div>
+      <h2 id="errorTitle">Link Tidak Valid</h2>
+      <p id="errorMsg">Link ini tidak ditemukan atau sudah tidak berlaku.</p>
+    </div>
+  </div>
+
+  <div id="alreadySignedState" class="card hidden">
+    <div class="center-state">
+      <div class="icon">✅</div>
+      <h2>Sudah Diproses</h2>
+      <p>Anda sudah menyelesaikan tahap ini sebelumnya.</p>
+    </div>
+  </div>
+
+  <div id="waitingState" class="card hidden">
+    <div class="center-state">
+      <div class="icon">⏱️</div>
+      <h2>Menunggu Tahap Sebelumnya</h2>
+      <p>Penilai belum menyelesaikan penilaian. Anda akan bisa memproses memo ini setelah tahap penilaian selesai.</p>
+    </div>
+  </div>
+
+  <!-- ==== FORM PENILAI ==== -->
+  <div id="penilaiContent" class="hidden">
+    <div class="card">
+      <h1 id="namaKaryawan">-</h1>
+      <div class="muted" id="jabatanInfo">-</div>
+      <div class="role-pill">Penilai — Atasan Langsung</div>
+      <div class="info-grid">
+        <div class="info-item"><div class="l">NIK</div><div class="v" id="vNik">-</div></div>
+        <div class="info-item"><div class="l">Unit / Bagian</div><div class="v" id="vUnit">-</div></div>
+        <div class="info-item"><div class="l">Tanggal Masuk</div><div class="v" id="vTglMasuk">-</div></div>
+        <div class="info-item"><div class="l">Kontrak Ke / Masa Akhir</div><div class="v" id="vKontrak">-</div></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2 id="kriteriaTitle">Kriteria Evaluasi</h2>
+      <div id="kriteriaContainer"></div>
+      <div class="total-box"><div>Total Rata-rata</div><div class="n" id="totalRataRata">-</div></div>
+    </div>
+
+    <div class="card">
+      <h2>Saran &amp; Pengembangan</h2>
+      <div class="field"><label>Kekuatan</label><textarea id="fKekuatan"></textarea></div>
+      <div class="field"><label>Area Pengembangan</label><textarea id="fPengembangan"></textarea></div>
+      <div class="field"><label>Catatan</label><textarea id="fCatatan"></textarea></div>
+    </div>
+
+    <div class="card">
+      <h2>Rekomendasi</h2>
+      <div class="rekom-options" id="rekomOptions">
+        <label class="rekom-option" data-value="lulus_percobaan"><input type="radio" name="rekom"><span>Lulus Masa Percobaan</span></label>
+        <label class="rekom-option" data-value="tidak_lulus_percobaan"><input type="radio" name="rekom"><span>Tidak Lulus Masa Percobaan</span></label>
+        <label class="rekom-option" data-value="diperpanjang"><input type="radio" name="rekom"><span>Kontrak Diperpanjang</span></label>
+        <label class="rekom-option" data-value="tidak_diperpanjang"><input type="radio" name="rekom"><span>Tidak Diperpanjang Kontrak</span></label>
+        <label class="rekom-option" data-value="lulus_akting"><input type="radio" name="rekom"><span>Lulus Masa Akting</span></label>
+        <label class="rekom-option" data-value="tidak_lulus_akting"><input type="radio" name="rekom"><span>Tidak Lulus Masa Akting</span></label>
+        <label class="rekom-option" data-value="karyawan_tetap"><input type="radio" name="rekom"><span>Diangkat Menjadi Karyawan Tetap</span></label>
+      </div>
+      <div class="durasi-wrap hidden" id="durasiWrap">
+        <label>Durasi Perpanjangan</label>
+        <select id="fDurasi">
+          <option value="3">3 bulan</option>
+          <option value="6">6 bulan</option>
+          <option value="12">12 bulan</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="card">
+      <button class="btn" id="btnSubmitPenilai">Simpan Penilaian &amp; Kirim ke HCS</button>
+      <div class="status-msg" id="submitStatus"></div>
+    </div>
+  </div>
+
+  <!-- ==== HCS APPROVAL ==== -->
+  <div id="hcsContent" class="hidden">
+    <div class="card">
+      <h1 id="namaKaryawanHcs">-</h1>
+      <div class="role-pill">HCS Supervisor</div>
+      <div class="info-grid">
+        <div class="info-item"><div class="l">NIK</div><div class="v" id="vNikHcs">-</div></div>
+        <div class="info-item"><div class="l">Unit / Bagian</div><div class="v" id="vUnitHcs">-</div></div>
+        <div class="info-item"><div class="l">Total Rata-rata</div><div class="v" id="vTotalHcs">-</div></div>
+        <div class="info-item"><div class="l">Rekomendasi Penilai</div><div class="v" id="vRekomHcs">-</div></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Nomor Memo</h2>
+      <div class="field"><input id="fNomorMemoHcs" placeholder="contoh: 199/A.01/HRD/VII/2026"></div>
+    </div>
+
+    <div class="card">
+      <button class="btn" id="btnSubmitHcs">Setujui &amp; Terbitkan Memo</button>
+      <div class="status-msg" id="submitStatusHcs"></div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+const FORM_KRITERIA = {
+  FORM1: {
+    label: 'Form 1 — Karyawan memiliki anak buah',
+    sections: [
+      { kategori: 'I - Sikap', items: [
+        {kode:'a', label:'Tanggung Jawab pekerjaan'},
+        {kode:'b', label:'Kemampuan pengendalian diri'},
+        {kode:'c', label:'Semangat dalam bekerja'},
+        {kode:'d', label:'Kemauan belajar hal baru'},
+        {kode:'e', label:'Disiplin'}
+      ]},
+      { kategori: 'II - Penguasaan Pekerjaan', items: [
+        {kode:'a', label:'Kemampuan Teknikal'},
+        {kode:'b', label:'Pengetahuan Teknikal'}
+      ]},
+      { kategori: 'III - People Management', items: [
+        {kode:'a', label:'Mengembangkan orang lain'},
+        {kode:'b', label:'Coaching and Counseling'},
+        {kode:'c', label:'Delegasi'},
+        {kode:'d', label:'Kerjasama team'}
+      ]}
+    ]
+  },
+  FORM2: {
+    label: 'Form 2 — Karyawan tidak memiliki anak buah',
+    sections: [
+      { kategori: 'I - Sikap', items: [
+        {kode:'a', label:'Tanggung Jawab pekerjaan'},
+        {kode:'b', label:'Kemampuan pengendalian diri'},
+        {kode:'c', label:'Semangat dalam bekerja'},
+        {kode:'d', label:'Kemauan belajar hal baru'},
+        {kode:'e', label:'Disiplin'}
+      ]},
+      { kategori: 'II - Penguasaan Pekerjaan', items: [
+        {kode:'a', label:'Kemampuan Teknikal'},
+        {kode:'b', label:'Pengetahuan Teknikal'}
+      ]}
+    ]
+  }
+};
+const REKOMENDASI_LABELS = {
+  lulus_percobaan: 'Lulus Masa Percobaan',
+  tidak_lulus_percobaan: 'Tidak Lulus Masa Percobaan',
+  diperpanjang: 'Kontrak Diperpanjang',
+  tidak_diperpanjang: 'Tidak Diperpanjang Kontrak',
+  lulus_akting: 'Lulus Masa Akting',
+  tidak_lulus_akting: 'Tidak Lulus Masa Akting',
+  karyawan_tetap: 'Diangkat Menjadi Karyawan Tetap'
+};
+
+const params = new URLSearchParams(window.location.search);
+const token = params.get('token');
+
+let approvalRow = null;
+let kontrak = null;
+
+function showState(id) {
+  ['loadingState','errorState','alreadySignedState','waitingState','penilaiContent','hcsContent']
+    .forEach(s => document.getElementById(s).classList.toggle('hidden', s !== id));
+}
+
+function fmtDate(d) {
+  if (!d) return '-';
+  return new Date(d).toLocaleDateString('id-ID', { day:'numeric', month:'short', year:'numeric' });
+}
+
+async function init() {
+  if (!token) { showState('errorState'); return; }
+
+  const { data, error } = await supabaseClient
+    .from('im_kontrak_approval')
+    .select('*, kontrak:im_kontrak(*)')
+    .eq('token', token)
+    .single();
+
+  if (error || !data) { showState('errorState'); return; }
+
+  approvalRow = data;
+  kontrak = data.kontrak;
+
+  if (!kontrak) { showState('errorState'); return; }
+
+  if (approvalRow.status === 'approved') { showState('alreadySignedState'); return; }
+
+  const isExpired = approvalRow.expires_at && new Date(approvalRow.expires_at) < new Date();
+  if (isExpired) {
+    await supabaseClient.from('im_kontrak_approval').update({ status:'expired' }).eq('token', token);
+    document.getElementById('errorTitle').textContent = 'Link Kedaluwarsa';
+    document.getElementById('errorMsg').textContent = 'Link ini sudah tidak berlaku. Hubungi HCS untuk link baru.';
+    showState('errorState');
+    return;
+  }
+
+  if (approvalRow.tahap === 'penilai') {
+    renderPenilai();
+  } else if (approvalRow.tahap === 'hcs') {
+    if (kontrak.status === 'Menunggu Penilaian') { showState('waitingState'); return; }
+    renderHcs();
+  }
+}
+
+function renderPenilai() {
+  document.getElementById('namaKaryawan').textContent = kontrak.nama_snapshot || '-';
+  document.getElementById('jabatanInfo').textContent = `${kontrak.jabatan_snapshot || '-'} · ${kontrak.bagian_snapshot || '-'}`;
+  document.getElementById('vNik').textContent = kontrak.nik_snapshot || '-';
+  document.getElementById('vUnit').textContent = `${kontrak.unit_snapshot || '-'} / ${kontrak.bagian_snapshot || '-'}`;
+  document.getElementById('vTglMasuk').textContent = fmtDate(kontrak.tanggal_masuk);
+  document.getElementById('vKontrak').textContent = `Ke ${kontrak.kontrak_ke_terakhir ?? '-'} · berakhir ${fmtDate(kontrak.masa_akhir_kontrak)}`;
+
+  const tpl = FORM_KRITERIA[kontrak.tipe_form] || FORM_KRITERIA.FORM2;
+  document.getElementById('kriteriaTitle').textContent = tpl.label;
+
+  const container = document.getElementById('kriteriaContainer');
+  container.innerHTML = '';
+  tpl.sections.forEach(sec => {
+    const table = document.createElement('table');
+    table.className = 'kriteria';
+    table.dataset.kategori = sec.kategori;
+    let rows = `<tr><th colspan="2">${sec.kategori}</th><th style="width:90px;">Skor</th></tr>`;
+    sec.items.forEach(item => {
+      rows += `
+        <tr data-kode="${item.kode}" data-label="${item.label}">
+          <td colspan="2">${item.kode}. ${item.label}</td>
+          <td class="skor-col">
+            <select class="skor-input">
+              <option value="">-</option>
+              <option value="1">1</option><option value="2">2</option><option value="3">3</option>
+              <option value="4">4</option><option value="5">5</option>
+            </select>
+          </td>
+        </tr>`;
+    });
+    rows += `<tr class="rata"><td colspan="2">Rata-rata</td><td class="rata-value">-</td></tr>`;
+    table.innerHTML = rows;
+    container.appendChild(table);
+  });
+  container.querySelectorAll('.skor-input').forEach(sel => sel.addEventListener('change', hitungRataRata));
+  hitungRataRata();
+
+  document.querySelectorAll('.rekom-option').forEach(el => {
+    el.addEventListener('click', () => {
+      document.querySelectorAll('.rekom-option').forEach(x => x.classList.remove('active'));
+      el.classList.add('active');
+      el.querySelector('input').checked = true;
+      document.getElementById('durasiWrap').classList.toggle('hidden', el.dataset.value !== 'diperpanjang');
+    });
+  });
+
+  showState('penilaiContent');
+}
+
+function hitungRataRata() {
+  const tables = document.querySelectorAll('#kriteriaContainer table.kriteria');
+  let sectionAverages = [];
+  tables.forEach(table => {
+    const scores = [...table.querySelectorAll('.skor-input')].map(s => s.value ? parseFloat(s.value) : null).filter(v => v !== null);
+    const avg = scores.length ? (scores.reduce((a,b)=>a+b,0) / scores.length) : 0;
+    table.querySelector('.rata-value').textContent = scores.length ? avg.toFixed(2) : '-';
+    if (scores.length) sectionAverages.push(avg);
+  });
+  const total = sectionAverages.length ? (sectionAverages.reduce((a,b)=>a+b,0) / sectionAverages.length) : null;
+  document.getElementById('totalRataRata').textContent = total !== null ? total.toFixed(2) : '-';
+}
+
+document.getElementById('btnSubmitPenilai').addEventListener('click', async () => {
+  const statusEl = document.getElementById('submitStatus');
+  statusEl.textContent = ''; statusEl.className = 'status-msg';
+
+  const selected = document.querySelector('.rekom-option.active');
+  if (!selected) { statusEl.textContent = 'Pilih rekomendasi terlebih dahulu.'; statusEl.className='status-msg error'; return; }
+
+  const detailRows = [];
+  document.querySelectorAll('#kriteriaContainer table.kriteria').forEach(table => {
+    const kategori = table.dataset.kategori;
+    table.querySelectorAll('tr[data-kode]').forEach(tr => {
+      detailRows.push({
+        kategori, kode: tr.dataset.kode, label: tr.dataset.label,
+        skor: tr.querySelector('.skor-input').value ? parseFloat(tr.querySelector('.skor-input').value) : null
+      });
+    });
+  });
+
+  const totalText = document.getElementById('totalRataRata').textContent;
+  const total = totalText !== '-' ? parseFloat(totalText) : null;
+  const rekomValue = selected.dataset.value;
+  const durasi = rekomValue === 'diperpanjang' ? document.getElementById('fDurasi').value : null;
+
+  const btn = document.getElementById('btnSubmitPenilai');
+  btn.disabled = true; btn.textContent = 'Menyimpan...';
+
+  try {
+    const { error: errUpdate } = await supabaseClient
+      .from('im_kontrak')
+      .update({
+        skor_detail: detailRows,
+        total_rata_rata: total,
+        kekuatan: document.getElementById('fKekuatan').value,
+        area_pengembangan: document.getElementById('fPengembangan').value,
+        catatan_penilai: document.getElementById('fCatatan').value,
+        rekomendasi: rekomValue,
+        durasi_perpanjangan: durasi,
+        status: 'Menunggu Persetujuan HCS',
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', kontrak.id);
+    if (errUpdate) throw errUpdate;
+
+    const { error: errApproval } = await supabaseClient
+      .from('im_kontrak_approval')
+      .update({ status: 'approved', signed_at: new Date().toISOString() })
+      .eq('token', token);
+    if (errApproval) throw errApproval;
+
+    statusEl.textContent = 'Penilaian berhasil disimpan dan dikirim ke HCS.';
+    statusEl.className = 'status-msg ok';
+    setTimeout(() => showState('alreadySignedState'), 1200);
+
+  } catch (err) {
+    console.error(err);
+    statusEl.textContent = 'Gagal menyimpan: ' + (err.message || 'terjadi kesalahan.');
+    statusEl.className = 'status-msg error';
+    btn.disabled = false; btn.textContent = 'Simpan Penilaian & Kirim ke HCS';
+  }
+});
+
+function renderHcs() {
+  document.getElementById('namaKaryawanHcs').textContent = kontrak.nama_snapshot || '-';
+  document.getElementById('vNikHcs').textContent = kontrak.nik_snapshot || '-';
+  document.getElementById('vUnitHcs').textContent = `${kontrak.unit_snapshot || '-'} / ${kontrak.bagian_snapshot || '-'}`;
+  document.getElementById('vTotalHcs').textContent = kontrak.total_rata_rata != null ? Number(kontrak.total_rata_rata).toFixed(2) : '-';
+  document.getElementById('vRekomHcs').textContent = kontrak.rekomendasi ? (REKOMENDASI_LABELS[kontrak.rekomendasi] + (kontrak.durasi_perpanjangan ? ` (${kontrak.durasi_perpanjangan} bulan)` : '')) : '-';
+  document.getElementById('fNomorMemoHcs').value = kontrak.nomor_memo || '';
+  showState('hcsContent');
+}
+
+document.getElementById('btnSubmitHcs').addEventListener('click', async () => {
+  const statusEl = document.getElementById('submitStatusHcs');
+  statusEl.textContent = ''; statusEl.className = 'status-msg';
+
+  const btn = document.getElementById('btnSubmitHcs');
+  btn.disabled = true; btn.textContent = 'Menyimpan...';
+
+  try {
+    const { error: errUpdate } = await supabaseClient
+      .from('im_kontrak')
+      .update({
+        nomor_memo: document.getElementById('fNomorMemoHcs').value || null,
+        status: 'Selesai',
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', kontrak.id);
+    if (errUpdate) throw errUpdate;
+
+    const { error: errApproval } = await supabaseClient
+      .from('im_kontrak_approval')
+      .update({ status: 'approved', signed_at: new Date().toISOString() })
+      .eq('token', token);
+    if (errApproval) throw errApproval;
+
+    statusEl.textContent = 'Memo berhasil diterbitkan.';
+    statusEl.className = 'status-msg ok';
+    setTimeout(() => showState('alreadySignedState'), 1200);
+
+  } catch (err) {
+    console.error(err);
+    statusEl.textContent = 'Gagal menyimpan: ' + (err.message || 'terjadi kesalahan.');
+    statusEl.className = 'status-msg error';
+    btn.disabled = false; btn.textContent = 'Setujui & Terbitkan Memo';
+  }
+});
+
+init();
+</script>
+</body>
+</html>
