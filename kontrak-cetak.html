@@ -168,7 +168,8 @@ function renderError(msg) {
 }
 
 function render(k) {
-  const riwayat = Array.isArray(k.riwayat_kontrak) ? k.riwayat_kontrak : [];
+  // Hanya tampilkan 3 riwayat kontrak terakhir.
+  const riwayat = (Array.isArray(k.riwayat_kontrak) ? k.riwayat_kontrak : []).slice(-3);
   const riwayatRows = riwayat.map(r => `
     <tr>
       <th>Kontrak ke ${r.ke ?? '-'}</th>
