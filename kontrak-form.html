@@ -111,12 +111,7 @@
     </table>
     <button type="button" class="add-row-btn" onclick="addRiwayatRow()">+ Tambah baris riwayat kontrak</button>
 
-    <div class="field" style="margin-top:16px; max-width:320px;">
-      <label>Masa Akhir Kontrak Saat Ini</label>
-      <input type="date" id="fMasaAkhir">
-    </div>
-
-    <div class="grid2">
+    <div class="grid2" style="margin-top:16px;">
       <div class="field"><label>Kepada (Jabatan)</label><input list="departemenList" id="fKepadaJabatan" placeholder="Cari departemen..."><datalist id="departemenList"></datalist></div>
       <div class="field"><label>Up. (Nama Atasan)</label><input list="karyawanList" id="fKepadaNama" placeholder="Cari nama / NIK atasan..."></div>
     </div>
@@ -310,7 +305,6 @@ async function loadExistingKontrak() {
     addRiwayatRow(); addRiwayatRow(); addRiwayatRow();
   }
 
-  document.getElementById('fMasaAkhir').value = k.masa_akhir_kontrak || '';
   document.getElementById('fKepadaJabatan').value = k.kepada_jabatan || '';
   document.getElementById('fKepadaNama').value = k.kepada_nama || '';
   document.getElementById('fNomorMemo').value = k.nomor_memo || '(belum diterbitkan)';
@@ -369,8 +363,10 @@ document.getElementById('btnSubmit').addEventListener('click', async () => {
     selesai: tr.querySelector('.r-selesai').value || null
   })).filter(r => r.ke || r.mulai || r.selesai);
 
-  // Kontrak ke (terakhir/dinilai) dihitung otomatis dari baris riwayat terakhir yang diisi.
+  // Kontrak ke & masa akhir kontrak dihitung otomatis dari baris riwayat terakhir yang diisi
+  // (baris paling bawah = kontrak yang sedang berjalan / dinilai).
   const kontrakKeTerakhir = riwayat.length ? riwayat[riwayat.length - 1].ke : null;
+  const masaAkhirKontrak = riwayat.length ? riwayat[riwayat.length - 1].selesai : null;
 
   const btn = document.getElementById('btnSubmit');
   btn.disabled = true; btn.textContent = 'Menyimpan...';
@@ -391,7 +387,7 @@ document.getElementById('btnSubmit').addEventListener('click', async () => {
           kepada_nama: resolveNamaFromInput(document.getElementById('fKepadaNama').value),
           riwayat_kontrak: riwayat,
           kontrak_ke_terakhir: kontrakKeTerakhir,
-          masa_akhir_kontrak: document.getElementById('fMasaAkhir').value || null,
+          masa_akhir_kontrak: masaAkhirKontrak,
           tipe_form: selectedTipe,
           nama_atasan_penilai: penilai.nama,
           updated_at: new Date().toISOString()
@@ -435,7 +431,7 @@ document.getElementById('btnSubmit').addEventListener('click', async () => {
         kepada_nama: resolveNamaFromInput(document.getElementById('fKepadaNama').value),
         riwayat_kontrak: riwayat,
         kontrak_ke_terakhir: kontrakKeTerakhir,
-        masa_akhir_kontrak: document.getElementById('fMasaAkhir').value || null,
+        masa_akhir_kontrak: masaAkhirKontrak,
         tipe_form: selectedTipe,
         nama_atasan_penilai: penilai.nama,
         status: 'Menunggu Persetujuan HCS',
