@@ -73,12 +73,12 @@
   .memo-preview{ font-family:'Times New Roman', Times, serif; background:#fff; color:#111; border-radius:8px; padding:20px 24px; font-size:13px; line-height:1.55; }
   .memo-preview .memo-title{ font-weight:700; text-decoration:underline; margin-bottom:2px; }
   .memo-preview .memo-number{ font-size:12px; color:#333; margin-bottom:10px; }
-  .memo-preview table{ border-collapse:collapse; width:100%; margin-bottom:10px; }
+  .memo-preview table{ border-collapse:collapse; width:100%; margin-bottom:10px; table-layout:fixed; }
   .memo-preview td, .memo-preview th{ padding:2px 8px 2px 0; font-size:12.5px; text-align:left; vertical-align:top; }
-  .memo-preview th{ width:110px; font-weight:normal; }
+  .memo-preview th{ width:35%; font-weight:normal; }
   .memo-preview th::after{ content:":"; float:right; }
   .memo-preview p{ margin:0 0 10px; text-align:justify; }
-  .memo-preview .riwayat-row th{ width:35%; }
+  .memo-preview .blank-line{ display:inline-block; width:220px; border-bottom:1px solid #333; height:13px; }
 </style>
 </head>
 <body>
@@ -139,6 +139,7 @@
     <div class="card">
       <h2>Nomor Memo</h2>
       <div class="field"><input id="fNomorMemoHcs" placeholder="contoh: 199/A.01/HRD/VII/2026"></div>
+      <div class="muted">Nomor memo dibuat otomatis saat memo ini diajukan. Ubah di sini hanya jika ada koreksi.</div>
     </div>
 
     <div class="card">
@@ -323,15 +324,16 @@ async function init() {
 function renderMemoPreview(k) {
   const riwayat = Array.isArray(k.riwayat_kontrak) ? k.riwayat_kontrak : [];
   const riwayatRows = riwayat.map(r => `
-    <tr class="riwayat-row">
-      <th>Kontrak ke ${r.ke ?? '-'}</th>
-      <td>${fmtDate(r.mulai)} — ${fmtDate(r.selesai)}</td>
-    </tr>
-  `).join('') || `<tr><td colspan="2">Belum ada riwayat kontrak tercatat.</td></tr>`;
+    <tr><th>Kontrak ke ${r.ke ?? '-'}</th><td>${fmtDate(r.mulai)} — ${fmtDate(r.selesai)}</td></tr>
+  `).join('');
+
+  // Baris kontrak selanjutnya (yang sedang diajukan/dinilai) — dikosongkan untuk diisi setelah keputusan.
+  const nextKe = (k.kontrak_ke_terakhir != null ? k.kontrak_ke_terakhir : riwayat.length) + 1;
+  const nextRow = `<tr><th>Kontrak ke ${nextKe}</th><td><span class="blank-line">&nbsp;</span></td></tr>`;
 
   return `
     <div class="memo-title">INTERNAL MEMO</div>
-    <div class="memo-number">${esc(k.nomor_memo || '—/—/HRD/—/—')}</div>
+    <div class="memo-number">${esc(k.nomor_memo || '—/A.01/HRD/—/—')}</div>
     <table>
       <tr><th>Kepada</th><td>${esc(k.kepada_jabatan || '-')}${k.kepada_nama ? '<br>Up. ' + esc(k.kepada_nama) : ''}</td></tr>
       <tr><th>Dari</th><td>${esc(k.dari || 'Dept. HCS')}</td></tr>
@@ -344,8 +346,9 @@ function renderMemoPreview(k) {
       <tr><th>Unit</th><td>${esc(k.unit_snapshot || '-')}</td></tr>
       <tr><th>Bagian</th><td>${esc(k.bagian_snapshot || '-')}</td></tr>
       <tr><th>Tanggal Masuk</th><td>${fmtDate(k.tanggal_masuk)}</td></tr>
+      ${riwayatRows}
+      ${nextRow}
     </table>
-    <table>${riwayatRows}</table>
     <p>Untuk selanjutnya mohon dilengkapi dengan pengisian form penilaian sebagaimana terlampir. Balasan internal memo maksimal 30 hari sebelum kontrak karyawan berakhir, jika melebihi batas waktu yang telah ditetapkan maka hal-hal yang berkaitan dengan legalitas karyawan (status kekaryawanan) menjadi tanggungan Departemen.</p>
     <p>Demikian pemberitahuan dari kami atas perhatian dan kerjasamanya kami sampaikan terima kasih.</p>
   `;
