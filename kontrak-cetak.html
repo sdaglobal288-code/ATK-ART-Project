@@ -54,8 +54,8 @@
   .checkbox{ display:inline-block; width:12px; height:12px; border:1px solid #333; margin-right:6px; vertical-align:middle; position:relative; top:-1px; }
   .checkbox.checked{ background:#1b3a63; }
 
-  .sign-block{ display:flex; justify-content:flex-end; margin-top:30px; }
-  .sign-box{ text-align:center; width:220px; }
+  .sign-block{ display:flex; justify-content:flex-start; margin-top:30px; }
+  .sign-box{ text-align:left; width:220px; }
   .sign-box .place-date{ margin-bottom:60px; }
   .sign-box .name{ font-weight:700; text-decoration:underline; }
   .sign-box .role{ font-size:12px; }
@@ -85,7 +85,7 @@
   .sign-row-4 .box .name{ margin-top:55px; border-top:1px solid #333; padding-top:4px; }
 
   @media print {
-    @page{ margin:8mm; }
+    @page{ margin:3mm; }
     body{ background:#fff; padding:0; }
     .toolbar{ display:none; }
     .sheet{ box-shadow:none; margin:0 auto; page-break-after:always; }
