@@ -174,6 +174,10 @@
 const APPROVAL_LABELS = { hcs: 'HCS Supervisor', penilai: 'Penilai (Atasan Langsung)' };
 const ROMAN_MONTHS = ['I','II','III','IV','V','VI','VII','VIII','IX','X','XI','XII'];
 function toRomanMonth(monthIndex1to12) { return ROMAN_MONTHS[monthIndex1to12 - 1]; }
+function toTitleCase(str) {
+  if (!str) return str;
+  return str.toLowerCase().replace(/(^|[\s\/\-])\S/g, c => c.toUpperCase());
+}
 
 let karyawanCache = [];
 let departemenCache = [];
@@ -235,7 +239,7 @@ async function loadDepartemen() {
   if (error) { console.error(error); return; }
   departemenCache = data || [];
   const dl = document.getElementById('departemenList');
-  dl.innerHTML = departemenCache.map(d => `<option value="Pimpinan Dept. ${d.nama_departemen}">`).join('');
+  dl.innerHTML = departemenCache.map(d => `<option value="Pimpinan Dept. ${toTitleCase(d.nama_departemen)}">`).join('');
 }
 
 document.getElementById('karyawanSearch').addEventListener('input', (e) => {
@@ -245,11 +249,11 @@ document.getElementById('karyawanSearch').addEventListener('input', (e) => {
   document.getElementById('fNik').value = found.nik || '';
   document.getElementById('fNama').value = found.nama || '';
   document.getElementById('fJabatan').value = found.jabatan || '';
-  document.getElementById('fBagian').value = found.departemen || '';
+  document.getElementById('fBagian').value = found.jabatan || '';
 
   // auto-isi "Kepada" sesuai departemen karyawan (masih bisa dicari/diubah manual)
-  const targetVal = `Pimpinan Dept. ${found.departemen}`;
-  const match = departemenCache.find(d => `Pimpinan Dept. ${d.nama_departemen}` === targetVal);
+  const targetVal = `Pimpinan Dept. ${toTitleCase(found.departemen)}`;
+  const match = departemenCache.find(d => `Pimpinan Dept. ${toTitleCase(d.nama_departemen)}` === targetVal);
   if (match) document.getElementById('fKepadaJabatan').value = targetVal;
 });
 
