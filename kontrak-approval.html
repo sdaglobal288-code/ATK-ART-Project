@@ -81,7 +81,8 @@
   .memo-preview th::after{ content:":"; float:right; }
   .memo-preview p{ margin:0 0 10px; text-align:justify; }
   .memo-preview .blank-line{ display:inline-block; width:220px; border-bottom:1px solid #333; height:13px; }
-  .memo-preview .sign-off{ margin-top:18px; text-align:center; }
+  .memo-preview .sign-off{ margin-top:18px; }
+  .memo-preview .sign-off-box{ width:240px; text-align:center; }
   .memo-preview .sign-off .place-date{ margin-bottom:4px; }
   .memo-preview .sign-off .sig-img{ display:block; height:95px; margin:0 auto -16px; }
   .memo-preview .sign-off .sig-name{ font-weight:700; text-decoration:underline; }
@@ -483,10 +484,12 @@ function renderMemoPreview(k) {
     <p>Untuk selanjutnya apabila ${b(rekom==='diperpanjang','diperpanjang')} ( ${b(k.durasi_perpanjangan==='3','3')} / ${b(k.durasi_perpanjangan==='6','6')} / ${b(k.durasi_perpanjangan==='12','12')} bulan ) / ${b(rekom==='tidak_diperpanjang','Tidak diperpanjang')} / ${b(rekom==='karyawan_tetap','Diusulkan sebagai karyawan tetap')}, dilengkapi dengan pengisian form sebagaimana terlampir. Balasan internal memo maksimal 30 hari sebelum kontrak karyawan berakhir, jika melebihi batas waktu yang telah ditetapkan maka hal - hal yang berkaitan dengan legalitas karyawan (status kekaryawanan) menjadi tanggungan Departemen.</p>
     <p>Demikian pemberitahuan dari kami atas perhatian dan kerjasamanya kami sampaikan terima kasih.</p>
     <div class="sign-off">
-      <div class="place-date">Surabaya, ${fmtDateLong(k.tanggal_memo || new Date())}<br>Hormat Saya,</div>
-      ${k.hcs_signature_data ? `<img class="sig-img" src="${k.hcs_signature_data}" alt="Tanda tangan">` : ''}
-      <div class="sig-name">${esc(k.hcs_penandatangan_nama || '-')}</div>
-      <div class="sig-role">HCS Supervisor</div>
+      <div class="sign-off-box">
+        <div class="place-date">Surabaya, ${fmtDateLong(k.tanggal_memo || new Date())}<br>Hormat Saya,</div>
+        ${k.hcs_signature_data ? `<img class="sig-img" src="${k.hcs_signature_data}" alt="Tanda tangan">` : ''}
+        <div class="sig-name">${esc(k.hcs_penandatangan_nama || '-')}</div>
+        <div class="sig-role">HCS Supervisor</div>
+      </div>
     </div>
   `;
 }
