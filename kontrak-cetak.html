@@ -50,39 +50,55 @@
   .checkbox{ display:inline-block; width:12px; height:12px; border:1px solid #333; margin-right:6px; vertical-align:middle; position:relative; top:-1px; }
   .checkbox.checked{ background:#1b3a63; }
 
-  .sign-block{ display:flex; justify-content:flex-start; margin-top:30px; }
-  .sign-box{ text-align:left; width:220px; }
-  .sign-box .place-date{ margin-bottom:8px; }
-  .sign-box .sig-img{ display:block; height:70px; margin:0 0 4px -8px; }
-  .sign-box .sig-blank{ display:block; height:60px; }
+  .sign-block{ display:flex; justify-content:center; margin-top:30px; }
+  .sign-box{ text-align:center; width:220px; }
+  .sign-box .place-date{ margin-bottom:6px; }
+  .sign-box .sig-img{ display:block; height:70px; margin:0 auto -8px; }
+  .sign-box .sig-blank{ display:block; height:55px; }
   .sign-box .name{ font-weight:700; text-decoration:underline; }
   .sign-box .role{ font-size:12px; }
 
-  .form-title{ text-align:center; font-weight:700; font-family:'Times New Roman', Times, serif; margin-bottom:2px; }
-  .form-sub{ text-align:center; font-size:12px; color:#333; font-family:'Times New Roman', Times, serif; margin-bottom:16px; }
+  .form-title{ text-align:center; font-weight:700; font-family:'Times New Roman', Times, serif; margin-bottom:2px; font-size:15px; }
+  .form-sub{ text-align:center; font-size:12px; color:#333; font-family:'Times New Roman', Times, serif; margin-bottom:14px; line-height:1.4; }
 
-  .karyawan-info{ display:grid; grid-template-columns:1fr 1fr; gap:2px 24px; font-size:12.5px; margin-bottom:16px; font-family:'Times New Roman', Times, serif; }
-  .karyawan-info div{ display:flex; }
-  .karyawan-info .l{ width:150px; flex-shrink:0; }
+  .form-sheet{ max-width:1150px; font-size:12px; }
 
-  table.kriteria-print{ width:100%; border-collapse:collapse; font-size:12px; margin-bottom:10px; font-family:'Times New Roman', Times, serif; }
-  table.kriteria-print th, table.kriteria-print td{ border:1px solid #333; padding:6px 8px; }
-  table.kriteria-print th{ background:#f0f0f0; text-align:left; }
-  table.kriteria-print td.skor{ width:70px; text-align:center; font-weight:700; }
-  table.kriteria-print tr.kategori td{ font-weight:700; background:#f7f4ee; }
-  table.kriteria-print tr.rata td{ font-style:italic; font-weight:700; background:#fbf6ea; }
+  .karyawan-info-v2{ display:grid; grid-template-columns:1fr 1fr; gap:2px 30px; font-size:12px; margin-bottom:14px; font-family:'Times New Roman', Times, serif; }
+  .karyawan-info-v2 .col div{ display:flex; margin-bottom:1px; }
+  .karyawan-info-v2 .l{ width:230px; flex-shrink:0; }
 
-  .notes-box{ font-family:'Times New Roman', Times, serif; font-size:12px; margin-top:10px; }
-  .notes-box .l{ font-weight:700; margin-top:8px; }
+  table.kriteria-print-v2{ width:100%; border-collapse:collapse; font-size:11.5px; margin-bottom:14px; font-family:'Times New Roman', Times, serif; }
+  table.kriteria-print-v2 th, table.kriteria-print-v2 td{ border:1px solid #333; padding:4px 7px; vertical-align:top; }
+  table.kriteria-print-v2 th{ background:#f0f0f0; text-align:center; }
+  table.kriteria-print-v2 td.roman{ width:24px; text-align:center; font-weight:700; vertical-align:middle; }
+  table.kriteria-print-v2 td.skor{ width:60px; text-align:center; font-weight:700; }
+  table.kriteria-print-v2 td.kategori-cell{ font-weight:700; background:#f7f4ee; }
+  table.kriteria-print-v2 tr.rata td{ font-style:italic; font-weight:700; background:#fbf6ea; }
+  table.kriteria-print-v2 tr.total-row td{ font-weight:700; background:#f0f0f0; text-align:center; }
+  table.kriteria-print-v2 td.saran-cell{ width:280px; }
+  .saran-label{ font-weight:700; }
+  .saran-text{ min-height:34px; white-space:pre-wrap; }
 
-  .rekom-check-list{ font-family:'Times New Roman', Times, serif; font-size:12.5px; margin-top:14px; }
+  .bottom-grid{ display:grid; grid-template-columns:1fr 1fr; gap:0 30px; margin-bottom:10px; }
+  .catatan-box .l{ font-weight:700; margin-bottom:4px; }
+  .catatan-box .catatan-text{ min-height:90px; white-space:pre-wrap; font-size:12px; }
+
+  .rekom-check-list{ font-family:'Times New Roman', Times, serif; font-size:12px; }
   .rekom-check-list .row{ margin-bottom:6px; }
 
-  .sign-row-4{ display:flex; justify-content:space-between; margin-top:50px; font-family:'Times New Roman', Times, serif; font-size:12px; text-align:center; }
+  .sign-row-4{ display:flex; justify-content:space-between; margin-top:36px; font-family:'Times New Roman', Times, serif; font-size:12px; text-align:center; }
   .sign-row-4 .box{ width:23%; }
-  .sign-row-4 .box .sig-img{ display:block; height:55px; margin:45px auto -8px; }
-  .sign-row-4 .box .name{ margin-top:55px; border-top:1px solid #333; padding-top:4px; }
+  .sign-row-4 .box .sig-img{ display:block; height:50px; margin:35px auto -8px; }
+  .sign-row-4 .box .name{ margin-top:45px; border-top:1px solid #333; padding-top:4px; }
   .sign-row-4 .box .name.has-sig{ margin-top:0; }
+  .sign-row-4 .box .role{ margin-top:4px; }
+
+  .note-box{ font-family:'Times New Roman', Times, serif; font-size:11px; margin-top:22px; }
+  .note-grid{ display:grid; grid-template-columns:1fr 1fr; gap:2px 30px; margin-top:6px; }
+
+  @page { size: A4; margin: 3mm; }
+  @page formpage { size: A4 landscape; margin: 3mm; }
+  .form-sheet{ page: formpage; }
 
   @media print {
     @page{ margin:3mm; }
@@ -148,6 +164,57 @@ function esc(str) {
 }
 function cb(checked) { return `<span class="checkbox${checked ? ' checked' : ''}"></span>`; }
 function b(checked, text) { return checked ? `<b>${text}</b>` : text; }
+
+const ROMAN = ['I','II','III','IV','V'];
+
+function buildSaranContent(k) {
+  return `
+    <div class="saran-label">Kekuatan :</div>
+    <div class="saran-text">${k.kekuatan ? esc(k.kekuatan) : ''}</div>
+    <div class="saran-label" style="margin-top:16px;">Area Pengembangan :</div>
+    <div class="saran-text">${k.area_pengembangan ? esc(k.area_pengembangan) : ''}</div>
+  `;
+}
+
+function buildKriteriaSaranTable(k, tpl, skorMap) {
+  const totalRows = tpl.sections.reduce((sum, sec) => sum + sec.items.length + 2, 0) + 1;
+  let rowsHtml = '';
+  let firstRow = true;
+  const sectionAverages = [];
+
+  tpl.sections.forEach((sec, secIdx) => {
+    const roman = ROMAN[secIdx] || String(secIdx + 1);
+    const rowSpanForSection = sec.items.length + 2;
+    const catName = sec.kategori.replace(/^[IVX]+\.\s*/, '');
+
+    rowsHtml += `<tr>
+      <td class="roman" rowspan="${rowSpanForSection}">${roman}</td>
+      <td colspan="2" class="kategori-cell">${esc(catName)}</td>
+      ${firstRow ? `<td class="saran-cell" rowspan="${totalRows}">${buildSaranContent(k)}</td>` : ''}
+    </tr>`;
+    firstRow = false;
+
+    const scores = [];
+    sec.items.forEach((label, i) => {
+      const skor = skorMap[`${sec.kategori}||${label}`];
+      if (skor != null) scores.push(skor);
+      rowsHtml += `<tr><td colspan="2">${String.fromCharCode(97 + i)}. ${esc(label)}</td><td class="skor">${skor ?? ''}</td></tr>`;
+    });
+    const avg = scores.length ? (scores.reduce((a, bb) => a + bb, 0) / scores.length) : null;
+    if (avg != null) sectionAverages.push(avg);
+    rowsHtml += `<tr class="rata"><td colspan="2">Rata-rata</td><td class="skor">${avg != null ? avg.toFixed(2) : ''}</td></tr>`;
+  });
+
+  const total = sectionAverages.length ? (sectionAverages.reduce((a, bb) => a + bb, 0) / sectionAverages.length).toFixed(2) : '-';
+  rowsHtml += `<tr class="total-row"><td colspan="3">TOTAL RATA-RATA</td><td class="skor">${total}</td></tr>`;
+
+  return `
+    <table class="kriteria-print-v2">
+      <tr><th colspan="2">KRITERIA EVALUASI</th><th>Penilaian</th><th>SARAN DAN PENGEMBANGAN</th></tr>
+      ${rowsHtml}
+    </table>
+  `;
+}
 
 async function load() {
   if (!id) { renderError('Parameter id tidak ditemukan.'); return; }
@@ -240,57 +307,87 @@ function render(k) {
   const skorMap = {};
   (Array.isArray(k.skor_detail) ? k.skor_detail : []).forEach(s => { skorMap[`${s.kategori}||${s.label}`] = s.skor; });
 
-  const kriteriaRows = tpl.sections.map(sec => {
-    const rows = sec.items.map((label, i) => {
-      const skor = skorMap[`${sec.kategori}||${label}`];
-      return `<tr><td colspan="2">${String.fromCharCode(97+i)}. ${esc(label)}</td><td class="skor">${skor ?? '-'}</td></tr>`;
-    }).join('');
-    const scores = sec.items.map(label => skorMap[`${sec.kategori}||${label}`]).filter(v => v != null);
-    const avg = scores.length ? (scores.reduce((a,b)=>a+b,0)/scores.length).toFixed(2) : '-';
-    return `<tr class="kategori"><td colspan="3">${esc(sec.kategori)}</td></tr>${rows}<tr class="rata"><td colspan="2">Rata-rata</td><td class="skor">${avg}</td></tr>`;
-  }).join('');
+  const kriteriaSaranTable = buildKriteriaSaranTable(k, tpl, skorMap);
 
   const formBody = `
-    <div class="sheet">
+    <div class="sheet form-sheet">
       <div class="form-title">FORMULIR PENILAIAN KARYAWAN</div>
-      <div class="form-sub">${esc(tpl.title)} — ${esc(tpl.sub)}</div>
+      <div class="form-sub">${esc(tpl.title)}<br>${esc(tpl.sub)}</div>
 
-      <div class="karyawan-info">
-        <div><span class="l">Nama</span>: ${esc(k.nama_snapshot)}</div>
-        <div><span class="l">Departemen</span>: ${esc(k.bagian_snapshot || '-')}</div>
-        <div><span class="l">NIK</span>: ${esc(k.nik_snapshot)}</div>
-        <div><span class="l">Tanggal Masuk</span>: ${fmtDate(k.tanggal_masuk, {day:'2-digit',month:'2-digit',year:'numeric'})}</div>
-        <div><span class="l">Jabatan</span>: ${esc(k.jabatan_snapshot || '-')}</div>
-        <div><span class="l">Masa Akhir Kontrak</span>: ${fmtDate(k.masa_akhir_kontrak, {day:'2-digit',month:'2-digit',year:'numeric'})}</div>
-        <div><span class="l">Nama Atasan</span>: ${esc(k.nama_atasan_penilai || '-')}</div>
+      <div class="karyawan-info-v2">
+        <div class="col">
+          <div><span class="l">Nama</span>: ${esc(k.nama_snapshot)}</div>
+          <div><span class="l">NIK</span>: ${esc(k.nik_snapshot)}</div>
+          <div><span class="l">Jabatan</span>: ${esc(k.jabatan_snapshot || '-')}</div>
+        </div>
+        <div class="col">
+          <div><span class="l">Departemen</span>: ${esc(k.bagian_snapshot || '-')}</div>
+          <div><span class="l">Tanggal Masuk</span>: ${fmtDate(k.tanggal_masuk, {day:'2-digit',month:'2-digit',year:'numeric'})}</div>
+          <div><span class="l">Masa Akhir Akting / Percobaan / Kontrak</span>: ${fmtDate(k.masa_akhir_kontrak, {day:'2-digit',month:'2-digit',year:'numeric'})}</div>
+          <div><span class="l">Nama Atasan</span>: ${esc(k.nama_atasan_penilai || '-')}</div>
+        </div>
       </div>
 
-      <table class="kriteria-print">
-        <tr><th colspan="2">Kriteria Evaluasi</th><th style="width:70px;">Penilaian</th></tr>
-        ${kriteriaRows}
-      </table>
+      ${kriteriaSaranTable}
 
-      <div class="notes-box">
-        ${k.kekuatan ? `<div class="l">Kekuatan</div><div>${esc(k.kekuatan)}</div>` : ''}
-        ${k.area_pengembangan ? `<div class="l">Area Pengembangan</div><div>${esc(k.area_pengembangan)}</div>` : ''}
-        ${k.catatan_penilai ? `<div class="l">Catatan</div><div>${esc(k.catatan_penilai)}</div>` : ''}
+      <div class="bottom-grid">
+        <div class="rekom-check-list">
+          <div style="font-weight:700; margin-bottom:6px;">Rekomendasi dari Atasan ** :<br><span style="font-weight:400; font-size:11px;">(Berikan &radic; rekomendasi di bawah ini)</span></div>
+          <div class="row">${cb(rekom==='lulus_percobaan' || rekom==='tidak_lulus_percobaan')} ${b(rekom==='lulus_percobaan','Lulus')} / ${b(rekom==='tidak_lulus_percobaan','Tidak Lulus')} Masa Percobaan</div>
+          <div class="row">${cb(rekom==='diperpanjang' || rekom==='tidak_diperpanjang')} ${b(rekom==='diperpanjang','Perpanjang' + (rekom==='diperpanjang' && k.durasi_perpanjangan ? ' (' + k.durasi_perpanjangan + ' bulan)' : ''))}/ ${b(rekom==='tidak_diperpanjang','Tidak Diperpanjang')} Kontrak</div>
+          <div class="row">${cb(rekom==='lulus_akting' || rekom==='tidak_lulus_akting')} ${b(rekom==='lulus_akting','Lulus')}/ Perpanjang/ ${b(rekom==='tidak_lulus_akting','Tidak Lulus')} Masa Akting</div>
+          <div class="row">${cb(rekom==='karyawan_tetap')} ${b(rekom==='karyawan_tetap','Karyawan Tetap')}</div>
+        </div>
+        <div class="catatan-box">
+          <div class="l">Catatan</div>
+          <div class="catatan-text">${k.catatan_penilai ? esc(k.catatan_penilai) : ''}</div>
+        </div>
       </div>
 
-      <div class="rekom-check-list">
-        <div style="font-weight:700; margin-bottom:6px;">Rekomendasi dari Atasan:</div>
-        <div class="row">${cb(rekom==='lulus_percobaan')} Lulus Masa Percobaan &nbsp;&nbsp; ${cb(rekom==='tidak_lulus_percobaan')} Tidak Lulus Masa Percobaan</div>
-        <div class="row">${cb(rekom==='diperpanjang')} Perpanjang Kontrak${rekom==='diperpanjang' && k.durasi_perpanjangan ? ' (' + k.durasi_perpanjangan + ' bulan)' : ''} &nbsp;&nbsp; ${cb(rekom==='tidak_diperpanjang')} Tidak Diperpanjang Kontrak</div>
-        <div class="row">${cb(rekom==='lulus_akting')} Lulus Masa Akting &nbsp;&nbsp; ${cb(rekom==='tidak_lulus_akting')} Tidak Lulus Masa Akting</div>
-        <div class="row">${cb(rekom==='karyawan_tetap')} Diangkat Menjadi Karyawan Tetap</div>
-      </div>
-
-      <div style="font-family:'Times New Roman', Times, serif; font-size:12px; margin-top:24px;">Surabaya, ${fmtDate(k.tanggal_memo)}</div>
+      <div style="font-family:'Times New Roman', Times, serif; font-size:12px; margin-top:20px;">Surabaya, ${fmtDate(k.tanggal_memo)}</div>
 
       <div class="sign-row-4">
-        <div class="box">Diajukan oleh,${k.penilai_signature_data ? `<img class="sig-img" src="${k.penilai_signature_data}" alt="Tanda tangan">` : ''}<div class="name${k.penilai_signature_data ? ' has-sig' : ''}">${esc(k.nama_atasan_penilai || '')}</div>Atasan Langsung</div>
-        <div class="box">Disetujui oleh,<div class="name">&nbsp;</div>Atasan Tidak Langsung</div>
-        <div class="box">Diketahui oleh,${k.hcs_signature_data ? `<img class="sig-img" src="${k.hcs_signature_data}" alt="Tanda tangan">` : ''}<div class="name${k.hcs_signature_data ? ' has-sig' : ''}">${esc(k.hcs_penandatangan_nama || '')}</div>HCS / Manajer Direktur</div>
-        <div class="box">Diterima,<div class="name">&nbsp;</div>Karyawan</div>
+        <div class="box">
+          Diajukan oleh,
+          ${k.penilai_signature_data ? `<img class="sig-img" src="${k.penilai_signature_data}" alt="Tanda tangan">` : ''}
+          <div class="name${k.penilai_signature_data ? ' has-sig' : ''}">${esc(k.nama_atasan_penilai || '')}</div>
+          <div class="role">( Atasan Langsung )</div>
+        </div>
+        <div class="box">
+          Disetujui oleh,
+          <div class="name">&nbsp;</div>
+          <div class="role">( Atasan Tidak Langsung )</div>
+        </div>
+        <div class="box">
+          &nbsp;
+          <div class="name">&nbsp;</div>
+          <div class="role">( PDV and Recruitment )</div>
+        </div>
+        <div class="box">
+          Diketahui oleh,
+          ${k.hcs_signature_data ? `<img class="sig-img" src="${k.hcs_signature_data}" alt="Tanda tangan">` : ''}
+          <div class="name${k.hcs_signature_data ? ' has-sig' : ''}">${esc(k.hcs_penandatangan_nama || '')}</div>
+          <div class="role">( Manajer / Direktur HCS )</div>
+        </div>
+      </div>
+
+      <div class="note-box">
+        <b>NOTE :</b>
+        <div class="note-grid">
+          <div>
+            <div>* Score Criteria : 1 to 5</div>
+            <div>1 = Sangat Kurang</div>
+            <div>2 = Kurang</div>
+            <div>3 = Cukup</div>
+            <div>4 = Bagus</div>
+            <div>5 = Sangat bagus</div>
+          </div>
+          <div>
+            <div>** Kriteria penilaian selama percobaan tidak boleh dibawah 3</div>
+            <div>1. Sikap Kerja</div>
+            <div>2. Penguasaan Pekerjaan</div>
+          </div>
+        </div>
       </div>
     </div>
   `;
