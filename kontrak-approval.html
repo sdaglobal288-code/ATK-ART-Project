@@ -72,6 +72,8 @@
   /* Memo preview (Internal Memo) shown to HCS & to Penilai/Atasan Langsung */
   .memo-preview{ font-family:'Times New Roman', Times, serif; background:#fff; color:#111; border-radius:8px; padding:20px 24px; font-size:13px; line-height:1.55; }
   .memo-preview .memo-title{ font-weight:700; text-decoration:underline; margin-bottom:2px; }
+  .memo-preview .letterhead{ margin-bottom:6px; }
+  .memo-preview .letterhead img{ height:60px; width:auto; display:block; }
   .memo-preview .memo-number{ font-size:12px; color:#333; margin-bottom:10px; }
   .memo-preview table{ border-collapse:collapse; width:100%; margin-bottom:10px; table-layout:fixed; }
   .memo-preview td, .memo-preview th{ padding:2px 8px 2px 0; font-size:12.5px; text-align:left; vertical-align:top; }
@@ -79,6 +81,11 @@
   .memo-preview th::after{ content:":"; float:right; }
   .memo-preview p{ margin:0 0 10px; text-align:justify; }
   .memo-preview .blank-line{ display:inline-block; width:220px; border-bottom:1px solid #333; height:13px; }
+  .memo-preview .sign-off{ margin-top:18px; }
+  .memo-preview .sign-off .place-date{ margin-bottom:8px; }
+  .memo-preview .sign-off .sig-img{ display:block; height:60px; margin:0 0 4px -8px; }
+  .memo-preview .sign-off .sig-name{ font-weight:700; text-decoration:underline; }
+  .memo-preview .sign-off .sig-role{ font-size:12px; }
 
   /* Tanda tangan / paraf online */
   .signer-name{ font-size:13px; margin-bottom:14px; }
@@ -424,6 +431,19 @@ async function init() {
     renderHcs();
   } else if (approvalRow.tahap === 'penilai') {
     if (kontrak.status === 'Menunggu Persetujuan HCS') { showState('waitingState'); return; }
+
+    // Ambil nama & tanda tangan HCS yang sudah menyetujui memo ini, agar tampil di pratinjau.
+    const { data: hcsRow } = await supabaseClient
+      .from('im_kontrak_approval')
+      .select('approver_nama, signature_data')
+      .eq('kontrak_id', kontrak.id)
+      .eq('tahap', 'hcs')
+      .single();
+    if (hcsRow) {
+      kontrak.hcs_penandatangan_nama = hcsRow.approver_nama;
+      kontrak.hcs_signature_data = hcsRow.signature_data;
+    }
+
     renderPenilai();
   }
 }
@@ -442,6 +462,7 @@ function renderMemoPreview(k) {
   const rekom = k.rekomendasi;
 
   return `
+    <div class="letterhead"><img src="images/logo-sda-global.png" alt="Logo SDA Global"></div>
     <div class="memo-title">INTERNAL MEMO</div>
     <div class="memo-number">${esc(k.nomor_memo || '—/A.01/HRD/—/—')}</div>
     <table>
@@ -461,6 +482,12 @@ function renderMemoPreview(k) {
     </table>
     <p>Untuk selanjutnya apabila ${b(rekom==='diperpanjang','diperpanjang')} ( ${b(k.durasi_perpanjangan==='3','3')} / ${b(k.durasi_perpanjangan==='6','6')} / ${b(k.durasi_perpanjangan==='12','12')} bulan ) / ${b(rekom==='tidak_diperpanjang','Tidak diperpanjang')} / ${b(rekom==='karyawan_tetap','Diusulkan sebagai karyawan tetap')}, dilengkapi dengan pengisian form sebagaimana terlampir. Balasan internal memo maksimal 30 hari sebelum kontrak karyawan berakhir, jika melebihi batas waktu yang telah ditetapkan maka hal - hal yang berkaitan dengan legalitas karyawan (status kekaryawanan) menjadi tanggungan Departemen.</p>
     <p>Demikian pemberitahuan dari kami atas perhatian dan kerjasamanya kami sampaikan terima kasih.</p>
+    <div class="sign-off">
+      <div class="place-date">Surabaya, ${fmtDateLong(k.tanggal_memo || new Date())}<br>Hormat Saya,</div>
+      ${k.hcs_signature_data ? `<img class="sig-img" src="${k.hcs_signature_data}" alt="Tanda tangan">` : ''}
+      <div class="sig-name">${esc(k.hcs_penandatangan_nama || '-')}</div>
+      <div class="sig-role">HCS Supervisor</div>
+    </div>
   `;
 }
 
@@ -472,6 +499,7 @@ function renderHcs() {
   document.getElementById('vTglMasukHcs').textContent = fmtDate(kontrak.tanggal_masuk);
   document.getElementById('vKontrakHcs').textContent = `Ke ${kontrak.kontrak_ke_terakhir ?? '-'} · berakhir ${fmtDate(kontrak.masa_akhir_kontrak)}`;
 
+  kontrak.hcs_penandatangan_nama = approvalRow.approver_nama;
   document.getElementById('memoPreviewHcs').innerHTML = renderMemoPreview(kontrak);
   document.getElementById('signerNameHcs').textContent = approvalRow.approver_nama || '-';
 
