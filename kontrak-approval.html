@@ -79,6 +79,16 @@
   .memo-preview th::after{ content:":"; float:right; }
   .memo-preview p{ margin:0 0 10px; text-align:justify; }
   .memo-preview .blank-line{ display:inline-block; width:220px; border-bottom:1px solid #333; height:13px; }
+
+  /* Tanda tangan / paraf online */
+  .signer-name{ font-size:13px; margin-bottom:14px; }
+  .signer-name b{ color:var(--gold); }
+  .sigpad-wrap{ background:#fff; border-radius:10px; overflow:hidden; touch-action:none; }
+  .sigpad-wrap canvas{ display:block; width:100%; height:180px; cursor:crosshair; }
+  .sigpad-actions{ display:flex; justify-content:space-between; align-items:center; margin-top:10px; }
+  .sigpad-hint{ font-size:12px; color:var(--text-muted); }
+  .sigpad-clear{ background:var(--panel-2); border:1px solid var(--border); color:var(--text); font-size:12px; padding:7px 14px; border-radius:8px; cursor:pointer; }
+  .sigpad-clear:hover{ color:var(--gold); border-color:var(--gold); }
 </style>
 </head>
 <body>
@@ -137,6 +147,16 @@
     </div>
 
     <div class="card">
+      <h2>Tanda Tangan / Paraf</h2>
+      <div class="signer-name">Menandatangani sebagai: <b id="signerNameHcs">-</b></div>
+      <div class="sigpad-wrap"><canvas id="sigPadHcs"></canvas></div>
+      <div class="sigpad-actions">
+        <span class="sigpad-hint">Gambar tanda tangan / paraf Anda di atas menggunakan jari atau mouse.</span>
+        <button type="button" class="sigpad-clear" data-target="sigPadHcs">Hapus</button>
+      </div>
+    </div>
+
+    <div class="card">
       <button class="btn" id="btnSubmitHcs">Setujui &amp; Kirim ke Penilai (Atasan Langsung)</button>
       <div class="status-msg" id="submitStatusHcs"></div>
     </div>
@@ -192,6 +212,16 @@
           <option value="6">6 bulan</option>
           <option value="12">12 bulan</option>
         </select>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Tanda Tangan / Paraf</h2>
+      <div class="signer-name">Menandatangani sebagai: <b id="signerNamePenilai">-</b></div>
+      <div class="sigpad-wrap"><canvas id="sigPadPenilai"></canvas></div>
+      <div class="sigpad-actions">
+        <span class="sigpad-hint">Gambar tanda tangan / paraf Anda di atas menggunakan jari atau mouse.</span>
+        <button type="button" class="sigpad-clear" data-target="sigPadPenilai">Hapus</button>
       </div>
     </div>
 
@@ -282,6 +312,79 @@ function b(checked, text) {
   return checked ? `<b>${text}</b>` : text;
 }
 
+// ---- Tanda tangan / paraf online (canvas signature pad) ----
+const signaturePads = {};
+
+function initSignaturePad(canvasId) {
+  const canvas = document.getElementById(canvasId);
+  if (!canvas || signaturePads[canvasId]) return;
+
+  const ctx = canvas.getContext('2d');
+  const ratio = window.devicePixelRatio || 1;
+
+  function resize() {
+    const rect = canvas.getBoundingClientRect();
+    const prev = canvas.toDataURL();
+    canvas.width = rect.width * ratio;
+    canvas.height = rect.height * ratio;
+    ctx.scale(ratio, ratio);
+    ctx.lineWidth = 2.2;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    ctx.strokeStyle = '#1b1b1b';
+  }
+  resize();
+  window.addEventListener('resize', resize);
+
+  let drawing = false;
+  let hasDrawn = false;
+  let lastX = 0, lastY = 0;
+
+  function pos(e) {
+    const rect = canvas.getBoundingClientRect();
+    const t = e.touches && e.touches[0] ? e.touches[0] : e;
+    return { x: t.clientX - rect.left, y: t.clientY - rect.top };
+  }
+  function start(e) {
+    e.preventDefault();
+    drawing = true;
+    const p = pos(e);
+    lastX = p.x; lastY = p.y;
+  }
+  function move(e) {
+    if (!drawing) return;
+    e.preventDefault();
+    const p = pos(e);
+    ctx.beginPath();
+    ctx.moveTo(lastX, lastY);
+    ctx.lineTo(p.x, p.y);
+    ctx.stroke();
+    lastX = p.x; lastY = p.y;
+    hasDrawn = true;
+  }
+  function end() { drawing = false; }
+
+  canvas.addEventListener('mousedown', start);
+  canvas.addEventListener('mousemove', move);
+  window.addEventListener('mouseup', end);
+  canvas.addEventListener('touchstart', start, { passive: false });
+  canvas.addEventListener('touchmove', move, { passive: false });
+  canvas.addEventListener('touchend', end);
+
+  signaturePads[canvasId] = {
+    clear() { ctx.clearRect(0, 0, canvas.width, canvas.height); hasDrawn = false; },
+    isEmpty() { return !hasDrawn; },
+    toDataURL() { return canvas.toDataURL('image/png'); }
+  };
+}
+
+document.querySelectorAll('.sigpad-clear').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const pad = signaturePads[btn.dataset.target];
+    if (pad) pad.clear();
+  });
+});
+
 async function init() {
   if (!token) { showState('errorState'); return; }
 
@@ -363,13 +466,23 @@ function renderHcs() {
   document.getElementById('vKontrakHcs').textContent = `Ke ${kontrak.kontrak_ke_terakhir ?? '-'} · berakhir ${fmtDate(kontrak.masa_akhir_kontrak)}`;
 
   document.getElementById('memoPreviewHcs').innerHTML = renderMemoPreview(kontrak);
+  document.getElementById('signerNameHcs').textContent = approvalRow.approver_nama || '-';
 
   showState('hcsContent');
+  setTimeout(() => initSignaturePad('sigPadHcs'), 0);
 }
 
 document.getElementById('btnSubmitHcs').addEventListener('click', async () => {
   const statusEl = document.getElementById('submitStatusHcs');
   statusEl.textContent = ''; statusEl.className = 'status-msg';
+
+  const padHcs = signaturePads['sigPadHcs'];
+  if (!padHcs || padHcs.isEmpty()) {
+    statusEl.textContent = 'Mohon bubuhkan tanda tangan / paraf terlebih dahulu.';
+    statusEl.className = 'status-msg error';
+    return;
+  }
+  const signatureDataHcs = padHcs.toDataURL();
 
   const btn = document.getElementById('btnSubmitHcs');
   btn.disabled = true; btn.textContent = 'Menyimpan...';
@@ -388,7 +501,7 @@ document.getElementById('btnSubmitHcs').addEventListener('click', async () => {
 
     const { error: errApproval } = await supabaseClient
       .from('im_kontrak_approval')
-      .update({ status: 'approved', signed_at: new Date().toISOString() })
+      .update({ status: 'approved', signed_at: new Date().toISOString(), signature_data: signatureDataHcs })
       .eq('token', token);
     if (errApproval) throw errApproval;
 
@@ -413,6 +526,7 @@ function renderPenilai() {
   document.getElementById('vKontrak').textContent = `Ke ${kontrak.kontrak_ke_terakhir ?? '-'} · berakhir ${fmtDate(kontrak.masa_akhir_kontrak)}`;
 
   document.getElementById('memoPreviewPenilai').innerHTML = renderMemoPreview(kontrak);
+  document.getElementById('signerNamePenilai').textContent = approvalRow.approver_nama || '-';
 
   const tpl = FORM_KRITERIA[kontrak.tipe_form] || FORM_KRITERIA.FORM2;
   document.getElementById('kriteriaTitle').textContent = tpl.label;
@@ -454,6 +568,7 @@ function renderPenilai() {
   });
 
   showState('penilaiContent');
+  setTimeout(() => initSignaturePad('sigPadPenilai'), 0);
 }
 
 function hitungRataRata() {
@@ -475,6 +590,14 @@ document.getElementById('btnSubmitPenilai').addEventListener('click', async () =
 
   const selected = document.querySelector('.rekom-option.active');
   if (!selected) { statusEl.textContent = 'Pilih rekomendasi terlebih dahulu.'; statusEl.className='status-msg error'; return; }
+
+  const padPenilai = signaturePads['sigPadPenilai'];
+  if (!padPenilai || padPenilai.isEmpty()) {
+    statusEl.textContent = 'Mohon bubuhkan tanda tangan / paraf terlebih dahulu.';
+    statusEl.className = 'status-msg error';
+    return;
+  }
+  const signatureDataPenilai = padPenilai.toDataURL();
 
   const detailRows = [];
   document.querySelectorAll('#kriteriaContainer table.kriteria').forEach(table => {
@@ -514,7 +637,7 @@ document.getElementById('btnSubmitPenilai').addEventListener('click', async () =
 
     const { error: errApproval } = await supabaseClient
       .from('im_kontrak_approval')
-      .update({ status: 'approved', signed_at: new Date().toISOString() })
+      .update({ status: 'approved', signed_at: new Date().toISOString(), signature_data: signatureDataPenilai })
       .eq('token', token);
     if (errApproval) throw errApproval;
 
