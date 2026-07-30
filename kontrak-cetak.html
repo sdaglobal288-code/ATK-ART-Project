@@ -52,7 +52,9 @@
 
   .sign-block{ display:flex; justify-content:flex-start; margin-top:30px; }
   .sign-box{ text-align:left; width:220px; }
-  .sign-box .place-date{ margin-bottom:60px; }
+  .sign-box .place-date{ margin-bottom:8px; }
+  .sign-box .sig-img{ display:block; height:70px; margin:0 0 4px -8px; }
+  .sign-box .sig-blank{ display:block; height:60px; }
   .sign-box .name{ font-weight:700; text-decoration:underline; }
   .sign-box .role{ font-size:12px; }
 
@@ -78,7 +80,9 @@
 
   .sign-row-4{ display:flex; justify-content:space-between; margin-top:50px; font-family:'Times New Roman', Times, serif; font-size:12px; text-align:center; }
   .sign-row-4 .box{ width:23%; }
+  .sign-row-4 .box .sig-img{ display:block; height:55px; margin:45px auto -8px; }
   .sign-row-4 .box .name{ margin-top:55px; border-top:1px solid #333; padding-top:4px; }
+  .sign-row-4 .box .name.has-sig{ margin-top:0; }
 
   @media print {
     @page{ margin:3mm; }
@@ -157,7 +161,10 @@ async function load() {
     .eq('kontrak_id', id);
 
   const hcsRow = (approvals || []).find(a => a.tahap === 'hcs');
+  const penilaiRow = (approvals || []).find(a => a.tahap === 'penilai');
   data.hcs_penandatangan_nama = hcsRow ? hcsRow.approver_nama : '';
+  data.hcs_signature_data = hcsRow ? hcsRow.signature_data : '';
+  data.penilai_signature_data = penilaiRow ? penilaiRow.signature_data : '';
 
   render(data);
 }
@@ -221,6 +228,7 @@ function render(k) {
       <div class="sign-block">
         <div class="sign-box">
           <div class="place-date">Surabaya, ${fmtDate(k.tanggal_memo)}<br>Hormat Saya,</div>
+          ${k.hcs_signature_data ? `<img class="sig-img" src="${k.hcs_signature_data}" alt="Tanda tangan">` : `<span class="sig-blank"></span>`}
           <div class="name">${esc(k.hcs_penandatangan_nama || '____________________')}</div>
           <div class="role">HCS Supervisor</div>
         </div>
@@ -279,9 +287,9 @@ function render(k) {
       <div style="font-family:'Times New Roman', Times, serif; font-size:12px; margin-top:24px;">Surabaya, ${fmtDate(k.tanggal_memo)}</div>
 
       <div class="sign-row-4">
-        <div class="box">Diajukan oleh,<div class="name">${esc(k.nama_atasan_penilai || '')}</div>Atasan Langsung</div>
+        <div class="box">Diajukan oleh,${k.penilai_signature_data ? `<img class="sig-img" src="${k.penilai_signature_data}" alt="Tanda tangan">` : ''}<div class="name${k.penilai_signature_data ? ' has-sig' : ''}">${esc(k.nama_atasan_penilai || '')}</div>Atasan Langsung</div>
         <div class="box">Disetujui oleh,<div class="name">&nbsp;</div>Atasan Tidak Langsung</div>
-        <div class="box">Diketahui oleh,<div class="name">${esc(k.hcs_penandatangan_nama || '')}</div>HCS / Manajer Direktur</div>
+        <div class="box">Diketahui oleh,${k.hcs_signature_data ? `<img class="sig-img" src="${k.hcs_signature_data}" alt="Tanda tangan">` : ''}<div class="name${k.hcs_signature_data ? ' has-sig' : ''}">${esc(k.hcs_penandatangan_nama || '')}</div>HCS / Manajer Direktur</div>
         <div class="box">Diterima,<div class="name">&nbsp;</div>Karyawan</div>
       </div>
     </div>
