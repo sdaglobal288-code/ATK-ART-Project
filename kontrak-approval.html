@@ -322,9 +322,12 @@ function initSignaturePad(canvasId) {
   const ctx = canvas.getContext('2d');
   const ratio = window.devicePixelRatio || 1;
 
+  let drawing = false;
+  let hasDrawn = false;
+  let lastX = 0, lastY = 0;
+
   function resize() {
     const rect = canvas.getBoundingClientRect();
-    const prev = canvas.toDataURL();
     canvas.width = rect.width * ratio;
     canvas.height = rect.height * ratio;
     ctx.scale(ratio, ratio);
@@ -332,13 +335,10 @@ function initSignaturePad(canvasId) {
     ctx.lineCap = 'round';
     ctx.lineJoin = 'round';
     ctx.strokeStyle = '#1b1b1b';
+    hasDrawn = false;
   }
   resize();
   window.addEventListener('resize', resize);
-
-  let drawing = false;
-  let hasDrawn = false;
-  let lastX = 0, lastY = 0;
 
   function pos(e) {
     const rect = canvas.getBoundingClientRect();
@@ -372,7 +372,14 @@ function initSignaturePad(canvasId) {
   canvas.addEventListener('touchend', end);
 
   signaturePads[canvasId] = {
-    clear() { ctx.clearRect(0, 0, canvas.width, canvas.height); hasDrawn = false; },
+    clear() {
+      ctx.save();
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.restore();
+      drawing = false;
+      hasDrawn = false;
+    },
     isEmpty() { return !hasDrawn; },
     toDataURL() { return canvas.toDataURL('image/png'); }
   };
