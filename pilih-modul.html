@@ -17,6 +17,8 @@
     --teal: #4dd0c4;
     --orange: #e8873a;
     --pink: #e06b8b;
+    --danger: #ef5675;
+    --danger-soft: rgba(239,84,117,0.14);
   }
   *{ box-sizing:border-box; margin:0; padding:0; }
   body{
@@ -63,15 +65,39 @@
     text-align:center;
     font-size:14px;
   }
-  .date-pill{
+  .topbar-actions{
     position:absolute;
     top:28px; right:32px;
+    display:flex;
+    align-items:center;
+    gap:10px;
+  }
+  .date-pill{
     background: var(--panel);
     border:1px solid var(--border);
     padding:8px 16px;
     border-radius: 20px;
     font-size:12px;
     color: var(--text-muted);
+  }
+  .btn-logout-pill{
+    display:flex;
+    align-items:center;
+    gap:6px;
+    background: var(--danger-soft);
+    border:1px solid rgba(239,84,117,0.3);
+    color: var(--danger);
+    padding:8px 16px;
+    border-radius: 20px;
+    font-size:12px;
+    font-weight:600;
+    font-family:inherit;
+    cursor:pointer;
+    transition: background .15s ease, border-color .15s ease;
+  }
+  .btn-logout-pill:hover{
+    background: rgba(239,84,117,0.24);
+    border-color: var(--danger);
   }
   .grid{
     display:grid;
@@ -81,6 +107,14 @@
   }
   @media (max-width: 900px){
     .grid{ grid-template-columns: 1fr; width:100%; max-width:360px; }
+  }
+  @media (max-width: 640px){
+    .topbar-actions{
+      position:static;
+      margin-bottom: 20px;
+      justify-content:center;
+    }
+    body{ padding-top:24px; }
   }
   .card{
     position:relative;
@@ -147,7 +181,10 @@
 </head>
 <body>
 
-  <div class="date-pill" id="datePill">—</div>
+  <div class="topbar-actions">
+    <div class="date-pill" id="datePill">—</div>
+    <button class="btn-logout-pill" onclick="logout()" type="button">🚪 Logout</button>
+  </div>
 
   <div class="brand">
     <div class="brand-mark">S</div>
@@ -195,6 +232,12 @@
   const now = new Date();
   const opts = { weekday:'long', day:'numeric', month:'long', year:'numeric' };
   el.textContent = now.toLocaleDateString('id-ID', opts);
+
+  function logout(){
+    sessionStorage.removeItem("user");
+    sessionStorage.removeItem("notifPopupShown");
+    location.href = "login.html";
+  }
 </script>
 
 </body>
