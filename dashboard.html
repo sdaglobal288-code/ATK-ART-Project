@@ -218,6 +218,29 @@
     margin:12px 0;
   }
 
+  /* ===========================
+     TOMBOL "KEMBALI KE PILIH MODUL"
+     (sama seperti di modul Penilaian Tahunan / Kontrak)
+  =========================== */
+  .btn-back-modul{
+    display:inline-flex;
+    align-items:center;
+    gap:6px;
+    background:none;
+    border:none;
+    color:var(--dsh-muted);
+    font-size:12.5px;
+    font-weight:600;
+    font-family:inherit;
+    cursor:pointer;
+    padding:0;
+    margin-bottom:4px;
+    transition:color .15s ease;
+  }
+  .btn-back-modul:hover{
+    color:var(--dsh-purple);
+  }
+
   .main{
     margin-left:var(--sidebar-w);
     flex:1;
@@ -749,6 +772,7 @@
 <div class="sidebar">
 
   <div class="logo">
+    <button class="btn-back-modul" onclick="goPage('pilih-modul.html')" type="button">← Kembali ke pilih modul</button>
     <span class="logo-icon">📦</span>
     <h2>ATK &amp; ART</h2>
     <p class="logo-sub">Management System</p>
