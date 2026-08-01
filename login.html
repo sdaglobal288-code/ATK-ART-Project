@@ -3,45 +3,38 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>ATK & ART — Login</title>
+<title>Sistem Internal Perusahaan — Login</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
 <link rel="stylesheet" href="css/login.css">
 </head>
 <body>
-
   <!-- Background shapes -->
   <div class="bg-shape bg-shape-1"></div>
   <div class="bg-shape bg-shape-2"></div>
   <div class="bg-shape bg-shape-3"></div>
-
   <div class="login-wrapper">
-
     <!-- Brand side (kiri) -->
     <div class="brand-side">
-      <div class="brand-logo">📦</div>
-      <h1 class="brand-title">ATK &amp; ART</h1>
-      <p class="brand-sub">Inventory Management System</p>
+      <div class="brand-logo">S</div>
+      <h1 class="brand-title">Sistem Internal<br>Perusahaan</h1>
+      <p class="brand-sub">Satu akun untuk semua modul internal perusahaan.</p>
       <ul class="brand-features">
-        <li>✦ Manajemen stok real-time</li>
-        <li>✦ Multi-gudang terpusat</li>
-        <li>✦ Laporan lengkap &amp; akurat</li>
+        <li>✦ ATK &amp; ART — Manajemen stok &amp; permintaan barang</li>
+        <li>✦ Penilaian Tahunan — Approval berjenjang</li>
+        <li>✦ IM Perpanjangan Kontrak — Memo &amp; approval</li>
         <li>✦ Data aman &amp; terenkripsi</li>
       </ul>
     </div>
-
     <!-- Card login (kanan) -->
     <div class="login-card">
-
       <div class="card-header">
         <div class="card-icon">🔐</div>
         <h2>Masuk ke Sistem</h2>
         <p>Masukkan kredensial akun Anda</p>
       </div>
-
       <div class="card-body">
-
         <div class="field">
           <label for="username">Username</label>
           <div class="input-wrap">
@@ -53,7 +46,6 @@
               autocomplete="username">
           </div>
         </div>
-
         <div class="field">
           <label for="password">Password</label>
           <div class="input-wrap">
@@ -68,32 +60,24 @@
             </button>
           </div>
         </div>
-
         <button id="btnLogin" onclick="login()">
           <span id="btnText">Masuk</span>
           <span id="btnSpinner" class="spinner" style="display:none;"></span>
         </button>
-
         <p id="status" class="status-msg"></p>
-
       </div>
-
       <div class="card-footer">
-        © 2026 ATK &amp; ART Management · All rights reserved
+        © 2026 Sistem Internal Perusahaan · All rights reserved
       </div>
-
     </div>
   </div>
-
 <script src="supabase/config.js"></script>
 <script src="js/auth.js"></script>
 <script>
 document.addEventListener("keydown", function(e){
   if (e.key === "Enter") login();
 });
-
 sessionStorage.removeItem("user");
-
 // Toggle password visibility
 document.getElementById("togglePw").addEventListener("click", function () {
   const pw = document.getElementById("password");
@@ -101,7 +85,6 @@ document.getElementById("togglePw").addEventListener("click", function () {
   pw.type = isHidden ? "text" : "password";
   this.textContent = isHidden ? "🙈" : "👁";
 });
-
 // Override login untuk tambah loading state
 const _origLogin = typeof login === "function" ? login : null;
 document.getElementById("btnLogin").addEventListener("click", function(e) {
