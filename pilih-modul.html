@@ -99,6 +99,69 @@
     background: rgba(239,84,117,0.24);
     border-color: var(--danger);
   }
+
+  /* ===========================
+     MENU MASTER KARYAWAN (ikon hamburang, pojok kiri atas)
+  =========================== */
+  .menu-master-wrapper{
+    position:absolute;
+    top:28px; left:32px;
+  }
+  .btn-hamburger{
+    width:40px; height:40px;
+    border-radius:12px;
+    background: var(--panel);
+    border:1px solid var(--border);
+    color: var(--text);
+    font-size:16px;
+    cursor:pointer;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    transition: background .15s ease, border-color .15s ease;
+  }
+  .btn-hamburger:hover{
+    background: var(--panel-hover);
+    border-color: var(--gold);
+  }
+  .menu-master-dropdown{
+    display:none;
+    position:absolute;
+    top:calc(100% + 10px);
+    left:0;
+    width:250px;
+    background: var(--panel);
+    border:1px solid var(--border);
+    border-radius:14px;
+    box-shadow: 0 16px 40px rgba(0,0,0,.45);
+    padding:10px;
+    z-index:200;
+  }
+  .menu-master-dropdown.show{
+    display:block;
+  }
+  .menu-master-head{
+    font-size:11px;
+    font-weight:700;
+    color: var(--text-muted);
+    text-transform:uppercase;
+    letter-spacing:.08em;
+    padding:6px 10px 10px;
+  }
+  .menu-master-dropdown a{
+    display:flex;
+    align-items:center;
+    gap:10px;
+    text-decoration:none;
+    color: var(--text);
+    font-size:13.5px;
+    padding:10px 10px;
+    border-radius:10px;
+    transition: background .15s ease;
+  }
+  .menu-master-dropdown a:hover{
+    background: var(--panel-hover);
+  }
   .grid{
     display:grid;
     grid-template-columns: repeat(3, minmax(240px, 320px));
@@ -113,6 +176,10 @@
       position:static;
       margin-bottom: 20px;
       justify-content:center;
+    }
+    .menu-master-wrapper{
+      position:static;
+      margin-bottom: 16px;
     }
     body{ padding-top:24px; }
   }
@@ -181,6 +248,16 @@
 </head>
 <body>
 
+  <div class="menu-master-wrapper" id="menuMasterWrapper">
+    <button class="btn-hamburger" id="btnHamburger" title="Master Karyawan" type="button">☰</button>
+    <div class="menu-master-dropdown" id="menuMasterDropdown">
+      <div class="menu-master-head">Master Karyawan</div>
+      <a href="master-karyawan.html">👥 Master Karyawan</a>
+      <a href="master-departemen.html">🏢 Master Departemen</a>
+      <a href="master-jabatan.html">💼 Master Jabatan</a>
+    </div>
+  </div>
+
   <div class="topbar-actions">
     <div class="date-pill" id="datePill">—</div>
     <button class="btn-logout-pill" onclick="logout()" type="button">🚪 Logout</button>
@@ -237,6 +314,27 @@
     sessionStorage.removeItem("user");
     sessionStorage.removeItem("notifPopupShown");
     location.href = "login.html";
+  }
+
+  // toggle dropdown Master Karyawan (ikon hamburger pojok kiri atas)
+  const btnHamburger      = document.getElementById('btnHamburger');
+  const menuMasterDropdown= document.getElementById('menuMasterDropdown');
+
+  if (btnHamburger && menuMasterDropdown) {
+    btnHamburger.addEventListener('click', function(e){
+      e.stopPropagation();
+      menuMasterDropdown.classList.toggle('show');
+    });
+
+    document.addEventListener('click', function(e){
+      if (!menuMasterDropdown.contains(e.target) && e.target !== btnHamburger) {
+        menuMasterDropdown.classList.remove('show');
+      }
+    });
+
+    document.addEventListener('keydown', function(e){
+      if (e.key === 'Escape') menuMasterDropdown.classList.remove('show');
+    });
   }
 </script>
 
