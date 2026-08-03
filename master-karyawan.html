@@ -551,6 +551,7 @@
             <th>Nama Karyawan</th>
             <th width="160">Departemen</th>
             <th width="160">Jabatan</th>
+            <th width="130">Tgl Bergabung</th>
             <th width="110">Status</th>
             <th width="150">Dibuat Oleh</th>
             <th width="170">Aksi</th>
@@ -558,7 +559,7 @@
         </thead>
         <tbody>
           <tr>
-            <td colspan="7" class="loading-state">
+            <td colspan="8" class="loading-state">
               <span class="spinner"></span> Memuat data...
             </td>
           </tr>
@@ -603,6 +604,11 @@
           <select id="jabatan" required>
             <option value="">-- Pilih Jabatan --</option>
           </select>
+        </div>
+
+        <div class="field full">
+          <label for="tanggal_masuk">Tanggal Bergabung</label>
+          <input type="date" id="tanggal_masuk">
         </div>
 
         <div class="field full">
