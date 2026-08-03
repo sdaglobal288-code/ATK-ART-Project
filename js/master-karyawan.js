@@ -117,7 +117,7 @@ async function loadKaryawan() {
 
     tbody.innerHTML = `
         <tr>
-            <td colspan="7" class="loading-state">
+            <td colspan="8" class="loading-state">
                 <span class="spinner"></span> Memuat data...
             </td>
         </tr>
@@ -139,11 +139,34 @@ async function loadKaryawan() {
         console.error(err);
         tbody.innerHTML = `
             <tr>
-                <td colspan="7" class="empty-state">
+                <td colspan="8" class="empty-state">
                     ⚠ Gagal memuat data: ${err.message}
                 </td>
             </tr>
         `;
+    }
+
+}
+
+// =====================================
+// FORMAT TANGGAL (yyyy-mm-dd -> dd/mm/yyyy untuk tampilan tabel)
+// =====================================
+
+function formatTanggalTampil(tgl) {
+
+    if (!tgl) return "-";
+
+    try {
+
+        const d = new Date(tgl);
+        if (isNaN(d.getTime())) return "-";
+
+        return d.toLocaleDateString("id-ID", {
+            day: "2-digit", month: "2-digit", year: "numeric"
+        });
+
+    } catch (err) {
+        return "-";
     }
 
 }
@@ -162,7 +185,7 @@ function renderKaryawan(list) {
     if (list.length === 0) {
         tbody.innerHTML = `
             <tr>
-                <td colspan="7" class="empty-state">
+                <td colspan="8" class="empty-state">
                     Tidak ada data karyawan yang cocok.
                 </td>
             </tr>
@@ -184,6 +207,7 @@ function renderKaryawan(list) {
                 <td><strong>${item.nama}</strong></td>
                 <td>${item.departemen ?? "-"}</td>
                 <td>${item.jabatan ?? "-"}</td>
+                <td>${formatTanggalTampil(item.tanggal_masuk)}</td>
                 <td>${badgeStatus}</td>
                 <td>${item.created_by ?? "-"}</td>
                 <td>
@@ -247,11 +271,12 @@ if (form) {
 
         try {
 
-            const nik        = document.getElementById("nik").value.trim().toUpperCase();
-            const nama       = document.getElementById("nama").value.trim();
-            const departemen = document.getElementById("departemen").value;
-            const jabatan    = document.getElementById("jabatan").value;
-            const status     = document.getElementById("status").value;
+            const nik           = document.getElementById("nik").value.trim().toUpperCase();
+            const nama          = document.getElementById("nama").value.trim();
+            const departemen    = document.getElementById("departemen").value;
+            const jabatan       = document.getElementById("jabatan").value;
+            const tanggalMasuk  = document.getElementById("tanggal_masuk").value || null;
+            const status        = document.getElementById("status").value;
 
             if (!nik || !nama || !departemen || !jabatan) {
                 alert("Semua field wajib diisi.");
@@ -266,7 +291,7 @@ if (form) {
 
                 const { error } = await supabaseClient
                     .from("master_karyawan")
-                    .update({ nama, departemen, jabatan, status })
+                    .update({ nama, departemen, jabatan, tanggal_masuk: tanggalMasuk, status })
                     .eq("id", editId);
 
                 if (error) throw error;
@@ -299,6 +324,7 @@ if (form) {
                     nama,
                     departemen,
                     jabatan,
+                    tanggal_masuk : tanggalMasuk,
                     status,
                     gudang     : user.gudang,   // ← otomatis sesuai akun
                     created_by : user.nama
@@ -340,11 +366,14 @@ async function editKaryawan(id) {
 
         editId = id;
 
-        document.getElementById("nik").value         = data.nik;
-        document.getElementById("nama").value        = data.nama;
-        document.getElementById("departemen").value  = data.departemen;
-        document.getElementById("jabatan").value     = data.jabatan;
-        document.getElementById("status").value      = data.status;
+        document.getElementById("nik").value          = data.nik;
+        document.getElementById("nama").value         = data.nama;
+        document.getElementById("departemen").value   = data.departemen;
+        document.getElementById("jabatan").value      = data.jabatan;
+        document.getElementById("tanggal_masuk").value = data.tanggal_masuk
+            ? String(data.tanggal_masuk).slice(0, 10)
+            : "";
+        document.getElementById("status").value       = data.status;
 
         // NIK tidak boleh diubah saat edit
         document.getElementById("nik").readOnly = true;
@@ -406,13 +435,14 @@ function exportExcel() {
     }
 
     const rows = allKaryawan.map(item => ({
-        "NIK"        : item.nik,
-        "NAMA"       : item.nama,
-        "DEPARTEMEN" : item.departemen ?? "-",
-        "JABATAN"    : item.jabatan ?? "-",
-        "STATUS"     : item.status,
-        "GUDANG"     : item.gudang ?? "-",
-        "DIBUAT OLEH": item.created_by ?? "-"
+        "NIK"             : item.nik,
+        "NAMA"            : item.nama,
+        "DEPARTEMEN"      : item.departemen ?? "-",
+        "JABATAN"         : item.jabatan ?? "-",
+        "TANGGAL BERGABUNG": item.tanggal_masuk ?? "-",
+        "STATUS"          : item.status,
+        "GUDANG"          : item.gudang ?? "-",
+        "DIBUAT OLEH"     : item.created_by ?? "-"
     }));
 
     const ws = XLSX.utils.json_to_sheet(rows);
@@ -455,15 +485,41 @@ if (fileImport) {
                 return;
             }
 
-            const payload = rows.map(row => ({
-                nik        : String(row.NIK ?? row.nik ?? "").trim().toUpperCase(),
-                nama       : String(row.NAMA ?? row.nama ?? "").trim(),
-                departemen : String(row.DEPARTEMEN ?? row.departemen ?? "").trim(),
-                jabatan    : String(row.JABATAN ?? row.jabatan ?? "").trim(),
-                status     : String(row.STATUS ?? row.status ?? "Aktif").trim(),
-                gudang     : user.gudang,   // ← otomatis sesuai akun, abaikan kolom gudang di file
-                created_by : user.nama
-            })).filter(item => item.nik && item.nama);
+            const payload = rows.map(row => {
+
+                // Tanggal bergabung bisa berupa serial number Excel atau teks tanggal
+                let tanggalMasuk = row["TANGGAL BERGABUNG"] ?? row.tanggal_masuk ?? null;
+
+                if (tanggalMasuk instanceof Date) {
+                    tanggalMasuk = tanggalMasuk.toISOString().slice(0, 10);
+                } else if (typeof tanggalMasuk === "number") {
+                    // serial date Excel -> JS Date
+                    const parsed = XLSX.SSF.parse_date_code(tanggalMasuk);
+                    if (parsed) {
+                        const mm = String(parsed.m).padStart(2, "0");
+                        const dd = String(parsed.d).padStart(2, "0");
+                        tanggalMasuk = `${parsed.y}-${mm}-${dd}`;
+                    } else {
+                        tanggalMasuk = null;
+                    }
+                } else if (typeof tanggalMasuk === "string" && tanggalMasuk.trim() !== "" && tanggalMasuk !== "-") {
+                    tanggalMasuk = tanggalMasuk.trim();
+                } else {
+                    tanggalMasuk = null;
+                }
+
+                return {
+                    nik           : String(row.NIK ?? row.nik ?? "").trim().toUpperCase(),
+                    nama          : String(row.NAMA ?? row.nama ?? "").trim(),
+                    departemen    : String(row.DEPARTEMEN ?? row.departemen ?? "").trim(),
+                    jabatan       : String(row.JABATAN ?? row.jabatan ?? "").trim(),
+                    tanggal_masuk : tanggalMasuk,
+                    status        : String(row.STATUS ?? row.status ?? "Aktif").trim(),
+                    gudang        : user.gudang,   // ← otomatis sesuai akun, abaikan kolom gudang di file
+                    created_by    : user.nama
+                };
+
+            }).filter(item => item.nik && item.nama);
 
             if (!payload.length) {
                 alert("Tidak ada baris valid. Pastikan kolom NIK dan NAMA terisi.");
