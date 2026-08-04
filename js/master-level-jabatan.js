@@ -202,7 +202,7 @@ document.getElementById("formLevelJabatan").addEventListener("submit", async fun
     } catch (err) {
 
         console.error("Gagal menyimpan level jabatan:", err);
-        alert("Gagal menyimpan data. Silakan coba lagi.");
+        alert("Gagal menyimpan data:\n" + (err?.message || err?.error_description || "Error tidak diketahui, cek console (F12)."));
 
     } finally {
 
@@ -238,7 +238,7 @@ async function hapusData(id) {
     } catch (err) {
 
         console.error("Gagal menghapus level jabatan:", err);
-        alert("Gagal menghapus data. Silakan coba lagi.");
+        alert("Gagal menghapus data:\n" + (err?.message || "Error tidak diketahui, cek console (F12)."));
 
     }
 
