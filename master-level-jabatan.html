@@ -1,366 +1,543 @@
-// =====================================================================
-// MASTER LEVEL JABATAN
-// Tabel Supabase yang dipakai: master_level_jabatan
-// Kolom: id, urutan (int), nama_level (text), created_by (text), created_at
-// =====================================================================
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Master Level Jabatan</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/dashboard.css">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
+<script src="supabase/config.js"></script>
+<!-- Tema warna otomatis sesuai gudang / pilihan akun yang login (dipakai di SEMUA halaman) -->
+<script src="js/theme.js"></script>
+<style>
+  :root{
+    --ml-bg:#0f1018;
+    --ml-surface:#171926;
+    --ml-surface-2:#1e2130;
+    --ml-border:#2a2d3d;
+    --ml-text:#e9eaf2;
+    --ml-muted:#9498ab;
+    --ml-purple:#6c5dd3;
+    --ml-purple-dark:#5a4cc0;
+    --ml-purple-soft:rgba(108,93,211,.15);
+    --ml-danger:#ef5675;
+    --ml-danger-soft:rgba(239,84,117,.12);
+  }
 
-const user = JSON.parse(sessionStorage.getItem("user"));
-if (!user) { location.href = "login.html"; }
+  body{
+    font-family:'Inter', sans-serif;
+    background:var(--ml-bg);
+    color:var(--ml-text);
+  }
 
-let dataLevel = [];
-let modeForm  = "tambah"; // "tambah" | "edit"
-let idEdit    = null;
+  .content{
+    max-width:1100px;
+    margin:0 auto;
+    padding:28px 24px 60px;
+  }
 
-const tableBody   = () => document.querySelector("#tableLevelJabatan tbody");
-const totalBadge  = () => document.getElementById("totalBadge");
-const searchInput = document.getElementById("searchLevel");
+  .content h2{
+    font-size:23px;
+    font-weight:700;
+    color:var(--ml-text);
+    display:flex;
+    align-items:center;
+    gap:10px;
+    margin:0;
+  }
 
-// =====================================================================
-// LOAD DATA
-// =====================================================================
-async function loadData() {
+  .page-subtitle{
+    color:var(--ml-muted);
+    font-size:13.5px;
+    margin-top:4px;
+  }
 
-    const tbody = tableBody();
+  /* ===== Toolbar ===== */
+  .toolbar{
+    display:flex;
+    gap:12px;
+    flex-wrap:wrap;
+  }
 
-    try {
+  .toolbar button{
+    display:inline-flex;
+    align-items:center;
+    gap:8px;
+    border:none;
+    border-radius:10px;
+    padding:10px 18px;
+    font-size:14px;
+    font-weight:600;
+    cursor:pointer;
+    transition:opacity .15s ease, transform .12s ease;
+  }
 
-        const { data, error } = await supabaseClient
-            .from("master_level_jabatan")
-            .select("*")
-            .order("urutan", { ascending: true });
+  .toolbar button:active{ transform:translateY(1px); }
 
-        if (error) throw error;
+  .btn-dashboard{
+    background:var(--ml-surface-2);
+    color:var(--ml-text);
+    border:1px solid var(--ml-border);
+  }
+  .btn-dashboard:hover{ background:#262a3c; }
 
-        dataLevel = data || [];
+  .btn-tambah{
+    background:linear-gradient(135deg, var(--ml-purple), var(--ml-purple-dark));
+    color:#fff;
+    box-shadow:0 4px 12px rgba(108,93,211,.35);
+  }
+  .btn-tambah:hover{ opacity:.92; }
 
-        renderTable(dataLevel);
+  .btn-import{
+    background:var(--ml-surface-2);
+    color:var(--ml-text);
+    border:1px solid var(--ml-border);
+  }
+  .btn-import:hover{ background:#262a3c; }
 
-    } catch (err) {
+  .btn-export-xl{
+    background:var(--ml-surface-2);
+    color:var(--ml-text);
+    border:1px solid var(--ml-border);
+  }
+  .btn-export-xl:hover{ background:#262a3c; }
 
-        console.error("Gagal memuat master level jabatan:", err);
-        tbody.innerHTML = `<tr><td colspan="4" class="empty-state">⚠ Gagal memuat data.</td></tr>`;
+  /* ===== Panel ===== */
+  .panel{
+    background:var(--ml-surface);
+    border:1px solid var(--ml-border);
+    border-radius:14px;
+    padding:22px 24px;
+    box-shadow:0 4px 16px rgba(0,0,0,.18);
+  }
 
-    }
+  .panel h3{
+    margin:0 0 16px;
+    font-size:16px;
+    font-weight:600;
+    color:var(--ml-text);
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+  }
 
-}
+  .total-badge{
+    font-size:12.5px;
+    font-weight:600;
+    color:var(--ml-purple);
+    background:var(--ml-purple-soft);
+    padding:4px 10px;
+    border-radius:999px;
+  }
 
-// =====================================================================
-// RENDER TABLE
-// =====================================================================
-function renderTable(list) {
+  /* ===== Search ===== */
+  .table-toolbar{
+    display:flex;
+    align-items:center;
+    gap:14px;
+    flex-wrap:wrap;
+    margin-bottom:16px;
+  }
 
-    const tbody = tableBody();
+  .search-box{
+    flex:1;
+    min-width:220px;
+    max-width:340px;
+    padding:10px 14px;
+    border:1px solid var(--ml-border);
+    border-radius:10px;
+    font-size:13.5px;
+    font-family:inherit;
+    color:var(--ml-text);
+    background:var(--ml-surface-2);
+    transition:border-color .15s ease, box-shadow .15s ease;
+  }
+  .search-box:focus{
+    outline:none;
+    border-color:var(--ml-purple);
+    box-shadow:0 0 0 3px var(--ml-purple-soft);
+  }
 
-    totalBadge().textContent = `${list.length} item`;
+  /* ===== Table ===== */
+  .table-wrap{
+    overflow-x:auto;
+    border-radius:10px;
+    border:1px solid var(--ml-border);
+  }
 
-    if (!list || list.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="4" class="empty-state">Belum ada data level jabatan.</td></tr>`;
-        return;
-    }
+  table{
+    width:100%;
+    border-collapse:collapse;
+    font-size:13.5px;
+    min-width:560px;
+  }
 
-    tbody.innerHTML = list.map((item, index) => {
+  thead th{
+    background:var(--ml-surface-2);
+    color:var(--ml-muted);
+    text-transform:uppercase;
+    font-size:11.5px;
+    letter-spacing:.04em;
+    font-weight:700;
+    text-align:left;
+    padding:12px 14px;
+    border-bottom:1px solid var(--ml-border);
+    white-space:nowrap;
+  }
 
-        const isFirst = index === 0;
-        const isLast  = index === list.length - 1;
+  tbody td{
+    padding:11px 14px;
+    border-bottom:1px solid var(--ml-border);
+    color:var(--ml-text);
+    vertical-align:middle;
+  }
 
-        return `
-        <tr>
-            <td><span class="urutan-pill">${item.urutan ?? "-"}</span></td>
-            <td>${escapeHtml(item.nama_level ?? "-")}</td>
-            <td>${escapeHtml(item.created_by ?? "-")}</td>
-            <td>
-                <div class="actions-cell">
-                    <button class="btn-move" title="Naikkan urutan" ${isFirst ? "disabled" : ""} onclick="pindahUrutan('${item.id}','naik')">▲</button>
-                    <button class="btn-move" title="Turunkan urutan" ${isLast ? "disabled" : ""} onclick="pindahUrutan('${item.id}','turun')">▼</button>
-                    <button class="btn-edit" onclick="bukaModalEdit('${item.id}')">✏ Edit</button>
-                    <button class="btn-delete" onclick="hapusData('${item.id}')">🗑 Hapus</button>
-                </div>
+  tbody tr:last-child td{ border-bottom:none; }
+
+  #tableLevelJabatan tbody tr:hover td{
+    background:transparent !important;
+    color:var(--ml-text) !important;
+  }
+
+  .urutan-pill{
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    min-width:26px;
+    height:26px;
+    font-weight:700;
+    color:#bcb2f5;
+    background:var(--ml-purple-soft);
+    padding:0 8px;
+    border-radius:999px;
+    font-size:12.5px;
+  }
+
+  .actions-cell{ display:flex; gap:8px; }
+
+  .btn-edit, .btn-delete, .btn-move{
+    display:inline-flex;
+    align-items:center;
+    gap:5px;
+    border-radius:8px;
+    padding:7px 13px;
+    font-size:12.5px;
+    font-weight:600;
+    font-family:inherit;
+    cursor:pointer;
+    transition:background .15s ease, color .15s ease, border-color .15s ease, transform .12s ease;
+  }
+  .btn-edit:active, .btn-delete:active, .btn-move:active{ transform:translateY(1px); }
+
+  .btn-edit{
+    background:transparent;
+    color:#bcb2f5 !important;
+    border:1px solid #4d4499;
+  }
+  .btn-edit:hover{
+    background:var(--ml-purple) !important;
+    color:#fff !important;
+    border-color:var(--ml-purple);
+  }
+
+  .btn-delete{
+    background:transparent;
+    color:var(--ml-danger) !important;
+    border:1px solid #8a3548;
+  }
+  .btn-delete:hover{
+    background:var(--ml-danger) !important;
+    color:#fff !important;
+    border-color:var(--ml-danger);
+  }
+
+  .btn-move{
+    background:transparent;
+    color:var(--ml-muted) !important;
+    border:1px solid var(--ml-border);
+    padding:7px 10px;
+  }
+  .btn-move:hover:not(:disabled){
+    background:var(--ml-surface-2) !important;
+    color:var(--ml-text) !important;
+  }
+  .btn-move:disabled{
+    opacity:.3;
+    cursor:not-allowed;
+  }
+
+  .empty-state, .loading-state{
+    text-align:center;
+    padding:36px 10px;
+    color:var(--ml-muted);
+    font-size:14px;
+  }
+
+  .loading-state .spinner{
+    display:inline-block;
+    width:16px; height:16px;
+    border:2px solid var(--ml-border);
+    border-top-color:var(--ml-purple);
+    border-radius:50%;
+    animation:spin .7s linear infinite;
+    margin-right:8px;
+    vertical-align:middle;
+  }
+
+  @keyframes spin{ to{ transform:rotate(360deg); } }
+
+  /* ===== Modal ===== */
+  .modal-overlay{
+    display:none;
+    position:fixed;
+    inset:0;
+    background:rgba(8,9,15,.65);
+    backdrop-filter:blur(2px);
+    align-items:center;
+    justify-content:center;
+    z-index:1000;
+    padding:20px;
+  }
+  .modal-overlay.active{ display:flex; }
+
+  .modal-box{
+    background:var(--ml-surface);
+    border:1px solid var(--ml-border);
+    border-radius:14px;
+    width:480px;
+    max-width:100%;
+    max-height:90vh;
+    overflow-y:auto;
+    box-shadow:0 20px 50px rgba(0,0,0,.45);
+    animation:modalPop .15s ease;
+  }
+
+  @keyframes modalPop{
+    from{ opacity:0; transform:translateY(8px) scale(.98); }
+    to{ opacity:1; transform:translateY(0) scale(1); }
+  }
+
+  .modal-header{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    padding:18px 22px;
+    border-bottom:1px solid var(--ml-border);
+  }
+
+  .modal-header h3{
+    margin:0;
+    font-size:16px;
+    font-weight:700;
+    color:var(--ml-text);
+  }
+
+  .modal-close{
+    background:none;
+    border:none;
+    color:var(--ml-muted);
+    font-size:18px;
+    cursor:pointer;
+    padding:4px;
+    border-radius:6px;
+    transition:background .15s ease, color .15s ease;
+  }
+  .modal-close:hover{ background:var(--ml-surface-2); color:var(--ml-text); }
+
+  /* Paksa block agar dashboard.css grid tidak memecah layout modal */
+  #formLevelJabatan{
+    display:block !important;
+  }
+
+  .modal-body{
+    padding:22px;
+    display:flex;
+    flex-direction:column;
+    gap:16px;
+  }
+
+  .modal-footer{
+    display:flex;
+    justify-content:flex-end;
+    gap:10px;
+    padding:16px 22px;
+    border-top:1px solid var(--ml-border);
+  }
+
+  .field{ display:flex; flex-direction:column; gap:6px; }
+
+  .field label{
+    font-size:12.5px;
+    font-weight:600;
+    color:var(--ml-muted);
+    text-transform:uppercase;
+    letter-spacing:.03em;
+  }
+
+  .field input, .field textarea{
+    width:100%;
+    box-sizing:border-box;
+    padding:11px 14px;
+    border:1px solid var(--ml-border);
+    border-radius:10px;
+    font-size:14px;
+    font-family:inherit;
+    color:var(--ml-text);
+    background:var(--ml-surface-2);
+    transition:border-color .15s ease, box-shadow .15s ease;
+    resize:vertical;
+  }
+  .field input::placeholder, .field textarea::placeholder{ color:#5d6175; }
+  .field input:focus, .field textarea:focus{
+    outline:none;
+    border-color:var(--ml-purple);
+    box-shadow:0 0 0 3px var(--ml-purple-soft);
+  }
+  .field input[readonly]{ opacity:.65; cursor:not-allowed; }
+
+  .field-hint{
+    font-size:12px;
+    color:var(--ml-muted);
+    margin-top:-2px;
+  }
+
+  #btnSimpan{
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    gap:8px;
+    height:42px;
+    background:linear-gradient(135deg, var(--ml-purple), var(--ml-purple-dark));
+    color:#fff;
+    border:none;
+    border-radius:10px;
+    padding:0 22px;
+    font-size:14px;
+    font-weight:600;
+    font-family:inherit;
+    cursor:pointer;
+    box-shadow:0 4px 12px rgba(108,93,211,.3);
+    transition:filter .15s ease, transform .12s ease;
+  }
+  #btnSimpan:hover{ filter:brightness(1.08); }
+  #btnSimpan:active{ transform:translateY(1px); }
+  #btnSimpan:disabled{ opacity:.55; cursor:not-allowed; filter:none; box-shadow:none; }
+
+  #btnBatal{
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    height:42px;
+    background:transparent;
+    color:var(--ml-danger);
+    border:1px solid #5a2a36;
+    border-radius:10px;
+    padding:0 18px;
+    font-size:14px;
+    font-weight:600;
+    font-family:inherit;
+    cursor:pointer;
+    transition:background .15s ease, border-color .15s ease;
+  }
+  #btnBatal:hover{ background:var(--ml-danger-soft); border-color:var(--ml-danger); }
+</style>
+</head>
+<body>
+<div class="content">
+
+  <h2>🪜 Master Level Jabatan</h2>
+  <p class="page-subtitle">Kelola urutan hierarki level jabatan perusahaan, dari level tertinggi ke terendah.</p>
+  <br>
+
+  <!-- ================= TOOLBAR ================= -->
+  <div class="toolbar">
+    <button class="btn-dashboard" onclick="location.href='pilih-modul.html'">
+      ← Kembali ke Pilih Modul
+    </button>
+    <button class="btn-tambah" onclick="bukaModalTambah()">
+      ➕ Tambah Level Jabatan
+    </button>
+    <button class="btn-import" onclick="document.getElementById('fileImport').click()">
+      📥 Import Excel
+    </button>
+    <input type="file" id="fileImport" accept=".xlsx,.xls,.csv" hidden>
+    <button class="btn-export-xl" onclick="exportExcel()">
+      📤 Export Excel
+    </button>
+  </div>
+  <br>
+
+  <!-- ================= TABLE ================= -->
+  <div class="panel">
+    <h3>
+      Daftar Level Jabatan
+      <span class="total-badge" id="totalBadge">0 item</span>
+    </h3>
+
+    <div class="table-toolbar">
+      <input type="text" id="searchLevel" class="search-box" placeholder="🔍 Cari level jabatan...">
+    </div>
+
+    <div class="table-wrap">
+      <table id="tableLevelJabatan">
+        <thead>
+          <tr>
+            <th width="80">Urutan</th>
+            <th>Level Jabatan</th>
+            <th width="160">Dibuat Oleh</th>
+            <th width="220">Aksi</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td colspan="4" class="loading-state">
+              <span class="spinner"></span> Memuat data...
             </td>
-        </tr>
-        `;
-
-    }).join("");
-
-}
-
-function escapeHtml(str) {
-    return String(str)
-        .replaceAll("&", "&amp;")
-        .replaceAll("<", "&lt;")
-        .replaceAll(">", "&gt;");
-}
-
-// =====================================================================
-// SEARCH
-// =====================================================================
-if (searchInput) {
-    searchInput.addEventListener("input", function () {
-        const q = this.value.trim().toLowerCase();
-
-        if (!q) {
-            renderTable(dataLevel);
-            return;
-        }
-
-        const filtered = dataLevel.filter(item =>
-            (item.nama_level || "").toLowerCase().includes(q)
-        );
-
-        renderTable(filtered);
-    });
-}
-
-// =====================================================================
-// MODAL TAMBAH / EDIT
-// =====================================================================
-function bukaModalTambah() {
-
-    modeForm = "tambah";
-    idEdit   = null;
-
-    document.getElementById("judulForm").textContent = "➕ Tambah Level Jabatan";
-    document.getElementById("nama_level").value = "";
-
-    const urutanBerikutnya = dataLevel.length > 0
-        ? Math.max(...dataLevel.map(d => Number(d.urutan) || 0)) + 1
-        : 1;
-
-    document.getElementById("urutan").value = urutanBerikutnya;
-
-    document.getElementById("modalLevelJabatan").classList.add("active");
-
-}
-
-function bukaModalEdit(id) {
-
-    const item = dataLevel.find(d => String(d.id) === String(id));
-    if (!item) return;
-
-    modeForm = "edit";
-    idEdit   = id;
-
-    document.getElementById("judulForm").textContent = "✏ Edit Level Jabatan";
-    document.getElementById("urutan").value     = item.urutan ?? "";
-    document.getElementById("nama_level").value = item.nama_level ?? "";
-
-    document.getElementById("modalLevelJabatan").classList.add("active");
-
-}
-
-function tutupModal() {
-    document.getElementById("modalLevelJabatan").classList.remove("active");
-}
-
-// =====================================================================
-// SUBMIT FORM (Simpan)
-// =====================================================================
-document.getElementById("formLevelJabatan").addEventListener("submit", async function (e) {
-
-    e.preventDefault();
-
-    const btnSimpan = document.getElementById("btnSimpan");
-    const urutan    = parseInt(document.getElementById("urutan").value, 10);
-    const namaLevel = document.getElementById("nama_level").value.trim();
-
-    if (!namaLevel || isNaN(urutan)) return;
-
-    btnSimpan.disabled   = true;
-    const teksAsli       = btnSimpan.innerHTML;
-    btnSimpan.innerHTML  = "⏳ Menyimpan...";
-
-    try {
-
-        if (modeForm === "tambah") {
-
-            const { error } = await supabaseClient
-                .from("master_level_jabatan")
-                .insert([{
-                    urutan: urutan,
-                    nama_level: namaLevel,
-                    created_by: user?.nama || user?.name || "System"
-                }]);
-
-            if (error) throw error;
-
-        } else {
-
-            const { error } = await supabaseClient
-                .from("master_level_jabatan")
-                .update({
-                    urutan: urutan,
-                    nama_level: namaLevel
-                })
-                .eq("id", idEdit);
-
-            if (error) throw error;
-
-        }
-
-        tutupModal();
-        await loadData();
-
-    } catch (err) {
-
-        console.error("Gagal menyimpan level jabatan:", err);
-        alert("Gagal menyimpan data:\n" + (err?.message || err?.error_description || "Error tidak diketahui, cek console (F12)."));
-
-    } finally {
-
-        btnSimpan.disabled  = false;
-        btnSimpan.innerHTML = teksAsli;
-
-    }
-
-});
-
-// =====================================================================
-// HAPUS
-// =====================================================================
-async function hapusData(id) {
-
-    const item = dataLevel.find(d => String(d.id) === String(id));
-    if (!item) return;
-
-    const konfirmasi = confirm(`Hapus level jabatan "${item.nama_level}"?`);
-    if (!konfirmasi) return;
-
-    try {
-
-        const { error } = await supabaseClient
-            .from("master_level_jabatan")
-            .delete()
-            .eq("id", id);
-
-        if (error) throw error;
-
-        await loadData();
-
-    } catch (err) {
-
-        console.error("Gagal menghapus level jabatan:", err);
-        alert("Gagal menghapus data:\n" + (err?.message || "Error tidak diketahui, cek console (F12)."));
-
-    }
-
-}
-
-// =====================================================================
-// PINDAH URUTAN (naik / turun) — tukar nilai urutan dengan tetangganya
-// =====================================================================
-async function pindahUrutan(id, arah) {
-
-    const index = dataLevel.findIndex(d => String(d.id) === String(id));
-    if (index === -1) return;
-
-    const targetIndex = arah === "naik" ? index - 1 : index + 1;
-    if (targetIndex < 0 || targetIndex >= dataLevel.length) return;
-
-    const itemA = dataLevel[index];
-    const itemB = dataLevel[targetIndex];
-
-    try {
-
-        const [{ error: errA }, { error: errB }] = await Promise.all([
-            supabaseClient.from("master_level_jabatan").update({ urutan: itemB.urutan }).eq("id", itemA.id),
-            supabaseClient.from("master_level_jabatan").update({ urutan: itemA.urutan }).eq("id", itemB.id)
-        ]);
-
-        if (errA || errB) throw (errA || errB);
-
-        await loadData();
-
-    } catch (err) {
-
-        console.error("Gagal memindahkan urutan:", err);
-        alert("Gagal memindahkan urutan. Silakan coba lagi.");
-
-    }
-
-}
-
-// =====================================================================
-// EXPORT EXCEL
-// =====================================================================
-function exportExcel() {
-
-    if (!dataLevel || dataLevel.length === 0) {
-        alert("Tidak ada data untuk di-export.");
-        return;
-    }
-
-    const rows = dataLevel.map(item => ({
-        "Urutan": item.urutan,
-        "Level Jabatan": item.nama_level,
-        "Dibuat Oleh": item.created_by || "-"
-    }));
-
-    const ws = XLSX.utils.json_to_sheet(rows);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Master Level Jabatan");
-
-    XLSX.writeFile(wb, "master-level-jabatan.xlsx");
-
-}
-
-// =====================================================================
-// IMPORT EXCEL
-// =====================================================================
-document.getElementById("fileImport").addEventListener("change", async function (e) {
-
-    const file = e.target.files[0];
-    if (!file) return;
-
-    try {
-
-        const data = await file.arrayBuffer();
-        const wb   = XLSX.read(data);
-        const ws   = wb.Sheets[wb.SheetNames[0]];
-        const rows = XLSX.utils.sheet_to_json(ws);
-
-        if (!rows || rows.length === 0) {
-            alert("File tidak memiliki data.");
-            return;
-        }
-
-        const payload = rows.map(r => ({
-            urutan: Number(r["Urutan"] ?? r["urutan"] ?? 0),
-            nama_level: String(r["Level Jabatan"] ?? r["nama_level"] ?? "").trim(),
-            created_by: user?.nama || user?.name || "System"
-        })).filter(r => r.nama_level);
-
-        if (payload.length === 0) {
-            alert("Tidak ada baris valid untuk diimport.");
-            return;
-        }
-
-        const konfirmasi = confirm(`Import ${payload.length} data level jabatan dari file ini?`);
-        if (!konfirmasi) return;
-
-        const { error } = await supabaseClient
-            .from("master_level_jabatan")
-            .insert(payload);
-
-        if (error) throw error;
-
-        alert("Import berhasil.");
-        await loadData();
-
-    } catch (err) {
-
-        console.error("Gagal import excel:", err);
-        alert("Gagal import file. Pastikan format kolom: Urutan, Level Jabatan.");
-
-    } finally {
-
-        e.target.value = "";
-
-    }
-
-});
-
-// =====================================================================
-// INIT
-// =====================================================================
-document.addEventListener("DOMContentLoaded", () => {
-    loadData();
-});
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+
+<!-- ================= MODAL TAMBAH/EDIT LEVEL JABATAN ================= -->
+<div class="modal-overlay" id="modalLevelJabatan">
+  <div class="modal-box">
+
+    <div class="modal-header">
+      <h3 id="judulForm">➕ Tambah Level Jabatan</h3>
+      <button type="button" class="modal-close" onclick="tutupModal()">✕</button>
+    </div>
+
+    <form id="formLevelJabatan">
+      <div class="modal-body">
+
+        <div class="field">
+          <label for="urutan">Urutan (Level Tertinggi = 1)</label>
+          <input type="number" id="urutan" min="1" step="1" placeholder="Contoh: 1" required>
+          <span class="field-hint">Menentukan posisi di daftar, dari yang tertinggi (1) ke terendah.</span>
+        </div>
+
+        <div class="field">
+          <label for="nama_level">Nama Level Jabatan</label>
+          <textarea id="nama_level" rows="2" placeholder="Contoh: Senior Manager / General Manager" required></textarea>
+        </div>
+
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" id="btnBatal" onclick="tutupModal()">Batal</button>
+        <button type="submit" id="btnSimpan">💾 Simpan Level Jabatan</button>
+      </div>
+    </form>
+
+  </div>
+</div>
+
+<script src="js/master-level-jabatan.js"></script>
+</body>
+</html>
