@@ -128,7 +128,7 @@ async function loadKaryawan() {
         const { data, error } = await supabaseClient
             .from("master_karyawan")
             .select("*")
-            .order("nik", { ascending: true });
+            .order("tanggal_masuk", { ascending: true, nullsFirst: false });
 
         if (error) throw error;
 
