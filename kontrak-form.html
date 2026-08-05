@@ -254,6 +254,9 @@ document.getElementById('karyawanSearch').addEventListener('input', (e) => {
   document.getElementById('fNama').value = found.nama || '';
   document.getElementById('fJabatan').value = found.jabatan || '';
   document.getElementById('fBagian').value = found.departemen || '';
+  document.getElementById('fTglMasuk').value = found.tanggal_masuk
+    ? String(found.tanggal_masuk).slice(0, 10)
+    : '';
 
   // auto-isi "Kepada" sesuai departemen karyawan (masih bisa dicari/diubah manual)
   const targetVal = `Pimpinan Dept. ${toTitleCase(found.departemen)}`;
