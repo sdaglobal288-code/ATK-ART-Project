@@ -6,23 +6,19 @@
 // otomatis oleh CSS) maupun saat dibuka dari dalam sistem admin (ada
 // sessionStorage "user" -> toolbar Dashboard/panel validasi/riwayat muncul).
 //
-// PERUBAHAN TERBARU (PDF otomatis untuk tampilan publik):
-// Setelah karyawan (akun PUBLIK, tanpa login) menekan "Ajukan Permintaan"
-// dan berhasil tersimpan, tampilan TIDAK LAGI menampilkan tombol "Cetak
-// Bukti Permintaan" yang harus diklik manual untuk membuka dialog cetak
-// browser. Sekarang, begitu berhasil, form langsung DIGANTIKAN oleh
-// panel pratinjau dokumen PDF ASLI (dibuat di sisi klien lewat
-// html2canvas + jsPDF dari isi #printArea, lihat fungsi
-// tampilkanPdfSiapCetak()/buatPdfDariPrintArea()), lengkap dengan tombol
-// "Unduh PDF" dan "Cetak". Alur untuk akun ADMIN tetap seperti
-// sebelumnya (tombol Cetak Bukti Permintaan / Cetak Form manual, tanpa
-// PDF otomatis), supaya panel Validasi & Riwayat tetap menjadi alur
-// kerja utama admin.
-//
 // CATATAN TAMPILAN: mode admin halaman ini SEKARANG disamakan dengan
 // barang-masuk.html — tidak ada lagi sidebar/topbar replika sendiri.
 // Navigasi kembali ke sistem cukup lewat tombol "🏠 Dashboard" di toolbar
 // (class admin-only), sama seperti halaman Barang Masuk / Barang Keluar.
+//
+// PERUBAHAN TERBARU — CETAK DIGANTI JADI UNDUH PDF:
+// Semua tombol yang sebelumnya membuka dialog cetak browser (window.print())
+// SEKARANG menghasilkan file PDF sungguhan yang langsung terunduh & siap
+// dicetak, memakai html2pdf.js. Tampilan/isi hasilnya (kop surat, tabel
+// barang, tanda tangan, dst) TIDAK diubah sama sekali — persis mereplikasi
+// #printArea & CSS @media print yang sudah ada sebelumnya (lihat blok CSS
+// "body.force-print-mode" di permintaan-atk-art.html). Lihat fungsi
+// unduhPdfBuktiPermintaan() di bawah untuk detailnya.
 //
 // PERUBAHAN UTAMA vs versi sebelumnya (stok terpotong saat pengajuan):
 // 1) Permintaan dari form SEKARANG langsung memotong stok begitu berhasil
@@ -34,7 +30,9 @@
 //    disesuaikan ke stok. Tombol ❌ Tolak sekarang MENGEMBALIKAN stok yang
 //    sudah terpotong tadi (karena permintaannya batal), lalu ubah status
 //    jadi "Ditolak".
-// 3) Tombol "Simpan & Kurangi Stok" berganti nama jadi "Ajukan Permintaan".
+// 3) Tombol "Simpan & Kurangi Stok" berganti nama jadi "Ajukan Permintaan",
+//    dan begitu berhasil disimpan, tombol itu disembunyikan lalu digantikan
+//    tombol "Unduh PDF Bukti Permintaan" + "Buat Permintaan Baru".
 // 4) Panel "Riwayat Pengajuan" menampilkan kolom Status, dan tombol
 //    Edit/Hapus hanya aktif untuk baris berstatus "Disetujui" (karena baris
 //    itu stoknya sudah pasti terpotong dan tidak akan dikembalikan lewat
@@ -42,20 +40,21 @@
 // 5) Kolom "Jenis Barang" & "Keterangan" pada hasil cetak/PDF otomatis
 //    mengecil ukuran fontnya dengan MENGUKUR SUNGGUHAN (canvas) apakah
 //    teksnya muat di lebar kolom aslinya, bukan sekadar tebak-tebakan dari
-//    jumlah karakter, supaya semua isi tetap terbaca. Input Keterangan
-//    pada form juga otomatis diubah menjadi HURUF KAPITAL saat diketik.
+//    jumlah karakter, supaya semua isi tetap terbaca. Input Keterangan pada
+//    form juga otomatis diubah menjadi HURUF KAPITAL saat diketik.
 // 6) Tombol "🔗 Copy Link Publik" (admin-only) di toolbar: menyalin URL
 //    halaman ini (tanpa query/hash) ke clipboard, supaya admin gudang
 //    tinggal klik lalu tempel (paste) link tersebut untuk dibagikan ke
 //    karyawan. Karena tampilan publik vs admin dibedakan lewat sesi login
 //    di browser (sessionStorage "user"), bukan URL yang berbeda, link yang
 //    disalin di sini SAMA PERSIS dengan URL halaman yang sedang dibuka.
-// 7) Tombol "🖨️ Cetak Form" (dulu "Cetak Form Kosong") di toolbar atas
-//    SEKARANG disembunyikan secara default, dan baru MUNCUL setelah
-//    permintaan (mode ADMIN) berhasil diajukan — sejalan dengan tombol
-//    "Cetak Bukti Permintaan" & "Buat Permintaan Baru" yang juga baru
-//    muncul di titik yang sama. Tombol ini disembunyikan lagi begitu
-//    "Buat Permintaan Baru" diklik.
+// 7) Tombol "📄 Unduh PDF Form Kosong" (dulu "🖨️ Cetak Form Kosong") di
+//    toolbar atas SEKARANG disembunyikan secara default, dan baru MUNCUL
+//    setelah permintaan berhasil diajukan (tombol "Ajukan Permintaan"
+//    diklik & sukses tersimpan) — sejalan dengan tombol "Unduh PDF Bukti
+//    Permintaan" & "Buat Permintaan Baru" yang juga baru muncul di titik
+//    yang sama. Tombol ini disembunyikan lagi begitu "Buat Permintaan Baru"
+//    diklik.
 // 8) Kolom "Jenis Barang" SEKARANG menampilkan thumbnail foto barang di
 //    sebelah kiri kotak pencarian, supaya karyawan/admin tahu wujud
 //    barang yang diminta sebelum mengajukan. Foto diambil dari kolom
@@ -63,20 +62,20 @@
 //    kolom fleksibel, dideteksi otomatis lewat ambilUrlFotoBarang()).
 //    Kalau barang belum punya foto (atau tabel belum punya kolom foto
 //    sama sekali), otomatis tampil ikon placeholder 📦 — TIDAK error.
+//    Lihat komentar di ambilUrlFotoBarang() untuk saran migrasi kolomnya.
 // 9) Thumbnail foto barang tersebut SEKARANG bisa DIKLIK untuk preview
 //    ukuran besar (lightbox), memakai elemen #fotoLightboxOverlay di HTML
 //    & fungsi bukaLightboxFoto()/tutupLightboxFoto() di file ini. Bisa
 //    ditutup dengan klik di luar gambar, tombol ✕, atau tombol Escape.
-// 10) Untuk mode ADMIN, setelah "Ajukan Permintaan" berhasil disimpan,
-//     halaman TIDAK otomatis membuka dialog cetak (window.print()) —
-//     admin yang mau mencetak tinggal klik tombol "🖨️ Cetak Bukti
-//     Permintaan" atau "🖨️ Cetak Form" secara manual. Untuk mode PUBLIK,
-//     lihat catatan "PERUBAHAN TERBARU" di paling atas file ini — alurnya
-//     berbeda (PDF otomatis, bukan tombol manual).
+// 10) Setelah "Ajukan Permintaan" berhasil disimpan, halaman TIDAK LAGI
+//     otomatis membuka dialog cetak/unduh PDF — karyawan/admin yang mau
+//     mengunduh PDF-nya tinggal klik tombol "📄 Unduh PDF Bukti Permintaan"
+//     atau "📄 Unduh PDF Form Kosong" secara manual.
 // 11) Catatan status "Status: MENUNGGU APPROVAL ADMIN GUDANG" pada hasil
-//     cetak/PDF SUDAH DIHILANGKAN (baik saat cetak bukti permintaan yang
-//     baru diajukan, PDF otomatis publik, maupun saat cetak ulang dari
-//     Riwayat Pengajuan untuk baris berstatus Menunggu).
+//     cetak/PDF SUDAH DIHILANGKAN (baik saat mengunduh bukti permintaan
+//     yang baru diajukan, maupun saat mengunduh ulang dari Riwayat
+//     Pengajuan untuk baris berstatus Menunggu) — area cetak tidak lagi
+//     menampilkan baris keterangan status tersebut.
 // 12) Panel "Validasi Permintaan ATK/ART" & "Riwayat Pengajuan ATK/ART"
 //     (admin-only) SEKARANG otomatis DIFILTER sesuai gudang tempat admin
 //     login (adminUser.gudang, diisi oleh sessionStorage "user" saat
@@ -87,12 +86,12 @@
 //     tersimpan di sessionStorage "user", filter ini otomatis dilewati
 //     (fallback aman) supaya panel tetap menampilkan semua gudang seperti
 //     sebelumnya, bukan malah kosong.
-// 13) Panel "Riwayat Pengajuan ATK/ART": tombol 🖨️ Cetak SEKARANG hanya
+// 13) Panel "Riwayat Pengajuan ATK/ART": tombol 📄 Unduh PDF SEKARANG hanya
 //     ditampilkan untuk baris yang BUKAN berstatus "Ditolak" (Menunggu
-//     & Disetujui tetap bisa dicetak seperti biasa). Baris berstatus
-//     "Ditolak" tidak lagi menampilkan tombol Cetak sama sekali, karena
-//     permintaan tersebut dibatalkan dan bukan lagi transaksi keluar yang
-//     sah untuk dicetak sebagai bukti.
+//     & Disetujui tetap bisa diunduh PDF-nya seperti biasa). Baris
+//     berstatus "Ditolak" tidak lagi menampilkan tombol tersebut sama
+//     sekali, karena permintaan tersebut dibatalkan dan bukan lagi
+//     transaksi keluar yang sah untuk dijadikan bukti.
 // 14) Panel "Riwayat Pengajuan ATK/ART": kolom "Barang" untuk baris yang
 //     berisi LEBIH DARI SATU barang SEKARANG ditampilkan sebagai daftar
 //     bertingkat (list, satu barang per baris dengan tanda bullet •),
@@ -175,7 +174,7 @@ function initAdminChrome(){
 
 // =====================================
 // COPY LINK PUBLIK (khusus admin) — tombol di toolbar, di sebelah
-// "Cetak Form Kosong". Karena publik vs admin dibedakan lewat sesi
+// "Unduh PDF Form Kosong". Karena publik vs admin dibedakan lewat sesi
 // login di browser (bukan URL berbeda), link publik = URL halaman ini
 // sendiri (tanpa query string/hash), supaya kalau dibuka orang lain
 // tanpa sesi admin, otomatis tampil sebagai form publik.
@@ -769,7 +768,7 @@ function validasiDanAmbilItem(){
 }
 
 // =====================================
-// CETAK FORM — replika presisi form kertas FHCS-003
+// CETAK / PDF — replika presisi form kertas FHCS-003
 // =====================================
 
 function formatTanggalIndo(tglStr){
@@ -779,7 +778,7 @@ function formatTanggalIndo(tglStr){
     return `${d.getDate()} ${bulan[d.getMonth()]} ${d.getFullYear()}`;
 }
 
-// Lebar kolom "Jenis Barang" & "Keterangan" pada hasil cetak, dalam mm,
+// Lebar kolom "Jenis Barang" & "Keterangan" pada hasil cetak/PDF, dalam mm,
 // sudah dikurangi kira-kira padding sel — dipakai untuk MENGUKUR SUNGGUH-
 // SUNGGUH (bukan tebak-tebakan dari jumlah karakter) apakah sebuah teks
 // akan muat, supaya font-size otomatis mengecil hanya sebanyak yang
@@ -802,8 +801,8 @@ function hitungLebarTeksPx(teks, fontSizePx){
 }
 
 // Menentukan ukuran font (dalam pt) untuk sel "Jenis Barang" & "Keterangan"
-// di hasil cetak, dengan MENGUKUR lebar teks sesungguhnya (canvas) terhadap
-// lebar kolom aslinya (lebarKolomMm).
+// di hasil cetak/PDF, dengan MENGUKUR lebar teks sesungguhnya (canvas)
+// terhadap lebar kolom aslinya (lebarKolomMm).
 //
 // PRIORITAS: selalu coba muat dalam SATU BARIS dulu, mengecil bertahap
 // selangkah demi selangkah, supaya tinggi barisnya SAMA PERSIS dengan
@@ -869,7 +868,67 @@ function siapkanAreaCetak(karyawan, tanggal, itemList, statusNote){
     }
 }
 
-document.getElementById("btnCetakForm").addEventListener("click", function(){
+// =====================================
+// UNDUH PDF — pengganti window.print()
+// -------------------------------------------------------------------------
+// Mengambil isi #printArea (yang sudah diisi lewat siapkanAreaCetak()) dan
+// mengubahnya menjadi file PDF sungguhan lewat html2pdf.js, LALU otomatis
+// mengunduhnya ke perangkat pengguna — siap dibuka & dicetak langsung dari
+// aplikasi PDF apa pun, tanpa harus lewat dialog cetak browser lagi.
+//
+// Tampilan/isi PDF-nya SENGAJA dibuat identik dengan hasil cetak
+// sebelumnya: dipakai class "force-print-mode" pada <body> yang
+// mereplikasi persis aturan CSS @media print (lihat blok CSS
+// "body.force-print-mode" di permintaan-atk-art.html) — jadi TIDAK ADA
+// perubahan tampilan sama sekali, hanya cara mengeluarkan hasilnya yang
+// berubah (file PDF, bukan dialog cetak).
+// =====================================
+
+function buatNamaFilePdf(karyawan, tanggal){
+    const namaBersih = (karyawan?.nama || "Permintaan")
+        .trim()
+        .replace(/[^a-zA-Z0-9]+/g, "-")
+        .replace(/^-+|-+$/g, "");
+    const tglBersih = (tanggal || "").replace(/-/g, "");
+    return `FHCS-003_Permintaan-ATK-ART_${namaBersih}${tglBersih ? "_" + tglBersih : ""}.pdf`;
+}
+
+async function unduhPdfDariPrintArea(namaFile){
+    const printArea = document.getElementById("printArea");
+    if(!printArea){ alert("Area cetak tidak ditemukan."); return; }
+
+    if(typeof html2pdf === "undefined"){
+        alert("Pustaka pembuat PDF gagal dimuat (periksa koneksi internet Anda), coba muat ulang halaman.");
+        return;
+    }
+
+    document.body.classList.add("force-print-mode");
+
+    // beri jeda sesaat supaya browser sempat menerapkan gaya "force-print-mode"
+    // (termasuk gambar logo, kalau ada) sebelum di-"screenshot" oleh html2canvas
+    await new Promise(resolve => setTimeout(resolve, 120));
+
+    try{
+        await html2pdf()
+            .set({
+                margin: 0,
+                filename: namaFile,
+                image: { type: "jpeg", quality: 0.98 },
+                html2canvas: { scale: 3, useCORS: true, backgroundColor: "#ffffff" },
+                jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
+                pagebreak: { mode: ["css", "legacy"] }
+            })
+            .from(printArea)
+            .save();
+    }catch(err){
+        console.error(err);
+        alert("Gagal membuat PDF: " + err.message);
+    }finally{
+        document.body.classList.remove("force-print-mode");
+    }
+}
+
+document.getElementById("btnCetakForm").addEventListener("click", async function(){
 
     const karyawanId = karyawanHidden.value;
     const karyawan = karyawanId ? findKaryawanById(karyawanId) : null;
@@ -877,169 +936,22 @@ document.getElementById("btnCetakForm").addEventListener("click", function(){
 
     const itemList = validasiDanAmbilItem();
     if(!itemList){ return; }
-    if(!karyawan){ alert("Pilih Nama Karyawan terlebih dahulu sebelum mencetak."); return; }
+    if(!karyawan){ alert("Pilih Nama Karyawan terlebih dahulu sebelum mengunduh PDF."); return; }
 
     siapkanAreaCetak(karyawan, tanggal, itemList, "");
-    window.print();
+    await unduhPdfDariPrintArea(buatNamaFilePdf(karyawan, tanggal));
 });
-
-// =====================================
-// GENERATE PDF SIAP CETAK (khusus akun PUBLIK, tanpa login) — dipakai
-// setelah "Ajukan Permintaan" berhasil disimpan. Alih-alih membuka
-// dialog cetak browser (window.print()), tampilan langsung diganti
-// dengan panel berisi dokumen PDF ASLI, dibuat di sisi klien lewat:
-//   1) html2canvas -> "memotret" isi #printArea (yang sudah berisi data
-//      permintaan lewat siapkanAreaCetak()) menjadi gambar beresolusi
-//      tinggi (scale 2x), memakai styling form kertas FHCS-003 yang
-//      SAMA PERSIS dengan hasil cetak (lihat #printArea di CSS, dan
-//      class "pdf-render-mode" yang menampilkan #printArea di luar
-//      layar selama proses potret berlangsung supaya tidak berkedip).
-//   2) jsPDF -> menyusun gambar tsb ke dalam file PDF ukuran A4
-//      (otomatis membuat halaman baru kalau kontennya lebih tinggi dari
-//      satu halaman, misal karena banyak baris barang).
-// Hasilnya ditampilkan lewat <iframe> (pratinjau PDF asli, bukan cuma
-// gambar) di panel #pdfPreviewPanel, lengkap dengan tombol "Unduh PDF"
-// (menyimpan file .pdf ke perangkat) dan "Cetak" (mencetak PDF tsb).
-// =====================================
-
-async function buatPdfDariPrintArea(){
-    const printAreaEl = document.getElementById("printArea");
-    document.body.classList.add("pdf-render-mode");
-
-    try{
-        const canvas = await html2canvas(printAreaEl, {
-            scale: 2,
-            useCORS: true,
-            backgroundColor: "#ffffff"
-        });
-
-        const { jsPDF } = window.jspdf;
-        const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
-
-        const pageWidthMm  = pdf.internal.pageSize.getWidth();
-        const pageHeightMm = pdf.internal.pageSize.getHeight();
-
-        const imgWidthMm  = pageWidthMm;
-        const imgHeightMm = (canvas.height * imgWidthMm) / canvas.width;
-        const imgData = canvas.toDataURL("image/png");
-
-        let heightLeft = imgHeightMm;
-        let position   = 0;
-
-        pdf.addImage(imgData, "PNG", 0, position, imgWidthMm, imgHeightMm);
-        heightLeft -= pageHeightMm;
-
-        // kalau isinya lebih tinggi dari 1 halaman A4 (misal banyak baris
-        // barang), lanjutkan potongan gambar yang sama ke halaman berikutnya
-        while(heightLeft > 0){
-            position = heightLeft - imgHeightMm;
-            pdf.addPage();
-            pdf.addImage(imgData, "PNG", 0, position, imgWidthMm, imgHeightMm);
-            heightLeft -= pageHeightMm;
-        }
-
-        return pdf;
-
-    } finally {
-        // #printArea selalu dikembalikan tersembunyi lagi, apapun hasilnya
-        // (berhasil atau gagal), supaya tidak "nyangkut" tampil di luar layar
-        document.body.classList.remove("pdf-render-mode");
-    }
-}
-
-const formPermintaanWrapEl = document.getElementById("formPermintaanWrap");
-const pdfPreviewPanelEl    = document.getElementById("pdfPreviewPanel");
-const pdfPreviewFrameEl    = document.getElementById("pdfPreviewFrame");
-const btnUnduhPdfEl        = document.getElementById("btnUnduhPdf");
-const btnCetakPdfEl        = document.getElementById("btnCetakPdf");
-const btnPdfBuatBaruEl     = document.getElementById("btnPdfBuatBaru");
-
-let pdfTerakhirDibuat   = null; // instance jsPDF terakhir (dipakai tombol Unduh/Cetak)
-let namaFilePdfTerakhir = "Bukti-Permintaan-ATK-ART.pdf";
-
-async function tampilkanPdfSiapCetak(karyawan, tanggal, itemList){
-    // isi #printArea dengan data permintaan yang baru saja diajukan —
-    // inilah sumber data yang akan "difoto" jadi PDF
-    siapkanAreaCetak(karyawan, tanggal, itemList, "");
-
-    // ganti tampilan: form disembunyikan, panel pratinjau PDF ditampilkan
-    if(formPermintaanWrapEl) formPermintaanWrapEl.style.display = "none";
-    if(pdfPreviewPanelEl) pdfPreviewPanelEl.style.display = "block";
-    if(pdfPreviewFrameEl){
-        pdfPreviewFrameEl.removeAttribute("src");
-        pdfPreviewFrameEl.srcdoc = `<html><body style="margin:0;display:flex;align-items:center;justify-content:center;height:100vh;font-family:sans-serif;color:#64748b;">Sedang membuat PDF, mohon tunggu sebentar...</body></html>`;
-    }
-    pdfPreviewPanelEl?.scrollIntoView({ behavior: "smooth", block: "start" });
-
-    try{
-        const pdf = await buatPdfDariPrintArea();
-        pdfTerakhirDibuat = pdf;
-
-        const tglAman = (tanggal || "").split("-").reverse().join("-") || "tanggal";
-        const namaAman = (karyawan.nama || "karyawan").replace(/[^a-zA-Z0-9]+/g, "-");
-        namaFilePdfTerakhir = `Bukti-Permintaan-ATK-ART-${namaAman}-${tglAman}.pdf`;
-
-        const blobUrl = pdf.output("bloburl");
-        if(pdfPreviewFrameEl){
-            pdfPreviewFrameEl.removeAttribute("srcdoc");
-            pdfPreviewFrameEl.src = blobUrl;
-        }
-
-    }catch(err){
-        console.error(err);
-        if(pdfPreviewFrameEl){
-            pdfPreviewFrameEl.removeAttribute("src");
-            pdfPreviewFrameEl.srcdoc = `<html><body style="margin:0;padding:24px;font-family:sans-serif;color:#dc2626;">Gagal membuat pratinjau PDF: ${err.message}. Silakan coba tombol Cetak di bawah, atau muat ulang halaman.</body></html>`;
-        }
-    }
-}
-
-if(btnUnduhPdfEl){
-    btnUnduhPdfEl.addEventListener("click", function(){
-        if(!pdfTerakhirDibuat){ alert("PDF belum siap, mohon tunggu sebentar lalu coba lagi."); return; }
-        pdfTerakhirDibuat.save(namaFilePdfTerakhir);
-    });
-}
-
-if(btnCetakPdfEl){
-    btnCetakPdfEl.addEventListener("click", function(){
-        if(pdfPreviewFrameEl && pdfPreviewFrameEl.contentWindow && pdfPreviewFrameEl.src){
-            try{
-                pdfPreviewFrameEl.contentWindow.focus();
-                pdfPreviewFrameEl.contentWindow.print();
-                return;
-            }catch(err){ console.error(err); }
-        }
-        // fallback kalau iframe belum siap / browser membatasi print lintas frame
-        window.print();
-    });
-}
-
-if(btnPdfBuatBaruEl){
-    btnPdfBuatBaruEl.addEventListener("click", function(){
-        pdfTerakhirDibuat = null;
-        if(pdfPreviewPanelEl) pdfPreviewPanelEl.style.display = "none";
-        if(pdfPreviewFrameEl){ pdfPreviewFrameEl.removeAttribute("src"); pdfPreviewFrameEl.removeAttribute("srcdoc"); }
-        if(formPermintaanWrapEl) formPermintaanWrapEl.style.display = "";
-        tampilkanModeSebelumSimpan();
-        resetFormItemDanKaryawanSaja();
-        formPermintaanWrapEl?.scrollIntoView({ behavior: "smooth", block: "start" });
-    });
-}
 
 // =====================================
 // AJUKAN PERMINTAAN (insert ke barang_keluar berstatus "Menunggu Approval")
 // Stok LANGSUNG dipotong saat pengajuan ini berhasil disimpan (tidak lagi
 // menunggu approval admin). Kalau nanti DITOLAK lewat panel Validasi, stok
-// yang sudah terpotong akan dikembalikan otomatis.
-//
-// Setelah berhasil disimpan, alurnya BERBEDA tergantung jenis akun:
-//   - MODE PUBLIK (tanpa login): tampilan langsung berubah jadi dokumen
-//     PDF siap cetak/unduh (lihat tampilkanPdfSiapCetak()), tanpa dialog
-//     cetak browser & tanpa tombol manual.
-//   - MODE ADMIN: tombol "Ajukan Permintaan" digantikan tombol "Cetak
-//     Bukti Permintaan" + "Buat Permintaan Baru" (perilaku lama tetap
-//     dipertahankan), dan tombol "Cetak Form" di toolbar atas dimunculkan.
+// yang sudah terpotong akan dikembalikan otomatis. Setelah berhasil, tombol
+// "Ajukan Permintaan" digantikan tombol "Unduh PDF Bukti Permintaan" +
+// "Buat Permintaan Baru", dan tombol "Unduh PDF Form Kosong" di toolbar
+// atas SEKARANG baru dimunculkan juga (sebelumnya disembunyikan). PDF
+// TIDAK lagi otomatis terunduh di sini — pengguna mengunduhnya secara
+// manual lewat tombol.
 // =====================================
 
 const form = document.getElementById("formPermintaan");
@@ -1067,10 +979,10 @@ function tampilkanModeSebelumSimpan(){
 }
 
 if(btnCetakUlangSimpanEl){
-    btnCetakUlangSimpanEl.addEventListener("click", function(){
+    btnCetakUlangSimpanEl.addEventListener("click", async function(){
         if(!itemTerakhirDisimpan || !karyawanTerakhirDisimpan) return;
         siapkanAreaCetak(karyawanTerakhirDisimpan, tanggalTerakhirDisimpan, itemTerakhirDisimpan, "");
-        window.print();
+        await unduhPdfDariPrintArea(buatNamaFilePdf(karyawanTerakhirDisimpan, tanggalTerakhirDisimpan));
     });
 }
 
@@ -1132,30 +1044,23 @@ form.addEventListener("submit", async function(e){
         await loadStokGudang();
         refreshSemuaBarisStok();
 
-        // simpan konteks untuk tombol "Cetak Bukti Permintaan" (mode admin)
+        // simpan konteks untuk tombol "Unduh PDF Bukti Permintaan"
         itemTerakhirDisimpan = itemList;
         karyawanTerakhirDisimpan = karyawan;
         tanggalTerakhirDisimpan = tanggal;
 
-        if(adminUser){
-            // ===== MODE ADMIN: perilaku lama tetap dipertahankan — tombol
-            // manual "Cetak Bukti Permintaan" / "Cetak Form" / "Buat
-            // Permintaan Baru", TANPA membuka dialog cetak otomatis. =====
-            siapkanAreaCetak(karyawan, tanggal, itemList, "");
+        // siapkan area cetak (isinya) supaya siap dipakai kalau nanti tombol
+        // "Unduh PDF Bukti Permintaan" / "Unduh PDF Form Kosong" diklik,
+        // TANPA langsung mengunduh PDF-nya di sini
+        siapkanAreaCetak(karyawan, tanggal, itemList, "");
 
-            alert(`Permintaan ATK/ART berhasil diajukan (${transaksiList.length} item).\nForm Permintaan ATK/ART silahkan di print dan di tandatangani, dan kasihkan ke HCS.\nTerimakasih`);
+        alert(`Permintaan ATK/ART berhasil diajukan (${transaksiList.length} item).\nUnduh PDF Bukti Permintaan, print, dan tandatangani, lalu kasihkan ke HCS.\nTerimakasih`);
 
-            tampilkanModeSetelahSimpan();
+        tampilkanModeSetelahSimpan();
 
+        if(document.body.classList.contains("is-admin-view")){
             await muatValidasiPermintaan();
             await muatRiwayatPengajuan();
-
-        } else {
-            // ===== MODE PUBLIK (tanpa login): tampilan langsung berubah
-            // jadi dokumen PDF yang sudah siap cetak/unduh, TIDAK lagi
-            // memakai dialog cetak browser maupun tombol manual "Cetak
-            // Bukti Permintaan" — lihat tampilkanPdfSiapCetak(). =====
-            await tampilkanPdfSiapCetak(karyawan, tanggal, itemList);
         }
 
     }catch(err){ console.error(err); alert(err.message); }
@@ -1174,14 +1079,6 @@ function resetForm(){
     tambahBarisBarang();
 
     tampilkanModeSebelumSimpan();
-
-    // pindah gudang juga membatalkan pratinjau PDF yang sedang tampil (kalau ada)
-    if(pdfPreviewPanelEl && pdfPreviewPanelEl.style.display !== "none"){
-        pdfPreviewPanelEl.style.display = "none";
-        if(pdfPreviewFrameEl){ pdfPreviewFrameEl.removeAttribute("src"); pdfPreviewFrameEl.removeAttribute("srcdoc"); }
-        if(formPermintaanWrapEl) formPermintaanWrapEl.style.display = "";
-        pdfTerakhirDibuat = null;
-    }
 }
 
 // reset setelah submit sukses — gudang yang sedang dipilih TETAP dipertahankan
@@ -1606,14 +1503,15 @@ function renderRiwayatTable(){
         const daftarBarang = daftarBarangHtml(g.items);
         const bisaDiubah = g.status === STATUS_DISETUJUI;
 
-        // Tombol 🖨️ Cetak HANYA ditampilkan untuk baris yang BUKAN berstatus
-        // "Ditolak" — permintaan yang sudah ditolak dibatalkan & bukan lagi
-        // transaksi keluar yang sah untuk dicetak sebagai bukti.
-        const bisaDicetak = g.status !== STATUS_DITOLAK;
+        // Tombol 📄 Unduh PDF HANYA ditampilkan untuk baris yang BUKAN
+        // berstatus "Ditolak" — permintaan yang sudah ditolak dibatalkan &
+        // bukan lagi transaksi keluar yang sah untuk dijadikan bukti.
+        const bisaDiunduhPdf = g.status !== STATUS_DITOLAK;
 
-        // Untuk baris berstatus "Ditolak" (tidak bisa dicetak/edit/hapus),
-        // tampilkan tombol 👁️ Lihat sebagai gantinya, supaya admin tetap
-        // bisa melihat detail barang & jumlah yang diajukan sebelum ditolak.
+        // Untuk baris berstatus "Ditolak" (tidak bisa diunduh PDF/edit/
+        // hapus), tampilkan tombol 👁️ Lihat sebagai gantinya, supaya admin
+        // tetap bisa melihat detail barang & jumlah yang diajukan sebelum
+        // ditolak.
         const perluTombolLihat = g.status === STATUS_DITOLAK;
 
         return `
@@ -1628,7 +1526,7 @@ function renderRiwayatTable(){
             <td>${g.created_by || "-"}</td>
             <td>
                 <div class="riwayat-aksi">
-                    ${bisaDicetak ? `<button type="button" class="btn-cetak" data-key="${g.key}" title="Cetak ulang">🖨️ Cetak</button>` : ""}
+                    ${bisaDiunduhPdf ? `<button type="button" class="btn-cetak" data-key="${g.key}" title="Unduh ulang PDF">📄 Unduh PDF</button>` : ""}
                     ${bisaDiubah ? `<button type="button" class="btn-edit" data-key="${g.key}" title="Edit">✏️ Edit</button>` : ""}
                     ${bisaDiubah ? `<button type="button" class="btn-hapus" data-key="${g.key}" title="Hapus">🗑️ Hapus</button>` : ""}
                     ${perluTombolLihat ? `<button type="button" class="btn-lihat" data-key="${g.key}" title="Lihat detail barang yang ditolak">👁️ Lihat</button>` : ""}
@@ -1674,14 +1572,14 @@ function cariGrupByKey(key){
     return riwayatGroupsCache.find(g => g.key === key);
 }
 
-// ----- CETAK ULANG dari riwayat -----
+// ----- UNDUH ULANG PDF dari riwayat -----
 // Catatan status ("Menunggu Approval Admin Gudang" / "Ditolak") pada hasil
-// cetak sudah tidak ditampilkan lagi — hasil cetak ulang dari sini polos
-// tanpa keterangan status apapun, sama seperti cetak form biasa. Tombol
+// PDF sudah tidak ditampilkan lagi — hasil unduhan ulang dari sini polos
+// tanpa keterangan status apapun, sama seperti unduh PDF form biasa. Tombol
 // ini sendiri sudah tidak dirender lagi untuk baris berstatus "Ditolak"
 // (lihat renderRiwayatTable()), jadi fungsi ini praktis hanya dipanggil
 // untuk baris "Menunggu" atau "Disetujui".
-function cetakRiwayat(key){
+async function cetakRiwayat(key){
     const grup = cariGrupByKey(key);
     if(!grup) return;
 
@@ -1698,7 +1596,7 @@ function cetakRiwayat(key){
     };
 
     siapkanAreaCetak(karyawanUntukCetak, grup.tanggal, itemListUntukCetak, "");
-    window.print();
+    await unduhPdfDariPrintArea(buatNamaFilePdf(karyawanUntukCetak, grup.tanggal));
 }
 
 // ----- EDIT riwayat (qty & keterangan per item, stok otomatis disesuaikan) -----
