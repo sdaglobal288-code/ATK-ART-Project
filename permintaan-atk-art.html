@@ -591,26 +591,32 @@
     }
 
     /* ===== tampilan cetak: replika presisi form kertas FHCS-003 =====
-       CATATAN: seluruh styling visual isi #printArea (.print-kop,
-       .print-title, table.print-table, .print-signature, dst) SEKARANG
-       diletakkan di LUAR blok @media print (lihat blok besar setelah
-       ini), supaya bisa dipakai kembali baik saat:
-         a) benar-benar mencetak lewat window.print() (dipicu @media print), dan
-         b) membuat file PDF otomatis lewat html2canvas (dipicu class
-            body.pdf-render-mode), untuk tampilan publik.
+       PENTING (versi final): seluruh styling visual isi #printArea
+       (.print-kop, .print-title, table.print-table, .print-signature,
+       dst) diletakkan di LUAR blok @media print, di dalam SATU blok
+       <style> yang sama, sehingga dipakai APA ADANYA — tanpa nilai yang
+       berbeda sedikit pun — baik saat:
+         a) admin benar-benar mencetak lewat window.print() (dipicu oleh
+            @media print di bawah), maupun
+         b) akun publik membuat PDF otomatis lewat html2canvas + jsPDF
+            (dipicu oleh class body.pdf-render-mode di bawah).
+       Dengan kata lain: layout/tampilan hasil cetak akun PUBLIK (PDF
+       otomatis) dan akun ADMIN (cetak langsung) sekarang identik 100%,
+       karena keduanya membaca #printArea + CSS yang sama persis dari
+       satu sumber ini — tidak ada style terpisah/duplikat untuk
+       masing-masing mode.
        #printArea sendiri TETAP disembunyikan secara default di bawah ini,
        jadi rule-rule visual tsb tidak memengaruhi apapun di layar biasa. */
     #printArea{ display:none; }
 </style>
 
 <!-- ============================================
-     Styling visual dokumen cetak (#printArea) — dipakai bersama oleh
-     mode cetak asli (@media print) MAUPUN mode generate-PDF otomatis
-     (body.pdf-render-mode), supaya hasilnya identik satu sama lain.
-     Nilai-nilai di blok ini DISAMAKAN PERSIS dengan CSS cetak versi
-     tanpa-PDF (yang tadinya hanya berada di dalam @media print),
-     supaya tampilan hasil cetak (Ctrl+P) maupun hasil PDF otomatis
-     terlihat identik.
+     Styling visual dokumen cetak (#printArea) — SATU-SATUNYA sumber
+     styling untuk isi cetak, dipakai bersama oleh mode cetak asli
+     (@media print, dipakai admin) MAUPUN mode generate-PDF otomatis
+     (body.pdf-render-mode, dipakai akun publik), supaya hasilnya
+     identik satu sama lain (font, ukuran, spasi, garis tabel, blok
+     tanda tangan, dsb sama persis untuk kedua mode).
 ============================================= -->
 <style>
     #printArea{ font-size:11pt !important; }
@@ -652,9 +658,9 @@
     .print-signature-grid .sig-line{ display:inline-block; width:150px; border-top:1px solid #000; padding-top:4px; font-size:11pt !important; }
     .print-rev{ text-align:right; font-size:9pt !important; margin-top:6px; }
 
-    /* ===== MODE CETAK ASLI (dialog cetak browser / Ctrl+P), masih
-       dipakai oleh admin lewat tombol "Cetak Form" / "Cetak Bukti
-       Permintaan" / "Cetak Riwayat" ===== */
+    /* ===== MODE CETAK ASLI (dialog cetak browser / Ctrl+P), dipakai
+       oleh admin lewat tombol "Cetak Form" / "Cetak Bukti Permintaan" /
+       "Cetak Riwayat" ===== */
     @media print{
         @page{ size:A4; margin:6mm 14mm 15mm 14mm; }
         html, body{ height:auto !important; margin:0 !important; padding:0 !important; overflow:visible !important; }
@@ -670,7 +676,11 @@
        "memotret" #printArea lalu menyusunnya jadi file PDF asli (jsPDF),
        tanpa membuka dialog cetak browser sama sekali. #printArea
        ditempatkan di luar layar (left:-9999px) supaya tidak terlihat
-       berkedip ke pengguna saat proses pembuatan PDF berlangsung. */
+       berkedip ke pengguna saat proses pembuatan PDF berlangsung.
+       Padding & lebar (210mm, 6mm 14mm 15mm 14mm) sengaja DISAMAKAN
+       PERSIS dengan margin @page pada mode cetak asli di atas, supaya
+       proporsi/posisi konten pada hasil PDF sama persis dengan hasil
+       cetak kertas admin. */
     body.pdf-render-mode #printArea{
         display:block !important;
         position:fixed !important;
@@ -799,9 +809,10 @@ onclick="location.href='dashboard.html'">
      PRATINJAU PDF SIAP CETAK (khusus akun publik, tanpa login) —
      ditampilkan menggantikan #formPermintaanWrap begitu "Ajukan
      Permintaan" berhasil disimpan. Berisi dokumen PDF ASLI (dibuat di
-     sisi klien lewat html2canvas + jsPDF dari isi #printArea), bukan
-     lagi dialog cetak browser, supaya karyawan bisa langsung
-     mengunduh dan/atau mencetaknya.
+     sisi klien lewat html2canvas + jsPDF dari isi #printArea, memakai
+     CSS #printArea yang SAMA dengan yang dipakai admin saat cetak
+     langsung), bukan dialog cetak browser, supaya karyawan bisa
+     langsung mengunduh dan/atau mencetaknya.
 =========================== -->
 <div class="panel" id="pdfPreviewPanel" style="display:none;">
     <h3 class="form-title" style="text-align:left;text-decoration:none;">📄 Bukti Permintaan (PDF siap cetak)</h3>
@@ -856,7 +867,10 @@ onclick="location.href='dashboard.html'">
 </div><!-- /content -->
 
 <!-- ============================================
-     AREA CETAK — replika presisi form kertas FHCS-003
+     AREA CETAK — replika presisi form kertas FHCS-003.
+     Dipakai APA ADANYA baik oleh mode cetak asli admin (window.print())
+     maupun mode generate-PDF otomatis akun publik (html2canvas + jsPDF),
+     lewat fungsi siapkanAreaCetak() yang sama di permintaan-atk-art.js.
 ============================================= -->
 <div id="printArea">
     <div class="print-kop">
