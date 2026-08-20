@@ -665,11 +665,13 @@
        polos hitam-putih seperti form kertas asli FHCS-003, tanpa shading. */
     table.print-table th{ background:transparent; text-transform:capitalize !important; }
     /* PENGUNCI TAMBAHAN (fix bug header hitam pekat di PDF publik):
-       apa pun penyebabnya, header tabel cetak dipaksa SELALU putih
-       polos + teks hitam, baik di mode cetak asli maupun mode
-       generate-PDF otomatis (html2canvas). */
-    #printArea table.print-table th,
-    body.pdf-render-mode #printArea table.print-table th{
+       header tabel cetak dipaksa SELALU putih polos + teks hitam
+       KHUSUS saat mode generate-PDF otomatis (html2canvas) untuk akun
+       publik. Sengaja dikunci dengan ":not(.is-admin-view)" supaya
+       rule ini tidak pernah menyentuh/mengubah tampilan cetak admin —
+       tampilan cetak admin (window.print()) tetap 100% sama seperti
+       semula, hanya mengandalkan rule table.print-table th di atas. */
+    body.pdf-render-mode:not(.is-admin-view) #printArea table.print-table th{
         background:#ffffff !important;
         color:#000000 !important;
     }
@@ -737,7 +739,13 @@
        dengan margin @page pada mode cetak asli di atas, supaya
        proporsi/posisi konten pada hasil PDF sama persis dengan hasil
        cetak kertas admin. */
-    body.pdf-render-mode #printArea{
+    /* Pengaman tambahan: ditambah ":not(.is-admin-view)" secara eksplisit
+       supaya style mode PDF publik ini TIDAK PERNAH bisa aktif di
+       tampilan admin, apa pun yang terjadi — bukan cuma mengandalkan
+       fakta bahwa class pdf-render-mode secara logika JS hanya dipasang
+       di jalur akun publik (lihat tampilkanPdfSiapCetak / !adminUser di
+       permintaan-atk-art.js), tapi juga dikunci di level CSS. */
+    body.pdf-render-mode:not(.is-admin-view) #printArea{
         display:block !important;
         position:fixed !important;
         top:0 !important; left:0 !important;
@@ -752,12 +760,14 @@
        bukan di luar layar seperti sebelumnya) tidak terlihat oleh
        pengguna. Ditampilkan/disembunyikan otomatis lewat class
        body.pdf-render-mode yang sama yang sudah dipakai JS — TIDAK
-       perlu perubahan apa pun di permintaan-atk-art.js. */
+       perlu perubahan apa pun di permintaan-atk-art.js. Dikunci juga
+       dengan ":not(.is-admin-view)" supaya mustahil muncul di tampilan
+       admin. */
     #pdfRenderOverlay{
         display:none;
         position:fixed; inset:0; background:#fff; z-index:9999;
     }
-    body.pdf-render-mode #pdfRenderOverlay{ display:block !important; }
+    body.pdf-render-mode:not(.is-admin-view) #pdfRenderOverlay{ display:block !important; }
 </style>
 </head>
 <body>
