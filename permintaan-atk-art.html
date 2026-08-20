@@ -77,13 +77,7 @@
         color:#111827 !important;
         opacity:1 !important;
     }
-    /* PENTING: dibatasi ke #formPermintaanWrap supaya rule warna gelap
-       ini HANYA mengenai tabel input di layar (form isian, class
-       "tabel-barang"), dan tidak pernah bisa "bocor" ke elemen lain
-       manapun yang kebetulan cocok dengan selector table.tabel-barang th
-       (mis. area cetak). Sebelumnya selector ini hanya dibatasi oleh
-       body:not(.is-admin-view) sehingga cakupannya terlalu luas. */
-    body:not(.is-admin-view) #formPermintaanWrap table.tabel-barang th{
+    body:not(.is-admin-view) table.tabel-barang th{
         background:#1e293b !important;
         color:#ffffff !important;
         font-weight:700 !important;
@@ -664,17 +658,6 @@
        supaya PDF otomatis akun publik (html2canvas) tampil identik:
        polos hitam-putih seperti form kertas asli FHCS-003, tanpa shading. */
     table.print-table th{ background:transparent; text-transform:capitalize !important; }
-    /* PENGUNCI TAMBAHAN (fix bug header hitam pekat di PDF publik):
-       header tabel cetak dipaksa SELALU putih polos + teks hitam
-       KHUSUS saat mode generate-PDF otomatis (html2canvas) untuk akun
-       publik. Sengaja dikunci dengan ":not(.is-admin-view)" supaya
-       rule ini tidak pernah menyentuh/mengubah tampilan cetak admin —
-       tampilan cetak admin (window.print()) tetap 100% sama seperti
-       semula, hanya mengandalkan rule table.print-table th di atas. */
-    body.pdf-render-mode:not(.is-admin-view) #printArea table.print-table th{
-        background:#ffffff !important;
-        color:#000000 !important;
-    }
     table.print-table td.left{ text-align:left; }
     /* Kolom Jenis Barang & Keterangan: teks rata kiri dan boleh turun
        ke baris kedua; ukuran font otomatis mengecil (lewat style inline
@@ -715,59 +698,23 @@
     /* ===== MODE GENERATE PDF OTOMATIS (khusus tampilan publik) — dipicu
        lewat class body.pdf-render-mode saat JS memakai html2canvas untuk
        "memotret" #printArea lalu menyusunnya jadi file PDF asli (jsPDF),
-       tanpa membuka dialog cetak browser sama sekali.
-
-       PERBAIKAN PENTING (fix bug header hitam pekat di PDF publik):
-       Sebelumnya #printArea diposisikan JAUH DI LUAR LAYAR
-       (left:-9999px) supaya tidak terlihat berkedip ke pengguna saat
-       html2canvas memotretnya. Ternyata ini penyebab bug: html2canvas
-       dikenal punya masalah akurasi saat memotret elemen yang posisinya
-       jauh di luar area layar (viewport) — border tabel yang tebal
-       (1.4px, border-collapse) bisa salah dihitung tingginya sehingga
-       tampil sebagai balok hitam solid, terutama di baris header tabel.
-       Hasil cetak asli admin (window.print()) tidak kena masalah ini
-       karena tidak lewat html2canvas sama sekali.
-
-       Solusinya: #printArea sekarang tetap ditaruh DI DALAM area layar
-       (top:0; left:0) supaya html2canvas bisa memotretnya dengan akurat,
-       lalu disembunyikan dari pandangan pengguna memakai #pdfRenderOverlay
-       (lapisan putih polos yang menutupi seluruh layar) yang tampil
-       bersamaan lewat class body.pdf-render-mode yang sama — sehingga
-       pengguna tetap tidak melihat "kedipan" apa pun.
-
-       Padding & lebar (210mm, 6mm 14mm 15mm 14mm) tetap DISAMAKAN PERSIS
-       dengan margin @page pada mode cetak asli di atas, supaya
+       tanpa membuka dialog cetak browser sama sekali. #printArea
+       ditempatkan di luar layar (left:-9999px) supaya tidak terlihat
+       berkedip ke pengguna saat proses pembuatan PDF berlangsung.
+       Padding & lebar (210mm, 6mm 14mm 15mm 14mm) sengaja DISAMAKAN
+       PERSIS dengan margin @page pada mode cetak asli di atas, supaya
        proporsi/posisi konten pada hasil PDF sama persis dengan hasil
        cetak kertas admin. */
-    /* Pengaman tambahan: ditambah ":not(.is-admin-view)" secara eksplisit
-       supaya style mode PDF publik ini TIDAK PERNAH bisa aktif di
-       tampilan admin, apa pun yang terjadi — bukan cuma mengandalkan
-       fakta bahwa class pdf-render-mode secara logika JS hanya dipasang
-       di jalur akun publik (lihat tampilkanPdfSiapCetak / !adminUser di
-       permintaan-atk-art.js), tapi juga dikunci di level CSS. */
-    body.pdf-render-mode:not(.is-admin-view) #printArea{
+    body.pdf-render-mode #printArea{
         display:block !important;
         position:fixed !important;
-        top:0 !important; left:0 !important;
+        top:0 !important; left:-9999px !important;
         width:210mm !important;
         background:#fff !important;
         padding:6mm 14mm 15mm 14mm !important;
         box-sizing:border-box !important;
-        z-index:9998;
+        z-index:-1;
     }
-    /* Lapisan putih polos yang menutupi SELURUH layar selagi PDF sedang
-       dibuat, supaya #printArea (yang sekarang ada di dalam area layar,
-       bukan di luar layar seperti sebelumnya) tidak terlihat oleh
-       pengguna. Ditampilkan/disembunyikan otomatis lewat class
-       body.pdf-render-mode yang sama yang sudah dipakai JS — TIDAK
-       perlu perubahan apa pun di permintaan-atk-art.js. Dikunci juga
-       dengan ":not(.is-admin-view)" supaya mustahil muncul di tampilan
-       admin. */
-    #pdfRenderOverlay{
-        display:none;
-        position:fixed; inset:0; background:#fff; z-index:9999;
-    }
-    body.pdf-render-mode:not(.is-admin-view) #pdfRenderOverlay{ display:block !important; }
 </style>
 </head>
 <body>
@@ -942,15 +889,6 @@ onclick="location.href='dashboard.html'">
 </div>
 
 </div><!-- /content -->
-
-<!-- ============================================
-     LAPISAN PENUTUP LAYAR selama proses pembuatan PDF otomatis
-     berlangsung (khusus akun publik) — lihat penjelasan lengkap di
-     blok #pdfRenderOverlay pada <style> di atas. Ditaruh di luar
-     #printArea supaya benar-benar menutupi seluruh halaman, termasuk
-     #printArea yang saat ini sudah dipindah ke dalam area layar.
-============================================= -->
-<div id="pdfRenderOverlay"></div>
 
 <!-- ============================================
      AREA CETAK — replika presisi form kertas FHCS-003.
