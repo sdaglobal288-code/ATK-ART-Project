@@ -6,12 +6,21 @@
 // otomatis oleh CSS) maupun saat dibuka dari dalam sistem admin (ada
 // sessionStorage "user" -> toolbar Dashboard/panel validasi/riwayat muncul).
 //
-// FILE INI TIDAK DIUBAH — permintaan hanya menyamakan CSS area cetak
-// (#printArea) pada file HTML dengan versi non-PDF, sehingga baik hasil
-// cetak asli (window.print(), dipakai admin) maupun hasil PDF otomatis
-// (html2canvas + jsPDF, dipakai akun publik) memakai #printArea dan CSS
-// yang PERSIS SAMA. Seluruh logic JS, termasuk fitur PDF otomatis, tetap
-// sama persis seperti sebelumnya.
+// ⚠️ PERUBAHAN TERBARU (opsi hybrid, supaya hasil akhir publik = hasil
+// akhir admin persis sama):
+//   - Pratinjau di dalam <iframe> (panel "Bukti Permintaan") TETAP dibuat
+//     lewat html2canvas + jsPDF seperti sebelumnya — ini HANYA untuk
+//     preview cepat sebelum karyawan memutuskan mengunduh/mencetak.
+//   - TAPI tombol "⬇️ Unduh PDF" dan "🖨️ Cetak" sekarang TIDAK LAGI
+//     menyimpan/mencetak hasil screenshot canvas tsb. Keduanya memanggil
+//     window.print() langsung terhadap #printArea — PERSIS mekanisme yang
+//     dipakai admin lewat tombol "Cetak Form" / "Cetak Bukti Permintaan".
+//     Karena keduanya lewat engine print/​"Simpan sebagai PDF" bawaan
+//     browser yang sama (bukan gambar hasil screenshot), hasil akhir yang
+//     benar-benar diunduh/dicetak karyawan publik dijamin identik dengan
+//     hasil akhir admin saat Save PDF / kirim ke printer.
+//   - Seluruh logic lain (validasi stok, simpan ke database, riwayat,
+//     approval, dsb) TIDAK diubah sama sekali.
 // =====================================
 
 const TAG_FORM = "[Formulir Permintaan ATK/ART]";
@@ -677,6 +686,12 @@ document.getElementById("btnCetakForm").addEventListener("click", function(){
     window.print();
 });
 
+// ===== Pembuat PDF PRATINJAU (khusus tampilan publik) =====
+// PENTING: hasil dari fungsi ini HANYA dipakai untuk ditampilkan di
+// <iframe> panel "Bukti Permintaan" sebagai gambaran cepat isi dokumen.
+// Ini BUKAN lagi file yang benar-benar diunduh/dicetak karyawan — sejak
+// perubahan hybrid, tombol "Unduh PDF" & "Cetak" memakai window.print()
+// (lihat cetakAreaCetakPublikTerakhir di bawah), bukan hasil fungsi ini.
 async function buatPdfDariPrintArea(){
     const printAreaEl = document.getElementById("printArea");
     document.body.classList.add("pdf-render-mode");
@@ -725,6 +740,9 @@ const btnUnduhPdfEl        = document.getElementById("btnUnduhPdf");
 const btnCetakPdfEl        = document.getElementById("btnCetakPdf");
 const btnPdfBuatBaruEl     = document.getElementById("btnPdfBuatBaru");
 
+// pdfTerakhirDibuat & namaFilePdfTerakhir sekarang HANYA dipakai untuk
+// mengisi <iframe> pratinjau (bloburl). Tidak lagi dipakai untuk proses
+// unduh/cetak final — itu memakai window.print() langsung.
 let pdfTerakhirDibuat   = null;
 let namaFilePdfTerakhir = "Bukti-Permintaan-ATK-ART.pdf";
 
@@ -735,11 +753,13 @@ async function tampilkanPdfSiapCetak(karyawan, tanggal, itemList){
     if(pdfPreviewPanelEl) pdfPreviewPanelEl.style.display = "block";
     if(pdfPreviewFrameEl){
         pdfPreviewFrameEl.removeAttribute("src");
-        pdfPreviewFrameEl.srcdoc = `<html><body style="margin:0;display:flex;align-items:center;justify-content:center;height:100vh;font-family:sans-serif;color:#64748b;">Sedang membuat PDF, mohon tunggu sebentar...</body></html>`;
+        pdfPreviewFrameEl.srcdoc = `<html><body style="margin:0;display:flex;align-items:center;justify-content:center;height:100vh;font-family:sans-serif;color:#64748b;">Sedang membuat pratinjau, mohon tunggu sebentar...</body></html>`;
     }
     pdfPreviewPanelEl?.scrollIntoView({ behavior: "smooth", block: "start" });
 
     try{
+        // Ini murni untuk PRATINJAU di iframe. Tombol Unduh/Cetak di bawah
+        // TIDAK memakai hasil ini lagi — lihat cetakAreaCetakPublikTerakhir().
         const pdf = await buatPdfDariPrintArea();
         pdfTerakhirDibuat = pdf;
 
@@ -757,29 +777,35 @@ async function tampilkanPdfSiapCetak(karyawan, tanggal, itemList){
         console.error(err);
         if(pdfPreviewFrameEl){
             pdfPreviewFrameEl.removeAttribute("src");
-            pdfPreviewFrameEl.srcdoc = `<html><body style="margin:0;padding:24px;font-family:sans-serif;color:#dc2626;">Gagal membuat pratinjau PDF: ${err.message}. Silakan coba tombol Cetak di bawah, atau muat ulang halaman.</body></html>`;
+            pdfPreviewFrameEl.srcdoc = `<html><body style="margin:0;padding:24px;font-family:sans-serif;color:#dc2626;">Gagal membuat pratinjau: ${err.message}. Anda tetap bisa menekan tombol Unduh PDF / Cetak di bawah untuk mengunduh/mencetak dokumen aslinya.</body></html>`;
         }
     }
 }
 
+// ===== Fungsi cetak/unduh FINAL untuk akun publik (hasil sebenarnya) =====
+// Memakai window.print() -> dialog print / "Simpan sebagai PDF" bawaan
+// browser, PERSIS mekanisme yang dipakai admin (tombol "Cetak Form" /
+// "Cetak Bukti Permintaan"). #printArea diisi ulang tepat sebelum
+// window.print() dipanggil, memakai data terakhir yang berhasil disimpan
+// (itemTerakhirDisimpan / karyawanTerakhirDisimpan / tanggalTerakhirDisimpan),
+// supaya hasil akhir yang benar-benar diunduh/dicetak karyawan publik
+// IDENTIK dengan hasil akhir admin — bukan lagi gambar hasil screenshot
+// html2canvas.
+function cetakAreaCetakPublikTerakhir(){
+    if(!itemTerakhirDisimpan || !karyawanTerakhirDisimpan){
+        alert("Data permintaan belum siap, mohon tunggu sebentar lalu coba lagi.");
+        return;
+    }
+    siapkanAreaCetak(karyawanTerakhirDisimpan, tanggalTerakhirDisimpan, itemTerakhirDisimpan, "");
+    window.print();
+}
+
 if(btnUnduhPdfEl){
-    btnUnduhPdfEl.addEventListener("click", function(){
-        if(!pdfTerakhirDibuat){ alert("PDF belum siap, mohon tunggu sebentar lalu coba lagi."); return; }
-        pdfTerakhirDibuat.save(namaFilePdfTerakhir);
-    });
+    btnUnduhPdfEl.addEventListener("click", cetakAreaCetakPublikTerakhir);
 }
 
 if(btnCetakPdfEl){
-    btnCetakPdfEl.addEventListener("click", function(){
-        if(pdfPreviewFrameEl && pdfPreviewFrameEl.contentWindow && pdfPreviewFrameEl.src){
-            try{
-                pdfPreviewFrameEl.contentWindow.focus();
-                pdfPreviewFrameEl.contentWindow.print();
-                return;
-            }catch(err){ console.error(err); }
-        }
-        window.print();
-    });
+    btnCetakPdfEl.addEventListener("click", cetakAreaCetakPublikTerakhir);
 }
 
 if(btnPdfBuatBaruEl){
