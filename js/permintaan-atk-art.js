@@ -7,9 +7,11 @@
 // sessionStorage "user" -> toolbar Dashboard/panel validasi/riwayat muncul).
 //
 // FILE INI TIDAK DIUBAH — permintaan hanya menyamakan CSS area cetak
-// (#printArea) pada file HTML dengan versi non-PDF. Seluruh logic JS,
-// termasuk fitur PDF otomatis (html2canvas + jsPDF), tetap sama persis
-// seperti sebelumnya.
+// (#printArea) pada file HTML dengan versi non-PDF, sehingga baik hasil
+// cetak asli (window.print(), dipakai admin) maupun hasil PDF otomatis
+// (html2canvas + jsPDF, dipakai akun publik) memakai #printArea dan CSS
+// yang PERSIS SAMA. Seluruh logic JS, termasuk fitur PDF otomatis, tetap
+// sama persis seperti sebelumnya.
 // =====================================
 
 const TAG_FORM = "[Formulir Permintaan ATK/ART]";
