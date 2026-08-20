@@ -6,6 +6,19 @@
 // otomatis oleh CSS) maupun saat dibuka dari dalam sistem admin (ada
 // sessionStorage "user" -> toolbar Dashboard/panel validasi/riwayat muncul).
 //
+// PERUBAHAN TERBARU (PDF otomatis untuk tampilan publik):
+// Setelah karyawan (akun PUBLIK, tanpa login) menekan "Ajukan Permintaan"
+// dan berhasil tersimpan, tampilan TIDAK LAGI menampilkan tombol "Cetak
+// Bukti Permintaan" yang harus diklik manual untuk membuka dialog cetak
+// browser. Sekarang, begitu berhasil, form langsung DIGANTIKAN oleh
+// panel pratinjau dokumen PDF ASLI (dibuat di sisi klien lewat
+// html2canvas + jsPDF dari isi #printArea, lihat fungsi
+// tampilkanPdfSiapCetak()/buatPdfDariPrintArea()), lengkap dengan tombol
+// "Unduh PDF" dan "Cetak". Alur untuk akun ADMIN tetap seperti
+// sebelumnya (tombol Cetak Bukti Permintaan / Cetak Form manual, tanpa
+// PDF otomatis), supaya panel Validasi & Riwayat tetap menjadi alur
+// kerja utama admin.
+//
 // CATATAN TAMPILAN: mode admin halaman ini SEKARANG disamakan dengan
 // barang-masuk.html — tidak ada lagi sidebar/topbar replika sendiri.
 // Navigasi kembali ke sistem cukup lewat tombol "🏠 Dashboard" di toolbar
@@ -21,18 +34,16 @@
 //    disesuaikan ke stok. Tombol ❌ Tolak sekarang MENGEMBALIKAN stok yang
 //    sudah terpotong tadi (karena permintaannya batal), lalu ubah status
 //    jadi "Ditolak".
-// 3) Tombol "Simpan & Kurangi Stok" berganti nama jadi "Ajukan Permintaan",
-//    dan begitu berhasil disimpan, tombol itu disembunyikan lalu digantikan
-//    tombol "Cetak Bukti Permintaan" + "Buat Permintaan Baru".
+// 3) Tombol "Simpan & Kurangi Stok" berganti nama jadi "Ajukan Permintaan".
 // 4) Panel "Riwayat Pengajuan" menampilkan kolom Status, dan tombol
 //    Edit/Hapus hanya aktif untuk baris berstatus "Disetujui" (karena baris
 //    itu stoknya sudah pasti terpotong dan tidak akan dikembalikan lewat
 //    alur Tolak lagi).
-// 5) Kolom "Jenis Barang" & "Keterangan" pada hasil cetak otomatis mengecil
-//    ukuran fontnya dengan MENGUKUR SUNGGUHAN (canvas) apakah teksnya muat
-//    di lebar kolom aslinya, bukan sekadar tebak-tebakan dari jumlah
-//    karakter, supaya semua isi tetap terbaca. Input Keterangan pada form
-//    juga otomatis diubah menjadi HURUF KAPITAL saat diketik.
+// 5) Kolom "Jenis Barang" & "Keterangan" pada hasil cetak/PDF otomatis
+//    mengecil ukuran fontnya dengan MENGUKUR SUNGGUHAN (canvas) apakah
+//    teksnya muat di lebar kolom aslinya, bukan sekadar tebak-tebakan dari
+//    jumlah karakter, supaya semua isi tetap terbaca. Input Keterangan
+//    pada form juga otomatis diubah menjadi HURUF KAPITAL saat diketik.
 // 6) Tombol "🔗 Copy Link Publik" (admin-only) di toolbar: menyalin URL
 //    halaman ini (tanpa query/hash) ke clipboard, supaya admin gudang
 //    tinggal klik lalu tempel (paste) link tersebut untuk dibagikan ke
@@ -41,10 +52,10 @@
 //    disalin di sini SAMA PERSIS dengan URL halaman yang sedang dibuka.
 // 7) Tombol "🖨️ Cetak Form" (dulu "Cetak Form Kosong") di toolbar atas
 //    SEKARANG disembunyikan secara default, dan baru MUNCUL setelah
-//    permintaan berhasil diajukan (tombol "Ajukan Permintaan" diklik &
-//    sukses tersimpan) — sejalan dengan tombol "Cetak Bukti Permintaan" &
-//    "Buat Permintaan Baru" yang juga baru muncul di titik yang sama.
-//    Tombol ini disembunyikan lagi begitu "Buat Permintaan Baru" diklik.
+//    permintaan (mode ADMIN) berhasil diajukan — sejalan dengan tombol
+//    "Cetak Bukti Permintaan" & "Buat Permintaan Baru" yang juga baru
+//    muncul di titik yang sama. Tombol ini disembunyikan lagi begitu
+//    "Buat Permintaan Baru" diklik.
 // 8) Kolom "Jenis Barang" SEKARANG menampilkan thumbnail foto barang di
 //    sebelah kiri kotak pencarian, supaya karyawan/admin tahu wujud
 //    barang yang diminta sebelum mengajukan. Foto diambil dari kolom
@@ -52,20 +63,20 @@
 //    kolom fleksibel, dideteksi otomatis lewat ambilUrlFotoBarang()).
 //    Kalau barang belum punya foto (atau tabel belum punya kolom foto
 //    sama sekali), otomatis tampil ikon placeholder 📦 — TIDAK error.
-//    Lihat komentar di ambilUrlFotoBarang() untuk saran migrasi kolomnya.
 // 9) Thumbnail foto barang tersebut SEKARANG bisa DIKLIK untuk preview
 //    ukuran besar (lightbox), memakai elemen #fotoLightboxOverlay di HTML
 //    & fungsi bukaLightboxFoto()/tutupLightboxFoto() di file ini. Bisa
 //    ditutup dengan klik di luar gambar, tombol ✕, atau tombol Escape.
-// 10) Setelah "Ajukan Permintaan" berhasil disimpan, halaman TIDAK LAGI
-//     otomatis membuka dialog cetak (window.print()) — karyawan/admin
-//     yang mau mencetak tinggal klik tombol "🖨️ Cetak Bukti Permintaan"
-//     atau "🖨️ Cetak Form" secara manual.
+// 10) Untuk mode ADMIN, setelah "Ajukan Permintaan" berhasil disimpan,
+//     halaman TIDAK otomatis membuka dialog cetak (window.print()) —
+//     admin yang mau mencetak tinggal klik tombol "🖨️ Cetak Bukti
+//     Permintaan" atau "🖨️ Cetak Form" secara manual. Untuk mode PUBLIK,
+//     lihat catatan "PERUBAHAN TERBARU" di paling atas file ini — alurnya
+//     berbeda (PDF otomatis, bukan tombol manual).
 // 11) Catatan status "Status: MENUNGGU APPROVAL ADMIN GUDANG" pada hasil
-//     cetak SUDAH DIHILANGKAN (baik saat cetak bukti permintaan yang baru
-//     diajukan, maupun saat cetak ulang dari Riwayat Pengajuan untuk baris
-//     berstatus Menunggu) — area cetak tidak lagi menampilkan baris
-//     keterangan status tersebut.
+//     cetak/PDF SUDAH DIHILANGKAN (baik saat cetak bukti permintaan yang
+//     baru diajukan, PDF otomatis publik, maupun saat cetak ulang dari
+//     Riwayat Pengajuan untuk baris berstatus Menunggu).
 // 12) Panel "Validasi Permintaan ATK/ART" & "Riwayat Pengajuan ATK/ART"
 //     (admin-only) SEKARANG otomatis DIFILTER sesuai gudang tempat admin
 //     login (adminUser.gudang, diisi oleh sessionStorage "user" saat
@@ -873,14 +884,162 @@ document.getElementById("btnCetakForm").addEventListener("click", function(){
 });
 
 // =====================================
+// GENERATE PDF SIAP CETAK (khusus akun PUBLIK, tanpa login) — dipakai
+// setelah "Ajukan Permintaan" berhasil disimpan. Alih-alih membuka
+// dialog cetak browser (window.print()), tampilan langsung diganti
+// dengan panel berisi dokumen PDF ASLI, dibuat di sisi klien lewat:
+//   1) html2canvas -> "memotret" isi #printArea (yang sudah berisi data
+//      permintaan lewat siapkanAreaCetak()) menjadi gambar beresolusi
+//      tinggi (scale 2x), memakai styling form kertas FHCS-003 yang
+//      SAMA PERSIS dengan hasil cetak (lihat #printArea di CSS, dan
+//      class "pdf-render-mode" yang menampilkan #printArea di luar
+//      layar selama proses potret berlangsung supaya tidak berkedip).
+//   2) jsPDF -> menyusun gambar tsb ke dalam file PDF ukuran A4
+//      (otomatis membuat halaman baru kalau kontennya lebih tinggi dari
+//      satu halaman, misal karena banyak baris barang).
+// Hasilnya ditampilkan lewat <iframe> (pratinjau PDF asli, bukan cuma
+// gambar) di panel #pdfPreviewPanel, lengkap dengan tombol "Unduh PDF"
+// (menyimpan file .pdf ke perangkat) dan "Cetak" (mencetak PDF tsb).
+// =====================================
+
+async function buatPdfDariPrintArea(){
+    const printAreaEl = document.getElementById("printArea");
+    document.body.classList.add("pdf-render-mode");
+
+    try{
+        const canvas = await html2canvas(printAreaEl, {
+            scale: 2,
+            useCORS: true,
+            backgroundColor: "#ffffff"
+        });
+
+        const { jsPDF } = window.jspdf;
+        const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+
+        const pageWidthMm  = pdf.internal.pageSize.getWidth();
+        const pageHeightMm = pdf.internal.pageSize.getHeight();
+
+        const imgWidthMm  = pageWidthMm;
+        const imgHeightMm = (canvas.height * imgWidthMm) / canvas.width;
+        const imgData = canvas.toDataURL("image/png");
+
+        let heightLeft = imgHeightMm;
+        let position   = 0;
+
+        pdf.addImage(imgData, "PNG", 0, position, imgWidthMm, imgHeightMm);
+        heightLeft -= pageHeightMm;
+
+        // kalau isinya lebih tinggi dari 1 halaman A4 (misal banyak baris
+        // barang), lanjutkan potongan gambar yang sama ke halaman berikutnya
+        while(heightLeft > 0){
+            position = heightLeft - imgHeightMm;
+            pdf.addPage();
+            pdf.addImage(imgData, "PNG", 0, position, imgWidthMm, imgHeightMm);
+            heightLeft -= pageHeightMm;
+        }
+
+        return pdf;
+
+    } finally {
+        // #printArea selalu dikembalikan tersembunyi lagi, apapun hasilnya
+        // (berhasil atau gagal), supaya tidak "nyangkut" tampil di luar layar
+        document.body.classList.remove("pdf-render-mode");
+    }
+}
+
+const formPermintaanWrapEl = document.getElementById("formPermintaanWrap");
+const pdfPreviewPanelEl    = document.getElementById("pdfPreviewPanel");
+const pdfPreviewFrameEl    = document.getElementById("pdfPreviewFrame");
+const btnUnduhPdfEl        = document.getElementById("btnUnduhPdf");
+const btnCetakPdfEl        = document.getElementById("btnCetakPdf");
+const btnPdfBuatBaruEl     = document.getElementById("btnPdfBuatBaru");
+
+let pdfTerakhirDibuat   = null; // instance jsPDF terakhir (dipakai tombol Unduh/Cetak)
+let namaFilePdfTerakhir = "Bukti-Permintaan-ATK-ART.pdf";
+
+async function tampilkanPdfSiapCetak(karyawan, tanggal, itemList){
+    // isi #printArea dengan data permintaan yang baru saja diajukan —
+    // inilah sumber data yang akan "difoto" jadi PDF
+    siapkanAreaCetak(karyawan, tanggal, itemList, "");
+
+    // ganti tampilan: form disembunyikan, panel pratinjau PDF ditampilkan
+    if(formPermintaanWrapEl) formPermintaanWrapEl.style.display = "none";
+    if(pdfPreviewPanelEl) pdfPreviewPanelEl.style.display = "block";
+    if(pdfPreviewFrameEl){
+        pdfPreviewFrameEl.removeAttribute("src");
+        pdfPreviewFrameEl.srcdoc = `<html><body style="margin:0;display:flex;align-items:center;justify-content:center;height:100vh;font-family:sans-serif;color:#64748b;">Sedang membuat PDF, mohon tunggu sebentar...</body></html>`;
+    }
+    pdfPreviewPanelEl?.scrollIntoView({ behavior: "smooth", block: "start" });
+
+    try{
+        const pdf = await buatPdfDariPrintArea();
+        pdfTerakhirDibuat = pdf;
+
+        const tglAman = (tanggal || "").split("-").reverse().join("-") || "tanggal";
+        const namaAman = (karyawan.nama || "karyawan").replace(/[^a-zA-Z0-9]+/g, "-");
+        namaFilePdfTerakhir = `Bukti-Permintaan-ATK-ART-${namaAman}-${tglAman}.pdf`;
+
+        const blobUrl = pdf.output("bloburl");
+        if(pdfPreviewFrameEl){
+            pdfPreviewFrameEl.removeAttribute("srcdoc");
+            pdfPreviewFrameEl.src = blobUrl;
+        }
+
+    }catch(err){
+        console.error(err);
+        if(pdfPreviewFrameEl){
+            pdfPreviewFrameEl.removeAttribute("src");
+            pdfPreviewFrameEl.srcdoc = `<html><body style="margin:0;padding:24px;font-family:sans-serif;color:#dc2626;">Gagal membuat pratinjau PDF: ${err.message}. Silakan coba tombol Cetak di bawah, atau muat ulang halaman.</body></html>`;
+        }
+    }
+}
+
+if(btnUnduhPdfEl){
+    btnUnduhPdfEl.addEventListener("click", function(){
+        if(!pdfTerakhirDibuat){ alert("PDF belum siap, mohon tunggu sebentar lalu coba lagi."); return; }
+        pdfTerakhirDibuat.save(namaFilePdfTerakhir);
+    });
+}
+
+if(btnCetakPdfEl){
+    btnCetakPdfEl.addEventListener("click", function(){
+        if(pdfPreviewFrameEl && pdfPreviewFrameEl.contentWindow && pdfPreviewFrameEl.src){
+            try{
+                pdfPreviewFrameEl.contentWindow.focus();
+                pdfPreviewFrameEl.contentWindow.print();
+                return;
+            }catch(err){ console.error(err); }
+        }
+        // fallback kalau iframe belum siap / browser membatasi print lintas frame
+        window.print();
+    });
+}
+
+if(btnPdfBuatBaruEl){
+    btnPdfBuatBaruEl.addEventListener("click", function(){
+        pdfTerakhirDibuat = null;
+        if(pdfPreviewPanelEl) pdfPreviewPanelEl.style.display = "none";
+        if(pdfPreviewFrameEl){ pdfPreviewFrameEl.removeAttribute("src"); pdfPreviewFrameEl.removeAttribute("srcdoc"); }
+        if(formPermintaanWrapEl) formPermintaanWrapEl.style.display = "";
+        tampilkanModeSebelumSimpan();
+        resetFormItemDanKaryawanSaja();
+        formPermintaanWrapEl?.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+}
+
+// =====================================
 // AJUKAN PERMINTAAN (insert ke barang_keluar berstatus "Menunggu Approval")
 // Stok LANGSUNG dipotong saat pengajuan ini berhasil disimpan (tidak lagi
 // menunggu approval admin). Kalau nanti DITOLAK lewat panel Validasi, stok
-// yang sudah terpotong akan dikembalikan otomatis. Setelah berhasil, tombol
-// "Ajukan Permintaan" digantikan tombol "Cetak Bukti Permintaan" +
-// "Buat Permintaan Baru", dan tombol "Cetak Form" di toolbar atas SEKARANG
-// baru dimunculkan juga (sebelumnya disembunyikan). Dialog cetak TIDAK lagi
-// dibuka otomatis di sini — pengguna mencetak secara manual lewat tombol.
+// yang sudah terpotong akan dikembalikan otomatis.
+//
+// Setelah berhasil disimpan, alurnya BERBEDA tergantung jenis akun:
+//   - MODE PUBLIK (tanpa login): tampilan langsung berubah jadi dokumen
+//     PDF siap cetak/unduh (lihat tampilkanPdfSiapCetak()), tanpa dialog
+//     cetak browser & tanpa tombol manual.
+//   - MODE ADMIN: tombol "Ajukan Permintaan" digantikan tombol "Cetak
+//     Bukti Permintaan" + "Buat Permintaan Baru" (perilaku lama tetap
+//     dipertahankan), dan tombol "Cetak Form" di toolbar atas dimunculkan.
 // =====================================
 
 const form = document.getElementById("formPermintaan");
@@ -973,23 +1132,30 @@ form.addEventListener("submit", async function(e){
         await loadStokGudang();
         refreshSemuaBarisStok();
 
-        // simpan konteks untuk tombol "Cetak Bukti Permintaan"
+        // simpan konteks untuk tombol "Cetak Bukti Permintaan" (mode admin)
         itemTerakhirDisimpan = itemList;
         karyawanTerakhirDisimpan = karyawan;
         tanggalTerakhirDisimpan = tanggal;
 
-        // siapkan area cetak (isinya) supaya siap dipakai kalau nanti tombol
-        // "Cetak Bukti Permintaan" / "Cetak Form" diklik, TANPA langsung
-        // membuka dialog cetak di sini
-        siapkanAreaCetak(karyawan, tanggal, itemList, "");
+        if(adminUser){
+            // ===== MODE ADMIN: perilaku lama tetap dipertahankan — tombol
+            // manual "Cetak Bukti Permintaan" / "Cetak Form" / "Buat
+            // Permintaan Baru", TANPA membuka dialog cetak otomatis. =====
+            siapkanAreaCetak(karyawan, tanggal, itemList, "");
 
-        alert(`Permintaan ATK/ART berhasil diajukan (${transaksiList.length} item).\nForm Permintaan ATK/ART silahkan di print dan di tandatangani, dan kasihkan ke HCS.\nTerimakasih`);
+            alert(`Permintaan ATK/ART berhasil diajukan (${transaksiList.length} item).\nForm Permintaan ATK/ART silahkan di print dan di tandatangani, dan kasihkan ke HCS.\nTerimakasih`);
 
-        tampilkanModeSetelahSimpan();
+            tampilkanModeSetelahSimpan();
 
-        if(document.body.classList.contains("is-admin-view")){
             await muatValidasiPermintaan();
             await muatRiwayatPengajuan();
+
+        } else {
+            // ===== MODE PUBLIK (tanpa login): tampilan langsung berubah
+            // jadi dokumen PDF yang sudah siap cetak/unduh, TIDAK lagi
+            // memakai dialog cetak browser maupun tombol manual "Cetak
+            // Bukti Permintaan" — lihat tampilkanPdfSiapCetak(). =====
+            await tampilkanPdfSiapCetak(karyawan, tanggal, itemList);
         }
 
     }catch(err){ console.error(err); alert(err.message); }
@@ -1008,6 +1174,14 @@ function resetForm(){
     tambahBarisBarang();
 
     tampilkanModeSebelumSimpan();
+
+    // pindah gudang juga membatalkan pratinjau PDF yang sedang tampil (kalau ada)
+    if(pdfPreviewPanelEl && pdfPreviewPanelEl.style.display !== "none"){
+        pdfPreviewPanelEl.style.display = "none";
+        if(pdfPreviewFrameEl){ pdfPreviewFrameEl.removeAttribute("src"); pdfPreviewFrameEl.removeAttribute("srcdoc"); }
+        if(formPermintaanWrapEl) formPermintaanWrapEl.style.display = "";
+        pdfTerakhirDibuat = null;
+    }
 }
 
 // reset setelah submit sukses — gudang yang sedang dipilih TETAP dipertahankan
