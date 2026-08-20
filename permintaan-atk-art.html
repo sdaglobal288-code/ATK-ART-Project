@@ -12,11 +12,6 @@
 <!-- Tema warna otomatis sesuai gudang yang login (sama seperti dashboard.html).
      Kalau tidak ada sesi admin, script ini aman untuk tidak melakukan apa-apa. -->
 <script src="js/theme.js"></script>
-<!-- html2pdf.js: dipakai untuk membuat file PDF (bukan lagi dialog cetak
-     browser) dari #printArea, persis mereplikasi tampilan @media print
-     yang sudah ada, supaya hasil PDF-nya identik dengan hasil cetak
-     sebelumnya. -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 <style>
     :root{
         --pg-border:#334155;
@@ -719,63 +714,6 @@
         .print-signature-grid .sig-line{ display:inline-block; width:150px; border-top:1px solid #000; padding-top:4px; font-size:11pt !important; }
         .print-rev{ text-align:right; font-size:9pt !important; margin-top:6px; }
     }
-
-    /* =========================================================
-       MODE UNDUH PDF (bukan Ctrl+P) — dipicu lewat class
-       "force-print-mode" pada <body> oleh JS (lihat fungsi
-       unduhPdfBuktiPermintaan() di permintaan-atk-art.js) sesaat
-       sebelum html2pdf.js mengambil "screenshot" dari #printArea.
-       Aturan di bawah ini SENGAJA meniru persis aturan @media print
-       di atas (isi/susunan/ukuran TIDAK diubah sama sekali), hanya
-       dipindah keluar dari @media print supaya tetap berlaku saat
-       browser TIDAK sedang dalam proses mencetak (html2canvas hanya
-       memotret computed style biasa, bukan style khusus cetak).
-       #printArea diberi lebar tetap 210mm (lebar kertas A4) dengan
-       padding 6mm 14mm 15mm 14mm (persis nilai @page margin di atas)
-       supaya hasil PDF-nya identik dengan hasil cetak sebelumnya.
-    ========================================================= */
-    body.force-print-mode::before{
-        content:""; position:fixed; inset:0; background:#f1f5f9; z-index:99998;
-    }
-    body.force-print-mode::after{
-        content:"Menyiapkan PDF..."; position:fixed; top:14px; left:50%; transform:translateX(-50%);
-        z-index:100000; background:#111827; color:#fff; padding:8px 18px; border-radius:999px;
-        font-family:"Inter", Arial, sans-serif; font-size:13px; font-weight:600; box-shadow:0 8px 20px rgba(0,0,0,.25);
-    }
-    body.force-print-mode #printArea{
-        display:block !important; position:fixed; top:16px; left:50%; transform:translateX(-50%);
-        z-index:99999; width:210mm; min-height:297mm; box-sizing:border-box;
-        background:#fff; color:#000; padding:6mm 14mm 15mm 14mm; margin:0;
-        font-family:"Times New Roman", Times, serif; font-size:11pt !important;
-        box-shadow:0 20px 50px rgba(0,0,0,.35);
-    }
-    body.force-print-mode #printArea, body.force-print-mode #printArea *{ color:#000 !important; font-family:"Times New Roman", Times, serif !important; }
-    body.force-print-mode .print-kop{ display:flex; justify-content:space-between; align-items:flex-end; padding-bottom:4px; margin-bottom:8px; margin-top:0; }
-    body.force-print-mode .print-kop-brand{ display:flex; flex-direction:column; align-items:flex-start; gap:2px; }
-    body.force-print-mode .print-kop-brand img.brand-logo{ height:38px; width:auto; }
-    body.force-print-mode .print-kop-brand p.brand-name{ margin:0; font-size:11pt !important; font-weight:700; letter-spacing:.03em; }
-    body.force-print-mode .print-kop-code{ font-size:11pt !important; font-weight:600; }
-    body.force-print-mode .print-title{ text-align:center; font-weight:700; text-decoration:underline; margin:0 0 6px; font-size:12pt !important; }
-    body.force-print-mode .print-status-note{ text-align:center; font-size:10pt !important; font-style:italic; margin:0 0 12px; }
-    body.force-print-mode .print-header{ display:grid; grid-template-columns:1fr 1fr; row-gap:3px; column-gap:20px; margin-bottom:14px; font-size:11pt !important; text-transform:none !important; }
-    body.force-print-mode .print-header div{ display:flex; white-space:nowrap; font-size:11pt !important; text-transform:none !important; }
-    body.force-print-mode .print-header label{ width:168px; flex:0 0 168px; white-space:nowrap; font-size:11pt !important; text-transform:none !important; }
-    body.force-print-mode .print-header span{ text-transform:none !important; }
-    body.force-print-mode table.print-table{ width:100% !important; max-width:100% !important; table-layout:fixed !important; border-collapse:collapse; margin-bottom:20px; border:1.4px solid #000; }
-    body.force-print-mode table.print-table th, body.force-print-mode table.print-table td{ border:1.4px solid #000; padding:6px 8px; font-size:11pt !important; text-align:center; word-wrap:break-word; overflow-wrap:break-word; word-break:break-word; white-space:normal !important; }
-    body.force-print-mode table.print-table th{ background:#f0f0f0; text-transform:capitalize !important; }
-    body.force-print-mode table.print-table td.left{ text-align:left; }
-    body.force-print-mode table.print-table td.jenis-barang, body.force-print-mode table.print-table td.keterangan{ text-align:left; word-break:break-word; }
-    body.force-print-mode table.print-table td.text-shrink-1{ font-size:9.5pt !important; line-height:1.25; }
-    body.force-print-mode table.print-table td.text-shrink-2{ font-size:8.5pt !important; line-height:1.2; }
-    body.force-print-mode table.print-table td.text-shrink-3{ font-size:7.5pt !important; line-height:1.15; }
-    body.force-print-mode .print-signature{ margin-top:10px; }
-    body.force-print-mode .print-signature .city{ font-size:11pt !important; margin-bottom:18px; }
-    body.force-print-mode .print-signature-grid{ display:grid; grid-template-columns:1fr 1fr 1fr; text-align:center; font-size:11pt !important; }
-    body.force-print-mode .print-signature-grid > div{ display:flex; flex-direction:column; align-items:center; }
-    body.force-print-mode .print-signature-grid p{ margin:0 0 60px; font-size:11pt !important; }
-    body.force-print-mode .print-signature-grid .sig-line{ display:inline-block; width:150px; border-top:1px solid #000; padding-top:4px; font-size:11pt !important; }
-    body.force-print-mode .print-rev{ text-align:right; font-size:9pt !important; margin-top:6px; }
 </style>
 </head>
 <body>
@@ -792,7 +730,7 @@ onclick="location.href='dashboard.html'">
 </div>
 <div class="toolbar-print">
     <button type="button" class="btn-print admin-only" id="btnCopyLinkPublik" title="Salin link publik formulir ini untuk dibagikan ke karyawan">🔗 Copy Link Publik</button>
-    <button type="button" class="btn-print" id="btnCetakForm" style="display:none;">📄 Unduh PDF Form Kosong</button>
+    <button type="button" class="btn-print" id="btnCetakForm" style="display:none;">🖨️ Cetak Form</button>
 </div>
 
 <div class="panel" id="formPermintaanWrap">
@@ -876,12 +814,12 @@ onclick="location.href='dashboard.html'">
                     <div class="sig-line">Manager HCS</div>
                 </div>
             </div>
-            <p class="tag-note">Tanda tangan basah dilakukan di atas kertas hasil cetak. Setelah diajukan, bukti permintaan dapat langsung diunduh sebagai PDF (siap cetak) dan ditandatangani, lalu diserahkan ke HCS untuk pengambilan barang.</p>
+            <p class="tag-note">Tanda tangan basah dilakukan di atas kertas hasil cetak. Setelah diajukan, bukti permintaan dapat langsung dicetak dan ditandatangani, lalu diserahkan ke HCS untuk pengambilan barang.</p>
         </div>
 
         <div class="form-actions">
             <button type="submit" class="btn-primer" id="btnSimpan">💾 Ajukan Permintaan</button>
-            <button type="button" class="btn-print" id="btnCetakUlangSimpan" style="display:none;">📄 Unduh PDF Bukti Permintaan</button>
+            <button type="button" class="btn-print" id="btnCetakUlangSimpan" style="display:none;">🖨️ Cetak Bukti Permintaan</button>
             <button type="button" class="btn-mini" id="btnPermintaanBaru" style="display:none;">➕ Buat Permintaan Baru</button>
         </div>
 
@@ -926,7 +864,7 @@ onclick="location.href='dashboard.html'">
     <div id="riwayatTableWrap">
         <div class="riwayat-loading">Memuat riwayat...</div>
     </div>
-    <p class="tag-note">Menampilkan 300 pengajuan terakhir (digabung per transaksi, semua status). Klik ✏️ untuk mengubah jumlah/keterangan permintaan yang sudah disetujui (stok otomatis disesuaikan selisihnya), 🗑️ untuk membatalkan (stok dikembalikan), atau 📄 untuk mengunduh ulang PDF-nya.</p>
+    <p class="tag-note">Menampilkan 300 pengajuan terakhir (digabung per transaksi, semua status). Klik ✏️ untuk mengubah jumlah/keterangan permintaan yang sudah disetujui (stok otomatis disesuaikan selisihnya), 🗑️ untuk membatalkan (stok dikembalikan), atau 🖨️ untuk mencetak ulang.</p>
 </div>
 
 </div><!-- /content -->
