@@ -664,55 +664,88 @@
         table.rw-edit-table{ font-size:11.5px; }
     }
 
-    /* ===== tampilan cetak: replika presisi form kertas FHCS-003 ===== */
+    /* ===== tampilan cetak: replika presisi form kertas FHCS-003 =====
+       CATATAN: seluruh styling visual isi #printArea (.print-kop,
+       .print-title, table.print-table, .print-signature, dst) SEKARANG
+       diletakkan di LUAR blok @media print (lihat blok besar setelah
+       ini), supaya bisa dipakai kembali baik saat:
+         a) benar-benar mencetak lewat window.print() (dipicu @media print), dan
+         b) membuat file PDF otomatis lewat html2canvas (dipicu class
+            body.pdf-render-mode), untuk tampilan publik.
+       #printArea sendiri TETAP disembunyikan secara default di bawah ini,
+       jadi rule-rule visual tsb tidak memengaruhi apapun di layar biasa. */
     #printArea{ display:none; }
+</style>
 
+<!-- ============================================
+     Styling visual dokumen cetak (#printArea) — dipakai bersama oleh
+     mode cetak asli (@media print) MAUPUN mode generate-PDF otomatis
+     (body.pdf-render-mode), supaya hasilnya identik.
+============================================= -->
+<style>
+    #printArea, #printArea *{ font-family:"Times New Roman", Times, serif; }
+    .print-kop{ display:flex; justify-content:space-between; align-items:flex-end; padding-bottom:4px; margin-bottom:8px; margin-top:0; }
+    .print-kop-brand{ display:flex; flex-direction:column; align-items:flex-start; gap:2px; }
+    .print-kop-brand img.brand-logo{ height:38px; width:auto; }
+    .print-kop-brand p.brand-name{ margin:0; font-size:11pt !important; font-weight:700; letter-spacing:.03em; }
+    .print-kop-code{ font-size:11pt !important; font-weight:600; }
+    .print-title{ text-align:center; font-weight:700; text-decoration:underline; margin:0 0 6px; font-size:12pt !important; }
+    .print-status-note{ text-align:center; font-size:10pt !important; font-style:italic; margin:0 0 12px; }
+    .print-header{ display:grid; grid-template-columns:1fr 1fr; row-gap:3px; column-gap:20px; margin-bottom:14px; font-size:11pt !important; text-transform:none !important; }
+    .print-header div{ display:flex; white-space:nowrap; font-size:11pt !important; text-transform:none !important; }
+    .print-header label{ width:168px; flex:0 0 168px; white-space:nowrap; font-size:11pt !important; text-transform:none !important; }
+    .print-header span{ text-transform:none !important; }
+    table.print-table{ width:100% !important; max-width:100% !important; table-layout:fixed !important; border-collapse:collapse; margin-bottom:20px; border:1.4px solid #000; page-break-inside:avoid; }
+    table.print-table th, table.print-table td{ border:1.4px solid #000; padding:6px 8px; font-size:11pt !important; text-align:center; word-wrap:break-word; overflow-wrap:break-word; word-break:break-word; white-space:normal !important; }
+    table.print-table tr{ page-break-inside:avoid; }
+    /* Header hanya huruf depan tiap kata yang kapital (Title Case),
+       bukan huruf kapital semua. */
+    table.print-table th{ background:#f0f0f0; text-transform:capitalize !important; }
+    table.print-table td.left{ text-align:left; }
+    /* Kolom Jenis Barang & Keterangan: teks rata kiri dan boleh turun
+       ke baris kedua; ukuran font otomatis mengecil (lewat style inline
+       font-size yang dihitung di JS berdasarkan pengukuran lebar teks
+       sesungguhnya terhadap lebar kolom) supaya isi tetap terbaca
+       seluruhnya tanpa mengubah ukuran kolom lain. */
+    table.print-table td.jenis-barang, table.print-table td.keterangan{ text-align:left; word-break:break-word; }
+    .print-signature{ margin-top:10px; }
+    .print-signature .city{ font-size:11pt !important; margin-bottom:18px; }
+    .print-signature-grid{ display:grid; grid-template-columns:1fr 1fr 1fr; text-align:center; font-size:11pt !important; }
+    .print-signature-grid > div{ display:flex; flex-direction:column; align-items:center; }
+    .print-signature-grid p{ margin:0 0 60px; font-size:11pt !important; }
+    .print-signature-grid .sig-line{ display:inline-block; width:150px; border-top:1px solid #000; padding-top:4px; font-size:11pt !important; }
+    .print-rev{ text-align:right; font-size:9pt !important; margin-top:6px; }
+
+    #printArea, #printArea *{ color:#000; }
+
+    /* ===== MODE CETAK ASLI (dialog cetak browser / Ctrl+P), masih
+       dipakai oleh admin lewat tombol "Cetak Form" / "Cetak Bukti
+       Permintaan" / "Cetak Riwayat" ===== */
     @media print{
-        /* Margin atas dipangkas supaya kop/logo naik dan sejajar dengan
-           garis merah kop surat cetak (kertas letterhead), tanpa mengubah
-           margin kiri/kanan/bawah. */
         @page{ size:A4; margin:6mm 14mm 15mm 14mm; }
         html, body{ height:auto !important; margin:0 !important; padding:0 !important; overflow:visible !important; }
         body > *:not(#printArea){ display:none !important; }
         #printArea{
             display:block !important; position:absolute; top:0; left:0; width:100%;
-            background:#fff; color:#000; padding:0; margin:0; font-family:"Times New Roman", Times, serif; font-size:11pt !important;
+            background:#fff; color:#000; padding:0; margin:0;
         }
-        #printArea, #printArea *{ color:#000 !important; font-family:"Times New Roman", Times, serif !important; }
-        .print-kop{ display:flex; justify-content:space-between; align-items:flex-end; padding-bottom:4px; margin-bottom:8px; margin-top:0; }
-        .print-kop-brand{ display:flex; flex-direction:column; align-items:flex-start; gap:2px; }
-        .print-kop-brand img.brand-logo{ height:38px; width:auto; }
-        .print-kop-brand p.brand-name{ margin:0; font-size:11pt !important; font-weight:700; letter-spacing:.03em; }
-        .print-kop-code{ font-size:11pt !important; font-weight:600; }
-        .print-title{ text-align:center; font-weight:700; text-decoration:underline; margin:0 0 6px; font-size:12pt !important; }
-        .print-status-note{ text-align:center; font-size:10pt !important; font-style:italic; margin:0 0 12px; }
-        .print-header{ display:grid; grid-template-columns:1fr 1fr; row-gap:3px; column-gap:20px; margin-bottom:14px; font-size:11pt !important; text-transform:none !important; }
-        .print-header div{ display:flex; white-space:nowrap; font-size:11pt !important; text-transform:none !important; }
-        .print-header label{ width:168px; flex:0 0 168px; white-space:nowrap; font-size:11pt !important; text-transform:none !important; }
-        .print-header span{ text-transform:none !important; }
-        table.print-table{ width:100% !important; max-width:100% !important; table-layout:fixed !important; border-collapse:collapse; margin-bottom:20px; border:1.4px solid #000; page-break-inside:avoid; }
-        table.print-table th, table.print-table td{ border:1.4px solid #000; padding:6px 8px; font-size:11pt !important; text-align:center; word-wrap:break-word; overflow-wrap:break-word; word-break:break-word; white-space:normal !important; }
-        table.print-table tr{ page-break-inside:avoid; }
-        /* Header hanya huruf depan tiap kata yang kapital (Title Case),
-           bukan huruf kapital semua. */
-        table.print-table th{ background:#f0f0f0; text-transform:capitalize !important; }
-        table.print-table td.left{ text-align:left; }
-        /* Kolom Jenis Barang & Keterangan: teks rata kiri dan boleh turun
-           ke baris kedua; ukuran font otomatis mengecil (lihat kelas
-           text-shrink-* yang ditambahkan lewat JS, berdasarkan pengukuran
-           lebar teks sesungguhnya terhadap lebar kolom) supaya isi tetap
-           terbaca seluruhnya tanpa mengubah ukuran kolom lain. */
-        table.print-table td.jenis-barang, table.print-table td.keterangan{ text-align:left; word-break:break-word; }
-        table.print-table td.text-shrink-1{ font-size:9.5pt !important; line-height:1.25; }
-        table.print-table td.text-shrink-2{ font-size:8.5pt !important; line-height:1.2; }
-        table.print-table td.text-shrink-3{ font-size:7.5pt !important; line-height:1.15; }
-        .print-signature{ margin-top:10px; }
-        .print-signature .city{ font-size:11pt !important; margin-bottom:18px; }
-        .print-signature-grid{ display:grid; grid-template-columns:1fr 1fr 1fr; text-align:center; font-size:11pt !important; }
-        .print-signature-grid > div{ display:flex; flex-direction:column; align-items:center; }
-        .print-signature-grid p{ margin:0 0 60px; font-size:11pt !important; }
-        .print-signature-grid .sig-line{ display:inline-block; width:150px; border-top:1px solid #000; padding-top:4px; font-size:11pt !important; }
-        .print-rev{ text-align:right; font-size:9pt !important; margin-top:6px; }
+    }
+
+    /* ===== MODE GENERATE PDF OTOMATIS (khusus tampilan publik) — dipicu
+       lewat class body.pdf-render-mode saat JS memakai html2canvas untuk
+       "memotret" #printArea lalu menyusunnya jadi file PDF asli (jsPDF),
+       tanpa membuka dialog cetak browser sama sekali. #printArea
+       ditempatkan di luar layar (left:-9999px) supaya tidak terlihat
+       berkedip ke pengguna saat proses pembuatan PDF berlangsung. */
+    body.pdf-render-mode #printArea{
+        display:block !important;
+        position:fixed !important;
+        top:0 !important; left:-9999px !important;
+        width:210mm !important;
+        background:#fff !important;
+        padding:6mm 14mm 15mm 14mm !important;
+        box-sizing:border-box !important;
+        z-index:-1;
     }
 </style>
 </head>
@@ -826,6 +859,25 @@ onclick="location.href='dashboard.html'">
         </div><!-- /#formBodyGated -->
 
     </form>
+</div>
+
+<!-- ===========================
+     PRATINJAU PDF SIAP CETAK (khusus akun publik, tanpa login) —
+     ditampilkan menggantikan #formPermintaanWrap begitu "Ajukan
+     Permintaan" berhasil disimpan. Berisi dokumen PDF ASLI (dibuat di
+     sisi klien lewat html2canvas + jsPDF dari isi #printArea), bukan
+     lagi dialog cetak browser, supaya karyawan bisa langsung
+     mengunduh dan/atau mencetaknya.
+=========================== -->
+<div class="panel" id="pdfPreviewPanel" style="display:none;">
+    <h3 class="form-title" style="text-align:left;text-decoration:none;">📄 Bukti Permintaan (PDF siap cetak)</h3>
+    <p class="tag-note" style="margin-bottom:14px;">Permintaan Anda berhasil diajukan dan sedang menunggu approval admin gudang. Dokumen di bawah ini sudah dalam bentuk PDF — silakan unduh dan/atau cetak, lalu tanda tangani dan serahkan ke HCS.</p>
+    <iframe id="pdfPreviewFrame" title="Bukti Permintaan PDF" style="width:100%;height:75vh;min-height:420px;border:1px solid var(--pg-border);border-radius:8px;background:#fff;"></iframe>
+    <div class="form-actions" style="margin-top:16px;">
+        <button type="button" class="btn-primer" id="btnUnduhPdf">⬇️ Unduh PDF</button>
+        <button type="button" class="btn-print" id="btnCetakPdf">🖨️ Cetak</button>
+        <button type="button" class="btn-mini" id="btnPdfBuatBaru">➕ Buat Permintaan Baru</button>
+    </div>
 </div>
 
 <!-- ===========================
@@ -944,6 +996,15 @@ onclick="location.href='dashboard.html'">
     <button type="button" class="foto-lightbox-close" id="fotoLightboxClose">✕</button>
     <img id="fotoLightboxImg" src="" alt="Foto Barang">
 </div>
+
+<!-- ============================================
+     Pustaka pembuat PDF di sisi klien (khusus tampilan publik) —
+     html2canvas "memotret" isi #printArea menjadi gambar, lalu jsPDF
+     menyusun gambar tsb menjadi file PDF asli (bukan sekadar dialog
+     cetak browser). Dimuat lewat CDN, tidak butuh instalasi apapun.
+============================================= -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 
 <script src="js/permintaan-atk-art.js"></script>
 </body>
