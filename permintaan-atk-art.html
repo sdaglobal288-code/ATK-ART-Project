@@ -369,13 +369,7 @@
            kosong aneh melebar di beberapa perangkat). Baris paling atas
            kartu: badge nomor (kiri) + tombol hapus (kanan). Baris-baris
            di bawahnya (Jenis Barang s/d Keterangan) masing-masing
-           memenuhi lebar penuh kartu.
-           Kartu dibuat FLEXIBLE — tidak dipatok ke persentase tetap
-           (sebelumnya 50%, menyebabkan tampilan tidak konsisten/berantakan
-           di layar HP yang lebih sempit seperti Android). Sekarang perilakunya
-           disamakan dengan kartu "Nama Karyawan" (.header-grid) di atasnya:
-           tanpa max-width, otomatis mengisi lebar penuh kontainer yang
-           tersedia di layar berapa pun. */
+           memenuhi lebar penuh kartu. */
         table.tabel-barang tr.detail-row{
             display:block !important;
             position:relative;
@@ -393,12 +387,6 @@
             min-width:0; width:auto !important;
         }
 
-        /* baris header kartu: nomor urut barang (kiri, mengalir normal) +
-           tombol hapus (kanan, mengambang lewat position:absolute) — cara
-           ini menggantikan CSS Grid 2 kolom sebelumnya yang di beberapa HP
-           membuat kolom kanan melebar jadi kotak kosong besar. Dengan
-           position:absolute, tombol Hapus TIDAK ikut memakan lebar/kolom
-           apa pun, jadi tidak mungkin muncul kotak kosong lagi. */
         table.tabel-barang tr.detail-row td:nth-child(1){
             display:inline-block !important;
             background:var(--pg-soft-bg-2); border:1px solid var(--pg-border) !important;
@@ -422,20 +410,10 @@
         }
         table.tabel-barang tr.detail-row td:nth-child(7) .btn-hapus-baris::after{ content:" Hapus"; }
 
-        /* garis pemisah tipis antara header kartu (Barang N / Hapus) dan
-           isian field di bawahnya, supaya terlihat sebagai 2 kelompok
-           yang jelas alih-alih menyatu */
         table.tabel-barang tr.detail-row td:nth-child(2){
             border-top:1px solid var(--pg-border-2) !important;
         }
 
-        /* field isian (Jenis Barang → Keterangan): masing-masing memenuhi
-           lebar penuh kartu & diberi label kecil di atasnya. Urutan tampil
-           mengikuti urutan kolom asli di HTML/JS (mengalir dari atas ke
-           bawah sebagai block biasa, tanpa CSS Grid). Karena kartu itu
-           sendiri sudah diperkecil ke 65% di atas, kotak input di sini
-           dibiarkan mengisi penuh (100%) lebar kartu yang sudah sempit
-           tersebut. */
         table.tabel-barang tr.detail-row td:nth-child(2) .barang-cell .combo-wrapper{
             max-width:100%;
         }
@@ -460,10 +438,6 @@
         table.tabel-barang tr.detail-row td:nth-child(5)::before{ content:"Satuan"; }
         table.tabel-barang tr.detail-row td:nth-child(6)::before{ content:"Keterangan"; }
 
-        /* kotak readonly (Type/Satuan) dibuat jelas terlihat sebagai
-           kotak isian (border solid + latar jelas), supaya label di
-           atasnya tidak "menyatu" dengan isi kotak yang samar seperti
-           sebelumnya */
         table.tabel-barang tr.detail-row .input-readonly{
             border-style:solid !important; background:var(--pg-bg-3) !important;
             color:var(--pg-label) !important; font-weight:400 !important;
@@ -471,15 +445,9 @@
 
         .btn-tambah-baris{ width:100%; text-align:center; }
 
-        /* tombol aksi form ditumpuk penuh lebar supaya mudah disentuh */
         .form-actions{ flex-direction:column; }
         .form-actions button{ width:100%; }
 
-        /* blok tanda tangan: dibungkus jadi 1 kartu bertepi juga (border
-           penuh + radius + padding + background), konsisten dengan kartu
-           Data Karyawan & kartu Barang di atasnya, menggantikan garis
-           putus-putus tipis yang sebelumnya terlihat "kurang rapi" di
-           layar sempit. */
         .signature-block{
             border:1px solid var(--pg-border) !important; border-radius:10px;
             padding:14px !important; margin-top:16px !important;
@@ -488,26 +456,9 @@
         .signature-grid{ grid-template-columns:1fr; gap:28px; }
         .signature-col p{ margin-bottom:40px; }
 
-        /* input min 16px supaya Safari/Chrome iOS tidak auto-zoom saat fokus */
         .combo-input, .input-qty, .input-ket-row, .input-readonly,
         .gudang-gate select{ font-size:16px; }
 
-        /* SAMAKAN ukuran & gaya semua kotak isian di halaman ini —
-           Nama Karyawan/Departemen/NIK/Tanggal di atas HARUS terlihat
-           identik (tinggi, lebar, padding, radius, warna border) dengan
-           Jenis Barang/Type/Jumlah/Satuan/Keterangan di kartu barang,
-           supaya tampilannya rapi & konsisten dari atas sampai bawah.
-           Satu blok aturan TUNGGAL (satu deret selector) dipakai untuk
-           SEMUA kotak isian supaya tidak ada dua rule dengan spesifisitas
-           berbeda yang bisa saling menimpa sebagian properti saja
-           (itu penyebab sebelumnya ada kotak yang "kepanjangan"/beda
-           tinggi walau sudah pakai !important di properti height).
-           Tinggi dikunci PERSIS sama (min/max-height, bukan cuma height)
-           dan tampilan bawaan browser pada input tanggal/angka direset
-           (-webkit-appearance/appearance), karena kalau tidak direset,
-           input type="date" & type="number" sering dirender oleh HP
-           dengan tinggi/padding internal sendiri yang beda dari kotak
-           teks biasa walau CSS height-nya sudah disamakan. */
         #formPermintaanWrap .header-field .combo-input,
         #formPermintaanWrap .header-field input[type="date"],
         #formPermintaanWrap .barang-cell .combo-input,
@@ -535,22 +486,14 @@
             font-size:16px !important;
             vertical-align:middle !important;
         }
-        /* kembalikan gaya khas kotak readonly (Type/Satuan) di atas kotak
-           seragam barusan, TANPA mengubah ukurannya (border tetap solid
-           di mobile supaya jelas terlihat sebagai kotak isian) */
         #formPermintaanWrap .input-readonly{
             background:var(--pg-bg-3) !important;
             color:var(--pg-label) !important;
         }
 
-        /* lebar kolom "Jenis Barang" dikurangi lebar thumbnail foto +
-           gap-nya, supaya kotak inputnya tetap sama tinggi & konsisten
-           dengan kotak lain meski ada ikon foto di sampingnya */
         .barang-cell{ align-items:stretch; }
         .barang-cell .barang-thumb-wrap{ align-self:stretch; height:44px; }
 
-        /* panel admin (Validasi/Riwayat) tetap bisa digeser mendatar di
-           layar sempit alih-alih memampatkan kolom sampai tidak terbaca */
         .riwayat-head{ flex-direction:column; align-items:stretch; gap:10px; }
         .riwayat-tools{ width:100%; }
         .riwayat-tools input[type="text"]{ flex:1; min-width:0; width:100%; }
@@ -560,33 +503,16 @@
 
     /* =========================================================
        TAMPILAN ADMIN — disamakan dengan barang-masuk.html.
-       Halaman ini TIDAK lagi menaruh sidebar/topbar replika
-       sendiri. Navigasi kembali ke sistem cukup lewat tombol
-       "🏠 Dashboard" di toolbar, sama persis seperti halaman
-       Barang Masuk. Bedanya, tombol itu (dan panel Validasi /
-       Riwayat) hanya muncul kalau halaman dibuka dari dalam
-       sistem admin (ada sessionStorage "user"); kalau dibuka
-       sebagai link publik, semuanya tetap tersembunyi seperti
-       sebelumnya dan tampilan tetap ramping/terpusat untuk publik.
     ========================================================= */
-    /* Tampilan publik disamakan persis dengan tampilan admin (padding &
-       lebar konten sama), supaya tidak ada perbedaan ukuran antara link
-       publik dan saat dibuka dari dalam sistem admin. */
     html, body{ overflow-x:hidden !important; width:100% !important; max-width:100% !important; }
     .content{ padding:1px; max-width:none !important; width:100% !important; margin:0 !important; box-sizing:border-box !important; overflow-x:hidden !important; }
     #formPermintaanWrap, #validasiPanel, #riwayatPanel{ max-width:none !important; width:100% !important; }
 
-    /* toolbar tombol Cetak Form Kosong / Copy Link Publik (selalu tampil
-       kontainer-nya; tombol Copy Link Publik sendiri hanya tampak untuk
-       admin lewat class admin-only). Ditambahkan gap supaya kedua tombol
-       tidak menempel. */
     .toolbar-print{ display:flex !important; justify-content:flex-end; gap:10px; min-height:0; }
 
     /* ===== panel-panel khusus admin ===== */
     .admin-only{ display:none; }
     body.is-admin-view .admin-only{ display:block; }
-    /* tombol admin-only di toolbar butuh display:inline-flex saat tampil,
-       supaya sejajar dengan tombol Cetak Form Kosong (bukan block penuh) */
     body.is-admin-view .toolbar-print .admin-only{ display:inline-flex; align-items:center; gap:6px; }
 
     #validasiPanel, #riwayatPanel{ margin-top:26px; }
@@ -680,10 +606,15 @@
 <!-- ============================================
      Styling visual dokumen cetak (#printArea) — dipakai bersama oleh
      mode cetak asli (@media print) MAUPUN mode generate-PDF otomatis
-     (body.pdf-render-mode), supaya hasilnya identik.
+     (body.pdf-render-mode), supaya hasilnya identik satu sama lain.
+     Nilai-nilai di blok ini DISAMAKAN PERSIS dengan CSS cetak versi
+     tanpa-PDF (yang tadinya hanya berada di dalam @media print),
+     supaya tampilan hasil cetak (Ctrl+P) maupun hasil PDF otomatis
+     terlihat identik.
 ============================================= -->
 <style>
-    #printArea, #printArea *{ font-family:"Times New Roman", Times, serif; }
+    #printArea{ font-size:11pt !important; }
+    #printArea, #printArea *{ font-family:"Times New Roman", Times, serif !important; color:#000 !important; }
     .print-kop{ display:flex; justify-content:space-between; align-items:flex-end; padding-bottom:4px; margin-bottom:8px; margin-top:0; }
     .print-kop-brand{ display:flex; flex-direction:column; align-items:flex-start; gap:2px; }
     .print-kop-brand img.brand-logo{ height:38px; width:auto; }
@@ -706,8 +637,13 @@
        ke baris kedua; ukuran font otomatis mengecil (lewat style inline
        font-size yang dihitung di JS berdasarkan pengukuran lebar teks
        sesungguhnya terhadap lebar kolom) supaya isi tetap terbaca
-       seluruhnya tanpa mengubah ukuran kolom lain. */
+       seluruhnya tanpa mengubah ukuran kolom lain. Kelas text-shrink-*
+       di bawah disediakan juga untuk kompatibilitas/konsistensi visual
+       dengan versi cetak lain. */
     table.print-table td.jenis-barang, table.print-table td.keterangan{ text-align:left; word-break:break-word; }
+    table.print-table td.text-shrink-1{ font-size:9.5pt !important; line-height:1.25; }
+    table.print-table td.text-shrink-2{ font-size:8.5pt !important; line-height:1.2; }
+    table.print-table td.text-shrink-3{ font-size:7.5pt !important; line-height:1.15; }
     .print-signature{ margin-top:10px; }
     .print-signature .city{ font-size:11pt !important; margin-bottom:18px; }
     .print-signature-grid{ display:grid; grid-template-columns:1fr 1fr 1fr; text-align:center; font-size:11pt !important; }
@@ -715,8 +651,6 @@
     .print-signature-grid p{ margin:0 0 60px; font-size:11pt !important; }
     .print-signature-grid .sig-line{ display:inline-block; width:150px; border-top:1px solid #000; padding-top:4px; font-size:11pt !important; }
     .print-rev{ text-align:right; font-size:9pt !important; margin-top:6px; }
-
-    #printArea, #printArea *{ color:#000; }
 
     /* ===== MODE CETAK ASLI (dialog cetak browser / Ctrl+P), masih
        dipakai oleh admin lewat tombol "Cetak Form" / "Cetak Bukti
