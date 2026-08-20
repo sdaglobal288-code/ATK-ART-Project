@@ -652,7 +652,12 @@
     table.print-table tr{ page-break-inside:avoid; }
     /* Header hanya huruf depan tiap kata yang kapital (Title Case),
        bukan huruf kapital semua. */
-    table.print-table th{ background:#f0f0f0; text-transform:capitalize !important; }
+    /* Header tabel TIDAK diberi background abu-abu — disamakan dengan
+       hasil cetak admin (window.print() secara default tidak mencetak
+       warna background kecuali "Background graphics" dicentang manual),
+       supaya PDF otomatis akun publik (html2canvas) tampil identik:
+       polos hitam-putih seperti form kertas asli FHCS-003, tanpa shading. */
+    table.print-table th{ background:transparent; text-transform:capitalize !important; }
     table.print-table td.left{ text-align:left; }
     /* Kolom Jenis Barang & Keterangan: teks rata kiri dan boleh turun
        ke baris kedua; ukuran font otomatis mengecil (lewat style inline
