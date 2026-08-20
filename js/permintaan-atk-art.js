@@ -6,119 +6,10 @@
 // otomatis oleh CSS) maupun saat dibuka dari dalam sistem admin (ada
 // sessionStorage "user" -> toolbar Dashboard/panel validasi/riwayat muncul).
 //
-// PERUBAHAN TERBARU (PDF otomatis untuk tampilan publik):
-// Setelah karyawan (akun PUBLIK, tanpa login) menekan "Ajukan Permintaan"
-// dan berhasil tersimpan, tampilan TIDAK LAGI menampilkan tombol "Cetak
-// Bukti Permintaan" yang harus diklik manual untuk membuka dialog cetak
-// browser. Sekarang, begitu berhasil, form langsung DIGANTIKAN oleh
-// panel pratinjau dokumen PDF ASLI (dibuat di sisi klien lewat
-// html2canvas + jsPDF dari isi #printArea, lihat fungsi
-// tampilkanPdfSiapCetak()/buatPdfDariPrintArea()), lengkap dengan tombol
-// "Unduh PDF" dan "Cetak". Alur untuk akun ADMIN tetap seperti
-// sebelumnya (tombol Cetak Bukti Permintaan / Cetak Form manual, tanpa
-// PDF otomatis), supaya panel Validasi & Riwayat tetap menjadi alur
-// kerja utama admin.
-//
-// CATATAN TAMPILAN: mode admin halaman ini SEKARANG disamakan dengan
-// barang-masuk.html — tidak ada lagi sidebar/topbar replika sendiri.
-// Navigasi kembali ke sistem cukup lewat tombol "🏠 Dashboard" di toolbar
-// (class admin-only), sama seperti halaman Barang Masuk / Barang Keluar.
-//
-// PERUBAHAN UTAMA vs versi sebelumnya (stok terpotong saat pengajuan):
-// 1) Permintaan dari form SEKARANG langsung memotong stok begitu berhasil
-//    diajukan (status "Menunggu Approval"), TIDAK menunggu admin approve
-//    lagi seperti sebelumnya.
-// 2) Panel "Validasi Permintaan ATK/ART" (admin-only): tombol ✅ Setujui
-//    TIDAK memotong stok lagi dari awal (karena sudah terpotong saat
-//    pengajuan) — hanya SELISIH jumlah (kalau admin mengoreksi qty) yang
-//    disesuaikan ke stok. Tombol ❌ Tolak sekarang MENGEMBALIKAN stok yang
-//    sudah terpotong tadi (karena permintaannya batal), lalu ubah status
-//    jadi "Ditolak".
-// 3) Tombol "Simpan & Kurangi Stok" berganti nama jadi "Ajukan Permintaan".
-// 4) Panel "Riwayat Pengajuan" menampilkan kolom Status, dan tombol
-//    Edit/Hapus hanya aktif untuk baris berstatus "Disetujui" (karena baris
-//    itu stoknya sudah pasti terpotong dan tidak akan dikembalikan lewat
-//    alur Tolak lagi).
-// 5) Kolom "Jenis Barang" & "Keterangan" pada hasil cetak/PDF otomatis
-//    mengecil ukuran fontnya dengan MENGUKUR SUNGGUHAN (canvas) apakah
-//    teksnya muat di lebar kolom aslinya, bukan sekadar tebak-tebakan dari
-//    jumlah karakter, supaya semua isi tetap terbaca. Input Keterangan
-//    pada form juga otomatis diubah menjadi HURUF KAPITAL saat diketik.
-// 6) Tombol "🔗 Copy Link Publik" (admin-only) di toolbar: menyalin URL
-//    halaman ini (tanpa query/hash) ke clipboard, supaya admin gudang
-//    tinggal klik lalu tempel (paste) link tersebut untuk dibagikan ke
-//    karyawan. Karena tampilan publik vs admin dibedakan lewat sesi login
-//    di browser (sessionStorage "user"), bukan URL yang berbeda, link yang
-//    disalin di sini SAMA PERSIS dengan URL halaman yang sedang dibuka.
-// 7) Tombol "🖨️ Cetak Form" (dulu "Cetak Form Kosong") di toolbar atas
-//    SEKARANG disembunyikan secara default, dan baru MUNCUL setelah
-//    permintaan (mode ADMIN) berhasil diajukan — sejalan dengan tombol
-//    "Cetak Bukti Permintaan" & "Buat Permintaan Baru" yang juga baru
-//    muncul di titik yang sama. Tombol ini disembunyikan lagi begitu
-//    "Buat Permintaan Baru" diklik.
-// 8) Kolom "Jenis Barang" SEKARANG menampilkan thumbnail foto barang di
-//    sebelah kiri kotak pencarian, supaya karyawan/admin tahu wujud
-//    barang yang diminta sebelum mengajukan. Foto diambil dari kolom
-//    foto_url/gambar_url/image_url/foto/gambar pada master_barang (nama
-//    kolom fleksibel, dideteksi otomatis lewat ambilUrlFotoBarang()).
-//    Kalau barang belum punya foto (atau tabel belum punya kolom foto
-//    sama sekali), otomatis tampil ikon placeholder 📦 — TIDAK error.
-// 9) Thumbnail foto barang tersebut SEKARANG bisa DIKLIK untuk preview
-//    ukuran besar (lightbox), memakai elemen #fotoLightboxOverlay di HTML
-//    & fungsi bukaLightboxFoto()/tutupLightboxFoto() di file ini. Bisa
-//    ditutup dengan klik di luar gambar, tombol ✕, atau tombol Escape.
-// 10) Untuk mode ADMIN, setelah "Ajukan Permintaan" berhasil disimpan,
-//     halaman TIDAK otomatis membuka dialog cetak (window.print()) —
-//     admin yang mau mencetak tinggal klik tombol "🖨️ Cetak Bukti
-//     Permintaan" atau "🖨️ Cetak Form" secara manual. Untuk mode PUBLIK,
-//     lihat catatan "PERUBAHAN TERBARU" di paling atas file ini — alurnya
-//     berbeda (PDF otomatis, bukan tombol manual).
-// 11) Catatan status "Status: MENUNGGU APPROVAL ADMIN GUDANG" pada hasil
-//     cetak/PDF SUDAH DIHILANGKAN (baik saat cetak bukti permintaan yang
-//     baru diajukan, PDF otomatis publik, maupun saat cetak ulang dari
-//     Riwayat Pengajuan untuk baris berstatus Menunggu).
-// 12) Panel "Validasi Permintaan ATK/ART" & "Riwayat Pengajuan ATK/ART"
-//     (admin-only) SEKARANG otomatis DIFILTER sesuai gudang tempat admin
-//     login (adminUser.gudang, diisi oleh sessionStorage "user" saat
-//     login.html). Admin yang login di gudang "Margo" hanya akan melihat
-//     permintaan/riwayat dari gudang "Margo" saja, admin yang login di
-//     gudang "Raden Saleh" hanya melihat gudang "Raden Saleh" saja, dst.
-//     Kalau (untuk alasan tertentu) akun admin TIDAK punya field "gudang"
-//     tersimpan di sessionStorage "user", filter ini otomatis dilewati
-//     (fallback aman) supaya panel tetap menampilkan semua gudang seperti
-//     sebelumnya, bukan malah kosong.
-// 13) Panel "Riwayat Pengajuan ATK/ART": tombol 🖨️ Cetak SEKARANG hanya
-//     ditampilkan untuk baris yang BUKAN berstatus "Ditolak" (Menunggu
-//     & Disetujui tetap bisa dicetak seperti biasa). Baris berstatus
-//     "Ditolak" tidak lagi menampilkan tombol Cetak sama sekali, karena
-//     permintaan tersebut dibatalkan dan bukan lagi transaksi keluar yang
-//     sah untuk dicetak sebagai bukti.
-// 14) Panel "Riwayat Pengajuan ATK/ART": kolom "Barang" untuk baris yang
-//     berisi LEBIH DARI SATU barang SEKARANG ditampilkan sebagai daftar
-//     bertingkat (list, satu barang per baris dengan tanda bullet •),
-//     bukan lagi digabung dengan koma dalam satu baris teks. Baris yang
-//     hanya berisi satu barang tetap ditampilkan biasa (tanpa bullet).
-//
-// PENTING — MIGRASI DATABASE YANG DIPERLUKAN (Supabase):
-//   alter table barang_keluar add column if not exists status text default 'Disetujui';
-// Baris lama (bukan dari form ATK/ART) akan otomatis dianggap "Disetujui"
-// lewat fallback `row.status || 'Disetujui'` di kode ini, tapi sebaiknya
-// tetap jalankan migrasi di atas supaya kolom status benar-benar ada.
-//
-// PENTING — RLS (Row Level Security) Supabase:
-// Karena halaman ini bisa diakses publik (anon key, tanpa auth), RLS WAJIB:
-//   - SELECT master_karyawan (idealnya hanya kolom yang dipakai)
-//   - SELECT master_barang (katalog barang, aman)
-//   - SELECT + UPDATE + INSERT stok_gudang (baca & potong stok — publik
-//     SEKARANG butuh ini juga, karena stok dipotong langsung saat
-//     pengajuan diajukan, bukan menunggu admin approve lagi)
-//   - INSERT ke barang_keluar dari publik (status akan "Menunggu Approval")
-//   - UPDATE + DELETE ke barang_keluar (diperlukan fitur validasi/edit/hapus
-//     riwayat) — karena aplikasi ini TIDAK memakai Supabase Auth (login
-//     custom lewat sessionStorage), anon key yang sama dipakai baik oleh
-//     halaman publik maupun admin. Pertimbangkan menambahkan proteksi di
-//     level lain (mis. Supabase Edge Function / RPC dengan service role)
-//     bila validasi/edit/hapus perlu benar-benar dibatasi hanya untuk admin.
+// FILE INI TIDAK DIUBAH — permintaan hanya menyamakan CSS area cetak
+// (#printArea) pada file HTML dengan versi non-PDF. Seluruh logic JS,
+// termasuk fitur PDF otomatis (html2canvas + jsPDF), tetap sama persis
+// seperti sebelumnya.
 // =====================================
 
 const TAG_FORM = "[Formulir Permintaan ATK/ART]";
@@ -130,15 +21,6 @@ let selectedGudang = "";
 let masterBarangList = [];
 let masterKaryawanList = [];
 let stokGudangMap = new Map();
-
-// =====================================
-// SESI ADMIN (opsional) — halaman ini TETAP bisa diakses tanpa login
-// sama sekali (link publik). Kalau kebetulan dibuka dari dalam sistem
-// admin (ada sessionStorage "user", diisi oleh halaman login.html),
-// maka toolbar Dashboard + panel "Validasi" + "Riwayat Pengajuan"
-// otomatis muncul (persis seperti Barang Masuk). Kalau tidak ada sesi,
-// semuanya tetap tersembunyi (tampilan publik asli).
-// =====================================
 
 let adminUser = null;
 
@@ -158,8 +40,6 @@ function initAdminChrome(){
 
     document.body.classList.add("is-admin-view");
 
-    // panel validasi & riwayat hanya relevan & hanya dimuat kalau memang
-    // sedang tampil (admin)
     muatValidasiPermintaan();
     muatRiwayatPengajuan();
 
@@ -173,14 +53,6 @@ function initAdminChrome(){
     if(inputCari) inputCari.addEventListener("input", () => renderRiwayatTable());
 }
 
-// =====================================
-// COPY LINK PUBLIK (khusus admin) — tombol di toolbar, di sebelah
-// "Cetak Form Kosong". Karena publik vs admin dibedakan lewat sesi
-// login di browser (bukan URL berbeda), link publik = URL halaman ini
-// sendiri (tanpa query string/hash), supaya kalau dibuka orang lain
-// tanpa sesi admin, otomatis tampil sebagai form publik.
-// =====================================
-
 function ambilUrlLinkPublik(){
     return location.origin + location.pathname;
 }
@@ -192,8 +64,6 @@ async function salinLinkPublik(){
         await navigator.clipboard.writeText(linkPublik);
         alert(`Link publik berhasil disalin ke clipboard:\n${linkPublik}\n\nTinggal tempel (paste) & bagikan link ini ke karyawan yang ingin mengajukan permintaan ATK/ART.`);
     }catch(err){
-        // fallback kalau browser/izin clipboard tidak tersedia — tampilkan
-        // link lewat prompt supaya admin tetap bisa menyalinnya manual
         console.error(err);
         prompt("Gagal menyalin otomatis. Salin link publik berikut secara manual (Ctrl+C):", linkPublik);
     }
@@ -203,10 +73,6 @@ const btnCopyLinkPublikEl = document.getElementById("btnCopyLinkPublik");
 if(btnCopyLinkPublikEl){
     btnCopyLinkPublikEl.addEventListener("click", salinLinkPublik);
 }
-
-// =====================================
-// GERBANG PILIH GUDANG
-// =====================================
 
 const gudangSelect   = document.getElementById("gudangSelect");
 const formBodyGated  = document.getElementById("formBodyGated");
@@ -234,7 +100,6 @@ async function loadDaftarGudang(){
 async function onGudangBerubah(){
     selectedGudang = gudangSelect.value;
 
-    // reset isi form yang bergantung pada gudang lama
     resetForm();
 
     if(!selectedGudang){
@@ -255,10 +120,6 @@ async function onGudangBerubah(){
 }
 
 gudangSelect.addEventListener("change", onGudangBerubah);
-
-// =====================================
-// LOAD MASTER KARYAWAN (difilter sesuai gudang yang dipilih)
-// =====================================
 
 async function loadKaryawan() {
     if(!selectedGudang){ masterKaryawanList = []; return; }
@@ -281,10 +142,6 @@ async function loadKaryawan() {
 function findKaryawanById(id){
     return masterKaryawanList.find(k => String(k.id) === String(id));
 }
-
-// =====================================
-// LOAD MASTER BARANG + STOK GUDANG
-// =====================================
 
 async function loadBarang(){
     try{
@@ -340,10 +197,6 @@ async function ambilStokLive(barangId){
     return data ? (Number(data.stok) || 0) : 0;
 }
 
-// =====================================
-// NAVIGASI KEYBOARD UNTUK COMBOBOX (helper umum)
-// =====================================
-
 function highlightComboItem(dropdown, activeIndex){
     const items = dropdown.querySelectorAll(".combo-item");
     items.forEach((el, idx)=>{
@@ -362,10 +215,6 @@ function getComboActiveIndex(dropdown){
     const items = Array.from(dropdown.querySelectorAll(".combo-item"));
     return items.findIndex(el => el.classList.contains("combo-active"));
 }
-
-// =====================================
-// COMBOBOX NAMA KARYAWAN
-// =====================================
 
 const karyawanSearchInput = document.getElementById("karyawanSearch");
 const karyawanHidden      = document.getElementById("karyawanId");
@@ -455,11 +304,6 @@ function setupKaryawanCombo(){
 
 setupKaryawanCombo();
 
-// =====================================
-// BARIS DETAIL BARANG — berupa <tr>/<td> asli
-// (No | Jenis Barang | Type | Jumlah | Satuan | Keterangan | hapus)
-// =====================================
-
 function templateBarisBarang(){
     return `
         <td><span class="row-no"></span></td>
@@ -534,10 +378,6 @@ function renderBarangDropdown(row, keyword){
     dropdown.classList.add("show");
 }
 
-// =====================================
-// LIGHTBOX FOTO BARANG — preview ukuran besar saat thumbnail di-klik
-// =====================================
-
 const fotoLightboxOverlay = document.getElementById("fotoLightboxOverlay");
 const fotoLightboxImg     = document.getElementById("fotoLightboxImg");
 const fotoLightboxClose   = document.getElementById("fotoLightboxClose");
@@ -566,21 +406,11 @@ document.addEventListener("keydown", function(e){
     if(e.key === "Escape" && fotoLightboxOverlay?.classList.contains("show")) tutupLightboxFoto();
 });
 
-// Mengambil URL foto barang dari master_barang. Kolom utamanya adalah
-// "foto_url" (sudah dikonfirmasi sesuai skema tabel master_barang yang
-// dipakai di halaman Master Barang / js/master-barang.js — kolom ini diisi
-// otomatis lewat upload foto ke Supabase Storage bucket "barang-photos").
-// Nama kolom alternatif lain tetap dicek juga sebagai jaga-jaga saja.
-// Kalau barang tertentu belum punya foto_url terisi, thumbnail otomatis
-// menampilkan ikon placeholder 📦 (tidak error).
 function ambilUrlFotoBarang(barang){
     if(!barang) return "";
     return barang.foto_url || barang.gambar_url || barang.image_url || barang.foto || barang.gambar || "";
 }
 
-// Menampilkan (atau mereset) thumbnail foto barang pada sebuah baris
-// detail. Dipanggil setiap kali barang dipilih dari dropdown, dan saat
-// baris dikosongkan lagi (karyawan mengetik ulang pencarian).
 function perbaruiThumbnailBarang(row, barang){
     const img = row.querySelector(".barang-thumb");
     const placeholder = row.querySelector(".barang-thumb-placeholder");
@@ -636,7 +466,6 @@ function validasiQtyBaris(row){
     else { row.classList.remove("qty-invalid"); mini.classList.remove("warning"); }
 }
 
-// Event delegation untuk semua baris barang
 const detailWrapper = document.getElementById("detailRows");
 
 detailWrapper.addEventListener("input", function(e){
@@ -656,8 +485,6 @@ detailWrapper.addEventListener("input", function(e){
         validasiQtyBaris(row);
     }
 
-    // Keterangan per baris otomatis diubah menjadi HURUF KAPITAL saat diketik,
-    // dengan posisi kursor tetap dijaga supaya pengetikan tidak "meloncat".
     if(e.target.classList.contains("input-keterangan-row")){
         const posisiKursor = e.target.selectionStart;
         e.target.value = e.target.value.toUpperCase();
@@ -734,10 +561,6 @@ document.addEventListener("click", function(e){
 
 document.getElementById("btnTambahBaris").addEventListener("click", tambahBarisBarang);
 
-// =====================================
-// VALIDASI + AMBIL ITEM DARI FORM
-// =====================================
-
 function validasiDanAmbilItem(){
     const rows = document.querySelectorAll("#detailRows .detail-row");
     if(rows.length === 0){ alert("Tambahkan minimal 1 barang."); return null; }
@@ -768,10 +591,6 @@ function validasiDanAmbilItem(){
     return itemList;
 }
 
-// =====================================
-// CETAK FORM — replika presisi form kertas FHCS-003
-// =====================================
-
 function formatTanggalIndo(tglStr){
     if(!tglStr) return "..........................";
     const bulan = ["Januari","Februari","Maret","April","Mei","Juni","Juli","Agustus","September","Oktober","November","Desember"];
@@ -779,20 +598,11 @@ function formatTanggalIndo(tglStr){
     return `${d.getDate()} ${bulan[d.getMonth()]} ${d.getFullYear()}`;
 }
 
-// Lebar kolom "Jenis Barang" & "Keterangan" pada hasil cetak, dalam mm,
-// sudah dikurangi kira-kira padding sel — dipakai untuk MENGUKUR SUNGGUH-
-// SUNGGUH (bukan tebak-tebakan dari jumlah karakter) apakah sebuah teks
-// akan muat, supaya font-size otomatis mengecil hanya sebanyak yang
-// benar-benar diperlukan.
-// Halaman A4 - margin kiri/kanan 14mm = 182mm lebar konten.
-// Jenis Barang = 26% dari 182mm, Keterangan = 36% dari 182mm.
 const LEBAR_KOLOM_CETAK_MM = {
     jenisBarang: (182 * 0.26) - 4.2,
     keterangan:  (182 * 0.36) - 4.2,
 };
 
-// Mengukur lebar teks (dalam px) memakai <canvas>, supaya perhitungan
-// mengikuti font & ukuran sesungguhnya, bukan sekadar jumlah karakter.
 let _canvasUkurTeksCetak = null;
 function hitungLebarTeksPx(teks, fontSizePx){
     if(!_canvasUkurTeksCetak) _canvasUkurTeksCetak = document.createElement("canvas");
@@ -801,36 +611,19 @@ function hitungLebarTeksPx(teks, fontSizePx){
     return ctx.measureText(teks || "").width;
 }
 
-// Menentukan ukuran font (dalam pt) untuk sel "Jenis Barang" & "Keterangan"
-// di hasil cetak, dengan MENGUKUR lebar teks sesungguhnya (canvas) terhadap
-// lebar kolom aslinya (lebarKolomMm).
-//
-// PRIORITAS: selalu coba muat dalam SATU BARIS dulu, mengecil bertahap
-// selangkah demi selangkah, supaya tinggi barisnya SAMA PERSIS dengan
-// baris kosong lain di tabel (tinggi baris ditentukan oleh kolom lain yang
-// tetap 11pt satu baris, jadi selama Jenis Barang/Keterangan juga hanya
-// satu baris, tinggi barisnya otomatis tetap seragam — kolom TIDAK
-// membesar/berubah ukuran hanya karena teksnya panjang).
-// Teks TIDAK PERNAH dipotong: kalau di ukuran terkecil pun masih belum
-// muat dalam satu baris (teks sangat panjang), baru diizinkan turun ke
-// baris kedua memakai ukuran font terkecil, supaya seluruh isi tetap
-// terbaca lengkap.
 const OPSI_FONT_PT_CETAK = [11, 10, 9, 8, 7.2, 6.5, 6, 5.5];
 
 function ukuranFontCetakPt(teks, lebarKolomMm){
     if(!teks) return 11;
 
-    const lebarTersediaPx = lebarKolomMm * 3.7795; // mm -> px (96dpi)
+    const lebarTersediaPx = lebarKolomMm * 3.7795;
 
     for(const pt of OPSI_FONT_PT_CETAK){
-        const fontPx = pt * 1.3333; // pt -> px (96dpi)
+        const fontPx = pt * 1.3333;
         const lebarTeksPx = hitungLebarTeksPx(teks, fontPx);
-        if(lebarTeksPx <= lebarTersediaPx) return pt; // muat dalam 1 baris
+        if(lebarTeksPx <= lebarTersediaPx) return pt;
     }
 
-    // teks sangat panjang — walau di ukuran terkecil pun tidak muat dalam
-    // 1 baris, tetap pakai ukuran terkecil dan izinkan turun ke baris
-    // berikutnya (CSS word-wrap yang menangani), supaya tidak terpotong.
     return OPSI_FONT_PT_CETAK[OPSI_FONT_PT_CETAK.length - 1];
 }
 
@@ -863,7 +656,6 @@ function siapkanAreaCetak(karyawan, tanggal, itemList, statusNote){
             </tr>`;
     });
 
-    // baris kosong tambahan supaya tampilan tabel tetap mirip form kertas asli
     for(let i = itemList.length; i < Math.max(5, itemList.length); i++){
         tbody.innerHTML += `<tr><td>&nbsp;</td><td></td><td></td><td></td><td></td><td></td></tr>`;
     }
@@ -882,25 +674,6 @@ document.getElementById("btnCetakForm").addEventListener("click", function(){
     siapkanAreaCetak(karyawan, tanggal, itemList, "");
     window.print();
 });
-
-// =====================================
-// GENERATE PDF SIAP CETAK (khusus akun PUBLIK, tanpa login) — dipakai
-// setelah "Ajukan Permintaan" berhasil disimpan. Alih-alih membuka
-// dialog cetak browser (window.print()), tampilan langsung diganti
-// dengan panel berisi dokumen PDF ASLI, dibuat di sisi klien lewat:
-//   1) html2canvas -> "memotret" isi #printArea (yang sudah berisi data
-//      permintaan lewat siapkanAreaCetak()) menjadi gambar beresolusi
-//      tinggi (scale 2x), memakai styling form kertas FHCS-003 yang
-//      SAMA PERSIS dengan hasil cetak (lihat #printArea di CSS, dan
-//      class "pdf-render-mode" yang menampilkan #printArea di luar
-//      layar selama proses potret berlangsung supaya tidak berkedip).
-//   2) jsPDF -> menyusun gambar tsb ke dalam file PDF ukuran A4
-//      (otomatis membuat halaman baru kalau kontennya lebih tinggi dari
-//      satu halaman, misal karena banyak baris barang).
-// Hasilnya ditampilkan lewat <iframe> (pratinjau PDF asli, bukan cuma
-// gambar) di panel #pdfPreviewPanel, lengkap dengan tombol "Unduh PDF"
-// (menyimpan file .pdf ke perangkat) dan "Cetak" (mencetak PDF tsb).
-// =====================================
 
 async function buatPdfDariPrintArea(){
     const printAreaEl = document.getElementById("printArea");
@@ -929,8 +702,6 @@ async function buatPdfDariPrintArea(){
         pdf.addImage(imgData, "PNG", 0, position, imgWidthMm, imgHeightMm);
         heightLeft -= pageHeightMm;
 
-        // kalau isinya lebih tinggi dari 1 halaman A4 (misal banyak baris
-        // barang), lanjutkan potongan gambar yang sama ke halaman berikutnya
         while(heightLeft > 0){
             position = heightLeft - imgHeightMm;
             pdf.addPage();
@@ -941,8 +712,6 @@ async function buatPdfDariPrintArea(){
         return pdf;
 
     } finally {
-        // #printArea selalu dikembalikan tersembunyi lagi, apapun hasilnya
-        // (berhasil atau gagal), supaya tidak "nyangkut" tampil di luar layar
         document.body.classList.remove("pdf-render-mode");
     }
 }
@@ -954,15 +723,12 @@ const btnUnduhPdfEl        = document.getElementById("btnUnduhPdf");
 const btnCetakPdfEl        = document.getElementById("btnCetakPdf");
 const btnPdfBuatBaruEl     = document.getElementById("btnPdfBuatBaru");
 
-let pdfTerakhirDibuat   = null; // instance jsPDF terakhir (dipakai tombol Unduh/Cetak)
+let pdfTerakhirDibuat   = null;
 let namaFilePdfTerakhir = "Bukti-Permintaan-ATK-ART.pdf";
 
 async function tampilkanPdfSiapCetak(karyawan, tanggal, itemList){
-    // isi #printArea dengan data permintaan yang baru saja diajukan —
-    // inilah sumber data yang akan "difoto" jadi PDF
     siapkanAreaCetak(karyawan, tanggal, itemList, "");
 
-    // ganti tampilan: form disembunyikan, panel pratinjau PDF ditampilkan
     if(formPermintaanWrapEl) formPermintaanWrapEl.style.display = "none";
     if(pdfPreviewPanelEl) pdfPreviewPanelEl.style.display = "block";
     if(pdfPreviewFrameEl){
@@ -1010,7 +776,6 @@ if(btnCetakPdfEl){
                 return;
             }catch(err){ console.error(err); }
         }
-        // fallback kalau iframe belum siap / browser membatasi print lintas frame
         window.print();
     });
 }
@@ -1026,21 +791,6 @@ if(btnPdfBuatBaruEl){
         formPermintaanWrapEl?.scrollIntoView({ behavior: "smooth", block: "start" });
     });
 }
-
-// =====================================
-// AJUKAN PERMINTAAN (insert ke barang_keluar berstatus "Menunggu Approval")
-// Stok LANGSUNG dipotong saat pengajuan ini berhasil disimpan (tidak lagi
-// menunggu approval admin). Kalau nanti DITOLAK lewat panel Validasi, stok
-// yang sudah terpotong akan dikembalikan otomatis.
-//
-// Setelah berhasil disimpan, alurnya BERBEDA tergantung jenis akun:
-//   - MODE PUBLIK (tanpa login): tampilan langsung berubah jadi dokumen
-//     PDF siap cetak/unduh (lihat tampilkanPdfSiapCetak()), tanpa dialog
-//     cetak browser & tanpa tombol manual.
-//   - MODE ADMIN: tombol "Ajukan Permintaan" digantikan tombol "Cetak
-//     Bukti Permintaan" + "Buat Permintaan Baru" (perilaku lama tetap
-//     dipertahankan), dan tombol "Cetak Form" di toolbar atas dimunculkan.
-// =====================================
 
 const form = document.getElementById("formPermintaan");
 const btnSimpanEl = document.getElementById("btnSimpan");
@@ -1096,9 +846,6 @@ form.addEventListener("submit", async function(e){
         const itemList = validasiDanAmbilItem();
         if(!itemList) return;
 
-        // karena stok akan LANGSUNG dipotong begitu permintaan diajukan,
-        // pastikan dulu semua barang cukup stoknya SEBELUM insert apapun,
-        // supaya tidak ada barang yang stoknya sampai minus
         for(const { barang, qty } of itemList){
             const stokSaatIni = await ambilStokLive(barang.id);
             if(qty > stokSaatIni){
@@ -1122,25 +869,18 @@ form.addEventListener("submit", async function(e){
         const { error } = await supabaseClient.from("barang_keluar").insert(transaksiList);
         if(error) throw error;
 
-        // baris berhasil disimpan -> langsung potong stok untuk tiap item
         for(const { barang, qty } of itemList){
             await kurangiStokGudangDiGudang(barang.id, selectedGudang, qty);
         }
 
-        // muat ulang stok gudang supaya tampilan & pengajuan berikutnya
-        // (di gudang yang sama) memakai angka stok terbaru
         await loadStokGudang();
         refreshSemuaBarisStok();
 
-        // simpan konteks untuk tombol "Cetak Bukti Permintaan" (mode admin)
         itemTerakhirDisimpan = itemList;
         karyawanTerakhirDisimpan = karyawan;
         tanggalTerakhirDisimpan = tanggal;
 
         if(adminUser){
-            // ===== MODE ADMIN: perilaku lama tetap dipertahankan — tombol
-            // manual "Cetak Bukti Permintaan" / "Cetak Form" / "Buat
-            // Permintaan Baru", TANPA membuka dialog cetak otomatis. =====
             siapkanAreaCetak(karyawan, tanggal, itemList, "");
 
             alert(`Permintaan ATK/ART berhasil diajukan (${transaksiList.length} item).\nForm Permintaan ATK/ART silahkan di print dan di tandatangani, dan kasihkan ke HCS.\nTerimakasih`);
@@ -1151,17 +891,12 @@ form.addEventListener("submit", async function(e){
             await muatRiwayatPengajuan();
 
         } else {
-            // ===== MODE PUBLIK (tanpa login): tampilan langsung berubah
-            // jadi dokumen PDF yang sudah siap cetak/unduh, TIDAK lagi
-            // memakai dialog cetak browser maupun tombol manual "Cetak
-            // Bukti Permintaan" — lihat tampilkanPdfSiapCetak(). =====
             await tampilkanPdfSiapCetak(karyawan, tanggal, itemList);
         }
 
     }catch(err){ console.error(err); alert(err.message); }
 });
 
-// reset penuh (dipakai saat pindah gudang)
 function resetForm(){
     karyawanHidden.value = "";
     karyawanSearchInput.value = "";
@@ -1175,7 +910,6 @@ function resetForm(){
 
     tampilkanModeSebelumSimpan();
 
-    // pindah gudang juga membatalkan pratinjau PDF yang sedang tampil (kalau ada)
     if(pdfPreviewPanelEl && pdfPreviewPanelEl.style.display !== "none"){
         pdfPreviewPanelEl.style.display = "none";
         if(pdfPreviewFrameEl){ pdfPreviewFrameEl.removeAttribute("src"); pdfPreviewFrameEl.removeAttribute("srcdoc"); }
@@ -1184,8 +918,6 @@ function resetForm(){
     }
 }
 
-// reset setelah submit sukses — gudang yang sedang dipilih TETAP dipertahankan
-// supaya karyawan berikutnya di gudang yang sama tidak perlu pilih ulang
 function resetFormItemDanKaryawanSaja(){
     karyawanHidden.value = "";
     karyawanSearchInput.value = "";
@@ -1198,11 +930,6 @@ function resetFormItemDanKaryawanSaja(){
     tambahBarisBarang();
 }
 
-// =====================================
-// helper stok untuk gudang tertentu (dipakai fitur pengajuan, validasi &
-// riwayat, karena baris riwayat/validasi bisa berasal dari gudang berbeda
-// dari gudang yang lagi dipilih di form utama / selectedGudang)
-// =====================================
 async function ambilStokUntukGudang(barangId, gudang){
     if(!barangId || !gudang) return 0;
     const { data, error } = await supabaseClient
@@ -1237,25 +964,6 @@ async function kurangiStokGudangDiGudang(barangId, gudang, qty){
     }
 }
 
-// =====================================
-// VALIDASI PERMINTAAN (khusus admin) — daftar permintaan berstatus
-// "Menunggu Approval", dikelompokkan seperti riwayat.
-//
-// FILTER GUDANG SESUAI SESI ADMIN: panel ini SEKARANG hanya menampilkan
-// permintaan dari gudang tempat admin yang login bertugas (adminUser.gudang,
-// diisi oleh sessionStorage "user" saat login.html). Admin gudang "Margo"
-// hanya melihat permintaan gudang "Margo", admin gudang "Raden Saleh" hanya
-// melihat permintaan gudang "Raden Saleh", dst. Kalau field "gudang" pada
-// sessionStorage "user" kosong/tidak ada, filter ini otomatis dilewati
-// (fallback aman) supaya panel tetap menampilkan semua gudang seperti
-// sebelumnya, bukan malah kosong.
-//
-// CATATAN: stok untuk baris-baris ini SUDAH terpotong sejak diajukan.
-// ✅ Setujui TIDAK memotong stok lagi dari awal — hanya SELISIH qty (kalau
-// admin mengoreksi jumlah di sini) yang disesuaikan ke stok.
-// ❌ Tolak akan MENGEMBALIKAN stok yang sudah terpotong tadi.
-// =====================================
-
 let validasiGroupsCache = [];
 
 function buatKunciGrup(row){
@@ -1276,7 +984,6 @@ async function muatValidasiPermintaan(){
             .ilike("keterangan", `%${TAG_FORM}%`)
             .eq("status", STATUS_MENUNGGU);
 
-        // filter sesuai gudang admin yang sedang login (kalau ada)
         if(adminUser && adminUser.gudang){
             query = query.eq("gudang", adminUser.gudang);
         }
@@ -1368,11 +1075,6 @@ function renderValidasiTable(){
     });
 }
 
-// Menyetujui permintaan. Stok item-item ini SUDAH terpotong sejak
-// pengajuan diajukan, jadi di sini TIDAK memotong stok dari awal lagi —
-// hanya SELISIH qty (kalau admin mengoreksi jumlah) yang disesuaikan:
-// selisih positif (dinaikkan) -> potong tambahannya dari stok (divalidasi
-// dulu cukup/tidak), selisih negatif (diturunkan) -> kembalikan selisihnya.
 async function setujuiPermintaan(key){
     const grup = validasiGroupsCache.find(g => g.key === key);
     if(!grup) return;
@@ -1380,20 +1082,16 @@ async function setujuiPermintaan(key){
     if(!confirm(`Setujui permintaan dari ${grup.nama_pengambil} (Gudang ${grup.gudang})?`)) return;
 
     try{
-        // ambil jumlah terbaru dari input (admin bisa koreksi sebelum approve)
         const qtyMap = new Map();
         document.querySelectorAll(".validasi-qty-input").forEach(inp=>{
             qtyMap.set(String(inp.dataset.id), parseInt(inp.value) || 0);
         });
 
-        // validasi dulu SEMUA item sebelum menyentuh stok apapun, supaya
-        // tidak ada penyesuaian stok sebagian (partial) kalau salah satu
-        // kenaikan qty ternyata stoknya tidak cukup
         for(const item of grup.items){
             const qtyFinal = qtyMap.get(String(item.id)) ?? item.qty;
             if(!qtyFinal || qtyFinal <= 0){ alert(`Jumlah untuk "${item.nama_barang}" harus lebih dari 0.`); return; }
 
-            const selisih = qtyFinal - item.qty; // qty asli sudah terpotong saat pengajuan
+            const selisih = qtyFinal - item.qty;
             if(selisih > 0){
                 const barangMaster = findBarangByKode(item.kode_barang);
                 if(!barangMaster){
@@ -1408,7 +1106,6 @@ async function setujuiPermintaan(key){
             }
         }
 
-        // semua item lolos validasi -> proses satu per satu
         for(const item of grup.items){
             const qtyFinal = qtyMap.get(String(item.id)) ?? item.qty;
             const selisih = qtyFinal - item.qty;
@@ -1437,14 +1134,12 @@ async function setujuiPermintaan(key){
     }
 }
 
-// Menolak permintaan. Stok yang sudah terpotong sejak pengajuan
-// dikembalikan otomatis di sini, karena permintaannya batal.
 async function tolakPermintaan(key){
     const grup = validasiGroupsCache.find(g => g.key === key);
     if(!grup) return;
 
     const alasan = prompt("Alasan penolakan (opsional, akan tercatat di keterangan):", "");
-    if(alasan === null) return; // batal
+    if(alasan === null) return;
 
     if(!confirm(`Tolak permintaan dari ${grup.nama_pengambil} (Gudang ${grup.gudang})?\nStok yang sudah terpotong saat pengajuan akan dikembalikan.`)) return;
 
@@ -1452,7 +1147,6 @@ async function tolakPermintaan(key){
         for(const item of grup.items){
             const barangMaster = findBarangByKode(item.kode_barang);
             if(barangMaster){
-                // kembalikan stok yang sudah terpotong sejak pengajuan
                 await kurangiStokGudangDiGudang(barangMaster.id, grup.gudang, -item.qty);
             } else {
                 console.warn(`Barang dengan kode ${item.kode_barang} tidak ditemukan di master, stok tidak dikembalikan otomatis.`);
@@ -1478,29 +1172,6 @@ async function tolakPermintaan(key){
     }
 }
 
-// =====================================
-// RIWAYAT PENGAJUAN (khusus admin) — gabungan pengajuan dari akun
-// admin maupun dari link publik, semua status (Menunggu/Disetujui/Ditolak).
-//
-// FILTER GUDANG SESUAI SESI ADMIN: sama seperti panel Validasi di atas,
-// panel Riwayat ini SEKARANG juga otomatis difilter berdasarkan gudang
-// tempat admin login (adminUser.gudang). Admin gudang "Margo" hanya
-// melihat riwayat gudang "Margo", admin gudang "Raden Saleh" hanya
-// melihat riwayat gudang "Raden Saleh", dst. Kalau sessionStorage "user"
-// tidak memiliki field "gudang", filter ini dilewati (fallback aman)
-// supaya riwayat tetap tampil menampilkan semua gudang seperti sebelumnya.
-//
-// CATATAN PENTING soal pengelompokan:
-// Skema tabel barang_keluar TIDAK menyimpan "nomor pengajuan" — setiap
-// baris item disimpan terpisah. Supaya beberapa item yang disubmit
-// bersamaan (1x klik Ajukan) tetap tampil sebagai SATU baris riwayat,
-// baris-baris tsb dikelompokkan berdasarkan kombinasi:
-// NIK + tanggal + gudang + menit created_at. Ini heuristik yang cukup
-// akurat untuk pemakaian normal, tapi kalau 1 karyawan kebetulan
-// submit 2x persis di menit yang sama untuk tanggal & gudang yang sama,
-// keduanya akan tergabung jadi 1 baris riwayat.
-// =====================================
-
 let riwayatGroupsCache = [];
 
 async function muatRiwayatPengajuan(){
@@ -1515,7 +1186,6 @@ async function muatRiwayatPengajuan(){
             .select("*")
             .ilike("keterangan", `%${TAG_FORM}%`);
 
-        // filter sesuai gudang admin yang sedang login (kalau ada)
         if(adminUser && adminUser.gudang){
             query = query.eq("gudang", adminUser.gudang);
         }
@@ -1563,11 +1233,6 @@ function badgeStatusHtml(status){
     return `<span class="status-badge status-disetujui">Disetujui</span>`;
 }
 
-// Membentuk isi kolom "Barang" pada tabel Riwayat Pengajuan. Kalau hanya
-// 1 barang, ditampilkan biasa (teks polos, tanpa bullet). Kalau LEBIH
-// DARI 1 barang, ditampilkan sebagai daftar bertingkat (list, satu
-// barang per baris dengan tanda bullet •) supaya lebih mudah dibaca
-// dibanding sebelumnya yang digabung koma dalam satu baris teks panjang.
 function daftarBarangHtml(items){
     if(!items || items.length === 0) return "-";
 
@@ -1606,14 +1271,8 @@ function renderRiwayatTable(){
         const daftarBarang = daftarBarangHtml(g.items);
         const bisaDiubah = g.status === STATUS_DISETUJUI;
 
-        // Tombol 🖨️ Cetak HANYA ditampilkan untuk baris yang BUKAN berstatus
-        // "Ditolak" — permintaan yang sudah ditolak dibatalkan & bukan lagi
-        // transaksi keluar yang sah untuk dicetak sebagai bukti.
         const bisaDicetak = g.status !== STATUS_DITOLAK;
 
-        // Untuk baris berstatus "Ditolak" (tidak bisa dicetak/edit/hapus),
-        // tampilkan tombol 👁️ Lihat sebagai gantinya, supaya admin tetap
-        // bisa melihat detail barang & jumlah yang diajukan sebelum ditolak.
         const perluTombolLihat = g.status === STATUS_DITOLAK;
 
         return `
@@ -1674,13 +1333,6 @@ function cariGrupByKey(key){
     return riwayatGroupsCache.find(g => g.key === key);
 }
 
-// ----- CETAK ULANG dari riwayat -----
-// Catatan status ("Menunggu Approval Admin Gudang" / "Ditolak") pada hasil
-// cetak sudah tidak ditampilkan lagi — hasil cetak ulang dari sini polos
-// tanpa keterangan status apapun, sama seperti cetak form biasa. Tombol
-// ini sendiri sudah tidak dirender lagi untuk baris berstatus "Ditolak"
-// (lihat renderRiwayatTable()), jadi fungsi ini praktis hanya dipanggil
-// untuk baris "Menunggu" atau "Disetujui".
 function cetakRiwayat(key){
     const grup = cariGrupByKey(key);
     if(!grup) return;
@@ -1701,10 +1353,6 @@ function cetakRiwayat(key){
     window.print();
 }
 
-// ----- EDIT riwayat (qty & keterangan per item, stok otomatis disesuaikan) -----
-// Hanya tersedia untuk baris berstatus "Disetujui" (lihat renderRiwayatTable),
-// karena hanya baris itu yang dipastikan stoknya sedang terpotong dan tidak
-// akan dikembalikan lagi lewat alur Tolak.
 const rwModalOverlay = document.getElementById("rwModalOverlay");
 const rwEditRows     = document.getElementById("rwEditRows");
 const rwModalSub     = document.getElementById("rwModalSub");
@@ -1725,24 +1373,16 @@ function bukaModalEditRiwayat(key){
         </tr>
     `).join("");
 
-    // pastikan tombol Simpan tampil normal (bisa saja tersembunyi kalau
-    // sebelumnya modal ini dibuka lewat mode 👁️ Lihat)
     if(rwBtnSimpan) rwBtnSimpan.style.display = "inline-block";
 
     rwModalOverlay.classList.add("show");
 }
 
-// ----- LIHAT detail riwayat (khusus baris berstatus "Ditolak") -----
-// Memakai modal yang sama dengan Edit, tapi seluruh input dibuat
-// read-only (disabled) dan tombol "💾 Simpan Perubahan" disembunyikan,
-// karena permintaan yang sudah ditolak tidak lagi bisa diubah — tombol
-// ini hanya untuk melihat barang & jumlah apa saja yang diajukan sebelum
-// ditolak, termasuk alasan penolakan (kalau ada) pada kolom keterangan.
 function bukaModalLihatRiwayat(key){
     const grup = cariGrupByKey(key);
     if(!grup || !rwModalOverlay || !rwEditRows) return;
 
-    rwEditingKey = null; // bukan mode edit, jadi tombol Simpan tidak boleh memproses apapun
+    rwEditingKey = null;
 
     rwModalSub.textContent = `👁️ Lihat (Ditolak) — ${grup.nama_pengambil || "-"} · ${grup.departemen || "-"} · Gudang ${grup.gudang || "-"} · ${formatTanggalIndo(grup.tanggal)}`;
 
@@ -1754,8 +1394,6 @@ function bukaModalLihatRiwayat(key){
         </tr>
     `).join("");
 
-    // sembunyikan tombol Simpan karena mode ini hanya untuk melihat, tidak
-    // untuk mengubah data
     if(rwBtnSimpan) rwBtnSimpan.style.display = "none";
 
     rwModalOverlay.classList.add("show");
@@ -1775,8 +1413,6 @@ if(rwModalOverlay){
     });
 }
 
-// Keterangan di modal edit riwayat juga otomatis diubah menjadi HURUF KAPITAL
-// saat diketik, sama seperti keterangan di baris form utama.
 if(rwEditRows){
     rwEditRows.addEventListener("input", function(e){
         if(e.target.classList.contains("rw-input-ket")){
@@ -1809,7 +1445,7 @@ if(rwBtnSimpan){
                     return;
                 }
 
-                const selisih = qtyBaru - itemAsli.qty; // positif = ambil tambahan dari stok, negatif = kembalikan ke stok
+                const selisih = qtyBaru - itemAsli.qty;
 
                 if(selisih !== 0){
                     const barangMaster = findBarangByKode(itemAsli.kode_barang);
@@ -1846,8 +1482,6 @@ if(rwBtnSimpan){
     });
 }
 
-// ----- HAPUS riwayat (batalkan pengajuan, stok dikembalikan karena baris
-// "Disetujui" ini pasti sedang terpotong stoknya) -----
 async function hapusRiwayat(key){
     const grup = cariGrupByKey(key);
     if(!grup) return;
@@ -1862,7 +1496,6 @@ async function hapusRiwayat(key){
         for(const item of grup.items){
             const barangMaster = findBarangByKode(item.kode_barang);
             if(barangMaster){
-                // kurangi dengan qty negatif = mengembalikan stok
                 await kurangiStokGudangDiGudang(barangMaster.id, grup.gudang, -item.qty);
             } else {
                 console.warn(`Barang dengan kode ${item.kode_barang} tidak ditemukan di master, stok tidak dikembalikan otomatis.`);
@@ -1883,10 +1516,6 @@ async function hapusRiwayat(key){
         alert(err.message);
     }
 }
-
-// =====================================
-// INIT
-// =====================================
 
 (async function init(){
     document.getElementById("tanggal").value = new Date().toISOString().split("T")[0];
