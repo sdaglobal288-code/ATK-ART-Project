@@ -6,20 +6,19 @@
 // otomatis oleh CSS) maupun saat dibuka dari dalam sistem admin (ada
 // sessionStorage "user" -> toolbar Dashboard/panel validasi/riwayat muncul).
 //
-// ⚠️ PERUBAHAN TERBARU (pratinjau live, menggantikan html2canvas+jsPDF):
-//   - Panel "Bukti Permintaan" untuk akun publik TIDAK LAGI menampilkan
-//     hasil screenshot (html2canvas) di dalam <iframe>. Sebagai gantinya,
-//     #printArea ASLI (elemen DOM yang sama yang dipakai untuk mencetak)
-//     ditampilkan langsung di halaman lewat class body.pdf-preview-mode,
-//     lalu diskalakan (diperkecil tampilannya saja, bukan tata letaknya)
-//     memakai CSS transform supaya muat di layar sempit.
-//   - Tombol "⬇️ Unduh PDF" dan "🖨️ Cetak" memanggil window.print() —
-//     PERSIS mekanisme yang dipakai admin lewat tombol "Cetak Form" /
-//     "Cetak Bukti Permintaan". Karena pratinjau dan hasil cetak/unduhan
-//     akhir sama-sama berasal dari elemen #printArea + CSS cetak yang
-//     sama persis, keduanya DIJAMIN terlihat identik.
-//   - html2canvas & jsPDF tidak lagi dipakai sama sekali (skrip CDN-nya
-//     sudah dihapus dari HTML).
+// ⚠️ PERUBAHAN TERBARU (opsi hybrid, supaya hasil akhir publik = hasil
+// akhir admin persis sama):
+//   - Pratinjau di dalam <iframe> (panel "Bukti Permintaan") TETAP dibuat
+//     lewat html2canvas + jsPDF seperti sebelumnya — ini HANYA untuk
+//     preview cepat sebelum karyawan memutuskan mengunduh/mencetak.
+//   - TAPI tombol "⬇️ Unduh PDF" dan "🖨️ Cetak" sekarang TIDAK LAGI
+//     menyimpan/mencetak hasil screenshot canvas tsb. Keduanya memanggil
+//     window.print() langsung terhadap #printArea — PERSIS mekanisme yang
+//     dipakai admin lewat tombol "Cetak Form" / "Cetak Bukti Permintaan".
+//     Karena keduanya lewat engine print/​"Simpan sebagai PDF" bawaan
+//     browser yang sama (bukan gambar hasil screenshot), hasil akhir yang
+//     benar-benar diunduh/dicetak karyawan publik dijamin identik dengan
+//     hasil akhir admin saat Save PDF / kirim ke printer.
 //   - Seluruh logic lain (validasi stok, simpan ke database, riwayat,
 //     approval, dsb) TIDAK diubah sama sekali.
 // =====================================
@@ -687,67 +686,100 @@ document.getElementById("btnCetakForm").addEventListener("click", function(){
     window.print();
 });
 
-// ===== PRATINJAU LIVE untuk akun publik (pengganti html2canvas) =====
-// #printArea ditampilkan APA ADANYA (elemen DOM asli, bukan screenshot)
-// lewat class body.pdf-preview-mode. Karena CSS-nya SAMA PERSIS dengan
-// yang dipakai window.print(), pratinjau ini pasti identik dengan hasil
-// akhir. Fungsi skala di bawah HANYA memperkecil TAMPILAN (transform),
-// tidak pernah mengubah tata letak/konten dokumennya.
-function terapkanSkalaPratinjauPrintArea(){
+// ===== Pembuat PDF PRATINJAU (khusus tampilan publik) =====
+// PENTING: hasil dari fungsi ini HANYA dipakai untuk ditampilkan di
+// <iframe> panel "Bukti Permintaan" sebagai gambaran cepat isi dokumen.
+// Ini BUKAN lagi file yang benar-benar diunduh/dicetak karyawan — sejak
+// perubahan hybrid, tombol "Unduh PDF" & "Cetak" memakai window.print()
+// (lihat cetakAreaCetakPublikTerakhir di bawah), bukan hasil fungsi ini.
+async function buatPdfDariPrintArea(){
     const printAreaEl = document.getElementById("printArea");
-    if(!printAreaEl || !document.body.classList.contains("pdf-preview-mode")) return;
+    document.body.classList.add("pdf-render-mode");
 
-    // reset dulu supaya pengukuran lebar alami akurat
-    printAreaEl.style.transform = "";
-    printAreaEl.style.marginBottom = "";
+    try{
+        const canvas = await html2canvas(printAreaEl, {
+            scale: 2,
+            useCORS: true,
+            backgroundColor: "#ffffff"
+        });
 
-    const marginLayar = 24; // jarak aman kiri-kanan di layar sempit
-    const lebarTersedia = window.innerWidth - marginLayar;
-    const lebarAlami = printAreaEl.offsetWidth; // kira-kira 210mm dalam px
+        const { jsPDF } = window.jspdf;
+        const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
 
-    if(lebarAlami > 0 && lebarAlami > lebarTersedia){
-        const skala = Math.max(lebarTersedia / lebarAlami, 0.3);
-        const tinggiAlami = printAreaEl.offsetHeight;
-        printAreaEl.style.transform = `scale(${skala})`;
-        printAreaEl.style.transformOrigin = "top center";
-        // kompensasi ruang kosong di bawah akibat transform (yang tidak
-        // memengaruhi document flow), supaya tidak ada jarak kosong besar
-        // di bawah pratinjau
-        printAreaEl.style.marginBottom = `${-(tinggiAlami * (1 - skala)) + 40}px`;
+        const pageWidthMm  = pdf.internal.pageSize.getWidth();
+        const pageHeightMm = pdf.internal.pageSize.getHeight();
+
+        const imgWidthMm  = pageWidthMm;
+        const imgHeightMm = (canvas.height * imgWidthMm) / canvas.width;
+        const imgData = canvas.toDataURL("image/png");
+
+        let heightLeft = imgHeightMm;
+        let position   = 0;
+
+        pdf.addImage(imgData, "PNG", 0, position, imgWidthMm, imgHeightMm);
+        heightLeft -= pageHeightMm;
+
+        while(heightLeft > 0){
+            position = heightLeft - imgHeightMm;
+            pdf.addPage();
+            pdf.addImage(imgData, "PNG", 0, position, imgWidthMm, imgHeightMm);
+            heightLeft -= pageHeightMm;
+        }
+
+        return pdf;
+
+    } finally {
+        document.body.classList.remove("pdf-render-mode");
     }
 }
 
-let _resizeTimeoutPratinjau = null;
-window.addEventListener("resize", function(){
-    clearTimeout(_resizeTimeoutPratinjau);
-    _resizeTimeoutPratinjau = setTimeout(terapkanSkalaPratinjauPrintArea, 150);
-});
-
 const formPermintaanWrapEl = document.getElementById("formPermintaanWrap");
 const pdfPreviewPanelEl    = document.getElementById("pdfPreviewPanel");
+const pdfPreviewFrameEl    = document.getElementById("pdfPreviewFrame");
 const btnUnduhPdfEl        = document.getElementById("btnUnduhPdf");
 const btnCetakPdfEl        = document.getElementById("btnCetakPdf");
 const btnPdfBuatBaruEl     = document.getElementById("btnPdfBuatBaru");
 
-// Menandai apakah pratinjau live untuk publik sedang aktif ditampilkan,
-// supaya bisa dipulihkan lagi setelah dialog print (window.print())
-// ditutup oleh karyawan (baik lewat "Simpan"/"Cetak" maupun "Batal").
-let previewPublikAktif = false;
+// pdfTerakhirDibuat & namaFilePdfTerakhir sekarang HANYA dipakai untuk
+// mengisi <iframe> pratinjau (bloburl). Tidak lagi dipakai untuk proses
+// unduh/cetak final — itu memakai window.print() langsung.
+let pdfTerakhirDibuat   = null;
+let namaFilePdfTerakhir = "Bukti-Permintaan-ATK-ART.pdf";
 
-function tampilkanPdfSiapCetak(karyawan, tanggal, itemList){
+async function tampilkanPdfSiapCetak(karyawan, tanggal, itemList){
     siapkanAreaCetak(karyawan, tanggal, itemList, "");
 
     if(formPermintaanWrapEl) formPermintaanWrapEl.style.display = "none";
     if(pdfPreviewPanelEl) pdfPreviewPanelEl.style.display = "block";
-
-    document.body.classList.add("pdf-preview-mode");
-    previewPublikAktif = true;
-
-    // beri browser satu-dua frame untuk menerapkan display:block sebelum
-    // mengukur lebar alami #printArea, supaya perhitungan skala akurat
-    requestAnimationFrame(() => requestAnimationFrame(terapkanSkalaPratinjauPrintArea));
-
+    if(pdfPreviewFrameEl){
+        pdfPreviewFrameEl.removeAttribute("src");
+        pdfPreviewFrameEl.srcdoc = `<html><body style="margin:0;display:flex;align-items:center;justify-content:center;height:100vh;font-family:sans-serif;color:#64748b;">Sedang membuat pratinjau, mohon tunggu sebentar...</body></html>`;
+    }
     pdfPreviewPanelEl?.scrollIntoView({ behavior: "smooth", block: "start" });
+
+    try{
+        // Ini murni untuk PRATINJAU di iframe. Tombol Unduh/Cetak di bawah
+        // TIDAK memakai hasil ini lagi — lihat cetakAreaCetakPublikTerakhir().
+        const pdf = await buatPdfDariPrintArea();
+        pdfTerakhirDibuat = pdf;
+
+        const tglAman = (tanggal || "").split("-").reverse().join("-") || "tanggal";
+        const namaAman = (karyawan.nama || "karyawan").replace(/[^a-zA-Z0-9]+/g, "-");
+        namaFilePdfTerakhir = `Bukti-Permintaan-ATK-ART-${namaAman}-${tglAman}.pdf`;
+
+        const blobUrl = pdf.output("bloburl");
+        if(pdfPreviewFrameEl){
+            pdfPreviewFrameEl.removeAttribute("srcdoc");
+            pdfPreviewFrameEl.src = blobUrl;
+        }
+
+    }catch(err){
+        console.error(err);
+        if(pdfPreviewFrameEl){
+            pdfPreviewFrameEl.removeAttribute("src");
+            pdfPreviewFrameEl.srcdoc = `<html><body style="margin:0;padding:24px;font-family:sans-serif;color:#dc2626;">Gagal membuat pratinjau: ${err.message}. Anda tetap bisa menekan tombol Unduh PDF / Cetak di bawah untuk mengunduh/mencetak dokumen aslinya.</body></html>`;
+        }
+    }
 }
 
 // ===== Fungsi cetak/unduh FINAL untuk akun publik (hasil sebenarnya) =====
@@ -755,35 +787,17 @@ function tampilkanPdfSiapCetak(karyawan, tanggal, itemList){
 // browser, PERSIS mekanisme yang dipakai admin (tombol "Cetak Form" /
 // "Cetak Bukti Permintaan"). #printArea diisi ulang tepat sebelum
 // window.print() dipanggil, memakai data terakhir yang berhasil disimpan
-// (itemTerakhirDisimpan / karyawanTerakhirDisimpan / tanggalTerakhirDisimpan).
-// Mode pratinjau (transform/skala/shadow) dilepas dulu sebelum mencetak
-// supaya window.print() memakai #printArea polos sesuai CSS @media print,
-// lalu dipulihkan lagi setelah dialog print ditutup.
+// (itemTerakhirDisimpan / karyawanTerakhirDisimpan / tanggalTerakhirDisimpan),
+// supaya hasil akhir yang benar-benar diunduh/dicetak karyawan publik
+// IDENTIK dengan hasil akhir admin — bukan lagi gambar hasil screenshot
+// html2canvas.
 function cetakAreaCetakPublikTerakhir(){
     if(!itemTerakhirDisimpan || !karyawanTerakhirDisimpan){
         alert("Data permintaan belum siap, mohon tunggu sebentar lalu coba lagi.");
         return;
     }
-
     siapkanAreaCetak(karyawanTerakhirDisimpan, tanggalTerakhirDisimpan, itemTerakhirDisimpan, "");
-
-    const sedangPreview = document.body.classList.contains("pdf-preview-mode");
-    const printAreaEl = document.getElementById("printArea");
-
-    if(sedangPreview){
-        document.body.classList.remove("pdf-preview-mode");
-        if(printAreaEl){
-            printAreaEl.style.transform = "";
-            printAreaEl.style.marginBottom = "";
-        }
-    }
-
     window.print();
-
-    if(sedangPreview && previewPublikAktif){
-        document.body.classList.add("pdf-preview-mode");
-        requestAnimationFrame(() => requestAnimationFrame(terapkanSkalaPratinjauPrintArea));
-    }
 }
 
 if(btnUnduhPdfEl){
@@ -796,15 +810,9 @@ if(btnCetakPdfEl){
 
 if(btnPdfBuatBaruEl){
     btnPdfBuatBaruEl.addEventListener("click", function(){
-        previewPublikAktif = false;
-        document.body.classList.remove("pdf-preview-mode");
-        const printAreaEl = document.getElementById("printArea");
-        if(printAreaEl){
-            printAreaEl.style.transform = "";
-            printAreaEl.style.marginBottom = "";
-        }
-
+        pdfTerakhirDibuat = null;
         if(pdfPreviewPanelEl) pdfPreviewPanelEl.style.display = "none";
+        if(pdfPreviewFrameEl){ pdfPreviewFrameEl.removeAttribute("src"); pdfPreviewFrameEl.removeAttribute("srcdoc"); }
         if(formPermintaanWrapEl) formPermintaanWrapEl.style.display = "";
         tampilkanModeSebelumSimpan();
         resetFormItemDanKaryawanSaja();
@@ -911,7 +919,7 @@ form.addEventListener("submit", async function(e){
             await muatRiwayatPengajuan();
 
         } else {
-            tampilkanPdfSiapCetak(karyawan, tanggal, itemList);
+            await tampilkanPdfSiapCetak(karyawan, tanggal, itemList);
         }
 
     }catch(err){ console.error(err); alert(err.message); }
@@ -932,14 +940,9 @@ function resetForm(){
 
     if(pdfPreviewPanelEl && pdfPreviewPanelEl.style.display !== "none"){
         pdfPreviewPanelEl.style.display = "none";
-        previewPublikAktif = false;
-        document.body.classList.remove("pdf-preview-mode");
-        const printAreaEl = document.getElementById("printArea");
-        if(printAreaEl){
-            printAreaEl.style.transform = "";
-            printAreaEl.style.marginBottom = "";
-        }
+        if(pdfPreviewFrameEl){ pdfPreviewFrameEl.removeAttribute("src"); pdfPreviewFrameEl.removeAttribute("srcdoc"); }
         if(formPermintaanWrapEl) formPermintaanWrapEl.style.display = "";
+        pdfTerakhirDibuat = null;
     }
 }
 
