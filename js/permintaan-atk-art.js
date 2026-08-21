@@ -6,19 +6,21 @@
 // otomatis oleh CSS) maupun saat dibuka dari dalam sistem admin (ada
 // sessionStorage "user" -> toolbar Dashboard/panel validasi/riwayat muncul).
 //
-// ⚠️ PERUBAHAN TERBARU (opsi hybrid, supaya hasil akhir publik = hasil
-// akhir admin persis sama):
-//   - Pratinjau di dalam <iframe> (panel "Bukti Permintaan") TETAP dibuat
-//     lewat html2canvas + jsPDF seperti sebelumnya — ini HANYA untuk
-//     preview cepat sebelum karyawan memutuskan mengunduh/mencetak.
-//   - TAPI tombol "⬇️ Unduh PDF" dan "🖨️ Cetak" sekarang TIDAK LAGI
-//     menyimpan/mencetak hasil screenshot canvas tsb. Keduanya memanggil
-//     window.print() langsung terhadap #printArea — PERSIS mekanisme yang
-//     dipakai admin lewat tombol "Cetak Form" / "Cetak Bukti Permintaan".
-//     Karena keduanya lewat engine print/​"Simpan sebagai PDF" bawaan
-//     browser yang sama (bukan gambar hasil screenshot), hasil akhir yang
-//     benar-benar diunduh/dicetak karyawan publik dijamin identik dengan
-//     hasil akhir admin saat Save PDF / kirim ke printer.
+// ⚠️ PERUBAHAN TERBARU (pratinjau = HTML/CSS asli, bukan lagi screenshot):
+//   - Pratinjau di dalam <iframe> (panel "Bukti Permintaan") sekarang
+//     dibuat dengan menyalin HTML + CSS ASLI dari #printArea langsung ke
+//     dalam srcdoc iframe (lihat bangunHtmlPratinjauCetak()). TIDAK lagi
+//     memakai html2canvas/jsPDF untuk "memotret" lalu menyusun ulang jadi
+//     gambar/PDF — karena proses screenshot itulah yang membuat hasil
+//     pratinjau bisa terlihat sedikit berbeda dari hasil cetak asli
+//     (font, ketebalan garis, dsb).
+//   - Tombol "⬇️ Unduh PDF" dan "🖨️ Cetak" TETAP memanggil window.print()
+//     langsung terhadap #printArea — PERSIS mekanisme yang dipakai admin
+//     lewat tombol "Cetak Form" / "Cetak Bukti Permintaan".
+//   - Karena pratinjau (iframe) dan hasil akhir (window.print()) sekarang
+//     sama-sama memakai HTML + CSS #printArea yang identik tanpa proses
+//     rasterisasi tambahan, hasil yang dilihat karyawan di pratinjau
+//     dijamin sama persis dengan hasil yang benar-benar diunduh/dicetak.
 //   - Seluruh logic lain (validasi stok, simpan ke database, riwayat,
 //     approval, dsb) TIDAK diubah sama sekali.
 // =====================================
@@ -686,51 +688,57 @@ document.getElementById("btnCetakForm").addEventListener("click", function(){
     window.print();
 });
 
-// ===== Pembuat PDF PRATINJAU (khusus tampilan publik) =====
-// PENTING: hasil dari fungsi ini HANYA dipakai untuk ditampilkan di
-// <iframe> panel "Bukti Permintaan" sebagai gambaran cepat isi dokumen.
-// Ini BUKAN lagi file yang benar-benar diunduh/dicetak karyawan — sejak
-// perubahan hybrid, tombol "Unduh PDF" & "Cetak" memakai window.print()
-// (lihat cetakAreaCetakPublikTerakhir di bawah), bukan hasil fungsi ini.
-async function buatPdfDariPrintArea(){
-    const printAreaEl = document.getElementById("printArea");
-    document.body.classList.add("pdf-render-mode");
-
-    try{
-        const canvas = await html2canvas(printAreaEl, {
-            scale: 2,
-            useCORS: true,
-            backgroundColor: "#ffffff"
-        });
-
-        const { jsPDF } = window.jspdf;
-        const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
-
-        const pageWidthMm  = pdf.internal.pageSize.getWidth();
-        const pageHeightMm = pdf.internal.pageSize.getHeight();
-
-        const imgWidthMm  = pageWidthMm;
-        const imgHeightMm = (canvas.height * imgWidthMm) / canvas.width;
-        const imgData = canvas.toDataURL("image/png");
-
-        let heightLeft = imgHeightMm;
-        let position   = 0;
-
-        pdf.addImage(imgData, "PNG", 0, position, imgWidthMm, imgHeightMm);
-        heightLeft -= pageHeightMm;
-
-        while(heightLeft > 0){
-            position = heightLeft - imgHeightMm;
-            pdf.addPage();
-            pdf.addImage(imgData, "PNG", 0, position, imgWidthMm, imgHeightMm);
-            heightLeft -= pageHeightMm;
-        }
-
-        return pdf;
-
-    } finally {
-        document.body.classList.remove("pdf-render-mode");
+// ===== Pratinjau (khusus tampilan publik) — HTML/CSS asli, bukan screenshot =====
+// Mengambil CSS visual dokumen cetak (blok <style> yang berisi ".print-kop",
+// dst — CSS yang sama persis dipakai window.print()) lalu menempelkannya,
+// bersama HTML #printArea apa adanya, ke dalam srcdoc <iframe>. Tidak ada
+// proses rasterisasi (html2canvas) di antaranya, jadi tidak ada celah bagi
+// hasil pratinjau untuk terlihat berbeda dari hasil unduh/cetak asli.
+function ambilCssAreaCetak(){
+    const semuaStyle = document.querySelectorAll("style");
+    for(const styleEl of semuaStyle){
+        if(styleEl.textContent.includes(".print-kop")) return styleEl.textContent;
     }
+    return "";
+}
+
+function bangunHtmlPratinjauCetak(){
+    const printAreaEl = document.getElementById("printArea");
+    const cssCetak = ambilCssAreaCetak();
+    // <base> supaya path relatif (mis. images/logo-sda-global.png) tetap
+    // termuat dengan benar di dalam dokumen srcdoc yang terpisah ini.
+    const baseHref = new URL(".", location.href).href;
+
+    return `<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<base href="${baseHref}">
+<style>
+    html, body{ margin:0; padding:0; background:#e5e7eb; }
+    body{ display:flex; justify-content:center; padding:16px 0; box-sizing:border-box; }
+    #printArea{
+        display:block !important;
+        width:210mm;
+        max-width:100%;
+        background:#fff;
+        padding:6mm 14mm 15mm 14mm;
+        box-sizing:border-box;
+        box-shadow:0 4px 18px rgba(0,0,0,.18);
+    }
+    ${cssCetak}
+</style>
+</head>
+<body>
+${printAreaEl.outerHTML}
+</body>
+</html>`;
+}
+
+function tampilkanPratinjauCetak(){
+    if(!pdfPreviewFrameEl) return;
+    pdfPreviewFrameEl.removeAttribute("src");
+    pdfPreviewFrameEl.srcdoc = bangunHtmlPratinjauCetak();
 }
 
 const formPermintaanWrapEl = document.getElementById("formPermintaanWrap");
@@ -740,46 +748,15 @@ const btnUnduhPdfEl        = document.getElementById("btnUnduhPdf");
 const btnCetakPdfEl        = document.getElementById("btnCetakPdf");
 const btnPdfBuatBaruEl     = document.getElementById("btnPdfBuatBaru");
 
-// pdfTerakhirDibuat & namaFilePdfTerakhir sekarang HANYA dipakai untuk
-// mengisi <iframe> pratinjau (bloburl). Tidak lagi dipakai untuk proses
-// unduh/cetak final — itu memakai window.print() langsung.
-let pdfTerakhirDibuat   = null;
-let namaFilePdfTerakhir = "Bukti-Permintaan-ATK-ART.pdf";
-
 async function tampilkanPdfSiapCetak(karyawan, tanggal, itemList){
     siapkanAreaCetak(karyawan, tanggal, itemList, "");
 
     if(formPermintaanWrapEl) formPermintaanWrapEl.style.display = "none";
     if(pdfPreviewPanelEl) pdfPreviewPanelEl.style.display = "block";
-    if(pdfPreviewFrameEl){
-        pdfPreviewFrameEl.removeAttribute("src");
-        pdfPreviewFrameEl.srcdoc = `<html><body style="margin:0;display:flex;align-items:center;justify-content:center;height:100vh;font-family:sans-serif;color:#64748b;">Sedang membuat pratinjau, mohon tunggu sebentar...</body></html>`;
-    }
+
+    tampilkanPratinjauCetak();
+
     pdfPreviewPanelEl?.scrollIntoView({ behavior: "smooth", block: "start" });
-
-    try{
-        // Ini murni untuk PRATINJAU di iframe. Tombol Unduh/Cetak di bawah
-        // TIDAK memakai hasil ini lagi — lihat cetakAreaCetakPublikTerakhir().
-        const pdf = await buatPdfDariPrintArea();
-        pdfTerakhirDibuat = pdf;
-
-        const tglAman = (tanggal || "").split("-").reverse().join("-") || "tanggal";
-        const namaAman = (karyawan.nama || "karyawan").replace(/[^a-zA-Z0-9]+/g, "-");
-        namaFilePdfTerakhir = `Bukti-Permintaan-ATK-ART-${namaAman}-${tglAman}.pdf`;
-
-        const blobUrl = pdf.output("bloburl");
-        if(pdfPreviewFrameEl){
-            pdfPreviewFrameEl.removeAttribute("srcdoc");
-            pdfPreviewFrameEl.src = blobUrl;
-        }
-
-    }catch(err){
-        console.error(err);
-        if(pdfPreviewFrameEl){
-            pdfPreviewFrameEl.removeAttribute("src");
-            pdfPreviewFrameEl.srcdoc = `<html><body style="margin:0;padding:24px;font-family:sans-serif;color:#dc2626;">Gagal membuat pratinjau: ${err.message}. Anda tetap bisa menekan tombol Unduh PDF / Cetak di bawah untuk mengunduh/mencetak dokumen aslinya.</body></html>`;
-        }
-    }
 }
 
 // ===== Fungsi cetak/unduh FINAL untuk akun publik (hasil sebenarnya) =====
@@ -789,8 +766,8 @@ async function tampilkanPdfSiapCetak(karyawan, tanggal, itemList){
 // window.print() dipanggil, memakai data terakhir yang berhasil disimpan
 // (itemTerakhirDisimpan / karyawanTerakhirDisimpan / tanggalTerakhirDisimpan),
 // supaya hasil akhir yang benar-benar diunduh/dicetak karyawan publik
-// IDENTIK dengan hasil akhir admin — bukan lagi gambar hasil screenshot
-// html2canvas.
+// IDENTIK dengan hasil akhir admin — dan, sejak perubahan di atas, juga
+// identik dengan apa yang mereka lihat di panel pratinjau.
 function cetakAreaCetakPublikTerakhir(){
     if(!itemTerakhirDisimpan || !karyawanTerakhirDisimpan){
         alert("Data permintaan belum siap, mohon tunggu sebentar lalu coba lagi.");
@@ -810,7 +787,6 @@ if(btnCetakPdfEl){
 
 if(btnPdfBuatBaruEl){
     btnPdfBuatBaruEl.addEventListener("click", function(){
-        pdfTerakhirDibuat = null;
         if(pdfPreviewPanelEl) pdfPreviewPanelEl.style.display = "none";
         if(pdfPreviewFrameEl){ pdfPreviewFrameEl.removeAttribute("src"); pdfPreviewFrameEl.removeAttribute("srcdoc"); }
         if(formPermintaanWrapEl) formPermintaanWrapEl.style.display = "";
@@ -942,7 +918,6 @@ function resetForm(){
         pdfPreviewPanelEl.style.display = "none";
         if(pdfPreviewFrameEl){ pdfPreviewFrameEl.removeAttribute("src"); pdfPreviewFrameEl.removeAttribute("srcdoc"); }
         if(formPermintaanWrapEl) formPermintaanWrapEl.style.display = "";
-        pdfTerakhirDibuat = null;
     }
 }
 
