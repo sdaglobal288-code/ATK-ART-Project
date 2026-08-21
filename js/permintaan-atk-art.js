@@ -689,22 +689,51 @@ document.getElementById("btnCetakForm").addEventListener("click", function(){
 });
 
 // ===== Pratinjau (khusus tampilan publik) — HTML/CSS asli, bukan screenshot =====
-// Mengambil CSS visual dokumen cetak (blok <style> yang berisi ".print-kop",
-// dst — CSS yang sama persis dipakai window.print()) lalu menempelkannya,
-// bersama HTML #printArea apa adanya, ke dalam srcdoc <iframe>. Tidak ada
-// proses rasterisasi (html2canvas) di antaranya, jadi tidak ada celah bagi
-// hasil pratinjau untuk terlihat berbeda dari hasil unduh/cetak asli.
-function ambilCssAreaCetak(){
-    const semuaStyle = document.querySelectorAll("style");
-    for(const styleEl of semuaStyle){
-        if(styleEl.textContent.includes(".print-kop")) return styleEl.textContent;
-    }
-    return "";
-}
+// CSS di bawah ini adalah SALINAN PERSIS dari blok <style> "Styling visual
+// dokumen cetak (#printArea)" di permintaan-atk-art.html (yang dipakai
+// bersama oleh window.print() lewat @media print). Ditanam langsung di
+// sini (bukan "dicuri" dari DOM saat runtime) supaya pratinjau di iframe
+// SELALU mendapat CSS yang benar & lengkap, apapun kondisi halaman induk.
+//
+// ⚠️ PENTING: kalau suatu saat CSS cetak di file HTML (blok
+// "Styling visual dokumen cetak (#printArea)") diubah/ditambah, salinan
+// di bawah ini juga harus diperbarui supaya pratinjau tetap identik
+// dengan hasil cetak asli.
+const CSS_CETAK_UNTUK_PRATINJAU = `
+    #printArea{ font-size:11pt !important; }
+    #printArea, #printArea *{ font-family:"Times New Roman", Times, serif !important; color:#000 !important; box-sizing:border-box; }
+    .print-kop{ display:flex; justify-content:space-between; align-items:flex-end; padding-bottom:4px; margin-bottom:8px; margin-top:0; }
+    .print-kop-brand{ display:flex; flex-direction:column; align-items:flex-start; gap:2px; }
+    .print-kop-brand img.brand-logo{ height:38px; width:auto; }
+    .print-kop-brand p.brand-name{ margin:0; font-size:11pt !important; font-weight:700; letter-spacing:.03em; }
+    .print-kop-code{ font-size:11pt !important; font-weight:600; }
+    .print-title{ text-align:center; font-weight:700; text-decoration:underline; margin:0 0 6px; font-size:12pt !important; }
+    .print-status-note{ text-align:center; font-size:10pt !important; font-style:italic; margin:0 0 12px; }
+    .print-header{ display:grid; grid-template-columns:1fr 1fr; row-gap:3px; column-gap:20px; margin-bottom:14px; font-size:11pt !important; text-transform:none !important; }
+    .print-header div{ display:flex; white-space:nowrap; font-size:11pt !important; text-transform:none !important; }
+    .print-header label{ width:168px; flex:0 0 168px; white-space:nowrap; font-size:11pt !important; text-transform:none !important; }
+    .print-header span{ text-transform:none !important; }
+    table.print-table{ width:100% !important; max-width:100% !important; table-layout:fixed !important; border-collapse:collapse; margin-bottom:20px; border:1.4px solid #000; page-break-inside:avoid; }
+    table.print-table th, table.print-table td{ border:1.4px solid #000; padding:6px 8px; font-size:11pt !important; text-align:center; vertical-align:middle; word-wrap:break-word; overflow-wrap:break-word; word-break:break-word; white-space:normal !important; }
+    table.print-table tr{ page-break-inside:avoid; height:26pt; }
+    table.print-table td{ height:26pt; }
+    table.print-table th{ background:#f0f0f0; text-transform:capitalize !important; }
+    table.print-table td.left{ text-align:left; }
+    table.print-table td.jenis-barang, table.print-table td.keterangan{ text-align:left; word-break:break-word; }
+    table.print-table td.text-shrink-1{ font-size:9.5pt !important; line-height:1.25; }
+    table.print-table td.text-shrink-2{ font-size:8.5pt !important; line-height:1.2; }
+    table.print-table td.text-shrink-3{ font-size:7.5pt !important; line-height:1.15; }
+    .print-signature{ margin-top:10px; }
+    .print-signature .city{ font-size:11pt !important; margin-bottom:18px; }
+    .print-signature-grid{ display:grid; grid-template-columns:1fr 1fr 1fr; text-align:center; font-size:11pt !important; }
+    .print-signature-grid > div{ display:flex; flex-direction:column; align-items:center; }
+    .print-signature-grid p{ margin:0 0 60px; font-size:11pt !important; }
+    .print-signature-grid .sig-line{ display:inline-block; width:150px; border-top:1px solid #000; padding-top:4px; font-size:11pt !important; }
+    .print-rev{ text-align:right; font-size:9pt !important; margin-top:6px; }
+`;
 
 function bangunHtmlPratinjauCetak(){
     const printAreaEl = document.getElementById("printArea");
-    const cssCetak = ambilCssAreaCetak();
     // <base> supaya path relatif (mis. images/logo-sda-global.png) tetap
     // termuat dengan benar di dalam dokumen srcdoc yang terpisah ini.
     const baseHref = new URL(".", location.href).href;
@@ -713,20 +742,22 @@ function bangunHtmlPratinjauCetak(){
 <html>
 <head>
 <meta charset="UTF-8">
+<meta name="color-scheme" content="light only">
 <base href="${baseHref}">
 <style>
-    html, body{ margin:0; padding:0; background:#e5e7eb; }
-    body{ display:flex; justify-content:center; padding:16px 0; box-sizing:border-box; }
+    *{ box-sizing:border-box; }
+    html, body{ margin:0; padding:0; background:#e5e7eb; color-scheme:light; }
+    body{ display:flex; justify-content:center; padding:16px 0; }
     #printArea{
         display:block !important;
         width:210mm;
-        max-width:100%;
-        background:#fff;
+        max-width:calc(100% - 32px);
+        background:#fff !important;
         padding:6mm 14mm 15mm 14mm;
         box-sizing:border-box;
         box-shadow:0 4px 18px rgba(0,0,0,.18);
     }
-    ${cssCetak}
+    ${CSS_CETAK_UNTUK_PRATINJAU}
 </style>
 </head>
 <body>
