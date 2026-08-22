@@ -949,8 +949,12 @@ onclick="location.href='dashboard.html'">
      Pustaka pembuat PDF di sisi klien (khusus tampilan publik) —
      html2canvas "memotret" isi #printArea menjadi gambar, lalu jsPDF
      menyusun gambar tsb menjadi file PDF asli (bukan sekadar dialog
-     cetak browser). Dimuat lewat CDN, tidak butuh instalasi apapun.
+     cetak browser, sehingga TIDAK ada header/footer sistem seperti
+     yang ditambahkan Safari/iOS pada dialog cetak biasa). Dimuat
+     lewat CDN, tidak butuh instalasi apapun.
 ============================================= -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 
 <script src="js/permintaan-atk-art.js"></script>
 </body>
