@@ -9,22 +9,18 @@
 // ⚠️ PERUBAHAN TERBARU (pratinjau = HTML/CSS asli, bukan lagi screenshot):
 //   - Pratinjau di dalam <iframe> (panel "Bukti Permintaan") sekarang
 //     dibuat dengan menyalin HTML + CSS ASLI dari #printArea langsung ke
-//     dalam srcdoc iframe (lihat bangunHtmlPratinjauCetak()).
-//   - Tombol "⬇️ Unduh PDF" dan "🖨️ Cetak" (khusus akun PUBLIK) SEKARANG
-//     TIDAK lagi memanggil window.print() / dialog cetak bawaan browser.
-//     Alasannya: di iOS/Safari, dialog cetak bawaan otomatis menambahkan
-//     header/footer sistem (judul halaman, URL, tanggal, "Halaman X dari Y")
-//     di setiap lembar PDF yang dihasilkan, dan ini TIDAK BISA dimatikan
-//     lewat kode halaman web — itu murni fitur OS/browser.
-//     Solusinya: #printArea "difoto" dulu (html2canvas) lalu disusun
-//     menjadi file PDF ASLI (jsPDF) di sisi klien, kemudian:
-//       • "⬇️ Unduh PDF" -> file PDF langsung ter-download ke perangkat
-//         (tanpa membuka dialog cetak sama sekali, tanpa header/footer).
-//       • "🖨️ Cetak"     -> PDF yang sama dibuka di tab baru lalu otomatis
-//         memicu dialog cetak PDF tsb (bukan dialog cetak halaman web),
-//         sehingga tidak ada header/footer tambahan dari OS.
-//   - Tombol "Cetak Form" / "Cetak Bukti Permintaan" milik ADMIN tetap
-//     memakai window.print() seperti semula (tidak diubah).
+//     dalam srcdoc iframe (lihat bangunHtmlPratinjauCetak()). TIDAK lagi
+//     memakai html2canvas/jsPDF untuk "memotret" lalu menyusun ulang jadi
+//     gambar/PDF — karena proses screenshot itulah yang membuat hasil
+//     pratinjau bisa terlihat sedikit berbeda dari hasil cetak asli
+//     (font, ketebalan garis, dsb).
+//   - Tombol "⬇️ Unduh PDF" dan "🖨️ Cetak" TETAP memanggil window.print()
+//     langsung terhadap #printArea — PERSIS mekanisme yang dipakai admin
+//     lewat tombol "Cetak Form" / "Cetak Bukti Permintaan".
+//   - Karena pratinjau (iframe) dan hasil akhir (window.print()) sekarang
+//     sama-sama memakai HTML + CSS #printArea yang identik tanpa proses
+//     rasterisasi tambahan, hasil yang dilihat karyawan di pratinjau
+//     dijamin sama persis dengan hasil yang benar-benar diunduh/dicetak.
 //   - Seluruh logic lain (validasi stok, simpan ke database, riwayat,
 //     approval, dsb) TIDAK diubah sama sekali.
 // =====================================
@@ -699,10 +695,6 @@ document.getElementById("btnCetakForm").addEventListener("click", function(){
 // sini (bukan "dicuri" dari DOM saat runtime) supaya pratinjau di iframe
 // SELALU mendapat CSS yang benar & lengkap, apapun kondisi halaman induk.
 //
-// CATATAN: header tabel (table.print-table th) memakai latar PUTIH POLOS
-// (hitam-putih murni, tanpa shading abu-abu), disamakan dengan CSS cetak
-// utama di permintaan-atk-art.html.
-//
 // ⚠️ PENTING: kalau suatu saat CSS cetak di file HTML (blok
 // "Styling visual dokumen cetak (#printArea)") diubah/ditambah, salinan
 // di bawah ini juga harus diperbarui supaya pratinjau tetap identik
@@ -725,7 +717,7 @@ const CSS_CETAK_UNTUK_PRATINJAU = `
     table.print-table th, table.print-table td{ border:1.4px solid #000; padding:6px 8px; font-size:11pt !important; text-align:center; vertical-align:middle; word-wrap:break-word; overflow-wrap:break-word; word-break:break-word; white-space:normal !important; }
     table.print-table tr{ page-break-inside:avoid; height:26pt; }
     table.print-table td{ height:26pt; }
-    table.print-table th{ background:#ffffff !important; text-transform:capitalize !important; font-weight:700 !important; }
+    table.print-table th{ background:#f0f0f0; text-transform:capitalize !important; }
     table.print-table td.left{ text-align:left; }
     table.print-table td.jenis-barang, table.print-table td.keterangan{ text-align:left; word-break:break-word; }
     table.print-table td.text-shrink-1{ font-size:9.5pt !important; line-height:1.25; }
@@ -798,112 +790,30 @@ async function tampilkanPdfSiapCetak(karyawan, tanggal, itemList){
     pdfPreviewPanelEl?.scrollIntoView({ behavior: "smooth", block: "start" });
 }
 
-// ===== PDF asli untuk akun PUBLIK (tanpa dialog cetak OS, tanpa header/footer) =====
-// #printArea "difoto" (html2canvas) lalu disusun jadi file PDF asli
-// (jsPDF), sehingga TIDAK pernah melewati dialog cetak bawaan
-// browser/OS — inilah yang sebelumnya menambahkan header/footer sistem
-// (judul halaman, URL, tanggal, "Halaman X dari Y") terutama saat
-// diunduh lewat Safari/iOS.
-async function buatDokumenPdfDariAreaCetak(){
-    const printAreaEl = document.getElementById("printArea");
-
-    // Aktifkan mode render PDF (lihat CSS body.pdf-render-mode di HTML)
-    // supaya #printArea ditata rapi di ukuran A4 saat difoto, meskipun
-    // sedang disembunyikan dari layar normal.
-    document.body.classList.add("pdf-render-mode");
-
-    try{
-        const canvas = await html2canvas(printAreaEl, {
-            scale: 2,
-            useCORS: true,
-            backgroundColor: "#ffffff"
-        });
-
-        const imgData = canvas.toDataURL("image/png");
-
-        const { jsPDF } = window.jspdf;
-        const pdf = new jsPDF({ unit: "mm", format: "a4", orientation: "portrait" });
-
-        const pageWidth = pdf.internal.pageSize.getWidth();
-        const pageHeight = pdf.internal.pageSize.getHeight();
-
-        const imgWidth = pageWidth;
-        const imgHeight = (canvas.height * imgWidth) / canvas.width;
-
-        let heightLeft = imgHeight;
-        let position = 0;
-
-        pdf.addImage(imgData, "PNG", 0, position, imgWidth, imgHeight);
-        heightLeft -= pageHeight;
-
-        while(heightLeft > 0){
-            position = heightLeft - imgHeight;
-            pdf.addPage();
-            pdf.addImage(imgData, "PNG", 0, position, imgWidth, imgHeight);
-            heightLeft -= pageHeight;
-        }
-
-        return pdf;
-
-    } finally {
-        document.body.classList.remove("pdf-render-mode");
-    }
-}
-
-function namaFilePdfPermintaan(){
-    const namaAsli = karyawanTerakhirDisimpan?.nama || "Permintaan";
-    const namaBersih = namaAsli.replace(/[^a-zA-Z0-9]+/g, "-").replace(/^-+|-+$/g, "");
-    const tgl = tanggalTerakhirDisimpan || new Date().toISOString().split("T")[0];
-    return `Permintaan-ATK-ART_${namaBersih}_${tgl}.pdf`;
-}
-
-// "⬇️ Unduh PDF" -> file PDF langsung ter-download ke perangkat, tanpa
-// dialog cetak sama sekali, jadi tidak ada header/footer tambahan.
-async function unduhPdfPublik(){
+// ===== Fungsi cetak/unduh FINAL untuk akun publik (hasil sebenarnya) =====
+// Memakai window.print() -> dialog print / "Simpan sebagai PDF" bawaan
+// browser, PERSIS mekanisme yang dipakai admin (tombol "Cetak Form" /
+// "Cetak Bukti Permintaan"). #printArea diisi ulang tepat sebelum
+// window.print() dipanggil, memakai data terakhir yang berhasil disimpan
+// (itemTerakhirDisimpan / karyawanTerakhirDisimpan / tanggalTerakhirDisimpan),
+// supaya hasil akhir yang benar-benar diunduh/dicetak karyawan publik
+// IDENTIK dengan hasil akhir admin — dan, sejak perubahan di atas, juga
+// identik dengan apa yang mereka lihat di panel pratinjau.
+function cetakAreaCetakPublikTerakhir(){
     if(!itemTerakhirDisimpan || !karyawanTerakhirDisimpan){
         alert("Data permintaan belum siap, mohon tunggu sebentar lalu coba lagi.");
         return;
     }
-
     siapkanAreaCetak(karyawanTerakhirDisimpan, tanggalTerakhirDisimpan, itemTerakhirDisimpan, "");
-
-    try{
-        const pdf = await buatDokumenPdfDariAreaCetak();
-        pdf.save(namaFilePdfPermintaan());
-    }catch(err){
-        console.error(err);
-        alert("Gagal membuat file PDF: " + err.message);
-    }
-}
-
-// "🖨️ Cetak" -> PDF yang sama dibuka di tab baru & langsung memicu
-// dialog cetak PDF tsb (dialog cetak untuk dokumen PDF, BUKAN dialog
-// cetak halaman web), sehingga tidak menambahkan header/footer sistem.
-async function cetakPdfPublik(){
-    if(!itemTerakhirDisimpan || !karyawanTerakhirDisimpan){
-        alert("Data permintaan belum siap, mohon tunggu sebentar lalu coba lagi.");
-        return;
-    }
-
-    siapkanAreaCetak(karyawanTerakhirDisimpan, tanggalTerakhirDisimpan, itemTerakhirDisimpan, "");
-
-    try{
-        const pdf = await buatDokumenPdfDariAreaCetak();
-        pdf.autoPrint();
-        const urlBlobPdf = pdf.output("bloburl");
-        window.open(urlBlobPdf, "_blank");
-    }catch(err){
-        console.error(err);
-        alert("Gagal menyiapkan PDF untuk dicetak: " + err.message);
-    }
+    window.print();
 }
 
 if(btnUnduhPdfEl){
-    btnUnduhPdfEl.addEventListener("click", unduhPdfPublik);
+    btnUnduhPdfEl.addEventListener("click", cetakAreaCetakPublikTerakhir);
 }
 
 if(btnCetakPdfEl){
-    btnCetakPdfEl.addEventListener("click", cetakPdfPublik);
+    btnCetakPdfEl.addEventListener("click", cetakAreaCetakPublikTerakhir);
 }
 
 if(btnPdfBuatBaruEl){
