@@ -611,6 +611,12 @@
      tanpa-PDF (yang tadinya hanya berada di dalam @media print),
      supaya tampilan hasil cetak (Ctrl+P) maupun hasil PDF otomatis
      terlihat identik.
+
+     CATATAN PERUBAHAN: header tabel (table.print-table th) sebelumnya
+     memakai latar abu-abu (#f0f0f0). Sekarang diubah menjadi PUTIH
+     POLOS (hitam-putih murni, tanpa warna/shading) — hanya garis
+     tepi hitam & teks hitam tebal yang membedakan baris header,
+     persis seperti form kertas asli yang dicetak hitam putih.
 ============================================= -->
 <style>
     #printArea{ font-size:11pt !important; }
@@ -636,8 +642,10 @@
     table.print-table tr{ page-break-inside:avoid; height:26pt; }
     table.print-table td{ height:26pt; }
     /* Header hanya huruf depan tiap kata yang kapital (Title Case),
-       bukan huruf kapital semua. */
-    table.print-table th{ background:#f0f0f0; text-transform:capitalize !important; }
+       bukan huruf kapital semua. Latar belakang PUTIH POLOS (hitam
+       putih), tidak lagi abu-abu, supaya seluruh dokumen benar-benar
+       monokrom hitam di atas putih. */
+    table.print-table th{ background:#ffffff !important; text-transform:capitalize !important; font-weight:700 !important; }
     table.print-table td.left{ text-align:left; }
     /* Kolom Jenis Barang & Keterangan: teks rata kiri dan boleh turun
        ke baris kedua; ukuran font otomatis mengecil (lewat style inline
