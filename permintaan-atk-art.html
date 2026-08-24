@@ -77,10 +77,16 @@
         color:#111827 !important;
         opacity:1 !important;
     }
+    /* Header tabel barang (versi publik): dibuat HITAM PUTIH POLOS
+       (latar putih, teks hitam tebal, garis tepi hitam) — sama seperti
+       tampilan hasil cetak/PDF — supaya konsisten tanpa warna, baik saat
+       dibuka lewat PC maupun HP (rule ini tidak dibatasi media query,
+       jadi berlaku di kedua ukuran layar). */
     body:not(.is-admin-view) table.tabel-barang th{
-        background:#1e293b !important;
-        color:#ffffff !important;
+        background:#ffffff !important;
+        color:#000000 !important;
         font-weight:700 !important;
+        border-color:#000000 !important;
     }
     body:not(.is-admin-view) .input-readonly{
         background:#f3f4f6 !important;
