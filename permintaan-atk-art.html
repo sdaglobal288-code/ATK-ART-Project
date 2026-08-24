@@ -82,8 +82,12 @@
        tampilan hasil cetak/PDF — supaya konsisten tanpa warna, baik saat
        dibuka lewat PC maupun HP (rule ini tidak dibatasi media query,
        jadi berlaku di kedua ukuran layar). */
+    body:not(.is-admin-view) table.tabel-barang thead{
+        background:#ffffff !important;
+    }
     body:not(.is-admin-view) table.tabel-barang th{
         background:#ffffff !important;
+        background-color:#ffffff !important;
         color:#000000 !important;
         font-weight:700 !important;
         border-color:#000000 !important;
@@ -651,7 +655,12 @@
        bukan huruf kapital semua. Latar belakang PUTIH POLOS (hitam
        putih), tidak lagi abu-abu, supaya seluruh dokumen benar-benar
        monokrom hitam di atas putih. */
-    table.print-table th{ background:#ffffff !important; text-transform:capitalize !important; font-weight:700 !important; }
+    /* dashboard.css punya rule global "table thead{background:var(--color-bg)}"
+       yang mewarnai <thead> dengan warna tema admin. Ditimpa eksplisit di sini
+       supaya benar-benar putih, termasuk pada bagian yang "mengintip" lewat
+       celah antar sel akibat border-collapse saat di-generate jadi gambar/PDF. */
+    table.print-table thead{ background:#ffffff !important; }
+    table.print-table th{ background:#ffffff !important; background-color:#ffffff !important; text-transform:capitalize !important; font-weight:700 !important; }
     table.print-table td.left{ text-align:left; }
     /* Kolom Jenis Barang & Keterangan: teks rata kiri dan boleh turun
        ke baris kedua; ukuran font otomatis mengecil (lewat style inline
