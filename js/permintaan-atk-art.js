@@ -717,7 +717,8 @@ const CSS_CETAK_UNTUK_PRATINJAU = `
     table.print-table th, table.print-table td{ border:1.4px solid #000; padding:6px 8px; font-size:11pt !important; text-align:center; vertical-align:middle; word-wrap:break-word; overflow-wrap:break-word; word-break:break-word; white-space:normal !important; }
     table.print-table tr{ page-break-inside:avoid; height:26pt; }
     table.print-table td{ height:26pt; }
-    table.print-table th{ background:#f0f0f0; text-transform:capitalize !important; }
+    table.print-table thead{ background:#ffffff !important; }
+    table.print-table th{ background:#ffffff !important; background-color:#ffffff !important; text-transform:capitalize !important; font-weight:700 !important; }
     table.print-table td.left{ text-align:left; }
     table.print-table td.jenis-barang, table.print-table td.keterangan{ text-align:left; word-break:break-word; }
     table.print-table td.text-shrink-1{ font-size:9.5pt !important; line-height:1.25; }
