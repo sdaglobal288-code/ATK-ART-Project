@@ -497,12 +497,6 @@ detailWrapper.addEventListener("input", function(e){
     if(e.target.classList.contains("input-qty")){
         validasiQtyBaris(row);
     }
-
-    if(e.target.classList.contains("input-keterangan-row")){
-        const posisiKursor = e.target.selectionStart;
-        e.target.value = e.target.value.toUpperCase();
-        e.target.setSelectionRange(posisiKursor, posisiKursor);
-    }
 });
 
 detailWrapper.addEventListener("focus", function(e){
