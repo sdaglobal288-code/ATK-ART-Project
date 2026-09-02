@@ -14,6 +14,15 @@
 // KHUSUS "Export Rekap ATK/ART (Semua Gudang)": laporan ini SENGAJA
 // TIDAK difilter ke user.gudang, karena memang menggabungkan Raden Saleh
 // & Margomulyo sekaligus (lihat bagian exportRekapATKART di bawah).
+//
+// CATATAN STATUS BARANG KELUAR: sama seperti halaman Barang Keluar
+// (js/barang-keluar.js), SEMUA query ke tabel "barang_keluar" di file
+// ini hanya mengambil baris berstatus "Disetujui" (atau baris lama yang
+// belum punya kolom "status" sama sekali / NULL -> dianggap "Disetujui").
+// Baris yang berasal dari Formulir Permintaan ATK/ART dan masih
+// berstatus "Menunggu Approval" ataupun sudah "Ditolak" TIDAK dihitung
+// di laporan ini (ringkasan, grafik, highlight, maupun Rekap ATK/ART),
+// karena baris tersebut bukan transaksi keluar yang sah.
 // =====================================
 
 const user = JSON.parse(sessionStorage.getItem("user"));
@@ -155,6 +164,12 @@ async function ambilItemMasukPeriode(tanggalDari, tanggalSampai){
 // =====================================
 // AMBIL DATA BARANG KELUAR UNTUK PERIODE TERTENTU
 // Mengembalikan array item flat: { tanggal, nama_barang, qty, departemen }
+//
+// CATATAN: hanya baris berstatus "Disetujui" (atau NULL, baris lama
+// sebelum kolom "status" ditambahkan) yang dihitung sebagai barang
+// keluar yang sah. Baris "Menunggu Approval" dan "Ditolak" dari
+// Formulir Permintaan ATK/ART sengaja dikecualikan, konsisten dengan
+// halaman Barang Keluar (js/barang-keluar.js).
 // =====================================
 
 async function ambilItemKeluarPeriode(tanggalDari, tanggalSampai){
@@ -163,6 +178,7 @@ async function ambilItemKeluarPeriode(tanggalDari, tanggalSampai){
         .from("barang_keluar")
         .select("*")
         .eq("gudang", user.gudang)
+        .or("status.is.null,status.eq.Disetujui")
         .gte("tanggal", tanggalDari)
         .lte("tanggal", tanggalSampai);
 
@@ -1062,6 +1078,12 @@ if(btnExportLaporanEl){
 // Margomulyo), berbeda dengan laporan lain di halaman ini yang
 // selalu difilter khusus gudang yang sedang login.
 //
+// CATATAN STATUS: seperti seluruh laporan lain di file ini, rekap ini
+// hanya menghitung baris "barang_keluar" berstatus "Disetujui" (atau
+// NULL untuk baris lama). Baris "Menunggu Approval" / "Ditolak" dari
+// Formulir Permintaan ATK/ART tidak dihitung, baik di sheet rekap
+// gabungan maupun sheet histori per gudang.
+//
 // FILE INI TERDIRI DARI 5 SHEET:
 //   1. "Rekap ATK-ART"                  -> rekap gabungan (format contoh)
 //   2. "Histori Keluar - Raden Saleh"   -> histori Barang Keluar Raden
@@ -1105,9 +1127,12 @@ async function ambilItemKeluarSemuaGudang(tanggalDari, tanggalSampai){
 
     // TIDAK difilter .eq("gudang", ...) karena laporan ini memang
     // menggabungkan seluruh gudang, beda dari fungsi lain di halaman ini.
+    // Tetap difilter status "Disetujui"/NULL supaya permintaan yang
+    // masih menunggu approval atau sudah ditolak tidak ikut terhitung.
     const { data, error } = await supabaseClient
         .from("barang_keluar")
         .select("*")
+        .or("status.is.null,status.eq.Disetujui")
         .gte("tanggal", tanggalDari)
         .lte("tanggal", tanggalSampai);
 
@@ -1133,6 +1158,7 @@ async function ambilHistoriKeluarLengkapPerGudang(gudang, tanggalDari, tanggalSa
         .from("barang_keluar")
         .select("*")
         .eq("gudang", gudang)
+        .or("status.is.null,status.eq.Disetujui")
         .gte("tanggal", tanggalDari)
         .lte("tanggal", tanggalSampai)
         .order("tanggal", { ascending: true })
