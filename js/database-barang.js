@@ -48,7 +48,18 @@
 //                  pinjaman, masih bisa diretur ke gudang asal.
 //
 // barang_masuk / barang_masuk_detail -> histori masuk, difilter via header.gudang
-// barang_keluar -> histori keluar, punya kolom gudang sendiri per baris
+// barang_keluar -> histori keluar, punya kolom gudang sendiri per baris.
+//                  SEKARANG hanya baris berstatus "Disetujui" (atau baris
+//                  lama yang belum punya kolom "status" sama sekali / NULL,
+//                  dianggap "Disetujui" - sama seperti fallback yang dipakai
+//                  di js/permintaan-atk-art.js dan js/barang-keluar.js) yang
+//                  dihitung ke kolom KELUAR di sini. Baris yang berasal dari
+//                  Formulir Permintaan ATK/ART dan berstatus "Ditolak" TIDAK
+//                  ikut dihitung, karena stok yang sempat terpotong untuk
+//                  baris itu sudah dikembalikan otomatis saat ditolak
+//                  (sehingga baris itu bukan lagi transaksi keluar yang
+//                  sah) - persis seperti perilaku halaman Histori Barang
+//                  Keluar & Export Excel-nya.
 // =====================================
 
 const user = JSON.parse(sessionStorage.getItem("user"));
@@ -694,6 +705,15 @@ async function sumMasukPerKode() {
 
 // =====================================
 // TOTAL KELUAR PER KODE BARANG, KHUSUS GUDANG YANG SEDANG LOGIN
+//
+// SAMA seperti halaman Histori Barang Keluar (js/barang-keluar.js) &
+// Export Excel-nya: hanya baris berstatus "Disetujui" (atau baris lama
+// yang belum punya kolom "status" sama sekali / NULL, dianggap
+// "Disetujui") yang dihitung. Baris yang berasal dari Formulir Permintaan
+// ATK/ART dan berstatus "Ditolak" TIDAK ikut dihitung ke kolom KELUAR di
+// Database Barang, karena stok yang sempat terpotong untuk baris itu
+// sudah dikembalikan otomatis saat ditolak - jadi baris itu bukan lagi
+// transaksi keluar yang sah.
 // =====================================
 
 async function sumKeluarPerKode() {
@@ -705,7 +725,8 @@ async function sumKeluarPerKode() {
         const { data, error } = await supabaseClient
             .from("barang_keluar")
             .select("kode_barang, qty")
-            .eq("gudang", user.gudang);
+            .eq("gudang", user.gudang)
+            .or("status.is.null,status.eq.Disetujui");
 
         if (error) throw error;
 
