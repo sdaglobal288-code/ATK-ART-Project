@@ -12,7 +12,7 @@
   *{ box-sizing:border-box; }
   body{ margin:0; background:radial-gradient(1200px 500px at 80% -10%, rgba(122,162,247,.07), transparent 60%), var(--bg); color:var(--text);
         font-family:'Inter','Segoe UI',system-ui,-apple-system,sans-serif; font-size:14px; line-height:1.45; padding:32px 24px 80px; -webkit-font-smoothing:antialiased; }
-  .wrap{ max-width:1240px; margin:0 auto; }
+  .wrap{ max-width:1480px; margin:0 auto; }
   .topbar{ display:flex; justify-content:space-between; align-items:flex-end; gap:16px; flex-wrap:wrap; margin-bottom:28px; padding-bottom:22px; border-bottom:1px solid var(--line); }
   .back{ display:inline-block; color:var(--muted); text-decoration:none; font-size:12.5px; margin-bottom:14px; transition:color .15s; } .back:hover{ color:var(--blue); }
   .title{ display:flex; align-items:center; gap:14px; }
@@ -40,24 +40,27 @@
   .filters select{ width:auto; min-width:160px; }
   .count{ margin-left:auto; color:var(--muted); font-size:12.5px; }
   .card{ background:var(--panel); border:1px solid var(--line); border-radius:var(--r); overflow-x:auto; box-shadow:0 8px 30px rgba(0,0,0,.25); }
-  table{ width:100%; border-collapse:collapse; min-width:1200px; }
-  th{ position:sticky; top:0; text-align:left; padding:12px 16px; font-size:11px; font-weight:700; color:var(--muted); text-transform:uppercase; letter-spacing:.06em; background:var(--panel-2); border-bottom:1px solid var(--line); white-space:nowrap; }
-  td{ padding:14px 16px; font-size:13px; border-bottom:1px solid var(--line); vertical-align:top; }
+  table{ width:100%; border-collapse:collapse; }
+  .card table{ table-layout:fixed; min-width:1000px; }
+  @media(min-width:1100px){ .card{ overflow:hidden; } .card table{ min-width:0; } }
+  td{ overflow-wrap:anywhere; }
+  th{ position:sticky; top:0; text-align:left; padding:12px 12px; font-size:11px; font-weight:700; color:var(--muted); text-transform:uppercase; letter-spacing:.06em; background:var(--panel-2); border-bottom:1px solid var(--line); white-space:nowrap; }
+  td{ padding:14px 12px; font-size:12.5px; border-bottom:1px solid var(--line); vertical-align:top; }
   tbody tr{ transition:background .12s; } tbody tr:last-child td{ border-bottom:none; } tbody tr:hover{ background:rgba(255,255,255,.03); }
   td b{ font-weight:600; }
   td small{ display:block; color:var(--muted); font-size:11.5px; margin-top:3px; }
   td.nowrap{ white-space:nowrap; } td.num{ font-variant-numeric:tabular-nums; white-space:nowrap; }
   tr.r-b-segera td:first-child{ box-shadow:inset 3px 0 0 var(--orange); } tr.r-b-berakhir td:first-child{ box-shadow:inset 3px 0 0 var(--pink); } tr.r-b-aktif td:first-child{ box-shadow:inset 3px 0 0 transparent; }
-  .badge{ display:inline-flex; align-items:center; gap:6px; padding:4px 10px; border-radius:20px; font-size:11.5px; font-weight:600; white-space:nowrap; }
+  .badge{ text-align:left; display:inline-flex; align-items:center; gap:6px; padding:4px 10px; border-radius:20px; font-size:11.5px; font-weight:600; }
   .badge::before{ content:''; width:6px; height:6px; border-radius:50%; background:currentColor; }
   .b-aktif{ background:rgba(77,208,196,.13); color:var(--teal); } .b-segera{ background:rgba(240,145,63,.14); color:var(--orange); } .b-berakhir{ background:rgba(229,112,143,.14); color:var(--pink); }
   .b-ke{ background:rgba(212,162,76,.13); color:var(--gold); margin-top:6px; font-size:10.5px; padding:2px 8px; } .b-ke::before{ display:none; }
-  .bar{ height:4px; border-radius:4px; background:var(--line); margin-top:8px; overflow:hidden; min-width:140px; } .bar i{ display:block; height:100%; border-radius:4px; background:var(--teal); }
+  .bar{ height:4px; border-radius:4px; background:var(--line); margin-top:8px; overflow:hidden; } .bar i{ display:block; height:100%; border-radius:4px; background:var(--teal); }
   .bar.b-segera i{ background:var(--orange);} .bar.b-berakhir i{ background:var(--pink);}
-  .aksi{ display:flex; gap:6px; align-items:center; }
+  .aksi{ display:flex; flex-wrap:wrap; gap:6px; align-items:center; }
   .aksi button,.aksi a{ display:inline-grid; place-items:center; width:30px; height:30px; border-radius:8px; border:1px solid var(--line); background:transparent; color:var(--muted); cursor:pointer; text-decoration:none; padding:0; transition:all .12s; }
   .aksi button:hover,.aksi a:hover{ background:var(--panel-2); color:var(--text); border-color:var(--dim); }
-  .aksi .pj{ width:auto; padding:0 11px; gap:6px; display:inline-flex; align-items:center; font-size:12px; font-weight:600; color:var(--blue); border-color:rgba(122,162,247,.4); }
+  .aksi .pj{ flex:1 1 100%; width:auto; justify-content:center; padding:0 11px; gap:6px; display:inline-flex; align-items:center; font-size:12px; font-weight:600; color:var(--blue); border-color:rgba(122,162,247,.4); }
   .aksi .pj:hover{ background:rgba(122,162,247,.14); color:var(--blue); border-color:var(--blue); }
   .aksi .del:hover{ background:rgba(229,112,143,.14); color:var(--pink); border-color:var(--pink); } .aksi a:hover{ color:var(--teal); }
   .empty{ padding:56px 20px; text-align:center; color:var(--muted); font-size:13.5px; }
@@ -74,8 +77,8 @@
   .hidden{ display:none !important; }
   .modal-foot{ display:flex; justify-content:flex-end; gap:10px; margin-top:26px; padding-top:18px; border-top:1px solid var(--line); }
   .plats{ display:flex; flex-direction:column; align-items:flex-start; gap:6px; }
-  .plat{ display:inline-block; background:linear-gradient(180deg,#fbf6e6,#ece3c8); color:#15110c; font-family:'Consolas','Roboto Mono','Courier New',monospace; font-weight:800; font-size:17px;
-         letter-spacing:.09em; padding:5px 12px; border-radius:7px; border:2px solid #15110c; box-shadow:0 0 0 1px rgba(255,255,255,.18), 0 3px 8px rgba(0,0,0,.35); white-space:nowrap; text-transform:uppercase; }
+  .plat{ display:inline-block; background:linear-gradient(180deg,#fbf6e6,#ece3c8); color:#15110c; font-family:'Consolas','Roboto Mono','Courier New',monospace; font-weight:800; font-size:15px;
+         letter-spacing:.09em; padding:4px 9px; border-radius:7px; border:2px solid #15110c; box-shadow:0 0 0 1px rgba(255,255,255,.18), 0 3px 8px rgba(0,0,0,.35); white-space:nowrap; text-transform:uppercase; }
   .plat.sm{ font-size:12px; padding:2px 7px; border-width:1.5px; border-radius:5px; margin:2px 4px 0 0; box-shadow:none; }
   .plat.kosong{ background:transparent; color:var(--dim); border:1.5px dashed var(--line); box-shadow:none; font-size:13px; font-weight:600; letter-spacing:0; }
   .cur td{ background:rgba(122,162,247,.08); }
@@ -110,6 +113,7 @@
 
   <div class="card">
     <table>
+      <colgroup><col style="width:11%"><col style="width:14%"><col style="width:12%"><col style="width:12%"><col style="width:9%"><col style="width:12%"><col style="width:9%"><col style="width:10%"><col style="width:11%"></colgroup>
       <thead><tr><th>No. Polisi</th><th>No. Perjanjian</th><th>Vendor</th><th>Pengguna</th><th>Kendaraan</th><th>Masa Berlaku</th><th>Nilai</th><th>Status</th><th>Aksi</th></tr></thead>
       <tbody id="body"><tr><td colspan="9" class="empty">Memuat data...</td></tr></tbody>
     </table>
@@ -261,7 +265,7 @@ function render() {
       <td>${esc(v.vendor_nama)}<small>${esc(v.vendor_pic || '')} ${esc(v.vendor_kontak || '')}</small></td>
       <td>${esc(v.pengguna || '-')}<small>${esc([v.departemen, v.area].filter(Boolean).join(' · '))}</small></td>
       <td>${detail}</td>
-      <td class="nowrap">${tgl(v.tgl_mulai)} – ${tgl(v.tgl_akhir)}<div class="bar ${v.st.cls}"><i style="width:${pct.toFixed(0)}%"></i></div><small>${sisaTxt}</small></td>
+      <td>${tgl(v.tgl_mulai)} – ${tgl(v.tgl_akhir)}<div class="bar ${v.st.cls}"><i style="width:${pct.toFixed(0)}%"></i></div><small>${sisaTxt}</small></td>
       <td class="num">${rp(v.nilai)}<small>${esc(v.periode_bayar || '')}</small></td>
       <td><span class="badge ${v.st.cls}">${v.st.label}</span></td>
       <td><div class="aksi"><button class="pj" onclick="perpanjang('${v.id}')" title="Perpanjang perjanjian">${IC.ref} Perpanjang</button>${link}${v.induk_id ? `<button onclick="riwayat('${v.id}')" title="Riwayat">${IC.hist}</button>` : ''}<button onclick="bukaForm('${v.id}')" title="Edit">${IC.edit}</button><button class="del" onclick="hapus('${v.id}')" title="Hapus">${IC.del}</button></div></td>
