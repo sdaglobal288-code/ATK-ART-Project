@@ -79,7 +79,7 @@
   </div>
 
   <div class="filters">
-    <input id="cari" placeholder="Cari vendor, no. perjanjian, atau departemen..." oninput="render()">
+    <input id="cari" placeholder="Cari vendor, no. perjanjian/lampiran, pengguna, atau no. polisi..." oninput="render()">
     <select id="fStatus" onchange="render()"><option value="">Semua Status</option><option>Aktif</option><option>Segera Berakhir</option><option>Berakhir</option></select>
   </div>
 
@@ -98,6 +98,7 @@
     <div class="form-grid">
       <div class="note hidden" id="mNote"></div>
       <div><label>No. Perjanjian *</label><input id="no_perjanjian"></div>
+      <div><label>No. Lampiran Perjanjian</label><input id="no_lampiran" placeholder="mis. Lampiran 1 / No. addendum"></div>
       <div><label>Nama Vendor *</label><input id="vendor_nama"></div>
       <div><label>Area</label><select id="area" onchange="isiPengguna()"><option value="">Memuat...</option></select></div>
       <div><label>Departemen Pengguna</label><select id="departemen" onchange="isiPengguna()"><option value="">Memuat...</option></select></div>
@@ -143,7 +144,7 @@
 const user = JSON.parse(sessionStorage.getItem('user') || 'null');
 if (!user) location.href = 'login.html';
 
-const FIELDS = ['no_perjanjian','vendor_nama','area','departemen','pengguna','vendor_pic','vendor_kontak','tgl_mulai','tgl_akhir',
+const FIELDS = ['no_perjanjian','no_lampiran','vendor_nama','area','departemen','pengguna','vendor_pic','vendor_kontak','tgl_mulai','tgl_akhir',
   'nilai','periode_bayar','tipe_kendaraan','jumlah_unit','no_polisi','dengan_driver','link_dokumen','keterangan'];
 let data = [], karyawan = [], editId = null, indukSrc = null;
 const $ = id => document.getElementById(id);
@@ -210,7 +211,7 @@ function render() {
   $('sNilai').textContent = rp(st.filter(v => v.st.label !== 'Berakhir').reduce((a, v) => a + Number(v.nilai || 0), 0));
 
   const rows = st.filter(v => (!fs || v.st.label === fs) &&
-    [v.vendor_nama, v.no_perjanjian, v.area, v.departemen, v.pengguna, v.no_polisi].some(x => (x || '').toLowerCase().includes(q)));
+    [v.vendor_nama, v.no_perjanjian, v.no_lampiran, v.area, v.departemen, v.pengguna, v.no_polisi].some(x => (x || '').toLowerCase().includes(q)));
   if (!rows.length) { $('body').innerHTML = '<tr><td colspan="8" class="empty">Belum ada data perjanjian.</td></tr>'; return; }
 
   $('body').innerHTML = rows.map(v => {
@@ -218,7 +219,7 @@ function render() {
     const sisaTxt = v.st.sisa < 0 ? `lewat ${-v.st.sisa} hari` : `${v.st.sisa} hari lagi`;
     const link = /^https?:\/\//.test(v.link_dokumen || '') ? `<a href="${esc(v.link_dokumen)}" target="_blank" rel="noopener">Dokumen</a>` : '';
     return `<tr>
-      <td><b>${esc(v.no_perjanjian)}</b>${v.perpanjangan_ke > 0 ? `<br><span class="badge b-ke">Perpanjangan ke-${v.perpanjangan_ke}</span>` : ''}</td>
+      <td><b>${esc(v.no_perjanjian)}</b>${v.no_lampiran ? `<small>Lampiran: ${esc(v.no_lampiran)}</small>` : ''}${v.perpanjangan_ke > 0 ? `<br><span class="badge b-ke">Perpanjangan ke-${v.perpanjangan_ke}</span>` : ''}</td>
       <td>${esc(v.vendor_nama)}<small>${esc(v.vendor_pic || '')} ${esc(v.vendor_kontak || '')}</small></td>
       <td>${esc(v.pengguna || '-')}<small>${esc([v.departemen, v.area].filter(Boolean).join(' · '))}</small></td>
       <td>${detail}</td>
@@ -248,7 +249,7 @@ function perpanjang(id) {
   const src = data.find(x => x.id === id);
   editId = null; indukSrc = src;
   const d = new Date(src.tgl_akhir + 'T00:00:00'); d.setDate(d.getDate() + 1);
-  isiForm({...src, no_perjanjian: '', tgl_mulai: d.toLocaleDateString('sv-SE'), tgl_akhir: '', link_dokumen: '', keterangan: ''});
+  isiForm({...src, no_perjanjian: '', no_lampiran: '', tgl_mulai: d.toLocaleDateString('sv-SE'), tgl_akhir: '', link_dokumen: '', keterangan: ''});
   $('mNote').innerHTML = `Perpanjangan dari perjanjian <b>${esc(src.no_perjanjian)}</b> (berakhir ${tgl(src.tgl_akhir)}). Data dicopy dari perjanjian sebelumnya, silakan sesuaikan no. perjanjian, masa berlaku, dan nilai. Perjanjian lama tetap tersimpan di Riwayat.`;
   $('mNote').classList.remove('hidden');
   $('mTitle').textContent = 'Perpanjang Perjanjian';
@@ -261,7 +262,7 @@ function riwayat(id) {
     const s = statusOf(x);
     return `<tr class="${x.id === id ? 'cur' : ''}">
       <td>${x.perpanjangan_ke > 0 ? 'Perpanjangan ke-' + x.perpanjangan_ke : 'Perjanjian awal'}</td>
-      <td><b>${esc(x.no_perjanjian)}</b>${x.link_dokumen && /^https?:\/\//.test(x.link_dokumen) ? `<small><a href="${esc(x.link_dokumen)}" target="_blank" rel="noopener" style="color:var(--teal)">Dokumen</a></small>` : ''}</td>
+      <td><b>${esc(x.no_perjanjian)}</b>${x.no_lampiran ? `<small>Lampiran: ${esc(x.no_lampiran)}</small>` : ''}${x.link_dokumen && /^https?:\/\//.test(x.link_dokumen) ? `<small><a href="${esc(x.link_dokumen)}" target="_blank" rel="noopener" style="color:var(--teal)">Dokumen</a></small>` : ''}</td>
       <td>${tgl(x.tgl_mulai)} – ${tgl(x.tgl_akhir)}</td>
       <td>${rp(x.nilai)}<small>${esc(x.periode_bayar || '')}</small></td>
       <td>${esc(x.jumlah_unit ?? '-')} unit ${esc(x.tipe_kendaraan || '')}<small>${esc(x.no_polisi || '')}</small></td>
