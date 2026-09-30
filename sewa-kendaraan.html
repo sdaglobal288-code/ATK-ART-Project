@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sewa Kendaraan</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="supabase/config.js"></script>
+<style>
+  :root{ --bg:#241a12; --panel:#3a2b1e; --panel-2:#302213; --border:#4f3d29; --text:#f2e9dc; --muted:#b6a48c;
+         --gold:#d4a24c; --teal:#4dd0c4; --orange:#e8873a; --pink:#e06b8b; --blue:#7aa2f7; }
+  *{ box-sizing:border-box; }
+  body{ margin:0; background:var(--bg); color:var(--text); font-family:'Segoe UI',system-ui,sans-serif; padding:28px 20px 80px; }
+  .wrap{ max-width:1200px; margin:0 auto; }
+  .topbar{ display:flex; justify-content:space-between; align-items:flex-start; gap:12px; flex-wrap:wrap; margin-bottom:24px; }
+  .back{ color:var(--muted); text-decoration:none; font-size:13px; } .back:hover{ color:var(--gold); }
+  h1{ font-size:22px; margin:4px 0; } .muted{ color:var(--muted); font-size:13px; }
+  .btn{ background:linear-gradient(135deg,var(--blue),#5b82d6); color:#1a1410; border:none; padding:11px 20px; border-radius:10px; font-weight:700; font-size:13px; cursor:pointer; white-space:nowrap; }
+  .btn.secondary{ background:transparent; border:1px solid var(--border); color:var(--text); }
+  .btn.danger{ background:transparent; border:1px solid var(--pink); color:var(--pink); }
+  .btn.small{ padding:6px 12px; font-size:12px; }
+  .stats{ display:grid; grid-template-columns:repeat(5,1fr); gap:14px; margin-bottom:22px; }
+  @media(max-width:900px){ .stats{ grid-template-columns:repeat(2,1fr); } }
+  .stat{ background:var(--panel); border:1px solid var(--border); border-radius:14px; padding:16px 18px; }
+  .stat .l{ font-size:11px; color:var(--muted); } .stat .n{ font-size:24px; font-weight:700; margin-top:6px; }
+  .filters{ display:flex; gap:12px; flex-wrap:wrap; margin-bottom:18px; }
+  input,select,textarea{ background:var(--panel-2); border:1px solid var(--border); color:var(--text); padding:9px 12px; border-radius:8px; font-size:13px; font-family:inherit; width:100%; }
+  .filters input{ flex:1; min-width:220px; width:auto; } .filters select{ width:auto; }
+  input:focus,select:focus,textarea:focus{ outline:none; border-color:var(--blue); }
+  .card{ background:var(--panel); border:1px solid var(--border); border-radius:14px; overflow-x:auto; }
+  table{ width:100%; border-collapse:collapse; min-width:900px; }
+  th,td{ padding:12px 14px; text-align:left; font-size:13px; border-bottom:1px solid var(--border); vertical-align:top; }
+  th{ color:var(--muted); font-size:12px; background:var(--panel-2); font-weight:600; }
+  tbody tr:last-child td{ border-bottom:none; }
+  tbody tr:hover{ background:rgba(122,162,247,.06); }
+  td small{ display:block; color:var(--muted); font-size:11px; margin-top:2px; }
+  .badge{ display:inline-block; padding:4px 10px; border-radius:20px; font-size:11px; font-weight:700; white-space:nowrap; }
+  .b-aktif{ background:rgba(77,208,196,.15); color:var(--teal); }
+  .b-segera{ background:rgba(232,135,58,.15); color:var(--orange); }
+  .b-berakhir{ background:rgba(224,107,139,.15); color:var(--pink); }
+  .j-out{ background:rgba(122,162,247,.15); color:var(--blue); } .j-sewa{ background:rgba(212,162,76,.15); color:var(--gold); }
+  .empty{ padding:40px; text-align:center; color:var(--muted); font-size:13px; }
+  .aksi{ display:flex; gap:8px; flex-wrap:wrap; } .aksi a,.aksi button{ font-size:12px; color:var(--gold); background:none; border:none; cursor:pointer; padding:0; text-decoration:none; }
+  .aksi .del{ color:var(--pink); } .aksi a{ color:var(--teal); }
+  /* modal */
+  .overlay{ position:fixed; inset:0; background:rgba(0,0,0,.6); display:none; align-items:flex-start; justify-content:center; padding:30px 16px; overflow-y:auto; z-index:50; }
+  .overlay.show{ display:flex; }
+  .modal{ background:var(--panel); border:1px solid var(--border); border-radius:16px; width:100%; max-width:760px; padding:24px; }
+  .modal h2{ margin:0 0 4px; font-size:18px; }
+  .form-grid{ display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-top:18px; }
+  @media(max-width:640px){ .form-grid{ grid-template-columns:1fr; } }
+  .full{ grid-column:1/-1; } label{ display:block; font-size:12px; color:var(--muted); margin-bottom:5px; }
+  .sect{ grid-column:1/-1; font-size:13px; font-weight:700; color:var(--blue); border-top:1px dashed var(--border); padding-top:14px; margin-top:4px; }
+  .hidden{ display:none !important; }
+  .modal-foot{ display:flex; justify-content:flex-end; gap:10px; margin-top:22px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="topbar">
+    <div>
+      <a class="back" href="pilih-modul.html">← Kembali ke pilih modul</a>
+      <h1>Sewa Kendaraan</h1>
+      <div class="muted">Data perjanjian sewa kendaraan dengan vendor, lengkap dengan pengingat masa berlaku.</div>
+    </div>
+    <button class="btn" onclick="bukaForm()">+ Tambah Perjanjian</button>
+  </div>
+
+  <div class="stats">
+    <div class="stat"><div class="l">Total Perjanjian</div><div class="n" id="sTotal">-</div></div>
+    <div class="stat"><div class="l">Aktif</div><div class="n" id="sAktif">-</div></div>
+    <div class="stat"><div class="l">Segera Berakhir (≤ 60 hari)</div><div class="n" id="sSegera">-</div></div>
+    <div class="stat"><div class="l">Sudah Berakhir</div><div class="n" id="sBerakhir">-</div></div>
+    <div class="stat"><div class="l">Nilai Kontrak Aktif</div><div class="n" id="sNilai" style="font-size:17px;padding-top:6px">-</div></div>
+  </div>
+
+  <div class="filters">
+    <input id="cari" placeholder="Cari vendor, no. perjanjian, atau departemen..." oninput="render()">
+    <select id="fStatus" onchange="render()"><option value="">Semua Status</option><option>Aktif</option><option>Segera Berakhir</option><option>Berakhir</option></select>
+  </div>
+
+  <div class="card">
+    <table>
+      <thead><tr><th>No. Perjanjian</th><th>Vendor</th><th>Kendaraan</th><th>Masa Berlaku</th><th>Nilai</th><th>Status</th><th>Aksi</th></tr></thead>
+      <tbody id="body"><tr><td colspan="7" class="empty">Memuat data...</td></tr></tbody>
+    </table>
+  </div>
+</div>
+
+<div class="overlay" id="overlay">
+  <div class="modal">
+    <h2 id="mTitle">Tambah Perjanjian</h2>
+    <div class="muted">Kolom bertanda * wajib diisi.</div>
+    <div class="form-grid">
+      <div><label>No. Perjanjian *</label><input id="no_perjanjian"></div>
+      <div><label>Nama Vendor *</label><input id="vendor_nama"></div>
+      <div><label>Departemen Pengguna</label><input id="departemen"></div>
+      <div><label>PIC Vendor</label><input id="vendor_pic"></div>
+      <div><label>Kontak PIC (telp/email)</label><input id="vendor_kontak"></div>
+      <div><label>Tanggal Mulai *</label><input type="date" id="tgl_mulai"></div>
+      <div><label>Tanggal Berakhir *</label><input type="date" id="tgl_akhir"></div>
+      <div><label>Nilai Kontrak (Rp)</label><input type="number" id="nilai" min="0"></div>
+      <div><label>Periode Pembayaran</label>
+        <select id="periode_bayar"><option>Bulanan</option><option>Triwulan</option><option>Tahunan</option><option>Sekali Bayar</option></select></div>
+
+      <div class="sect">Detail Kendaraan</div>
+      <div><label>Tipe Kendaraan</label><input id="tipe_kendaraan" placeholder="mis. Toyota Avanza"></div>
+      <div><label>Jumlah Unit</label><input type="number" id="jumlah_unit" min="0"></div>
+      <div><label>No. Polisi</label><input id="no_polisi" placeholder="Pisahkan dengan koma bila lebih dari satu"></div>
+      <div><label>Dengan Driver?</label><select id="dengan_driver"><option>Ya</option><option>Tidak</option></select></div>
+
+      <div class="sect">Lainnya</div>
+      <div class="full"><label>Link Dokumen (Google Drive dll.)</label><input id="link_dokumen" placeholder="https://..."></div>
+      <div class="full"><label>Keterangan</label><textarea id="keterangan" rows="3"></textarea></div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn secondary" onclick="tutupForm()">Batal</button>
+      <button class="btn" id="btnSimpan" onclick="simpan()">Simpan</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const user = JSON.parse(sessionStorage.getItem('user') || 'null');
+if (!user) location.href = 'login.html';
+
+const FIELDS = ['no_perjanjian','vendor_nama','departemen','vendor_pic','vendor_kontak','tgl_mulai','tgl_akhir',
+  'nilai','periode_bayar','tipe_kendaraan','jumlah_unit','no_polisi','dengan_driver','link_dokumen','keterangan'];
+let data = [], editId = null;
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const rp = n => 'Rp ' + Number(n || 0).toLocaleString('id-ID');
+const tgl = d => d ? new Date(d + 'T00:00:00').toLocaleDateString('id-ID', {day:'numeric', month:'short', year:'numeric'}) : '-';
+
+function statusOf(v) {
+  const sisa = Math.ceil((new Date(v.tgl_akhir + 'T00:00:00') - new Date().setHours(0,0,0,0)) / 86400000);
+  if (sisa < 0) return {label:'Berakhir', cls:'b-berakhir', sisa};
+  if (sisa <= 60) return {label:'Segera Berakhir', cls:'b-segera', sisa};
+  return {label:'Aktif', cls:'b-aktif', sisa};
+}
+
+async function load() {
+  const { data: rows, error } = await supabaseClient.from('perjanjian_vendor').select('*').eq('jenis', 'Sewa Kendaraan').order('tgl_akhir', {ascending: true});
+  if (error) { console.error(error); $('body').innerHTML = '<tr><td colspan="7" class="empty">Gagal memuat data. Pastikan tabel perjanjian_vendor sudah dibuat (jalankan sql/vendor_schema.sql di Supabase).</td></tr>'; return; }
+  data = rows || []; render();
+}
+
+function render() {
+  const q = $('cari').value.toLowerCase(), fs = $('fStatus').value;
+  const st = data.map(v => ({...v, st: statusOf(v)}));
+  $('sTotal').textContent = st.length;
+  $('sAktif').textContent = st.filter(v => v.st.label === 'Aktif').length;
+  $('sSegera').textContent = st.filter(v => v.st.label === 'Segera Berakhir').length;
+  $('sBerakhir').textContent = st.filter(v => v.st.label === 'Berakhir').length;
+  $('sNilai').textContent = rp(st.filter(v => v.st.label !== 'Berakhir').reduce((a, v) => a + Number(v.nilai || 0), 0));
+
+  const rows = st.filter(v => (!fs || v.st.label === fs) &&
+    [v.vendor_nama, v.no_perjanjian, v.departemen].some(x => (x || '').toLowerCase().includes(q)));
+  if (!rows.length) { $('body').innerHTML = '<tr><td colspan="7" class="empty">Belum ada data perjanjian.</td></tr>'; return; }
+
+  $('body').innerHTML = rows.map(v => {
+    const detail = `${esc(v.jumlah_unit ?? '-')} unit ${esc(v.tipe_kendaraan || '')}<small>${esc(v.no_polisi || '')}${v.dengan_driver ? ' · Driver: ' + esc(v.dengan_driver) : ''}</small>`;
+    const sisaTxt = v.st.sisa < 0 ? `lewat ${-v.st.sisa} hari` : `${v.st.sisa} hari lagi`;
+    const link = /^https?:\/\//.test(v.link_dokumen || '') ? `<a href="${esc(v.link_dokumen)}" target="_blank" rel="noopener">Dokumen</a>` : '';
+    return `<tr>
+      <td><b>${esc(v.no_perjanjian)}</b><small>${esc(v.departemen || '')}</small></td>
+      <td>${esc(v.vendor_nama)}<small>${esc(v.vendor_pic || '')} ${esc(v.vendor_kontak || '')}</small></td>
+      <td>${detail}</td>
+      <td>${tgl(v.tgl_mulai)} – ${tgl(v.tgl_akhir)}<small>${sisaTxt}</small></td>
+      <td>${rp(v.nilai)}<small>${esc(v.periode_bayar || '')}</small></td>
+      <td><span class="badge ${v.st.cls}">${v.st.label}</span></td>
+      <td><div class="aksi">${link}<button onclick="bukaForm('${v.id}')">Edit</button><button class="del" onclick="hapus('${v.id}')">Hapus</button></div></td>
+    </tr>`;
+  }).join('');
+}
+
+function bukaForm(id) {
+  editId = id || null;
+  const v = data.find(x => x.id === id) || {};
+  FIELDS.forEach(f => $(f).value = v[f] ?? (f === 'periode_bayar' ? 'Bulanan' : f === 'dengan_driver' ? 'Ya' : ''));
+  $('mTitle').textContent = id ? 'Edit Perjanjian' : 'Tambah Perjanjian';
+  $('overlay').classList.add('show');
+}
+function tutupForm() { $('overlay').classList.remove('show'); }
+
+async function simpan() {
+  const p = {};
+  FIELDS.forEach(f => { const val = $(f).value.trim(); p[f] = val === '' ? null : val; });
+  ['nilai','jumlah_unit'].forEach(f => { if (p[f] !== null) p[f] = Number(p[f]); });
+  p.jenis = 'Sewa Kendaraan';
+  if (!p.no_perjanjian || !p.vendor_nama || !p.tgl_mulai || !p.tgl_akhir) return alert('Lengkapi kolom yang wajib diisi (*).');
+  if (p.tgl_akhir < p.tgl_mulai) return alert('Tanggal berakhir tidak boleh sebelum tanggal mulai.');
+  $('btnSimpan').disabled = true;
+  const q = editId ? supabaseClient.from('perjanjian_vendor').update(p).eq('id', editId)
+                   : supabaseClient.from('perjanjian_vendor').insert({...p, created_by: user.username || user.nama || null});
+  const { error } = await q;
+  $('btnSimpan').disabled = false;
+  if (error) { console.error(error); return alert('Gagal menyimpan: ' + error.message); }
+  tutupForm(); load();
+}
+
+async function hapus(id) {
+  const v = data.find(x => x.id === id);
+  if (!confirm(`Hapus perjanjian ${v.no_perjanjian} (${v.vendor_nama})?`)) return;
+  const { error } = await supabaseClient.from('perjanjian_vendor').delete().eq('id', id);
+  if (error) return alert('Gagal menghapus: ' + error.message);
+  load();
+}
+
+document.addEventListener('keydown', e => { if (e.key === 'Escape') tutupForm(); });
+load();
+</script>
+</body>
+</html>
