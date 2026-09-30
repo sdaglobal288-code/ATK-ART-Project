@@ -99,6 +99,7 @@
       <div class="note hidden" id="mNote"></div>
       <div><label>No. Perjanjian *</label><input id="no_perjanjian"></div>
       <div><label>Nama Vendor *</label><input id="vendor_nama"></div>
+      <div><label>Area</label><select id="area" onchange="isiPengguna()"><option value="">Memuat...</option></select></div>
       <div><label>Departemen Pengguna</label><select id="departemen" onchange="isiPengguna()"><option value="">Memuat...</option></select></div>
       <div><label>PIC / Pengguna Kendaraan</label><input id="pengguna" list="listKaryawan" placeholder="Pilih dari karyawan atau ketik nama"><datalist id="listKaryawan"></datalist></div>
       <div><label>PIC Vendor</label><input id="vendor_pic"></div>
@@ -142,7 +143,7 @@
 const user = JSON.parse(sessionStorage.getItem('user') || 'null');
 if (!user) location.href = 'login.html';
 
-const FIELDS = ['no_perjanjian','vendor_nama','departemen','pengguna','vendor_pic','vendor_kontak','tgl_mulai','tgl_akhir',
+const FIELDS = ['no_perjanjian','vendor_nama','area','departemen','pengguna','vendor_pic','vendor_kontak','tgl_mulai','tgl_akhir',
   'nilai','periode_bayar','tipe_kendaraan','jumlah_unit','no_polisi','dengan_driver','link_dokumen','keterangan'];
 let data = [], karyawan = [], editId = null, indukSrc = null;
 const $ = id => document.getElementById(id);
@@ -164,10 +165,14 @@ async function load() {
 }
 
 async function loadMaster() {
-  const [d, k] = await Promise.all([
+  const [d, k, a] = await Promise.all([
     supabaseClient.from('master_departemen').select('*').order('nama_departemen', {ascending: true}),
-    supabaseClient.from('master_karyawan').select('*').eq('status', 'Aktif').order('nama', {ascending: true})
+    supabaseClient.from('master_karyawan').select('*').eq('status', 'Aktif').order('nama', {ascending: true}),
+    supabaseClient.from('master_area').select('*').order('nama_area', {ascending: true})
   ]);
+  if (a.error) console.error(a.error);
+  $('area').innerHTML = '<option value="">-- Pilih Area --</option>' +
+    (a.data || []).map(x => `<option value="${esc(x.nama_area)}">${esc(x.nama_area)}</option>`).join('');
   if (d.error) console.error(d.error);
   if (k.error) console.error(k.error);
   $('departemen').innerHTML = '<option value="">-- Pilih Departemen --</option>' +
@@ -176,9 +181,9 @@ async function loadMaster() {
 }
 
 function isiPengguna() {
-  const dep = $('departemen').value;
-  let list = karyawan.filter(x => x.departemen === dep);
-  if (!list.length) list = karyawan;
+  const dep = $('departemen').value, ar = $('area').value;
+  let list = ar ? karyawan.filter(x => x.area === ar) : karyawan;   // Area: ketat
+  if (dep) { const byDep = list.filter(x => x.departemen === dep); if (byDep.length) list = byDep; }
   $('listKaryawan').innerHTML = list.map(x => `<option value="${esc(x.nama)}">${esc(x.nik || '')} ${esc(x.departemen || '')}</option>`).join('');
 }
 
@@ -205,7 +210,7 @@ function render() {
   $('sNilai').textContent = rp(st.filter(v => v.st.label !== 'Berakhir').reduce((a, v) => a + Number(v.nilai || 0), 0));
 
   const rows = st.filter(v => (!fs || v.st.label === fs) &&
-    [v.vendor_nama, v.no_perjanjian, v.departemen, v.pengguna, v.no_polisi].some(x => (x || '').toLowerCase().includes(q)));
+    [v.vendor_nama, v.no_perjanjian, v.area, v.departemen, v.pengguna, v.no_polisi].some(x => (x || '').toLowerCase().includes(q)));
   if (!rows.length) { $('body').innerHTML = '<tr><td colspan="8" class="empty">Belum ada data perjanjian.</td></tr>'; return; }
 
   $('body').innerHTML = rows.map(v => {
@@ -215,7 +220,7 @@ function render() {
     return `<tr>
       <td><b>${esc(v.no_perjanjian)}</b>${v.perpanjangan_ke > 0 ? `<br><span class="badge b-ke">Perpanjangan ke-${v.perpanjangan_ke}</span>` : ''}</td>
       <td>${esc(v.vendor_nama)}<small>${esc(v.vendor_pic || '')} ${esc(v.vendor_kontak || '')}</small></td>
-      <td>${esc(v.pengguna || '-')}<small>${esc(v.departemen || '')}</small></td>
+      <td>${esc(v.pengguna || '-')}<small>${esc([v.departemen, v.area].filter(Boolean).join(' · '))}</small></td>
       <td>${detail}</td>
       <td>${tgl(v.tgl_mulai)} – ${tgl(v.tgl_akhir)}<small>${sisaTxt}</small></td>
       <td>${rp(v.nilai)}<small>${esc(v.periode_bayar || '')}</small></td>
@@ -227,9 +232,9 @@ function render() {
 
 function isiForm(v) {
   FIELDS.forEach(f => $(f).value = v[f] ?? (f === 'periode_bayar' ? 'Bulanan' : f === 'dengan_driver' ? 'Ya' : ''));
-  if (v.departemen && ![...$('departemen').options].some(o => o.value === v.departemen)) {
-    $('departemen').add(new Option(v.departemen, v.departemen)); $('departemen').value = v.departemen;
-  }
+  ['departemen', 'area'].forEach(f => {
+    if (v[f] && ![...$(f).options].some(o => o.value === v[f])) { $(f).add(new Option(v[f], v[f])); $(f).value = v[f]; }
+  });
   isiPengguna();
 }
 function bukaForm(id) {

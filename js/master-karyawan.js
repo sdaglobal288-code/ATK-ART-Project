@@ -48,6 +48,26 @@ document.addEventListener("keydown", e => {
 });
 
 // =====================================
+// LOAD AREA (dropdown form + filter)
+async function loadArea() {
+    try {
+        const { data, error } = await supabaseClient
+            .from("master_area").select("*").order("nama_area");
+        if (error) throw error;
+        const selForm = document.getElementById("area");
+        const selFilter = document.getElementById("filterArea");
+        selForm.innerHTML   = `<option value="">-- Pilih Area --</option>`;
+        selFilter.innerHTML = `<option value="">Semua Area</option>`;
+        (data || []).forEach(item => {
+            selForm.innerHTML   += `<option value="${item.nama_area}">${item.nama_area}</option>`;
+            selFilter.innerHTML += `<option value="${item.nama_area}">${item.nama_area}</option>`;
+        });
+    } catch (err) {
+        console.error("Gagal memuat area:", err);
+    }
+}
+
+// =====================================
 // LOAD DEPARTEMEN (dropdown form + filter)
 // =====================================
 
@@ -117,7 +137,7 @@ async function loadKaryawan() {
 
     tbody.innerHTML = `
         <tr>
-            <td colspan="8" class="loading-state">
+            <td colspan="9" class="loading-state">
                 <span class="spinner"></span> Memuat data...
             </td>
         </tr>
@@ -139,7 +159,7 @@ async function loadKaryawan() {
         console.error(err);
         tbody.innerHTML = `
             <tr>
-                <td colspan="8" class="empty-state">
+                <td colspan="9" class="empty-state">
                     ⚠ Gagal memuat data: ${err.message}
                 </td>
             </tr>
@@ -185,7 +205,7 @@ function renderKaryawan(list) {
     if (list.length === 0) {
         tbody.innerHTML = `
             <tr>
-                <td colspan="8" class="empty-state">
+                <td colspan="9" class="empty-state">
                     Tidak ada data karyawan yang cocok.
                 </td>
             </tr>
@@ -206,6 +226,7 @@ function renderKaryawan(list) {
                 <td><span class="nik-pill">${item.nik}</span></td>
                 <td><strong>${item.nama}</strong></td>
                 <td>${item.departemen ?? "-"}</td>
+                <td>${item.area ?? "-"}</td>
                 <td>${item.jabatan ?? "-"}</td>
                 <td>${formatTanggalTampil(item.tanggal_masuk)}</td>
                 <td>${badgeStatus}</td>
@@ -240,9 +261,11 @@ function applyFilter() {
             item.nama.toLowerCase().includes(keyword);
 
         const cocokDept   = !dept   || item.departemen === dept;
+        const areaFilter  = document.getElementById("filterArea")?.value || "";
+        const cocokArea   = !areaFilter || item.area === areaFilter;
         const cocokStatus = !status || item.status === status;
 
-        return cocokKeyword && cocokDept && cocokStatus;
+        return cocokKeyword && cocokDept && cocokArea && cocokStatus;
 
     });
 
@@ -253,6 +276,7 @@ function applyFilter() {
 document.getElementById("searchKaryawan").addEventListener("input", applyFilter);
 document.getElementById("filterDept").addEventListener("change", applyFilter);
 document.getElementById("filterStatus").addEventListener("change", applyFilter);
+document.getElementById("filterArea").addEventListener("change", applyFilter);
 
 // =====================================
 // SIMPAN / UPDATE KARYAWAN
@@ -274,6 +298,7 @@ if (form) {
             const nik           = document.getElementById("nik").value.trim().toUpperCase();
             const nama          = document.getElementById("nama").value.trim();
             const departemen    = document.getElementById("departemen").value;
+            const area          = document.getElementById("area").value || null;
             const jabatan       = document.getElementById("jabatan").value;
             const tanggalMasuk  = document.getElementById("tanggal_masuk").value || null;
             const status        = document.getElementById("status").value;
@@ -291,7 +316,7 @@ if (form) {
 
                 const { error } = await supabaseClient
                     .from("master_karyawan")
-                    .update({ nama, departemen, jabatan, tanggal_masuk: tanggalMasuk, status })
+                    .update({ nama, departemen, area, jabatan, tanggal_masuk: tanggalMasuk, status })
                     .eq("id", editId);
 
                 if (error) throw error;
@@ -323,6 +348,7 @@ if (form) {
                     nik,
                     nama,
                     departemen,
+                    area,
                     jabatan,
                     tanggal_masuk : tanggalMasuk,
                     status,
@@ -369,6 +395,7 @@ async function editKaryawan(id) {
         document.getElementById("nik").value          = data.nik;
         document.getElementById("nama").value         = data.nama;
         document.getElementById("departemen").value   = data.departemen;
+        document.getElementById("area").value         = data.area ?? "";
         document.getElementById("jabatan").value      = data.jabatan;
         document.getElementById("tanggal_masuk").value = data.tanggal_masuk
             ? String(data.tanggal_masuk).slice(0, 10)
@@ -438,6 +465,7 @@ function exportExcel() {
         "NIK"             : item.nik,
         "NAMA"            : item.nama,
         "DEPARTEMEN"      : item.departemen ?? "-",
+        "AREA"            : item.area ?? "-",
         "JABATAN"         : item.jabatan ?? "-",
         "TANGGAL BERGABUNG": item.tanggal_masuk ?? "-",
         "STATUS"          : item.status,
@@ -512,6 +540,7 @@ if (fileImport) {
                     nik           : String(row.NIK ?? row.nik ?? "").trim().toUpperCase(),
                     nama          : String(row.NAMA ?? row.nama ?? "").trim(),
                     departemen    : String(row.DEPARTEMEN ?? row.departemen ?? "").trim(),
+                    area          : String(row.AREA ?? row.area ?? "").trim() || null,
                     jabatan       : String(row.JABATAN ?? row.jabatan ?? "").trim(),
                     tanggal_masuk : tanggalMasuk,
                     status        : String(row.STATUS ?? row.status ?? "Aktif").trim(),
@@ -551,6 +580,6 @@ if (fileImport) {
 // =====================================
 
 document.addEventListener("DOMContentLoaded", async () => {
-    await Promise.all([ loadDepartemen(), loadJabatan() ]);
+    await Promise.all([ loadDepartemen(), loadJabatan(), loadArea() ]);
     await loadKaryawan();
 });

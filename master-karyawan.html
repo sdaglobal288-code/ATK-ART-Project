@@ -503,7 +503,7 @@
 <div class="content">
 
   <h2>👥 Master Karyawan</h2>
-  <p class="page-subtitle">Kelola data master karyawan: NIK, nama, departemen, jabatan, dan status.</p>
+  <p class="page-subtitle">Kelola data master karyawan: NIK, nama, departemen, area, jabatan, dan status.</p>
   <br>
 
   <!-- ================= TOOLBAR ================= -->
@@ -536,6 +536,9 @@
       <select id="filterDept" class="filter-select">
         <option value="">Semua Departemen</option>
       </select>
+      <select id="filterArea" class="filter-select">
+        <option value="">Semua Area</option>
+      </select>
       <select id="filterStatus" class="filter-select">
         <option value="">Semua Status</option>
         <option value="Aktif">Aktif</option>
@@ -550,6 +553,7 @@
             <th width="110">NIK</th>
             <th>Nama Karyawan</th>
             <th width="160">Departemen</th>
+            <th width="140">Area</th>
             <th width="160">Jabatan</th>
             <th width="130">Tgl Bergabung</th>
             <th width="110">Status</th>
@@ -596,6 +600,13 @@
           <label for="departemen">Departemen</label>
           <select id="departemen" required>
             <option value="">-- Pilih Departemen --</option>
+          </select>
+        </div>
+
+        <div class="field">
+          <label for="area">Area</label>
+          <select id="area">
+            <option value="">-- Pilih Area --</option>
           </select>
         </div>
 
