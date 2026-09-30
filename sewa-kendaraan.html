@@ -40,7 +40,7 @@
   .filters select{ width:auto; min-width:160px; }
   .count{ margin-left:auto; color:var(--muted); font-size:12.5px; }
   .card{ background:var(--panel); border:1px solid var(--line); border-radius:var(--r); overflow-x:auto; box-shadow:0 8px 30px rgba(0,0,0,.25); }
-  table{ width:100%; border-collapse:collapse; min-width:1080px; }
+  table{ width:100%; border-collapse:collapse; min-width:1200px; }
   th{ position:sticky; top:0; text-align:left; padding:12px 16px; font-size:11px; font-weight:700; color:var(--muted); text-transform:uppercase; letter-spacing:.06em; background:var(--panel-2); border-bottom:1px solid var(--line); white-space:nowrap; }
   td{ padding:14px 16px; font-size:13px; border-bottom:1px solid var(--line); vertical-align:top; }
   tbody tr{ transition:background .12s; } tbody tr:last-child td{ border-bottom:none; } tbody tr:hover{ background:rgba(255,255,255,.03); }
@@ -73,6 +73,11 @@
   .note{ grid-column:1/-1; background:rgba(122,162,247,.1); border:1px solid rgba(122,162,247,.4); border-radius:9px; padding:11px 14px; font-size:12.5px; }
   .hidden{ display:none !important; }
   .modal-foot{ display:flex; justify-content:flex-end; gap:10px; margin-top:26px; padding-top:18px; border-top:1px solid var(--line); }
+  .plats{ display:flex; flex-direction:column; align-items:flex-start; gap:6px; }
+  .plat{ display:inline-block; background:linear-gradient(180deg,#fbf6e6,#ece3c8); color:#15110c; font-family:'Consolas','Roboto Mono','Courier New',monospace; font-weight:800; font-size:17px;
+         letter-spacing:.09em; padding:5px 12px; border-radius:7px; border:2px solid #15110c; box-shadow:0 0 0 1px rgba(255,255,255,.18), 0 3px 8px rgba(0,0,0,.35); white-space:nowrap; text-transform:uppercase; }
+  .plat.sm{ font-size:12px; padding:2px 7px; border-width:1.5px; border-radius:5px; margin:2px 4px 0 0; box-shadow:none; }
+  .plat.kosong{ background:transparent; color:var(--dim); border:1.5px dashed var(--line); box-shadow:none; font-size:13px; font-weight:600; letter-spacing:0; }
   .cur td{ background:rgba(122,162,247,.08); }
 </style>
 </head>
@@ -105,8 +110,8 @@
 
   <div class="card">
     <table>
-      <thead><tr><th>No. Perjanjian</th><th>Vendor</th><th>Pengguna</th><th>Kendaraan</th><th>Masa Berlaku</th><th>Nilai</th><th>Status</th><th>Aksi</th></tr></thead>
-      <tbody id="body"><tr><td colspan="8" class="empty">Memuat data...</td></tr></tbody>
+      <thead><tr><th>No. Polisi</th><th>No. Perjanjian</th><th>Vendor</th><th>Pengguna</th><th>Kendaraan</th><th>Masa Berlaku</th><th>Nilai</th><th>Status</th><th>Aksi</th></tr></thead>
+      <tbody id="body"><tr><td colspan="9" class="empty">Memuat data...</td></tr></tbody>
     </table>
   </div>
 </div>
@@ -175,6 +180,10 @@ const IC = {doc: ic('<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 
   edit: ic('<path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/>'),
   del: ic('<path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6l-1 14H6L5 6"/>'),
   ref: ic('<path d="M21 12a9 9 0 1 1-3-6.7L21 8"/><path d="M21 3v5h-5"/>')};
+const plat = (t, c = '') => {
+  const l = String(t || '').split(/[,;\n]/).map(x => x.trim()).filter(Boolean);
+  return l.length ? `<div class="plats">${l.map(x => `<span class="plat ${c}">${esc(x)}</span>`).join('')}</div>` : `<span class="plat kosong ${c}">Belum diisi</span>`;
+};
 const rp = n => 'Rp ' + Number(n || 0).toLocaleString('id-ID');
 const tgl = d => d ? new Date(d + 'T00:00:00').toLocaleDateString('id-ID', {day:'numeric', month:'short', year:'numeric'}) : '-';
 
@@ -187,7 +196,7 @@ function statusOf(v) {
 
 async function load() {
   const { data: rows, error } = await supabaseClient.from('perjanjian_vendor').select('*').eq('jenis', 'Sewa Kendaraan').order('tgl_akhir', {ascending: true});
-  if (error) { console.error(error); $('body').innerHTML = '<tr><td colspan="8" class="empty">Gagal memuat data. Pastikan tabel perjanjian_vendor sudah dibuat (jalankan sql/vendor_schema.sql di Supabase).</td></tr>'; return; }
+  if (error) { console.error(error); $('body').innerHTML = '<tr><td colspan="9" class="empty">Gagal memuat data. Pastikan tabel perjanjian_vendor sudah dibuat (jalankan sql/vendor_schema.sql di Supabase).</td></tr>'; return; }
   data = rows || []; render();
 }
 
@@ -239,14 +248,15 @@ function render() {
   const rows = st.filter(v => (!fs || v.st.label === fs) &&
     [v.vendor_nama, v.no_perjanjian, v.no_lampiran, v.area, v.departemen, v.pengguna, v.no_polisi].some(x => (x || '').toLowerCase().includes(q)));
   $('count').textContent = rows.length + ' perjanjian';
-  if (!rows.length) { $('body').innerHTML = '<tr><td colspan="8" class="empty">Belum ada data perjanjian.</td></tr>'; return; }
+  if (!rows.length) { $('body').innerHTML = '<tr><td colspan="9" class="empty">Belum ada data perjanjian.</td></tr>'; return; }
 
   $('body').innerHTML = rows.map(v => {
-    const detail = `${esc(v.jumlah_unit ?? '-')} unit ${esc(v.tipe_kendaraan || '')}<small>${esc(v.no_polisi || '')}${v.dengan_driver ? ' · Driver: ' + esc(v.dengan_driver) : ''}</small>`;
+    const detail = `${esc(v.jumlah_unit ?? '-')} unit ${esc(v.tipe_kendaraan || '')}<small>${v.dengan_driver ? 'Driver: ' + esc(v.dengan_driver) : ''}</small>`;
     const sisaTxt = v.st.sisa < 0 ? `lewat ${-v.st.sisa} hari` : `${v.st.sisa} hari lagi`;
     const link = /^https?:\/\//.test(v.link_dokumen || '') ? `<a href="${esc(v.link_dokumen)}" target="_blank" rel="noopener" title="Buka dokumen">${IC.doc}</a>` : '';
     const tot = new Date(v.tgl_akhir) - new Date(v.tgl_mulai), pct = tot > 0 ? Math.max(0, Math.min(100, (Date.now() - new Date(v.tgl_mulai)) / tot * 100)) : 100;
     return `<tr class="r-${v.st.cls}">
+      <td>${plat(v.no_polisi)}</td>
       <td><b>${esc(v.no_perjanjian)}</b>${v.no_lampiran ? `<small>Lampiran: ${esc(v.no_lampiran)}</small>` : ''}${v.perpanjangan_ke > 0 ? `<br><span class="badge b-ke">Perpanjangan ke-${v.perpanjangan_ke}</span>` : ''}</td>
       <td>${esc(v.vendor_nama)}<small>${esc(v.vendor_pic || '')} ${esc(v.vendor_kontak || '')}</small></td>
       <td>${esc(v.pengguna || '-')}<small>${esc([v.departemen, v.area].filter(Boolean).join(' · '))}</small></td>
@@ -293,7 +303,7 @@ function riwayat(id) {
       <td><b>${esc(x.no_perjanjian)}</b>${x.no_lampiran ? `<small>Lampiran: ${esc(x.no_lampiran)}</small>` : ''}${x.link_dokumen && /^https?:\/\//.test(x.link_dokumen) ? `<small><a href="${esc(x.link_dokumen)}" target="_blank" rel="noopener" style="color:var(--teal)">Dokumen</a></small>` : ''}</td>
       <td>${tgl(x.tgl_mulai)} – ${tgl(x.tgl_akhir)}</td>
       <td>${rp(x.nilai)}<small>${esc(x.periode_bayar || '')}</small></td>
-      <td>${esc(x.jumlah_unit ?? '-')} unit ${esc(x.tipe_kendaraan || '')}<small>${esc(x.no_polisi || '')}</small></td>
+      <td>${esc(x.jumlah_unit ?? '-')} unit ${esc(x.tipe_kendaraan || '')}<small>${plat(x.no_polisi, 'sm')}</small></td>
       <td><span class="badge ${s.cls}">${s.label}</span></td></tr>`;
   }).join('');
   $('overlayRw').classList.add('show');
