@@ -52,6 +52,10 @@
   .full{ grid-column:1/-1; } label{ display:block; font-size:12px; color:var(--muted); margin-bottom:5px; }
   .sect{ grid-column:1/-1; font-size:13px; font-weight:700; color:var(--blue); border-top:1px dashed var(--border); padding-top:14px; margin-top:4px; }
   .hidden{ display:none !important; }
+  .note{ grid-column:1/-1; background:rgba(122,162,247,.12); border:1px solid var(--blue); color:var(--text); border-radius:8px; padding:10px 12px; font-size:12px; }
+  .b-ke{ background:rgba(212,162,76,.15); color:var(--gold); margin-top:4px; }
+  .aksi .pj{ color:var(--blue); font-weight:700; }
+  .cur td{ background:rgba(122,162,247,.07); }
   .modal-foot{ display:flex; justify-content:flex-end; gap:10px; margin-top:22px; }
 </style>
 </head>
@@ -81,8 +85,8 @@
 
   <div class="card">
     <table>
-      <thead><tr><th>No. Perjanjian</th><th>Vendor</th><th>Kendaraan</th><th>Masa Berlaku</th><th>Nilai</th><th>Status</th><th>Aksi</th></tr></thead>
-      <tbody id="body"><tr><td colspan="7" class="empty">Memuat data...</td></tr></tbody>
+      <thead><tr><th>No. Perjanjian</th><th>Vendor</th><th>Pengguna</th><th>Kendaraan</th><th>Masa Berlaku</th><th>Nilai</th><th>Status</th><th>Aksi</th></tr></thead>
+      <tbody id="body"><tr><td colspan="8" class="empty">Memuat data...</td></tr></tbody>
     </table>
   </div>
 </div>
@@ -92,9 +96,11 @@
     <h2 id="mTitle">Tambah Perjanjian</h2>
     <div class="muted">Kolom bertanda * wajib diisi.</div>
     <div class="form-grid">
+      <div class="note hidden" id="mNote"></div>
       <div><label>No. Perjanjian *</label><input id="no_perjanjian"></div>
       <div><label>Nama Vendor *</label><input id="vendor_nama"></div>
-      <div><label>Departemen Pengguna</label><input id="departemen"></div>
+      <div><label>Departemen Pengguna</label><select id="departemen" onchange="isiPengguna()"><option value="">Memuat...</option></select></div>
+      <div><label>PIC / Pengguna Kendaraan</label><input id="pengguna" list="listKaryawan" placeholder="Pilih dari karyawan atau ketik nama"><datalist id="listKaryawan"></datalist></div>
       <div><label>PIC Vendor</label><input id="vendor_pic"></div>
       <div><label>Kontak PIC (telp/email)</label><input id="vendor_kontak"></div>
       <div><label>Tanggal Mulai *</label><input type="date" id="tgl_mulai"></div>
@@ -120,13 +126,25 @@
   </div>
 </div>
 
+<div class="overlay" id="overlayRw">
+  <div class="modal" style="max-width:900px">
+    <h2 id="rwTitle">Riwayat Perjanjian</h2>
+    <div class="muted" id="rwSub"></div>
+    <div style="overflow-x:auto;margin-top:16px"><table style="min-width:640px">
+      <thead><tr><th>Versi</th><th>No. Perjanjian</th><th>Masa Berlaku</th><th>Nilai</th><th>Kendaraan</th><th>Status</th></tr></thead>
+      <tbody id="rwBody"></tbody>
+    </table></div>
+    <div class="modal-foot"><button class="btn secondary" onclick="tutupRw()">Tutup</button></div>
+  </div>
+</div>
+
 <script>
 const user = JSON.parse(sessionStorage.getItem('user') || 'null');
 if (!user) location.href = 'login.html';
 
-const FIELDS = ['no_perjanjian','vendor_nama','departemen','vendor_pic','vendor_kontak','tgl_mulai','tgl_akhir',
+const FIELDS = ['no_perjanjian','vendor_nama','departemen','pengguna','vendor_pic','vendor_kontak','tgl_mulai','tgl_akhir',
   'nilai','periode_bayar','tipe_kendaraan','jumlah_unit','no_polisi','dengan_driver','link_dokumen','keterangan'];
-let data = [], editId = null;
+let data = [], karyawan = [], editId = null, indukSrc = null;
 const $ = id => document.getElementById(id);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const rp = n => 'Rp ' + Number(n || 0).toLocaleString('id-ID');
@@ -141,13 +159,45 @@ function statusOf(v) {
 
 async function load() {
   const { data: rows, error } = await supabaseClient.from('perjanjian_vendor').select('*').eq('jenis', 'Sewa Kendaraan').order('tgl_akhir', {ascending: true});
-  if (error) { console.error(error); $('body').innerHTML = '<tr><td colspan="7" class="empty">Gagal memuat data. Pastikan tabel perjanjian_vendor sudah dibuat (jalankan sql/vendor_schema.sql di Supabase).</td></tr>'; return; }
+  if (error) { console.error(error); $('body').innerHTML = '<tr><td colspan="8" class="empty">Gagal memuat data. Pastikan tabel perjanjian_vendor sudah dibuat (jalankan sql/vendor_schema.sql di Supabase).</td></tr>'; return; }
   data = rows || []; render();
+}
+
+async function loadMaster() {
+  const [d, k] = await Promise.all([
+    supabaseClient.from('master_departemen').select('*').order('nama_departemen', {ascending: true}),
+    supabaseClient.from('master_karyawan').select('*').eq('status', 'Aktif').order('nama', {ascending: true})
+  ]);
+  if (d.error) console.error(d.error);
+  if (k.error) console.error(k.error);
+  $('departemen').innerHTML = '<option value="">-- Pilih Departemen --</option>' +
+    (d.data || []).map(x => `<option value="${esc(x.nama_departemen)}">${esc(x.nama_departemen)}</option>`).join('');
+  karyawan = k.data || [];
+}
+
+function isiPengguna() {
+  const dep = $('departemen').value;
+  let list = karyawan.filter(x => x.departemen === dep);
+  if (!list.length) list = karyawan;
+  $('listKaryawan').innerHTML = list.map(x => `<option value="${esc(x.nama)}">${esc(x.nik || '')} ${esc(x.departemen || '')}</option>`).join('');
+}
+
+// ===== Rantai perpanjangan =====
+function rootOf(v) {
+  const byId = Object.fromEntries(data.map(x => [x.id, x]));
+  let cur = v, guard = 0;
+  while (cur.induk_id && byId[cur.induk_id] && guard++ < 100) cur = byId[cur.induk_id];
+  return cur.id;
+}
+function chainOf(v) {
+  const r = rootOf(v);
+  return data.filter(x => rootOf(x) === r).sort((a, b) => a.tgl_mulai.localeCompare(b.tgl_mulai));
 }
 
 function render() {
   const q = $('cari').value.toLowerCase(), fs = $('fStatus').value;
-  const st = data.map(v => ({...v, st: statusOf(v)}));
+  const diganti = new Set(data.map(x => x.induk_id).filter(Boolean));
+  const st = data.filter(v => !diganti.has(v.id)).map(v => ({...v, st: statusOf(v)}));
   $('sTotal').textContent = st.length;
   $('sAktif').textContent = st.filter(v => v.st.label === 'Aktif').length;
   $('sSegera').textContent = st.filter(v => v.st.label === 'Segera Berakhir').length;
@@ -155,32 +205,66 @@ function render() {
   $('sNilai').textContent = rp(st.filter(v => v.st.label !== 'Berakhir').reduce((a, v) => a + Number(v.nilai || 0), 0));
 
   const rows = st.filter(v => (!fs || v.st.label === fs) &&
-    [v.vendor_nama, v.no_perjanjian, v.departemen].some(x => (x || '').toLowerCase().includes(q)));
-  if (!rows.length) { $('body').innerHTML = '<tr><td colspan="7" class="empty">Belum ada data perjanjian.</td></tr>'; return; }
+    [v.vendor_nama, v.no_perjanjian, v.departemen, v.pengguna, v.no_polisi].some(x => (x || '').toLowerCase().includes(q)));
+  if (!rows.length) { $('body').innerHTML = '<tr><td colspan="8" class="empty">Belum ada data perjanjian.</td></tr>'; return; }
 
   $('body').innerHTML = rows.map(v => {
     const detail = `${esc(v.jumlah_unit ?? '-')} unit ${esc(v.tipe_kendaraan || '')}<small>${esc(v.no_polisi || '')}${v.dengan_driver ? ' · Driver: ' + esc(v.dengan_driver) : ''}</small>`;
     const sisaTxt = v.st.sisa < 0 ? `lewat ${-v.st.sisa} hari` : `${v.st.sisa} hari lagi`;
     const link = /^https?:\/\//.test(v.link_dokumen || '') ? `<a href="${esc(v.link_dokumen)}" target="_blank" rel="noopener">Dokumen</a>` : '';
     return `<tr>
-      <td><b>${esc(v.no_perjanjian)}</b><small>${esc(v.departemen || '')}</small></td>
+      <td><b>${esc(v.no_perjanjian)}</b>${v.perpanjangan_ke > 0 ? `<br><span class="badge b-ke">Perpanjangan ke-${v.perpanjangan_ke}</span>` : ''}</td>
       <td>${esc(v.vendor_nama)}<small>${esc(v.vendor_pic || '')} ${esc(v.vendor_kontak || '')}</small></td>
+      <td>${esc(v.pengguna || '-')}<small>${esc(v.departemen || '')}</small></td>
       <td>${detail}</td>
       <td>${tgl(v.tgl_mulai)} – ${tgl(v.tgl_akhir)}<small>${sisaTxt}</small></td>
       <td>${rp(v.nilai)}<small>${esc(v.periode_bayar || '')}</small></td>
       <td><span class="badge ${v.st.cls}">${v.st.label}</span></td>
-      <td><div class="aksi">${link}<button onclick="bukaForm('${v.id}')">Edit</button><button class="del" onclick="hapus('${v.id}')">Hapus</button></div></td>
+      <td><div class="aksi">${link}<button class="pj" onclick="perpanjang('${v.id}')">Perpanjang</button>${v.induk_id ? `<button onclick="riwayat('${v.id}')">Riwayat</button>` : ''}<button onclick="bukaForm('${v.id}')">Edit</button><button class="del" onclick="hapus('${v.id}')">Hapus</button></div></td>
     </tr>`;
   }).join('');
 }
 
-function bukaForm(id) {
-  editId = id || null;
-  const v = data.find(x => x.id === id) || {};
+function isiForm(v) {
   FIELDS.forEach(f => $(f).value = v[f] ?? (f === 'periode_bayar' ? 'Bulanan' : f === 'dengan_driver' ? 'Ya' : ''));
+  if (v.departemen && ![...$('departemen').options].some(o => o.value === v.departemen)) {
+    $('departemen').add(new Option(v.departemen, v.departemen)); $('departemen').value = v.departemen;
+  }
+  isiPengguna();
+}
+function bukaForm(id) {
+  editId = id || null; indukSrc = null;
+  isiForm(data.find(x => x.id === id) || {});
+  $('mNote').classList.add('hidden');
   $('mTitle').textContent = id ? 'Edit Perjanjian' : 'Tambah Perjanjian';
   $('overlay').classList.add('show');
 }
+function perpanjang(id) {
+  const src = data.find(x => x.id === id);
+  editId = null; indukSrc = src;
+  const d = new Date(src.tgl_akhir + 'T00:00:00'); d.setDate(d.getDate() + 1);
+  isiForm({...src, no_perjanjian: '', tgl_mulai: d.toLocaleDateString('sv-SE'), tgl_akhir: '', link_dokumen: '', keterangan: ''});
+  $('mNote').innerHTML = `Perpanjangan dari perjanjian <b>${esc(src.no_perjanjian)}</b> (berakhir ${tgl(src.tgl_akhir)}). Data dicopy dari perjanjian sebelumnya, silakan sesuaikan no. perjanjian, masa berlaku, dan nilai. Perjanjian lama tetap tersimpan di Riwayat.`;
+  $('mNote').classList.remove('hidden');
+  $('mTitle').textContent = 'Perpanjang Perjanjian';
+  $('overlay').classList.add('show');
+}
+function riwayat(id) {
+  const v = data.find(x => x.id === id), list = chainOf(v);
+  $('rwSub').textContent = `${v.vendor_nama} · ${list.length} versi perjanjian`;
+  $('rwBody').innerHTML = list.map(x => {
+    const s = statusOf(x);
+    return `<tr class="${x.id === id ? 'cur' : ''}">
+      <td>${x.perpanjangan_ke > 0 ? 'Perpanjangan ke-' + x.perpanjangan_ke : 'Perjanjian awal'}</td>
+      <td><b>${esc(x.no_perjanjian)}</b>${x.link_dokumen && /^https?:\/\//.test(x.link_dokumen) ? `<small><a href="${esc(x.link_dokumen)}" target="_blank" rel="noopener" style="color:var(--teal)">Dokumen</a></small>` : ''}</td>
+      <td>${tgl(x.tgl_mulai)} – ${tgl(x.tgl_akhir)}</td>
+      <td>${rp(x.nilai)}<small>${esc(x.periode_bayar || '')}</small></td>
+      <td>${esc(x.jumlah_unit ?? '-')} unit ${esc(x.tipe_kendaraan || '')}<small>${esc(x.no_polisi || '')}</small></td>
+      <td><span class="badge ${s.cls}">${s.label}</span></td></tr>`;
+  }).join('');
+  $('overlayRw').classList.add('show');
+}
+function tutupRw() { $('overlayRw').classList.remove('show'); }
 function tutupForm() { $('overlay').classList.remove('show'); }
 
 async function simpan() {
@@ -192,7 +276,8 @@ async function simpan() {
   if (p.tgl_akhir < p.tgl_mulai) return alert('Tanggal berakhir tidak boleh sebelum tanggal mulai.');
   $('btnSimpan').disabled = true;
   const q = editId ? supabaseClient.from('perjanjian_vendor').update(p).eq('id', editId)
-                   : supabaseClient.from('perjanjian_vendor').insert({...p, created_by: user.username || user.nama || null});
+                   : supabaseClient.from('perjanjian_vendor').insert({...p, created_by: user.username || user.nama || null,
+                       ...(indukSrc ? {induk_id: indukSrc.id, perpanjangan_ke: (indukSrc.perpanjangan_ke || 0) + 1} : {})});
   const { error } = await q;
   $('btnSimpan').disabled = false;
   if (error) { console.error(error); return alert('Gagal menyimpan: ' + error.message); }
@@ -201,14 +286,15 @@ async function simpan() {
 
 async function hapus(id) {
   const v = data.find(x => x.id === id);
-  if (!confirm(`Hapus perjanjian ${v.no_perjanjian} (${v.vendor_nama})?`)) return;
+  const ada = data.some(x => x.induk_id === id);
+  if (!confirm(`Hapus perjanjian ${v.no_perjanjian} (${v.vendor_nama})?` + (ada ? '\n\nPerjanjian ini punya perpanjangan; riwayatnya akan terputus.' : ''))) return;
   const { error } = await supabaseClient.from('perjanjian_vendor').delete().eq('id', id);
   if (error) return alert('Gagal menghapus: ' + error.message);
   load();
 }
 
-document.addEventListener('keydown', e => { if (e.key === 'Escape') tutupForm(); });
-load();
+document.addEventListener('keydown', e => { if (e.key === 'Escape') { tutupForm(); tutupRw(); } });
+loadMaster().then(load);
 </script>
 </body>
 </html>
