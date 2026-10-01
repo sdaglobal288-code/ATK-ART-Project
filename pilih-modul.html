@@ -349,11 +349,12 @@
 
     <a class="card" data-modul="atk" href="dashboard.html" style="--accent:#e8873a; --accent-soft: rgba(232,135,58,0.14);">
       <span class="tag">Inventaris</span>
-      <div class="icon-box">📦</div>
+      <div class="icon-box">📦<span class="notif-badge" hidden></span></div>
       <div>
         <h2>ATK &amp; ART</h2>
         <p>Manajemen stok barang, permintaan ATK/ART, dan mutasi karyawan antar departemen.</p>
       </div>
+      <div class="notif-line"></div>
       <div class="go"><span>Buka modul</span><span class="arr">→</span></div>
     </a>
 
@@ -415,6 +416,30 @@
   const BATAS_HARI = 40; // harus sama dengan BATAS_POPUP di sewa-kendaraan.html
 
   const NOTIF = {
+    // ATK & ART: permintaan yang menunggu approval di gudang user yang login
+    // (aturan hitung sama dengan cekNotifikasiApproval() di dashboard.html)
+    atk: async () => {
+      let gudang = null;
+      try { gudang = JSON.parse(sessionStorage.getItem('user') || 'null')?.gudang; } catch (e) {}
+      if (!gudang) return { count: 0 };
+      const cnt = q => q.then(r => { if (r.error) throw r.error; return r.count ?? 0; });
+      const head = t => supabaseClient.from(t).select('*', { count: 'exact', head: true });
+      const [transfer, retur, permanenkan, mutasi, atkArt] = await Promise.all([
+        cnt(head('barang_transfer').eq('gudang_tujuan', gudang).eq('status', 'Pending')),
+        cnt(head('barang_transfer_retur').eq('gudang_asal', gudang).eq('status', 'Menunggu Approval')),
+        cnt(head('barang_transfer_permanenkan').eq('gudang_asal', gudang).eq('status', 'Menunggu Approval')),
+        cnt(head('mutasi_karyawan').eq('gudang_baru', gudang).eq('status', 'Pending')),
+        cnt(head('barang_keluar').eq('gudang', gudang).eq('status', 'Menunggu Approval').ilike('keterangan', '%[Formulir Permintaan ATK/ART]%'))
+      ]);
+      const parts = [];
+      if (transfer) parts.push(transfer + ' transfer');
+      if (retur) parts.push(retur + ' retur');
+      if (permanenkan) parts.push(permanenkan + ' permanenkan');
+      if (mutasi) parts.push(mutasi + ' mutasi karyawan');
+      if (atkArt) parts.push(atkArt + ' permintaan ATK/ART');
+      const total = transfer + retur + permanenkan + mutasi + atkArt;
+      return { count: total, text: '⏳ Menunggu approval Anda: ' + parts.join(' · ') };
+    },
     // Sewa Kendaraan: perjanjian (yang belum diperpanjang) dengan sisa < 40 hari atau sudah lewat
     sewa: async () => {
       const { data, error } = await supabaseClient.from('perjanjian_vendor')
