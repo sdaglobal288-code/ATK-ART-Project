@@ -8,6 +8,7 @@
 <!-- Sesuaikan path ini dengan lokasi file init Supabase Anda yang sudah ada -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="supabase/config.js"></script>
+<script src="js/modul-popup.js"></script>
 
 <style>
   :root{
@@ -219,6 +220,22 @@ async function loadData() {
   populatePeriodeFilter();
   renderStats();
   renderTable();
+  cekPengingat();
+}
+
+// Popup pengingat: penilaian yang masih dalam proses approval
+function cekPengingat() {
+  const items = penilaianList.filter(p => p.status === 'Proses').map(p => {
+    const steps = approvalByPenilaian[p.id] || [];
+    const done = steps.filter(x => x.status === 'approved').length;
+    const kedaluwarsa = steps.some(x => x.status === 'pending' && x.expires_at && new Date(x.expires_at) < new Date());
+    return {
+      judul: p.nama_snapshot || '-',
+      sub: (FORM_LABELS[p.tipe_form] || p.tipe_form) + ' · periode ' + p.periode + (kedaluwarsa ? ' · ada link kedaluwarsa' : ''),
+      kanan: 'TTD ' + done + '/' + (steps.length || 4), lewat: kedaluwarsa
+    };
+  });
+  tampilPopupModul({ judul: items.length + ' Penilaian Dalam Proses', sub: 'Penilaian ini masih menunggu tanda tangan approver. Segera tindak lanjuti.', items });
 }
 
 function populatePeriodeFilter() {

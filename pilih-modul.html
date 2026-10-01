@@ -4,6 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Pilih Modul | Sistem Internal</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="supabase/config.js"></script>
 <style>
   :root{
     --bg: #241a12;
@@ -279,6 +281,35 @@
     transition: transform .2s ease;
   }
   .card:hover .go .arr{ transform: translateX(4px); }
+  /* ===== Notifikasi pada kartu modul ===== */
+  .icon-box{ position:relative; }
+  .notif-badge{
+    position:absolute; top:-8px; right:-8px;
+    min-width:22px; height:22px; padding:0 6px;
+    border-radius:11px;
+    background: var(--danger); color:#fff;
+    font-size:12px; font-weight:700;
+    display:flex; align-items:center; justify-content:center;
+    border:2px solid var(--panel);
+    animation: badgePulse 1.8s ease-in-out infinite;
+  }
+  .notif-badge[hidden]{ display:none; }
+  @keyframes badgePulse{
+    0%,100%{ box-shadow:0 0 0 0 rgba(239,84,117,.5); }
+    50%{ box-shadow:0 0 0 7px rgba(239,84,117,0); }
+  }
+  .notif-line{
+    display:none;
+    font-size:12px; font-weight:600;
+    color: var(--orange);
+    background: rgba(232,135,58,.12);
+    border:1px solid rgba(232,135,58,.35);
+    border-radius:9px;
+    padding:7px 10px;
+    line-height:1.4;
+  }
+  .card.has-notif .notif-line{ display:block; }
+  .card.has-notif{ border-color: rgba(232,135,58,.5); }
   .footer-note{
     margin-top:56px;
     font-size:12px;
@@ -316,7 +347,7 @@
 
   <div class="grid">
 
-    <a class="card" href="dashboard.html" style="--accent:#e8873a; --accent-soft: rgba(232,135,58,0.14);">
+    <a class="card" data-modul="atk" href="dashboard.html" style="--accent:#e8873a; --accent-soft: rgba(232,135,58,0.14);">
       <span class="tag">Inventaris</span>
       <div class="icon-box">📦</div>
       <div>
@@ -326,33 +357,36 @@
       <div class="go"><span>Buka modul</span><span class="arr">→</span></div>
     </a>
 
-    <a class="card" href="penilaian.html" style="--accent:#4dd0c4; --accent-soft: rgba(77,208,196,0.14);">
+    <a class="card" data-modul="penilaian" href="penilaian.html" style="--accent:#4dd0c4; --accent-soft: rgba(77,208,196,0.14);">
       <span class="tag">HR</span>
-      <div class="icon-box">📝</div>
+      <div class="icon-box">📝<span class="notif-badge" hidden></span></div>
       <div>
         <h2>Penilaian Tahunan</h2>
         <p>Form penilaian karyawan dengan approval berjenjang: pimpinan langsung, tidak langsung, atasan, dan HCS.</p>
       </div>
+      <div class="notif-line"></div>
       <div class="go"><span>Buka modul</span><span class="arr">→</span></div>
     </a>
 
-    <a class="card" href="kontrak.html" style="--accent:#e06b8b; --accent-soft: rgba(224,107,139,0.14);">
+    <a class="card" data-modul="kontrak" href="kontrak.html" style="--accent:#e06b8b; --accent-soft: rgba(224,107,139,0.14);">
       <span class="tag">HR</span>
-      <div class="icon-box">📄</div>
+      <div class="icon-box">📄<span class="notif-badge" hidden></span></div>
       <div>
         <h2>IM Perpanjangan Kontrak</h2>
         <p>Pengajuan dan approval informasi memo perpanjangan kontrak kerja karyawan.</p>
       </div>
+      <div class="notif-line"></div>
       <div class="go"><span>Buka modul</span><span class="arr">→</span></div>
     </a>
 
-    <a class="card" href="sewa-kendaraan.html" style="--accent:#7aa2f7; --accent-soft: rgba(122,162,247,0.14);">
+    <a class="card" data-modul="sewa" href="sewa-kendaraan.html" style="--accent:#7aa2f7; --accent-soft: rgba(122,162,247,0.14);">
       <span class="tag">Operasional</span>
-      <div class="icon-box">🚗</div>
+      <div class="icon-box">🚗<span class="notif-badge" hidden></span></div>
       <div>
         <h2>Sewa Kendaraan</h2>
         <p>Data perjanjian sewa kendaraan dengan vendor, lengkap dengan pengingat masa berlaku.</p>
       </div>
+      <div class="notif-line"></div>
       <div class="go"><span>Buka modul</span><span class="arr">→</span></div>
     </a>
 
@@ -371,6 +405,67 @@
     const n = u && (u.nama || u.username);
     if (n) document.getElementById('namaUser').textContent = n;
   } catch (e) {}
+
+
+  // ===========================
+  // NOTIFIKASI PER MODUL (lencana + ringkasan di kartu)
+  // Untuk menambah modul: tambahkan satu fungsi di NOTIF yang mengembalikan {count, text}
+  // dan beri kartunya atribut data-modul="<nama>" + .notif-badge + .notif-line
+  // ===========================
+  const BATAS_HARI = 40; // harus sama dengan BATAS_POPUP di sewa-kendaraan.html
+
+  const NOTIF = {
+    // Sewa Kendaraan: perjanjian (yang belum diperpanjang) dengan sisa < 40 hari atau sudah lewat
+    sewa: async () => {
+      const { data, error } = await supabaseClient.from('perjanjian_vendor')
+        .select('id, induk_id, tgl_akhir').eq('jenis', 'Sewa Kendaraan');
+      if (error) throw error;
+      const diganti = new Set((data || []).map(x => x.induk_id).filter(Boolean));
+      const hari0 = new Date().setHours(0, 0, 0, 0);
+      let hampir = 0, lewat = 0;
+      (data || []).filter(v => !diganti.has(v.id)).forEach(v => {
+        const sisa = Math.ceil((new Date(v.tgl_akhir + 'T00:00:00') - hari0) / 86400000);
+        if (sisa < 0) lewat++; else if (sisa < BATAS_HARI) hampir++;
+      });
+      const parts = [];
+      if (hampir) parts.push(hampir + ' perjanjian berakhir < ' + BATAS_HARI + ' hari');
+      if (lewat) parts.push(lewat + ' sudah berakhir');
+      return { count: hampir + lewat, text: '⏰ ' + parts.join(' · ') };
+    },
+    // IM Perpanjangan Kontrak: memo yang masih menunggu HCS / penilaian
+    kontrak: async () => {
+      const { data, error } = await supabaseClient.from('im_kontrak')
+        .select('status').in('status', ['Menunggu Persetujuan HCS', 'Menunggu Penilaian']);
+      if (error) throw error;
+      const hcs = (data || []).filter(x => x.status === 'Menunggu Persetujuan HCS').length;
+      const nilai = (data || []).length - hcs;
+      const parts = [];
+      if (hcs) parts.push(hcs + ' menunggu HCS');
+      if (nilai) parts.push(nilai + ' menunggu penilaian');
+      return { count: hcs + nilai, text: '⏳ ' + parts.join(' · ') };
+    },
+    // Penilaian Tahunan: penilaian yang masih dalam proses approval
+    penilaian: async () => {
+      const { count, error } = await supabaseClient.from('penilaian_karyawan')
+        .select('id', { count: 'exact', head: true }).eq('status', 'Proses');
+      if (error) throw error;
+      return { count: count || 0, text: '⏳ ' + count + ' penilaian menunggu tanda tangan' };
+    }
+  };
+
+  function pasangNotif(key, r) {
+    const card = document.querySelector('.card[data-modul="' + key + '"]');
+    if (!card || !r || !r.count) return;
+    const b = card.querySelector('.notif-badge');
+    b.textContent = r.count > 99 ? '99+' : r.count; b.hidden = false;
+    card.querySelector('.notif-line').textContent = r.text;
+    card.classList.add('has-notif');
+  }
+
+  // Satu modul gagal/lambat tidak mengganggu kartu lain
+  Object.entries(NOTIF).forEach(([key, fn]) => {
+    fn().then(r => pasangNotif(key, r)).catch(e => console.error('Notifikasi ' + key + ' gagal:', e));
+  });
 
   function logout(){
     sessionStorage.removeItem("user");

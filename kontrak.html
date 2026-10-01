@@ -7,6 +7,7 @@
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="supabase/config.js"></script>
+<script src="js/modul-popup.js"></script>
 
 <style>
   :root{
@@ -209,6 +210,21 @@ async function loadData() {
 
   renderStats();
   renderTable();
+  cekPengingat();
+}
+
+// Popup pengingat: memo yang masih menunggu HCS / penilaian
+function cekPengingat() {
+  const items = kontrakList.filter(p => p.status === 'Menunggu Persetujuan HCS' || p.status === 'Menunggu Penilaian')
+    .sort((a, b) => String(a.masa_akhir_kontrak || '9999').localeCompare(String(b.masa_akhir_kontrak || '9999')))
+    .map(p => ({
+      judul: p.nama_snapshot || '-',
+      sub: [p.bagian_snapshot, p.masa_akhir_kontrak ? 'kontrak berakhir ' + fmtDate(p.masa_akhir_kontrak) : ''].filter(Boolean).join(' · '),
+      kanan: p.status === 'Menunggu Persetujuan HCS' ? 'Menunggu HCS' : 'Menunggu Penilaian',
+      lewat: p.masa_akhir_kontrak && new Date(p.masa_akhir_kontrak) < new Date(),
+      href: 'kontrak-form.html?id=' + p.id, aksi: 'Buka'
+    }));
+  tampilPopupModul({ judul: items.length + ' Memo Belum Selesai', sub: 'Memo perpanjangan kontrak ini masih menunggu persetujuan. Segera tindak lanjuti.', items });
 }
 
 function renderStats() {
