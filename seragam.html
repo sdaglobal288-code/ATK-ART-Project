@@ -222,6 +222,10 @@ const jenisAll = () => [...new Set([...JENIS_DEFAULT, ...masuk.map(x => x.jenis)
 const ukK = (k, j) => (k && k.ukuran_seragam && k.ukuran_seragam[j]) || '';
 const defUk = j => /sepatu|boot/i.test(j) ? '41' : /topi|helm/i.test(j) ? 'All Size' : 'M';
 const idKar = k => k.nik || k.nama;
+// Area & departemen diambil dari master karyawan terkini (cocok lewat NIK / nama); data penyerahan lama dipakai bila karyawan tidak ditemukan
+const karDari = x => kar.find(k => (x.nik && k.nik === x.nik) || k.nama === x.nama);
+const areaDari = x => (karDari(x) || {}).area || x.area || '';
+const depDari = x => (karDari(x) || {}).departemen || x.departemen || '';
 
 // Sisa = masuk vendor + transfer masuk (Approved) - transfer keluar (Pending/Approved) - diserahkan. Kosong = semua gudang.
 function stokList(g) {
@@ -269,9 +273,9 @@ function render() {
     rows = l.map(s => `<tr><td><span class="jn">${esc(s.jenis)}</span></td><td><b>${esc(s.model)}</b></td><td>${esc(s.warna)}</td><td><span class="size">${esc(s.ukuran)}</span></td><td class="num">${s.masuk}</td><td class="num">${s.tIn}</td><td class="num">${s.tOut}</td><td class="num">${s.keluar}</td><td class="num"><b>${s.sisa}</b></td>
       <td><span class="badge ${s.sisa <= 0 ? 'b-out' : s.sisa <= STOK_MIN ? 'b-low' : 'b-ok'}">${s.sisa <= 0 ? 'Habis' : s.sisa <= STOK_MIN ? 'Menipis' : 'Tersedia'}</span></td></tr>`).join('');
   } else if (tab === 'dist') {
-    const l = distG.filter(x => (!thF || x.tahun === thF) && (!jn || x.jenis === jn) && (!dep || x.departemen === dep) && [x.nama, x.nik, x.jenis, x.model, x.warna, x.ukuran, x.no_tt].some(v => (v || '').toLowerCase().includes(q))); n = l.length;
+    const l = distG.filter(x => (!thF || x.tahun === thF) && (!jn || x.jenis === jn) && (!dep || depDari(x) === dep) && [x.nama, x.nik, x.jenis, x.model, x.warna, x.ukuran, x.no_tt].some(v => (v || '').toLowerCase().includes(q))); n = l.length;
     h = '<tr><th>Tanggal</th><th>Karyawan</th><th>Departemen</th><th>Barang</th><th>Jumlah</th><th>Keterangan</th><th></th></tr>';
-    rows = l.map(x => `<tr><td>${tgl(x.tanggal)}</td><td><b>${esc(x.nama)}</b><small>${esc(x.nik || '')}</small></td><td>${esc(x.departemen || '-')}<small>${esc(x.area || '')}</small></td>
+    rows = l.map(x => `<tr><td>${tgl(x.tanggal)}</td><td><b>${esc(x.nama)}</b><small>${esc(x.nik || '')}</small></td><td>${esc(depDari(x) || '-')}<small>${esc(areaDari(x))}</small></td>
       <td><span class="jn">${esc(x.jenis)}</span>${esc(x.model)} · ${esc(x.warna)} <span class="size">${esc(x.ukuran)}</span></td><td class="num">${x.jumlah}</td><td>${esc(x.keterangan || '')}</td>
       <td style="white-space:nowrap"><button class="btn sm" onclick="cetakTT('${x.id}')">🖨 Tanda Terima</button> ${g && x.gudang === g ? `<button class="del" onclick="hapusDist('${x.id}')">Hapus</button>` : ''}</td></tr>`).join('');
   } else if (tab === 'trf') {
@@ -532,7 +536,7 @@ function tampilTT(rows) {
   const no = /^\d+$/.test(x.no_tt || '') ? `SR/${x.tanggal.slice(0, 4)}/${x.tanggal.slice(5, 7)}/${x.no_tt}` : (x.no_tt || '-');
   $('paper').innerHTML = `<div class="tt-head"><img src="images/logo-sda-global.png" alt="SDA Global"><div class="tt-ttl"><h2>TANDA TERIMA SERAGAM</h2><div class="nodok">No. ${esc(no)}</div></div></div>
     <table class="kv"><tr><td>Tanggal</td><td>:</td><td>${tglPanjang(x.tanggal)}</td></tr><tr><td>Nama Penerima</td><td>:</td><td><b>${esc(x.nama)}</b></td></tr>
-    <tr><td>NIK</td><td>:</td><td>${esc(x.nik || '-')}</td></tr><tr><td>Departemen</td><td>:</td><td>${esc(x.departemen || '-')}</td></tr><tr><td>Area</td><td>:</td><td>${esc(x.area || '-')}</td></tr></table>
+    <tr><td>NIK</td><td>:</td><td>${esc(x.nik || '-')}</td></tr><tr><td>Departemen</td><td>:</td><td>${esc(depDari(x) || '-')}</td></tr><tr><td>Area</td><td>:</td><td>${esc(areaDari(x) || '-')}</td></tr></table>
     <p>Dengan ini menyatakan telah menerima perlengkapan seragam dengan rincian sebagai berikut:</p>
     <table class="brg"><thead><tr><th style="width:40px;text-align:center">No</th><th>Jenis</th><th>Model / Tipe</th><th>Warna</th><th>Ukuran</th><th style="text-align:center">Jumlah</th></tr></thead>
     <tbody>${rows.map((r, i) => `<tr><td style="text-align:center">${i + 1}</td><td>${esc(r.jenis)}</td><td>${esc(r.model)}</td><td>${esc(r.warna)}</td><td>${esc(r.ukuran)}</td><td style="text-align:center">${r.jumlah} pcs</td></tr>`).join('')}</tbody></table>
