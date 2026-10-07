@@ -59,11 +59,17 @@
   .it-h{ display:grid; grid-template-columns:1.1fr 1fr 2.4fr .7fr 36px; gap:8px; font-size:11px; color:var(--muted); font-weight:700; margin-bottom:6px; } @media(max-width:700px){ .it-h{ display:none; } }
   .foot{ display:flex; justify-content:flex-end; gap:10px; margin-top:24px; padding-top:18px; border-top:1px solid var(--line); }
   .hid{ display:none !important; }
-  .paper{ background:#fff; color:#111; width:100%; border-radius:10px; padding:42px 48px; font-family:'Segoe UI',Arial,sans-serif; box-shadow:0 24px 70px rgba(0,0,0,.55); }
-  .paper h2{ text-align:center; margin:0; font-size:20px; letter-spacing:.08em; } .paper .nodok{ text-align:center; font-size:12.5px; color:#555; margin:4px 0 22px; padding-bottom:14px; border-bottom:2px solid #111; }
-  .paper table{ min-width:0; width:100%; } .paper td,.paper th{ color:#111; border:1px solid #bbb; padding:8px 10px; font-size:13px; background:none; text-transform:none; letter-spacing:0; }
-  .paper th{ background:#eee; text-align:left; font-size:12px; } .paper .kv td{ border:none; padding:3px 0; } .paper .kv td:first-child{ width:130px; color:#555; }
-  .paper p{ font-size:13px; margin:18px 0; } .ttd{ display:flex; justify-content:space-between; margin-top:30px; font-size:13px; text-align:center; } .ttd div{ width:42%; } .ttd .sp{ height:76px; } .ttd .ln{ border-top:1px solid #111; padding-top:4px; font-weight:600; }
+  .paper{ background:#fff; color:#111; width:100%; border-radius:10px; padding:36px 44px 32px; font-family:'Segoe UI',Arial,sans-serif; box-shadow:0 24px 70px rgba(0,0,0,.55); -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+  .tt-head{ display:flex; align-items:center; justify-content:space-between; gap:20px; padding-bottom:16px; border-bottom:3px double #111; }
+  .tt-head img{ height:46px; width:auto; display:block; }
+  .tt-ttl{ text-align:right; } .tt-ttl h2{ margin:0; font-size:19px; letter-spacing:.06em; } .tt-ttl .nodok{ font-size:13px; color:#444; margin-top:4px; font-weight:600; }
+  .paper table{ min-width:0; width:100%; border-collapse:collapse; }
+  .paper .kv{ margin:22px 0 4px; } .paper .kv td{ border:none; padding:4px 0; font-size:13px; color:#111; background:none; vertical-align:top; } .paper .kv td:first-child{ width:140px; color:#555; } .paper .kv td:nth-child(2){ width:14px; }
+  .paper .brg th,.paper .brg td{ border:1px solid #999; padding:9px 10px; font-size:13px; color:#111; background:none; }
+  .paper .brg th{ background:#eee; text-align:left; font-size:11.5px; text-transform:uppercase; letter-spacing:.04em; }
+  .paper p{ font-size:13px; margin:18px 0 12px; line-height:1.5; }
+  .ttd{ display:flex; justify-content:space-between; gap:60px; margin-top:34px; font-size:13px; text-align:center; } .ttd > div{ flex:1; } .ttd .sp{ height:72px; } .ttd .ln{ border-top:1px solid #111; padding-top:5px; font-weight:600; white-space:nowrap; }
+  .tt-foot{ margin-top:30px; padding-top:10px; border-top:1px solid #ccc; font-size:11px; color:#777; text-align:center; }
   .tt-actions{ display:flex; justify-content:flex-end; gap:10px; margin-top:16px; }
   @media print{
     @page{ size:A4; margin:14mm; }
@@ -325,7 +331,10 @@ async function simpanDist() {
   const need = {}; it.forEach(x => need[x.v] = (need[x.v] || 0) + x.jumlah);
   const sisa = Object.fromEntries(stokList().map(s => [s.key, s.sisa]));
   for (const k in need) if (need[k] > (sisa[k] || 0)) { const [j, m, w, u] = unkey(k); return alert(`Stok ${j} ${m} ${w} (${u}) tidak cukup. Sisa ${sisa[k] || 0}.`); }
-  const no = `SR/${tg.slice(0, 4)}/${tg.slice(5, 7)}/${Math.random().toString(36).slice(2, 8).toUpperCase()}`;
+  // Nomor tanda terima: urut (0001, 0002, ...) berdasarkan nomor terbesar yang sudah ada
+  const nr = await supabaseClient.from('seragam_distribusi').select('no_tt');
+  const mx = (nr.data || dist).reduce((a, x) => /^\d+$/.test(x.no_tt || '') ? Math.max(a, Number(x.no_tt)) : a, 0);
+  const no = String(mx + 1).padStart(4, '0');
   const ket = $('d_ket').value.trim() || null, by = user.username || user.nama || null;
   const payload = it.map(x => { const [jenis, model, warna, ukuran] = unkey(x.v);
     return {tanggal:tg, tahun:Number(tg.slice(0, 4)), no_tt:no, jenis, nik:selKar.nik || null, nama:selKar.nama, departemen:selKar.departemen || null, area:selKar.area || null, model, warna, ukuran, jumlah:x.jumlah, keterangan:ket, created_by:by}; });
@@ -355,18 +364,19 @@ async function setUkuran(id, jenis, u) {
 
 // ===== Tanda terima (cetak langsung atau "Save as PDF" lewat dialog print) =====
 function tampilTT(rows) {
-  const x = rows[0], d = new Date(x.tanggal + 'T00:00:00'), penyerah = user.nama || user.username || '';
-  const no = x.no_tt || `SR/${d.getFullYear()}/${String(d.getMonth() + 1).padStart(2, '0')}/${String(x.id).slice(0, 6).toUpperCase()}`;
-  $('paper').innerHTML = `<h2>TANDA TERIMA SERAGAM</h2><div class="nodok">No. ${esc(no)}</div>
-    <table class="kv"><tr><td>Tanggal</td><td>: ${tgl(x.tanggal)}</td></tr><tr><td>Nama Penerima</td><td>: <b>${esc(x.nama)}</b></td></tr>
-    <tr><td>NIK</td><td>: ${esc(x.nik || '-')}</td></tr><tr><td>Departemen</td><td>: ${esc(x.departemen || '-')}</td></tr><tr><td>Area</td><td>: ${esc(x.area || '-')}</td></tr></table>
+  const x = rows[0], tglPanjang = d => new Date(d + 'T00:00:00').toLocaleDateString('id-ID', {day:'numeric', month:'long', year:'numeric'});
+  const no = /^\d+$/.test(x.no_tt || '') ? x.no_tt : (x.no_tt || '-');
+  $('paper').innerHTML = `<div class="tt-head"><img src="images/logo-sda-global.png" alt="SDA Global"><div class="tt-ttl"><h2>TANDA TERIMA SERAGAM</h2><div class="nodok">No. ${esc(no)}</div></div></div>
+    <table class="kv"><tr><td>Tanggal</td><td>:</td><td>${tglPanjang(x.tanggal)}</td></tr><tr><td>Nama Penerima</td><td>:</td><td><b>${esc(x.nama)}</b></td></tr>
+    <tr><td>NIK</td><td>:</td><td>${esc(x.nik || '-')}</td></tr><tr><td>Departemen</td><td>:</td><td>${esc(x.departemen || '-')}</td></tr>${x.area ? `<tr><td>Area</td><td>:</td><td>${esc(x.area)}</td></tr>` : ''}</table>
     <p>Dengan ini menyatakan telah menerima perlengkapan seragam dengan rincian sebagai berikut:</p>
-    <table><thead><tr><th style="width:36px">No</th><th>Jenis</th><th>Model / Tipe</th><th>Warna</th><th>Ukuran</th><th style="text-align:center">Jumlah</th></tr></thead>
-    <tbody>${rows.map((r, i) => `<tr><td>${i + 1}</td><td>${esc(r.jenis)}</td><td>${esc(r.model)}</td><td>${esc(r.warna)}</td><td>${esc(r.ukuran)}</td><td style="text-align:center">${r.jumlah} pcs</td></tr>`).join('')}</tbody></table>
+    <table class="brg"><thead><tr><th style="width:40px;text-align:center">No</th><th>Jenis</th><th>Model / Tipe</th><th>Warna</th><th>Ukuran</th><th style="text-align:center">Jumlah</th></tr></thead>
+    <tbody>${rows.map((r, i) => `<tr><td style="text-align:center">${i + 1}</td><td>${esc(r.jenis)}</td><td>${esc(r.model)}</td><td>${esc(r.warna)}</td><td>${esc(r.ukuran)}</td><td style="text-align:center">${r.jumlah} pcs</td></tr>`).join('')}</tbody></table>
     ${x.keterangan ? `<p><b>Keterangan:</b> ${esc(x.keterangan)}</p>` : ''}
     <p>Barang diterima dalam keadaan baik dan sesuai dengan rincian di atas.</p>
-    <div class="ttd"><div>Penerima,<div class="sp"></div><div class="ln">${esc(x.nama)}</div></div><div>Yang Menyerahkan,<div class="sp"></div><div class="ln">${esc(penyerah)}</div></div></div>`;
-  document.title = 'Tanda Terima Seragam - ' + x.nama;
+    <div class="ttd"><div>Penerima,<div class="sp"></div><div class="ln">${esc(x.nama)}</div></div><div>Yang Menyerahkan,<div class="sp"></div><div class="ln">HCS</div></div></div>
+    <div class="tt-foot">Dicetak dari Sistem Internal Perusahaan pada ${tglPanjang(today())}</div>`;
+  document.title = 'Tanda Terima Seragam ' + no + ' - ' + x.nama;
   $('ovTT').classList.add('show');
 }
 function cetakTT(id) { const x = dist.find(d => d.id === id); if (x) tampilTT(x.no_tt ? dist.filter(d => d.no_tt === x.no_tt) : [x]); }
