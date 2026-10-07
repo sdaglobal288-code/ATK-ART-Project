@@ -59,6 +59,14 @@
   .it-h{ display:grid; grid-template-columns:1.1fr 1fr 2.4fr .7fr 36px; gap:8px; font-size:11px; color:var(--muted); font-weight:700; margin-bottom:6px; } @media(max-width:700px){ .it-h{ display:none; } }
   .foot{ display:flex; justify-content:flex-end; gap:10px; margin-top:24px; padding-top:18px; border-top:1px solid var(--line); }
   .hid{ display:none !important; }
+  .live{ display:inline-flex; align-items:center; gap:7px; font-size:11.5px; color:var(--muted); align-self:center; }
+  .live::before{ content:''; width:8px; height:8px; border-radius:50%; background:var(--dim); }
+  .live.on::before{ background:var(--teal); animation:lv 2s infinite; } @keyframes lv{ 0%{ box-shadow:0 0 0 0 rgba(77,208,196,.55);} 100%{ box-shadow:0 0 0 8px rgba(77,208,196,0);} }
+  #toasts{ position:fixed; right:20px; bottom:20px; display:flex; flex-direction:column; gap:10px; z-index:200; width:min(380px, calc(100vw - 40px)); }
+  .toast{ display:flex; gap:10px; align-items:flex-start; background:var(--panel); border:1px solid var(--line); border-left:4px solid var(--teal); border-radius:10px; padding:12px 14px; box-shadow:0 12px 36px rgba(0,0,0,.5); font-size:13px; cursor:pointer; animation:tin .22s ease-out; }
+  .toast.err{ border-left-color:var(--pink); } .toast.warn{ border-left-color:var(--orange); }
+  .toast .ti{ font-size:16px; line-height:1.2; } .toast b{ display:block; margin-bottom:2px; } .toast span{ color:var(--muted); word-break:break-word; }
+  @keyframes tin{ from{ opacity:0; transform:translateY(10px);} to{ opacity:1; transform:none;} }
   .paper{ background:#fff; color:#111; width:100%; border-radius:10px; padding:36px 44px 32px; font-family:'Segoe UI',Arial,sans-serif; box-shadow:0 24px 70px rgba(0,0,0,.55); -webkit-print-color-adjust:exact; print-color-adjust:exact; }
   .tt-head{ display:flex; align-items:center; justify-content:space-between; gap:20px; padding-bottom:16px; border-bottom:3px double #111; }
   .tt-head img{ height:46px; width:auto; display:block; }
@@ -73,7 +81,7 @@
   .tt-actions{ display:flex; justify-content:flex-end; gap:10px; margin-top:16px; }
   @media print{
     @page{ size:A4; margin:14mm; }
-    body{ background:#fff !important; padding:0 !important; } .wrap, .overlay:not(#ovTT), .tt-actions{ display:none !important; }
+    body{ background:#fff !important; padding:0 !important; } .wrap, .overlay:not(#ovTT), .tt-actions, #toasts{ display:none !important; }
     #ovTT{ position:static !important; display:block !important; background:none !important; padding:0 !important; backdrop-filter:none !important; }
     .paper{ box-shadow:none !important; padding:0 !important; border-radius:0 !important; }
   }
@@ -88,6 +96,7 @@
         <div class="muted">Kaos polo, jaket, topi, dan lainnya: stok per ukuran, penyerahan ke karyawan, tanda terima, dan rekap kebutuhan.</div></div></div>
     </div>
     <div style="display:flex;gap:10px;flex-wrap:wrap">
+      <span class="live" id="live">Menyambungkan...</span>
       <button class="btn secondary" onclick="bukaMasuk()">＋ Stok Masuk</button>
       <button class="btn" onclick="bukaDist()">＋ Catat Penyerahan</button>
     </div>
@@ -116,6 +125,8 @@
   </div>
   <div class="card"><table><thead id="head"></thead><tbody id="body"><tr><td class="empty">Memuat data...</td></tr></tbody></table></div>
 </div>
+
+<div id="toasts"></div>
 
 <div class="overlay" id="ovMasuk"><div class="modal">
   <h2>Stok Masuk dari Vendor</h2><div class="muted">Kolom bertanda * wajib diisi. Pilih jenis dan warna dari daftar, atau pilih &quot;＋ Tambah baru...&quot;.</div>
@@ -163,6 +174,14 @@ const ukBase = j => /sepatu|boot/i.test(j) ? UK_SEPATU : /topi|helm/i.test(j) ? 
 const JENIS_DEFAULT = ['Kaos Polo','Jaket','Topi'];
 let masuk = [], dist = [], kar = [], tab = 'stok', selKar = null;
 const $ = id => document.getElementById(id);
+function toast(msg, type = 'ok', ms) {
+  const t = {ok:['✔', 'Berhasil'], err:['✖', 'Gagal'], warn:['⚠', 'Perhatian']}[type], el = document.createElement('div');
+  el.className = 'toast ' + type;
+  el.innerHTML = `<div class="ti">${t[0]}</div><div><b>${t[1]}</b><span>${String(msg).replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]))}</span></div>`;
+  el.onclick = () => el.remove(); $('toasts').appendChild(el);
+  setTimeout(() => el.remove(), ms || (type === 'ok' ? 4000 : 8000));
+}
+const toastOk = m => toast(m, 'ok'), toastErr = m => toast(m, 'err'), toastWarn = m => toast(m, 'warn');
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const tgl = d => d ? new Date(d + 'T00:00:00').toLocaleDateString('id-ID', {day:'numeric', month:'short', year:'numeric'}) : '-';
 const key = x => [x.jenis, x.model, x.warna, x.ukuran].map(encodeURIComponent).join('|');
@@ -234,13 +253,18 @@ function render() {
   $('body').innerHTML = rows || `<tr><td class="empty" colspan="8">Tidak ada data.</td></tr>`;
 }
 
+let ready = false;
 async function load() {
   const [a, b, c] = await Promise.all([
     supabaseClient.from('seragam_masuk').select('*').order('tanggal', {ascending:false}),
     supabaseClient.from('seragam_distribusi').select('*').order('tanggal', {ascending:false}),
     supabaseClient.from('master_karyawan').select('*').eq('status', 'Aktif').order('nama', {ascending:true})]);
-  if (a.error || b.error) { console.error(a.error || b.error); $('body').innerHTML = '<tr><td class="empty">Gagal memuat data. Jalankan sql/seragam_schema.sql di Supabase terlebih dulu.</td></tr>'; return; }
-  masuk = a.data || []; dist = b.data || []; kar = c.data || [];
+  if (a.error || b.error) {
+    console.error(a.error || b.error);
+    if (!ready) { $('body').innerHTML = '<tr><td class="empty">Gagal memuat data. Jalankan sql/seragam_schema.sql di Supabase terlebih dulu.</td></tr>'; toastErr('Data seragam tidak dapat dimuat: ' + (a.error || b.error).message); }
+    return;
+  }
+  ready = true; masuk = a.data || []; dist = b.data || []; kar = c.data || [];
   const opt = (arr, f) => [...new Set(arr.map(f).filter(Boolean))].map(x => `<option value="${esc(x)}">`).join('');
   const cur = $('fJenis').value;
   $('fJenis').innerHTML = '<option value="">Semua Jenis</option>' + jenisAll().map(j => `<option>${esc(j)}</option>`).join('');
@@ -285,12 +309,14 @@ async function simpanMasuk() {
   let model = rapih($('m_model').value); model = [...new Set(masuk.map(x => x.model))].find(x => x.toLowerCase() === model.toLowerCase()) || model;
   const p = {tanggal:$('m_tanggal').value, jenis:nilaiPilih('m_jenis', jenisAll()), vendor:rapih($('m_vendor').value) || null, model, warna:nilaiPilih('m_warna', warnaAll()),
     ukuran:nilaiUkuran(), jumlah:Number($('m_jumlah').value), keterangan:$('m_ket').value.trim() || null, created_by:user.username || user.nama || null};
-  if (!p.tanggal || !p.jenis || !p.model || !p.warna || !(p.jumlah > 0)) return alert('Lengkapi kolom yang wajib diisi (*).');
+  if (!p.tanggal || !p.jenis || !p.model || !p.warna || !(p.jumlah > 0)) return toastWarn('Lengkapi kolom yang wajib diisi (*).');
   $('btnMasuk').disabled = true;
-  const { error } = await supabaseClient.from('seragam_masuk').insert(p);
-  $('btnMasuk').disabled = false;
-  if (error) return alert('Gagal menyimpan: ' + error.message);
-  tutup('ovMasuk'); load();
+  try {
+    const { error } = await supabaseClient.from('seragam_masuk').insert(p);
+    if (error) throw error;
+    tutup('ovMasuk'); toastOk(`Stok masuk tersimpan: ${p.jenis} ${p.model} ${p.warna} (${p.ukuran}) × ${p.jumlah}`); load();
+  } catch (e) { console.error(e); toastErr('Stok masuk tidak tersimpan. ' + (e.message || e)); }
+  finally { $('btnMasuk').disabled = false; }
 }
 
 // ===== Form penyerahan (multi barang) =====
@@ -324,44 +350,49 @@ function pilihKar() {
   document.querySelectorAll('#items .it').forEach(r => { const j = r.querySelector('.i-jenis').value, u = ukK(selKar, j); if (u) setUk(r, j, u); });
 }
 async function simpanDist() {
-  if (!selKar) return alert('Pilih karyawan dari daftar.');
-  const tg = $('d_tanggal').value; if (!tg) return alert('Tanggal wajib diisi.');
+  if (!selKar) return toastWarn('Pilih karyawan dari daftar.');
+  const tg = $('d_tanggal').value; if (!tg) return toastWarn('Tanggal wajib diisi.');
   const it = [...document.querySelectorAll('#items .it')].map(r => ({v:r.querySelector('.i-var').value, jumlah:Number(r.querySelector('.i-jml').value)}));
-  if (!it.length) return alert('Tambahkan minimal satu barang.');
-  if (it.some(x => !x.v)) return alert('Ada barang yang stoknya kosong untuk ukuran tersebut.');
-  if (it.some(x => !(x.jumlah > 0))) return alert('Jumlah tidak valid.');
+  if (!it.length) return toastWarn('Tambahkan minimal satu barang.');
+  if (it.some(x => !x.v)) return toastWarn('Ada barang yang stoknya kosong untuk ukuran tersebut.');
+  if (it.some(x => !(x.jumlah > 0))) return toastWarn('Jumlah tidak valid.');
   const need = {}; it.forEach(x => need[x.v] = (need[x.v] || 0) + x.jumlah);
   const sisa = Object.fromEntries(stokList().map(s => [s.key, s.sisa]));
-  for (const k in need) if (need[k] > (sisa[k] || 0)) { const [j, m, w, u] = unkey(k); return alert(`Stok ${j} ${m} ${w} (${u}) tidak cukup. Sisa ${sisa[k] || 0}.`); }
-  // Nomor tanda terima: SR/tahun/bulan/nomor urut. Nomor urut terus berlanjut (0001, 0002, ...) dari nomor terbesar yang sudah ada
-  const nr = await supabaseClient.from('seragam_distribusi').select('no_tt');
-  const mx = (nr.data || dist).reduce((a, x) => { const m = /^(?:SR\/\d{4}\/\d{2}\/)?(\d+)$/.exec(x.no_tt || ''); return m ? Math.max(a, Number(m[1])) : a; }, 0);
-  const no = `SR/${tg.slice(0, 4)}/${tg.slice(5, 7)}/${String(mx + 1).padStart(4, '0')}`;
-  const ket = $('d_ket').value.trim() || null, by = user.username || user.nama || null;
-  const payload = it.map(x => { const [jenis, model, warna, ukuran] = unkey(x.v);
-    return {tanggal:tg, tahun:Number(tg.slice(0, 4)), no_tt:no, jenis, nik:selKar.nik || null, nama:selKar.nama, departemen:selKar.departemen || null, area:selKar.area || null, model, warna, ukuran, jumlah:x.jumlah, keterangan:ket, created_by:by}; });
+  for (const k in need) if (need[k] > (sisa[k] || 0)) { const [j, m, w, u] = unkey(k); return toastWarn(`Stok ${j} ${m} ${w} (${u}) tidak cukup. Sisa ${sisa[k] || 0}.`); }
   $('btnDist').disabled = true;
-  const { data, error } = await supabaseClient.from('seragam_distribusi').insert(payload).select();
-  if (!error) { // simpan ukuran terbaru per jenis ke master karyawan
+  try {
+    // Nomor tanda terima: SR/tahun/bulan/nomor urut. Nomor urut terus berlanjut (0001, 0002, ...) dari nomor terbesar yang sudah ada
+    const nr = await supabaseClient.from('seragam_distribusi').select('no_tt'); if (nr.error) throw nr.error;
+    const mx = nr.data.reduce((a, x) => { const m = /^(?:SR\/\d{4}\/\d{2}\/)?(\d+)$/.exec(x.no_tt || ''); return m ? Math.max(a, Number(m[1])) : a; }, 0);
+    const no = `SR/${tg.slice(0, 4)}/${tg.slice(5, 7)}/${String(mx + 1).padStart(4, '0')}`;
+    const ket = $('d_ket').value.trim() || null, by = user.username || user.nama || null;
+    const payload = it.map(x => { const [jenis, model, warna, ukuran] = unkey(x.v);
+      return {tanggal:tg, tahun:Number(tg.slice(0, 4)), no_tt:no, jenis, nik:selKar.nik || null, nama:selKar.nama, departemen:selKar.departemen || null, area:selKar.area || null, model, warna, ukuran, jumlah:x.jumlah, keterangan:ket, created_by:by}; });
+    const { data, error } = await supabaseClient.from('seragam_distribusi').insert(payload).select(); if (error) throw error;
+    // simpan ukuran terbaru per jenis ke master karyawan
     const uk = {...(selKar.ukuran_seragam || {})}; payload.forEach(p => uk[p.jenis] = p.ukuran);
-    await supabaseClient.from('master_karyawan').update({ukuran_seragam:uk}).eq('id', selKar.id);
-  }
-  $('btnDist').disabled = false;
-  if (error) return alert('Gagal menyimpan: ' + error.message);
-  tutup('ovDist'); await load(); tampilTT(data);
+    const ur = await supabaseClient.from('master_karyawan').update({ukuran_seragam:uk}).eq('id', selKar.id);
+    tutup('ovDist'); toastOk(`Penyerahan ke ${selKar.nama} tersimpan. Tanda terima No. ${no}`);
+    if (ur.error) toastWarn('Penyerahan tersimpan, tetapi ukuran karyawan gagal diperbarui: ' + ur.error.message);
+    await load(); tampilTT(data);
+  } catch (e) { console.error(e); toastErr('Penyerahan tidak tersimpan. ' + (e.message || e)); }
+  finally { $('btnDist').disabled = false; }
 }
 async function hapusDist(id) {
   const x = dist.find(d => d.id === id);
   if (!confirm(`Hapus penyerahan ${x.jenis} ${x.model} ke ${x.nama}? Stok akan kembali bertambah.`)) return;
-  const { error } = await supabaseClient.from('seragam_distribusi').delete().eq('id', id);
-  if (error) return alert('Gagal menghapus: ' + error.message); load();
+  try {
+    const { error } = await supabaseClient.from('seragam_distribusi').delete().eq('id', id); if (error) throw error;
+    toastOk(`Penyerahan ke ${x.nama} dihapus, stok dikembalikan.`); load();
+  } catch (e) { console.error(e); toastErr('Penyerahan tidak terhapus. ' + (e.message || e)); }
 }
 async function setUkuran(id, jenis, u) {
   const k = kar.find(x => x.id === id), uk = {...(k.ukuran_seragam || {})};
   if (u) uk[jenis] = u; else delete uk[jenis];
-  const { error } = await supabaseClient.from('master_karyawan').update({ukuran_seragam:uk}).eq('id', id);
-  if (error) return alert('Gagal menyimpan ukuran: ' + error.message);
-  k.ukuran_seragam = uk; render();
+  try {
+    const { error } = await supabaseClient.from('master_karyawan').update({ukuran_seragam:uk}).eq('id', id); if (error) throw error;
+    k.ukuran_seragam = uk; render(); toastOk(`Ukuran ${jenis} ${k.nama} disimpan${u ? ': ' + u : ' (dikosongkan)'}.`);
+  } catch (e) { console.error(e); toastErr('Ukuran tidak tersimpan. ' + (e.message || e)); render(); }
 }
 
 // ===== Tanda terima (cetak langsung atau "Save as PDF" lewat dialog print) =====
@@ -394,6 +425,21 @@ $('tabs').addEventListener('click', e => {
 });
 document.addEventListener('keydown', e => { if (e.key === 'Escape') { tutup('ovMasuk'); tutup('ovDist'); tutup('ovTT'); } });
 load();
+
+// ===== Real-time: tampilan ikut berubah saat ada perubahan dari siapa pun, tanpa refresh =====
+let rtTimer = null;
+const muatUlang = () => { clearTimeout(rtTimer); rtTimer = setTimeout(load, 400); };
+const setLive = on => { $('live').classList.toggle('on', on); $('live').textContent = on ? 'Real-time aktif' : 'Sinkron otomatis (30 dtk)'; };
+try {
+  supabaseClient.channel('seragam-rt')
+    .on('postgres_changes', {event:'*', schema:'public', table:'seragam_masuk'}, muatUlang)
+    .on('postgres_changes', {event:'*', schema:'public', table:'seragam_distribusi'}, muatUlang)
+    .on('postgres_changes', {event:'*', schema:'public', table:'master_karyawan'}, muatUlang)
+    .subscribe(st => setLive(st === 'SUBSCRIBED'));
+} catch (e) { console.error(e); setLive(false); }
+// Cadangan bila real-time belum diaktifkan di Supabase: muat ulang berkala dan saat tab kembali dibuka
+setInterval(() => { if (!document.hidden && !document.querySelector('.overlay.show')) load(); }, 30000);
+document.addEventListener('visibilitychange', () => { if (!document.hidden) load(); });
 </script>
 </body>
 </html>
