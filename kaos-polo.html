@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Kaos Polo</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="supabase/config.js"></script>
+<style>
+  :root{ --bg:#1c1410; --panel:#2b2018; --panel-2:#241a13; --line:#3d2f22; --text:#f3ebe0; --muted:#a8967d; --dim:#7d6d58;
+         --gold:#d4a24c; --teal:#4dd0c4; --orange:#f0913f; --pink:#e5708f; --ac:#b693f5; --r:12px; }
+  *{ box-sizing:border-box; }
+  body{ margin:0; background:radial-gradient(1200px 500px at 80% -10%, rgba(182,147,245,.08), transparent 60%), var(--bg); color:var(--text);
+        font-family:'Inter','Segoe UI',system-ui,sans-serif; font-size:14px; line-height:1.45; padding:32px 24px 80px; }
+  .wrap{ max-width:1480px; margin:0 auto; }
+  .topbar{ display:flex; justify-content:space-between; align-items:flex-end; gap:16px; flex-wrap:wrap; margin-bottom:24px; padding-bottom:22px; border-bottom:1px solid var(--line); }
+  .back{ display:inline-block; color:var(--muted); text-decoration:none; font-size:12.5px; margin-bottom:14px; } .back:hover{ color:var(--ac); }
+  .title{ display:flex; align-items:center; gap:14px; }
+  .title .ico{ width:46px; height:46px; border-radius:12px; display:grid; place-items:center; font-size:22px; background:linear-gradient(135deg,rgba(182,147,245,.25),rgba(182,147,245,.08)); border:1px solid rgba(182,147,245,.35); }
+  h1{ font-size:24px; margin:0; font-weight:700; } .muted{ color:var(--muted); font-size:13px; margin-top:2px; }
+  .btn{ display:inline-flex; align-items:center; gap:8px; background:linear-gradient(135deg,#c6a8f8,#9a70e0); color:#1a1226; border:none; padding:10px 18px; border-radius:9px; font-weight:700; font-size:13px; cursor:pointer; font-family:inherit; }
+  .btn:hover{ filter:brightness(1.07); } .btn:disabled{ opacity:.6; cursor:wait; }
+  .btn.secondary{ background:transparent; border:1px solid var(--line); color:var(--text); } .btn.secondary:hover{ background:var(--panel-2); }
+  .btn.sm{ padding:6px 12px; font-size:12px; }
+  .stats{ display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin-bottom:22px; }
+  @media(max-width:900px){ .stats{ grid-template-columns:repeat(2,1fr); } }
+  .stat{ position:relative; background:var(--panel); border:1px solid var(--line); border-radius:var(--r); padding:16px 18px 16px 22px; overflow:hidden; }
+  .stat::before{ content:''; position:absolute; left:0; top:0; bottom:0; width:4px; background:var(--c,var(--ac)); }
+  .stat:nth-child(2){ --c:var(--teal);} .stat:nth-child(3){ --c:var(--orange);} .stat:nth-child(4){ --c:var(--pink);}
+  .stat .l{ font-size:11.5px; color:var(--muted); font-weight:600; text-transform:uppercase; letter-spacing:.04em; }
+  .stat .n{ font-size:28px; font-weight:700; margin-top:6px; line-height:1.1; }
+  .tabs{ display:flex; gap:6px; flex-wrap:wrap; margin-bottom:16px; }
+  .tab{ background:transparent; border:1px solid var(--line); color:var(--muted); padding:8px 16px; border-radius:9px; font-size:13px; font-weight:600; cursor:pointer; font-family:inherit; }
+  .tab.on{ background:rgba(182,147,245,.14); color:var(--ac); border-color:var(--ac); }
+  .bar{ display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin-bottom:14px; }
+  input,select,textarea{ background:var(--panel-2); border:1px solid var(--line); color:var(--text); padding:10px 12px; border-radius:9px; font-size:13.5px; font-family:inherit; width:100%; }
+  input:focus,select:focus,textarea:focus{ outline:none; border-color:var(--ac); box-shadow:0 0 0 3px rgba(182,147,245,.18); }
+  .bar input{ flex:1; min-width:220px; width:auto; } .bar select{ width:auto; min-width:130px; }
+  .count{ margin-left:auto; color:var(--muted); font-size:12.5px; }
+  .card{ background:var(--panel); border:1px solid var(--line); border-radius:var(--r); overflow-x:auto; box-shadow:0 8px 30px rgba(0,0,0,.25); }
+  table{ width:100%; border-collapse:collapse; min-width:760px; }
+  th{ text-align:left; padding:12px; font-size:11px; font-weight:700; color:var(--muted); text-transform:uppercase; letter-spacing:.06em; background:var(--panel-2); border-bottom:1px solid var(--line); white-space:nowrap; }
+  td{ padding:12px; font-size:12.5px; border-bottom:1px solid var(--line); vertical-align:middle; }
+  tbody tr:last-child td{ border-bottom:none; } tbody tr:hover{ background:rgba(255,255,255,.03); }
+  td small{ display:block; color:var(--muted); font-size:11.5px; margin-top:2px; } td.num{ font-variant-numeric:tabular-nums; }
+  .badge{ display:inline-flex; align-items:center; gap:6px; padding:3px 10px; border-radius:20px; font-size:11.5px; font-weight:600; }
+  .b-ok{ background:rgba(77,208,196,.13); color:var(--teal);} .b-low{ background:rgba(240,145,63,.14); color:var(--orange);} .b-out{ background:rgba(229,112,143,.14); color:var(--pink);}
+  .size{ display:inline-block; min-width:34px; text-align:center; background:rgba(182,147,245,.14); color:var(--ac); font-weight:800; padding:3px 8px; border-radius:7px; }
+  .empty{ padding:48px 20px; text-align:center; color:var(--muted); }
+  .del{ background:transparent; border:1px solid var(--line); color:var(--muted); border-radius:8px; padding:5px 10px; cursor:pointer; font-size:12px; } .del:hover{ color:var(--pink); border-color:var(--pink); }
+  .overlay{ position:fixed; inset:0; background:rgba(10,6,3,.72); backdrop-filter:blur(3px); display:none; align-items:flex-start; justify-content:center; padding:32px 16px; overflow-y:auto; z-index:50; }
+  .overlay.show{ display:flex; }
+  .modal{ background:var(--panel); border:1px solid var(--line); border-radius:16px; width:100%; max-width:640px; padding:26px 28px; box-shadow:0 24px 70px rgba(0,0,0,.55); }
+  .modal h2{ margin:0 0 4px; font-size:19px; }
+  .fg{ display:grid; grid-template-columns:1fr 1fr; gap:16px 18px; margin-top:20px; } @media(max-width:600px){ .fg{ grid-template-columns:1fr; } }
+  .full{ grid-column:1/-1; } label{ display:block; font-size:12px; color:var(--muted); font-weight:600; margin-bottom:6px; }
+  .foot{ display:flex; justify-content:flex-end; gap:10px; margin-top:24px; padding-top:18px; border-top:1px solid var(--line); }
+  .hid{ display:none !important; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="topbar">
+    <div>
+      <a class="back" href="pilih-modul.html">← Kembali ke pilih modul</a>
+      <div class="title"><div class="ico">👕</div><div><h1>Kaos Polo</h1>
+        <div class="muted">Stok per ukuran, pencatatan penerimaan karyawan, dan rekap kebutuhan pemesanan.</div></div></div>
+    </div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap">
+      <button class="btn secondary" onclick="bukaMasuk()">＋ Stok Masuk</button>
+      <button class="btn" onclick="bukaDist()">＋ Catat Penyerahan</button>
+    </div>
+  </div>
+
+  <div class="stats">
+    <div class="stat"><div class="l">Total Stok Tersedia</div><div class="n" id="sStok">-</div></div>
+    <div class="stat"><div class="l">Diserahkan Tahun Ini</div><div class="n" id="sDist">-</div></div>
+    <div class="stat"><div class="l">Karyawan Belum Menerima</div><div class="n" id="sBelum">-</div></div>
+    <div class="stat"><div class="l">Ukuran Kurang Stok</div><div class="n" id="sKurang">-</div></div>
+  </div>
+
+  <div class="tabs" id="tabs">
+    <button class="tab on" data-t="stok">Stok</button>
+    <button class="tab" data-t="dist">Riwayat Penyerahan</button>
+    <button class="tab" data-t="belum">Belum Menerima</button>
+    <button class="tab" data-t="rekap">Rekap Kebutuhan</button>
+  </div>
+
+  <div class="bar">
+    <input id="cari" placeholder="Cari..." oninput="render()">
+    <select id="fTahun" onchange="render()"></select>
+    <select id="fDep" onchange="render()"><option value="">Semua Departemen</option></select>
+    <span class="count" id="count"></span>
+  </div>
+  <div class="card"><table><thead id="head"></thead><tbody id="body"><tr><td class="empty">Memuat data...</td></tr></tbody></table></div>
+</div>
+
+<div class="overlay" id="ovMasuk"><div class="modal">
+  <h2>Stok Masuk dari Vendor</h2><div class="muted">Kolom bertanda * wajib diisi.</div>
+  <div class="fg">
+    <div><label>Tanggal *</label><input type="date" id="m_tanggal"></div>
+    <div><label>Vendor</label><input id="m_vendor"></div>
+    <div><label>Model *</label><input id="m_model" list="dlModel" placeholder="mis. Polo Pria Lengan Pendek"><datalist id="dlModel"></datalist></div>
+    <div><label>Warna *</label><input id="m_warna" list="dlWarna"><datalist id="dlWarna"></datalist></div>
+    <div><label>Ukuran *</label><select id="m_ukuran"></select></div>
+    <div><label>Jumlah *</label><input type="number" id="m_jumlah" min="1"></div>
+    <div class="full"><label>Keterangan</label><textarea id="m_ket" rows="2"></textarea></div>
+  </div>
+  <div class="foot"><button class="btn secondary" onclick="tutup('ovMasuk')">Batal</button><button class="btn" id="btnMasuk" onclick="simpanMasuk()">Simpan</button></div>
+</div></div>
+
+<div class="overlay" id="ovDist"><div class="modal">
+  <h2>Catat Penyerahan Kaos</h2><div class="muted">Stok berkurang otomatis sesuai jumlah yang diserahkan.</div>
+  <div class="fg">
+    <div class="full"><label>Karyawan *</label><input id="d_kar" list="dlKar" placeholder="Ketik nama atau NIK" oninput="pilihKar()"><datalist id="dlKar"></datalist>
+      <div class="muted" id="d_info"></div></div>
+    <div><label>Tanggal *</label><input type="date" id="d_tanggal"></div>
+    <div><label>Jumlah *</label><input type="number" id="d_jumlah" min="1" value="1"></div>
+    <div><label>Ukuran *</label><select id="d_ukuran" onchange="isiVarian()"></select></div>
+    <div><label>Model / Warna *</label><select id="d_varian"></select></div>
+    <div class="full"><label>Keterangan</label><textarea id="d_ket" rows="2" placeholder="mis. jatah tahunan, karyawan baru"></textarea></div>
+  </div>
+  <div class="foot"><button class="btn secondary" onclick="tutup('ovDist')">Batal</button><button class="btn" id="btnDist" onclick="simpanDist()">Simpan</button></div>
+</div></div>
+
+<script>
+const user = JSON.parse(sessionStorage.getItem('user') || 'null');
+if (!user) location.href = 'login.html';
+
+const JATAH_PER_TAHUN = 2;     // jatah kaos per karyawan per tahun (ubah sesuai kebijakan)
+const STOK_MIN = 5;            // batas stok menipis per ukuran/model/warna
+const UKURAN = ['XS','S','M','L','XL','XXL','3XL','4XL'];
+let masuk = [], dist = [], kar = [], tab = 'stok', selKar = null;
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const tgl = d => d ? new Date(d + 'T00:00:00').toLocaleDateString('id-ID', {day:'numeric', month:'short', year:'numeric'}) : '-';
+const key = x => [x.model, x.warna, x.ukuran].join('|');
+const sizeIdx = u => { const i = UKURAN.indexOf(u); return i < 0 ? 99 : i; };
+const tahun = () => Number($('fTahun').value);
+
+function stokList() {
+  const m = {};
+  masuk.forEach(x => { const k = key(x); m[k] ??= {model:x.model, warna:x.warna, ukuran:x.ukuran, masuk:0, keluar:0}; m[k].masuk += x.jumlah; });
+  dist.forEach(x => { const k = key(x); m[k] ??= {model:x.model, warna:x.warna, ukuran:x.ukuran, masuk:0, keluar:0}; m[k].keluar += x.jumlah; });
+  return Object.values(m).map(x => ({...x, sisa:x.masuk - x.keluar}))
+    .sort((a, b) => a.model.localeCompare(b.model) || a.warna.localeCompare(b.warna) || sizeIdx(a.ukuran) - sizeIdx(b.ukuran));
+}
+// Karyawan aktif + jumlah kaos yang sudah diterima pada tahun terpilih
+function statusKar() {
+  const th = tahun(), terima = {};
+  dist.filter(x => x.tahun === th).forEach(x => { const k = x.nik || x.nama; terima[k] = (terima[k] || 0) + x.jumlah; });
+  return kar.map(k => ({...k, terima: terima[k.nik || k.nama] || 0}));
+}
+const belumList = () => statusKar().filter(k => k.terima < JATAH_PER_TAHUN);
+
+function render() {
+  const q = $('cari').value.toLowerCase(), dep = $('fDep').value, th = tahun();
+  const stok = stokList(), belum = belumList(), perSize = {};
+  stok.forEach(s => perSize[s.ukuran] = (perSize[s.ukuran] || 0) + s.sisa);
+  const butuh = {}; belum.forEach(k => { if (k.ukuran_kaos) butuh[k.ukuran_kaos] = (butuh[k.ukuran_kaos] || 0) + (JATAH_PER_TAHUN - k.terima); });
+  $('sStok').textContent = stok.reduce((a, s) => a + s.sisa, 0);
+  $('sDist').textContent = dist.filter(x => x.tahun === th).reduce((a, x) => a + x.jumlah, 0);
+  $('sBelum').textContent = belum.length;
+  $('sKurang').textContent = Object.keys(butuh).filter(u => (perSize[u] || 0) < butuh[u]).length;
+  $('fDep').classList.toggle('hid', tab === 'stok'); $('fTahun').classList.toggle('hid', tab === 'stok');
+  let h = '', rows = '', n = 0;
+
+  if (tab === 'stok') {
+    const l = stok.filter(s => [s.model, s.warna, s.ukuran].some(x => x.toLowerCase().includes(q))); n = l.length;
+    h = '<tr><th>Model</th><th>Warna</th><th>Ukuran</th><th>Masuk</th><th>Diserahkan</th><th>Sisa</th><th>Status</th></tr>';
+    rows = l.map(s => `<tr><td><b>${esc(s.model)}</b></td><td>${esc(s.warna)}</td><td><span class="size">${esc(s.ukuran)}</span></td><td class="num">${s.masuk}</td><td class="num">${s.keluar}</td><td class="num"><b>${s.sisa}</b></td>
+      <td><span class="badge ${s.sisa <= 0 ? 'b-out' : s.sisa <= STOK_MIN ? 'b-low' : 'b-ok'}">${s.sisa <= 0 ? 'Habis' : s.sisa <= STOK_MIN ? 'Menipis' : 'Tersedia'}</span></td></tr>`).join('');
+  } else if (tab === 'dist') {
+    const l = dist.filter(x => x.tahun === th && (!dep || x.departemen === dep) && [x.nama, x.nik, x.model, x.warna, x.ukuran].some(v => (v || '').toLowerCase().includes(q))); n = l.length;
+    h = '<tr><th>Tanggal</th><th>Karyawan</th><th>Departemen</th><th>Kaos</th><th>Jumlah</th><th>Keterangan</th><th></th></tr>';
+    rows = l.map(x => `<tr><td>${tgl(x.tanggal)}</td><td><b>${esc(x.nama)}</b><small>${esc(x.nik || '')}</small></td><td>${esc(x.departemen || '-')}<small>${esc(x.area || '')}</small></td>
+      <td>${esc(x.model)} · ${esc(x.warna)} <span class="size">${esc(x.ukuran)}</span></td><td class="num">${x.jumlah}</td><td>${esc(x.keterangan || '')}</td>
+      <td><button class="del" onclick="hapusDist('${x.id}')">Hapus</button></td></tr>`).join('');
+  } else if (tab === 'belum') {
+    const l = belum.filter(k => (!dep || k.departemen === dep) && [k.nama, k.nik, k.departemen].some(v => (v || '').toLowerCase().includes(q))); n = l.length;
+    h = `<tr><th>Karyawan</th><th>Departemen</th><th>Ukuran</th><th>Diterima ${th}</th><th></th></tr>`;
+    rows = l.map(k => `<tr><td><b>${esc(k.nama)}</b><small>${esc(k.nik || '')}</small></td><td>${esc(k.departemen || '-')}<small>${esc(k.area || '')}</small></td>
+      <td><select style="width:90px;padding:6px" onchange="setUkuran('${k.id}', this.value)"><option value="">-</option>${UKURAN.map(u => `<option ${k.ukuran_kaos === u ? 'selected' : ''}>${u}</option>`).join('')}</select></td>
+      <td class="num">${k.terima} / ${JATAH_PER_TAHUN}</td><td><button class="btn sm" onclick="bukaDist('${k.id}')">Serahkan</button></td></tr>`).join('');
+  } else {
+    const m = {}; belum.filter(k => !dep || k.departemen === dep).forEach(k => {
+      const u = k.ukuran_kaos || 'Belum diisi'; m[u] = m[u] || {perlu:0, dep:{}};
+      const p = JATAH_PER_TAHUN - k.terima; m[u].perlu += p; const d = k.departemen || '-'; m[u].dep[d] = (m[u].dep[d] || 0) + p; });
+    const l = Object.keys(m).sort((a, b) => sizeIdx(a) - sizeIdx(b)); n = l.length;
+    h = `<tr><th>Ukuran</th><th>Dibutuhkan</th><th>Stok Tersedia</th><th>Perlu Dipesan</th><th>Rincian Departemen</th></tr>`;
+    rows = l.map(u => { const s = perSize[u] || 0, kurang = Math.max(0, m[u].perlu - s);
+      return `<tr><td><span class="size">${esc(u)}</span></td><td class="num">${m[u].perlu}</td><td class="num">${s}</td>
+      <td class="num"><span class="badge ${kurang ? 'b-out' : 'b-ok'}">${kurang ? kurang + ' pcs' : 'Cukup'}</span></td>
+      <td><small>${Object.entries(m[u].dep).map(([d, c]) => esc(d) + ': ' + c).join(' · ')}</small></td></tr>`; }).join('');
+  }
+  $('head').innerHTML = h; $('count').textContent = n + ' data';
+  $('body').innerHTML = rows || `<tr><td class="empty" colspan="8">Tidak ada data.</td></tr>`;
+}
+
+async function load() {
+  const [a, b, c] = await Promise.all([
+    supabaseClient.from('kaos_polo_masuk').select('*').order('tanggal', {ascending:false}),
+    supabaseClient.from('kaos_polo_distribusi').select('*').order('tanggal', {ascending:false}),
+    supabaseClient.from('master_karyawan').select('*').eq('status', 'Aktif').order('nama', {ascending:true})]);
+  if (a.error || b.error) { console.error(a.error || b.error); $('body').innerHTML = '<tr><td class="empty">Gagal memuat data. Jalankan sql/kaos_polo_schema.sql di Supabase terlebih dulu.</td></tr>'; return; }
+  masuk = a.data || []; dist = b.data || []; kar = c.data || [];
+  const deps = [...new Set(kar.map(k => k.departemen).filter(Boolean))].sort();
+  $('fDep').innerHTML = '<option value="">Semua Departemen</option>' + deps.map(d => `<option>${esc(d)}</option>`).join('');
+  $('dlKar').innerHTML = kar.map(k => `<option value="${esc(k.nama)}">${esc(k.nik || '')} ${esc(k.departemen || '')}</option>`).join('');
+  $('dlModel').innerHTML = [...new Set(masuk.map(x => x.model))].map(x => `<option value="${esc(x)}">`).join('');
+  $('dlWarna').innerHTML = [...new Set(masuk.map(x => x.warna))].map(x => `<option value="${esc(x)}">`).join('');
+  render();
+}
+
+const tutup = id => $(id).classList.remove('show');
+const today = () => new Date().toLocaleDateString('sv-SE');
+function bukaMasuk() { ['m_vendor','m_model','m_warna','m_jumlah','m_ket'].forEach(i => $(i).value = ''); $('m_tanggal').value = today(); $('ovMasuk').classList.add('show'); }
+async function simpanMasuk() {
+  const p = {tanggal:$('m_tanggal').value, vendor:$('m_vendor').value.trim() || null, model:$('m_model').value.trim(), warna:$('m_warna').value.trim(),
+    ukuran:$('m_ukuran').value, jumlah:Number($('m_jumlah').value), keterangan:$('m_ket').value.trim() || null, created_by:user.username || user.nama || null};
+  if (!p.tanggal || !p.model || !p.warna || !(p.jumlah > 0)) return alert('Lengkapi kolom yang wajib diisi (*).');
+  $('btnMasuk').disabled = true;
+  const { error } = await supabaseClient.from('kaos_polo_masuk').insert(p);
+  $('btnMasuk').disabled = false;
+  if (error) return alert('Gagal menyimpan: ' + error.message);
+  tutup('ovMasuk'); load();
+}
+
+function bukaDist(id) {
+  selKar = null; $('d_kar').value = ''; $('d_info').textContent = ''; $('d_ket').value = ''; $('d_jumlah').value = 1; $('d_tanggal').value = today();
+  $('d_ukuran').value = UKURAN[2]; if (id) { const k = kar.find(x => x.id === id); $('d_kar').value = k.nama; pilihKar(); }
+  isiVarian(); $('ovDist').classList.add('show');
+}
+function pilihKar() {
+  const v = $('d_kar').value.trim().toLowerCase();
+  selKar = kar.find(k => k.nama.toLowerCase() === v || (k.nik || '').toLowerCase() === v) || null;
+  if (!selKar) { $('d_info').textContent = ''; return; }
+  const sk = statusKar().find(k => k.id === selKar.id);
+  $('d_info').textContent = `${selKar.nik || ''} · ${selKar.departemen || '-'} · sudah menerima ${sk.terima}/${JATAH_PER_TAHUN} tahun ini`;
+  if (selKar.ukuran_kaos) { $('d_ukuran').value = selKar.ukuran_kaos; isiVarian(); }
+}
+function isiVarian() {
+  const l = stokList().filter(s => s.ukuran === $('d_ukuran').value && s.sisa > 0);
+  $('d_varian').innerHTML = l.length ? l.map(s => `<option value="${esc(key(s))}">${esc(s.model)} · ${esc(s.warna)} (sisa ${s.sisa})</option>`).join('') : '<option value="">Stok ukuran ini kosong</option>';
+}
+async function simpanDist() {
+  if (!selKar) return alert('Pilih karyawan dari daftar.');
+  const v = $('d_varian').value; if (!v) return alert('Stok untuk ukuran ini kosong.');
+  const [model, warna, ukuran] = v.split('|'), jumlah = Number($('d_jumlah').value);
+  const sisa = stokList().find(s => key(s) === v)?.sisa || 0;
+  if (!(jumlah > 0)) return alert('Jumlah tidak valid.');
+  if (jumlah > sisa) return alert(`Stok tidak cukup (sisa ${sisa}).`);
+  const tg = $('d_tanggal').value; if (!tg) return alert('Tanggal wajib diisi.');
+  $('btnDist').disabled = true;
+  const { error } = await supabaseClient.from('kaos_polo_distribusi').insert({tanggal:tg, tahun:Number(tg.slice(0, 4)), nik:selKar.nik || null, nama:selKar.nama,
+    departemen:selKar.departemen || null, area:selKar.area || null, model, warna, ukuran, jumlah, keterangan:$('d_ket').value.trim() || null, created_by:user.username || user.nama || null});
+  if (!error && selKar.ukuran_kaos !== ukuran) await supabaseClient.from('master_karyawan').update({ukuran_kaos:ukuran}).eq('id', selKar.id);
+  $('btnDist').disabled = false;
+  if (error) return alert('Gagal menyimpan: ' + error.message);
+  tutup('ovDist'); load();
+}
+async function hapusDist(id) {
+  const x = dist.find(d => d.id === id);
+  if (!confirm(`Hapus penyerahan ke ${x.nama}? Stok akan kembali bertambah.`)) return;
+  const { error } = await supabaseClient.from('kaos_polo_distribusi').delete().eq('id', id);
+  if (error) return alert('Gagal menghapus: ' + error.message); load();
+}
+async function setUkuran(id, u) {
+  const { error } = await supabaseClient.from('master_karyawan').update({ukuran_kaos:u || null}).eq('id', id);
+  if (error) return alert('Gagal menyimpan ukuran: ' + error.message);
+  kar.find(k => k.id === id).ukuran_kaos = u || null; render();
+}
+
+// init
+const thNow = new Date().getFullYear();
+$('fTahun').innerHTML = [thNow + 1, thNow, thNow - 1, thNow - 2].map(t => `<option ${t === thNow ? 'selected' : ''}>${t}</option>`).join('');
+$('m_ukuran').innerHTML = $('d_ukuran').innerHTML = UKURAN.map(u => `<option ${u === 'M' ? 'selected' : ''}>${u}</option>`).join('');
+$('tabs').addEventListener('click', e => { const b = e.target.closest('.tab'); if (!b) return; tab = b.dataset.t; document.querySelectorAll('.tab').forEach(t => t.classList.toggle('on', t === b)); render(); });
+document.addEventListener('keydown', e => { if (e.key === 'Escape') { tutup('ovMasuk'); tutup('ovDist'); } });
+load();
+</script>
+</body>
+</html>
