@@ -112,12 +112,12 @@
 </div>
 
 <div class="overlay" id="ovMasuk"><div class="modal">
-  <h2>Stok Masuk dari Vendor</h2><div class="muted">Kolom bertanda * wajib diisi. Jenis baru bisa diketik langsung.</div>
+  <h2>Stok Masuk dari Vendor</h2><div class="muted">Kolom bertanda * wajib diisi. Pilih jenis dan warna dari daftar, atau pilih &quot;＋ Tambah baru...&quot;.</div>
   <div class="fg">
-    <div><label>Jenis *</label><input id="m_jenis" list="dlJenis" placeholder="Kaos Polo / Jaket / Topi"><datalist id="dlJenis"></datalist></div>
+    <div><label>Jenis *</label><select id="m_jenis" onchange="cekBaru('m_jenis')"></select><input id="m_jenis_baru" class="hid" placeholder="Nama jenis baru" style="margin-top:8px"></div>
     <div><label>Tanggal *</label><input type="date" id="m_tanggal"></div>
     <div><label>Model / Tipe *</label><input id="m_model" list="dlModel" placeholder="mis. Lengan Pendek Pria"><datalist id="dlModel"></datalist></div>
-    <div><label>Warna *</label><input id="m_warna" list="dlWarna"><datalist id="dlWarna"></datalist></div>
+    <div><label>Warna *</label><select id="m_warna" onchange="cekBaru('m_warna')"></select><input id="m_warna_baru" class="hid" placeholder="Nama warna baru" style="margin-top:8px"></div>
     <div><label>Ukuran * <span style="font-weight:400">(Topi: All Size)</span></label><select id="m_ukuran"></select></div>
     <div><label>Jumlah *</label><input type="number" id="m_jumlah" min="1"></div>
     <div class="full"><label>Vendor</label><input id="m_vendor"></div>
@@ -237,16 +237,31 @@ async function load() {
   const deps = [...new Set(kar.map(k => k.departemen).filter(Boolean))].sort(), cd = $('fDep').value;
   $('fDep').innerHTML = '<option value="">Semua Departemen</option>' + deps.map(d => `<option>${esc(d)}</option>`).join(''); $('fDep').value = cd;
   $('dlKar').innerHTML = kar.map(k => `<option value="${esc(k.nama)}">${esc(k.nik || '')} ${esc(k.departemen || '')}</option>`).join('');
-  $('dlJenis').innerHTML = jenisAll().map(j => `<option value="${esc(j)}">`).join('');
-  $('dlModel').innerHTML = opt(masuk, x => x.model); $('dlWarna').innerHTML = opt(masuk, x => x.warna);
+  $('dlModel').innerHTML = opt(masuk, x => x.model);
   render();
 }
 
 const tutup = id => $(id).classList.remove('show');
 const today = () => new Date().toLocaleDateString('sv-SE');
-function bukaMasuk() { ['m_jenis','m_vendor','m_model','m_warna','m_jumlah','m_ket'].forEach(i => $(i).value = ''); $('m_jenis').value = $('fJenis').value; $('m_tanggal').value = today(); $('ovMasuk').classList.add('show'); }
+const WARNA_DEFAULT = ['Hitam','Putih','Navy','Abu-Abu','Merah'];
+const rapih = v => String(v || '').trim().replace(/\s+/g, ' ');
+const judul = v => rapih(v).toLowerCase().replace(/(^|\s|-)\S/g, c => c.toUpperCase());
+const warnaAll = () => [...new Set([...WARNA_DEFAULT, ...masuk.map(x => x.warna), ...dist.map(x => x.warna)].filter(Boolean))].sort((a, b) => a.localeCompare(b));
+const opsiBaru = (arr, sel) => '<option value="">-- Pilih --</option>' + arr.map(x => `<option ${x === sel ? 'selected' : ''}>${esc(x)}</option>`).join('') + '<option value="__baru">＋ Tambah baru...</option>';
+function cekBaru(id) { const b = $(id + '_baru'), on = $(id).value === '__baru'; b.classList.toggle('hid', !on); if (on) b.focus(); }
+// Nilai dropdown; bila "tambah baru": dirapikan (Title Case) dan disamakan dengan data yang sudah ada (tanpa beda huruf besar/kecil)
+function nilaiPilih(id, daftar) {
+  const v = $(id).value; if (v !== '__baru') return v;
+  const n = judul($(id + '_baru').value); return daftar.find(x => x.toLowerCase() === n.toLowerCase()) || n;
+}
+function bukaMasuk() {
+  ['m_vendor','m_model','m_jumlah','m_ket','m_jenis_baru','m_warna_baru'].forEach(i => $(i).value = '');
+  $('m_jenis').innerHTML = opsiBaru(jenisAll(), $('fJenis').value); $('m_warna').innerHTML = opsiBaru(warnaAll());
+  cekBaru('m_jenis'); cekBaru('m_warna'); $('m_tanggal').value = today(); $('ovMasuk').classList.add('show');
+}
 async function simpanMasuk() {
-  const p = {tanggal:$('m_tanggal').value, jenis:$('m_jenis').value.trim(), vendor:$('m_vendor').value.trim() || null, model:$('m_model').value.trim(), warna:$('m_warna').value.trim(),
+  let model = rapih($('m_model').value); model = [...new Set(masuk.map(x => x.model))].find(x => x.toLowerCase() === model.toLowerCase()) || model;
+  const p = {tanggal:$('m_tanggal').value, jenis:nilaiPilih('m_jenis', jenisAll()), vendor:rapih($('m_vendor').value) || null, model, warna:nilaiPilih('m_warna', warnaAll()),
     ukuran:$('m_ukuran').value, jumlah:Number($('m_jumlah').value), keterangan:$('m_ket').value.trim() || null, created_by:user.username || user.nama || null};
   if (!p.tanggal || !p.jenis || !p.model || !p.warna || !(p.jumlah > 0)) return alert('Lengkapi kolom yang wajib diisi (*).');
   $('btnMasuk').disabled = true;
