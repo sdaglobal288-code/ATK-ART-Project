@@ -56,6 +56,18 @@
   .full{ grid-column:1/-1; } label{ display:block; font-size:12px; color:var(--muted); font-weight:600; margin-bottom:6px; }
   .foot{ display:flex; justify-content:flex-end; gap:10px; margin-top:24px; padding-top:18px; border-top:1px solid var(--line); }
   .hid{ display:none !important; }
+  .paper{ background:#fff; color:#111; width:100%; max-width:760px; border-radius:10px; padding:42px 48px; font-family:'Segoe UI',Arial,sans-serif; box-shadow:0 24px 70px rgba(0,0,0,.55); }
+  .paper h2{ text-align:center; margin:0; font-size:20px; letter-spacing:.08em; } .paper .nodok{ text-align:center; font-size:12.5px; color:#555; margin:4px 0 22px; padding-bottom:14px; border-bottom:2px solid #111; }
+  .paper table{ min-width:0; width:100%; } .paper td,.paper th{ color:#111; border:1px solid #bbb; padding:8px 10px; font-size:13px; background:none; text-transform:none; letter-spacing:0; }
+  .paper th{ background:#eee; text-align:left; font-size:12px; } .paper .kv td{ border:none; padding:3px 0; } .paper .kv td:first-child{ width:130px; color:#555; }
+  .paper p{ font-size:13px; margin:18px 0; } .ttd{ display:flex; justify-content:space-between; margin-top:30px; font-size:13px; text-align:center; } .ttd div{ width:42%; } .ttd .sp{ height:76px; } .ttd .ln{ border-top:1px solid #111; padding-top:4px; font-weight:600; }
+  .tt-actions{ display:flex; justify-content:flex-end; gap:10px; margin-top:16px; width:100%; max-width:760px; }
+  @media print{
+    @page{ size:A4; margin:14mm; }
+    body{ background:#fff !important; padding:0 !important; } .wrap, .overlay:not(#ovTT), .tt-actions{ display:none !important; }
+    #ovTT{ position:static !important; display:block !important; background:none !important; padding:0 !important; backdrop-filter:none !important; }
+    .paper{ box-shadow:none !important; max-width:none !important; padding:0 !important; border-radius:0 !important; }
+  }
 </style>
 </head>
 <body>
@@ -118,16 +130,20 @@
     <div><label>Jumlah *</label><input type="number" id="d_jumlah" min="1" value="1"></div>
     <div><label>Ukuran *</label><select id="d_ukuran" onchange="isiVarian()"></select></div>
     <div><label>Model / Warna *</label><select id="d_varian"></select></div>
-    <div class="full"><label>Keterangan</label><textarea id="d_ket" rows="2" placeholder="mis. jatah tahunan, karyawan baru"></textarea></div>
+    <div class="full"><label>Keterangan</label><textarea id="d_ket" rows="2" placeholder="mis. karyawan baru, penggantian"></textarea></div>
   </div>
   <div class="foot"><button class="btn secondary" onclick="tutup('ovDist')">Batal</button><button class="btn" id="btnDist" onclick="simpanDist()">Simpan</button></div>
+</div></div>
+
+<div class="overlay" id="ovTT"><div style="width:100%;max-width:760px;margin:0 auto">
+  <div class="paper" id="paper"></div>
+  <div class="tt-actions"><button class="btn secondary" onclick="tutup('ovTT')">Tutup</button><button class="btn" onclick="window.print()">🖨 Cetak / Simpan PDF</button></div>
 </div></div>
 
 <script>
 const user = JSON.parse(sessionStorage.getItem('user') || 'null');
 if (!user) location.href = 'login.html';
 
-const JATAH_PER_TAHUN = 2;     // jatah kaos per karyawan per tahun (ubah sesuai kebijakan)
 const STOK_MIN = 5;            // batas stok menipis per ukuran/model/warna
 const UKURAN = ['XS','S','M','L','XL','XXL','3XL','4XL'];
 let masuk = [], dist = [], kar = [], tab = 'stok', selKar = null;
@@ -145,24 +161,24 @@ function stokList() {
   return Object.values(m).map(x => ({...x, sisa:x.masuk - x.keluar}))
     .sort((a, b) => a.model.localeCompare(b.model) || a.warna.localeCompare(b.warna) || sizeIdx(a.ukuran) - sizeIdx(b.ukuran));
 }
-// Karyawan aktif + jumlah kaos yang sudah diterima pada tahun terpilih
+// Karyawan aktif + total kaos yang pernah diterima (semua periode)
 function statusKar() {
-  const th = tahun(), terima = {};
-  dist.filter(x => x.tahun === th).forEach(x => { const k = x.nik || x.nama; terima[k] = (terima[k] || 0) + x.jumlah; });
+  const terima = {};
+  dist.forEach(x => { const k = x.nik || x.nama; terima[k] = (terima[k] || 0) + x.jumlah; });
   return kar.map(k => ({...k, terima: terima[k.nik || k.nama] || 0}));
 }
-const belumList = () => statusKar().filter(k => k.terima < JATAH_PER_TAHUN);
+const belumList = () => statusKar().filter(k => k.terima === 0);
 
 function render() {
   const q = $('cari').value.toLowerCase(), dep = $('fDep').value, th = tahun();
   const stok = stokList(), belum = belumList(), perSize = {};
   stok.forEach(s => perSize[s.ukuran] = (perSize[s.ukuran] || 0) + s.sisa);
-  const butuh = {}; belum.forEach(k => { if (k.ukuran_kaos) butuh[k.ukuran_kaos] = (butuh[k.ukuran_kaos] || 0) + (JATAH_PER_TAHUN - k.terima); });
+  const butuh = {}; belum.forEach(k => { if (k.ukuran_kaos) butuh[k.ukuran_kaos] = (butuh[k.ukuran_kaos] || 0) + 1; });
   $('sStok').textContent = stok.reduce((a, s) => a + s.sisa, 0);
   $('sDist').textContent = dist.filter(x => x.tahun === th).reduce((a, x) => a + x.jumlah, 0);
   $('sBelum').textContent = belum.length;
   $('sKurang').textContent = Object.keys(butuh).filter(u => (perSize[u] || 0) < butuh[u]).length;
-  $('fDep').classList.toggle('hid', tab === 'stok'); $('fTahun').classList.toggle('hid', tab === 'stok');
+  $('fDep').classList.toggle('hid', tab === 'stok'); $('fTahun').classList.toggle('hid', tab !== 'dist');
   let h = '', rows = '', n = 0;
 
   if (tab === 'stok') {
@@ -175,17 +191,17 @@ function render() {
     h = '<tr><th>Tanggal</th><th>Karyawan</th><th>Departemen</th><th>Kaos</th><th>Jumlah</th><th>Keterangan</th><th></th></tr>';
     rows = l.map(x => `<tr><td>${tgl(x.tanggal)}</td><td><b>${esc(x.nama)}</b><small>${esc(x.nik || '')}</small></td><td>${esc(x.departemen || '-')}<small>${esc(x.area || '')}</small></td>
       <td>${esc(x.model)} · ${esc(x.warna)} <span class="size">${esc(x.ukuran)}</span></td><td class="num">${x.jumlah}</td><td>${esc(x.keterangan || '')}</td>
-      <td><button class="del" onclick="hapusDist('${x.id}')">Hapus</button></td></tr>`).join('');
+      <td style="white-space:nowrap"><button class="btn sm" onclick="cetakTT('${x.id}')">🖨 Tanda Terima</button> <button class="del" onclick="hapusDist('${x.id}')">Hapus</button></td></tr>`).join('');
   } else if (tab === 'belum') {
     const l = belum.filter(k => (!dep || k.departemen === dep) && [k.nama, k.nik, k.departemen].some(v => (v || '').toLowerCase().includes(q))); n = l.length;
-    h = `<tr><th>Karyawan</th><th>Departemen</th><th>Ukuran</th><th>Diterima ${th}</th><th></th></tr>`;
+    h = `<tr><th>Karyawan</th><th>Departemen</th><th>Ukuran</th><th>Status</th><th></th></tr>`;
     rows = l.map(k => `<tr><td><b>${esc(k.nama)}</b><small>${esc(k.nik || '')}</small></td><td>${esc(k.departemen || '-')}<small>${esc(k.area || '')}</small></td>
       <td><select style="width:90px;padding:6px" onchange="setUkuran('${k.id}', this.value)"><option value="">-</option>${UKURAN.map(u => `<option ${k.ukuran_kaos === u ? 'selected' : ''}>${u}</option>`).join('')}</select></td>
-      <td class="num">${k.terima} / ${JATAH_PER_TAHUN}</td><td><button class="btn sm" onclick="bukaDist('${k.id}')">Serahkan</button></td></tr>`).join('');
+      <td><span class="badge b-low">Belum pernah menerima</span></td><td><button class="btn sm" onclick="bukaDist('${k.id}')">Serahkan</button></td></tr>`).join('');
   } else {
     const m = {}; belum.filter(k => !dep || k.departemen === dep).forEach(k => {
       const u = k.ukuran_kaos || 'Belum diisi'; m[u] = m[u] || {perlu:0, dep:{}};
-      const p = JATAH_PER_TAHUN - k.terima; m[u].perlu += p; const d = k.departemen || '-'; m[u].dep[d] = (m[u].dep[d] || 0) + p; });
+      const p = 1; m[u].perlu += p; const d = k.departemen || '-'; m[u].dep[d] = (m[u].dep[d] || 0) + p; });
     const l = Object.keys(m).sort((a, b) => sizeIdx(a) - sizeIdx(b)); n = l.length;
     h = `<tr><th>Ukuran</th><th>Dibutuhkan</th><th>Stok Tersedia</th><th>Perlu Dipesan</th><th>Rincian Departemen</th></tr>`;
     rows = l.map(u => { const s = perSize[u] || 0, kurang = Math.max(0, m[u].perlu - s);
@@ -236,7 +252,7 @@ function pilihKar() {
   selKar = kar.find(k => k.nama.toLowerCase() === v || (k.nik || '').toLowerCase() === v) || null;
   if (!selKar) { $('d_info').textContent = ''; return; }
   const sk = statusKar().find(k => k.id === selKar.id);
-  $('d_info').textContent = `${selKar.nik || ''} · ${selKar.departemen || '-'} · sudah menerima ${sk.terima}/${JATAH_PER_TAHUN} tahun ini`;
+  $('d_info').textContent = `${selKar.nik || ''} · ${selKar.departemen || '-'} · ${sk.terima ? 'sudah pernah menerima ' + sk.terima + ' kaos' : 'belum pernah menerima kaos'}`;
   if (selKar.ukuran_kaos) { $('d_ukuran').value = selKar.ukuran_kaos; isiVarian(); }
 }
 function isiVarian() {
@@ -252,12 +268,12 @@ async function simpanDist() {
   if (jumlah > sisa) return alert(`Stok tidak cukup (sisa ${sisa}).`);
   const tg = $('d_tanggal').value; if (!tg) return alert('Tanggal wajib diisi.');
   $('btnDist').disabled = true;
-  const { error } = await supabaseClient.from('kaos_polo_distribusi').insert({tanggal:tg, tahun:Number(tg.slice(0, 4)), nik:selKar.nik || null, nama:selKar.nama,
-    departemen:selKar.departemen || null, area:selKar.area || null, model, warna, ukuran, jumlah, keterangan:$('d_ket').value.trim() || null, created_by:user.username || user.nama || null});
+  const { data: baru, error } = await supabaseClient.from('kaos_polo_distribusi').insert({tanggal:tg, tahun:Number(tg.slice(0, 4)), nik:selKar.nik || null, nama:selKar.nama,
+    departemen:selKar.departemen || null, area:selKar.area || null, model, warna, ukuran, jumlah, keterangan:$('d_ket').value.trim() || null, created_by:user.username || user.nama || null}).select().single();
   if (!error && selKar.ukuran_kaos !== ukuran) await supabaseClient.from('master_karyawan').update({ukuran_kaos:ukuran}).eq('id', selKar.id);
   $('btnDist').disabled = false;
   if (error) return alert('Gagal menyimpan: ' + error.message);
-  tutup('ovDist'); load();
+  tutup('ovDist'); await load(); tampilTT(baru);
 }
 async function hapusDist(id) {
   const x = dist.find(d => d.id === id);
@@ -271,12 +287,30 @@ async function setUkuran(id, u) {
   kar.find(k => k.id === id).ukuran_kaos = u || null; render();
 }
 
+// ===== Tanda terima (cetak langsung atau "Save as PDF" lewat dialog print) =====
+function tampilTT(x) {
+  const d = new Date(x.tanggal + 'T00:00:00'), no = `KP/${d.getFullYear()}/${String(d.getMonth() + 1).padStart(2, '0')}/${String(x.id).slice(0, 6).toUpperCase()}`;
+  const penyerah = user.nama || user.username || '';
+  $('paper').innerHTML = `<h2>TANDA TERIMA KAOS POLO</h2><div class="nodok">No. ${esc(no)}</div>
+    <table class="kv"><tr><td>Tanggal</td><td>: ${tgl(x.tanggal)}</td></tr><tr><td>Nama Penerima</td><td>: <b>${esc(x.nama)}</b></td></tr>
+    <tr><td>NIK</td><td>: ${esc(x.nik || '-')}</td></tr><tr><td>Departemen</td><td>: ${esc(x.departemen || '-')}</td></tr><tr><td>Area</td><td>: ${esc(x.area || '-')}</td></tr></table>
+    <p>Dengan ini menyatakan telah menerima kaos polo dengan rincian sebagai berikut:</p>
+    <table><thead><tr><th>Model</th><th>Warna</th><th>Ukuran</th><th style="text-align:center">Jumlah</th></tr></thead>
+    <tbody><tr><td>${esc(x.model)}</td><td>${esc(x.warna)}</td><td>${esc(x.ukuran)}</td><td style="text-align:center">${x.jumlah} pcs</td></tr></tbody></table>
+    ${x.keterangan ? `<p><b>Keterangan:</b> ${esc(x.keterangan)}</p>` : ''}
+    <p>Kaos diterima dalam keadaan baik dan sesuai dengan ukuran yang tertera di atas.</p>
+    <div class="ttd"><div>Penerima,<div class="sp"></div><div class="ln">${esc(x.nama)}</div></div><div>Yang Menyerahkan,<div class="sp"></div><div class="ln">${esc(penyerah)}</div></div></div>`;
+  document.title = 'Tanda Terima Kaos Polo - ' + x.nama;
+  $('ovTT').classList.add('show');
+}
+function cetakTT(id) { const x = dist.find(d => d.id === id); if (x) tampilTT(x); }
+
 // init
 const thNow = new Date().getFullYear();
 $('fTahun').innerHTML = [thNow + 1, thNow, thNow - 1, thNow - 2].map(t => `<option ${t === thNow ? 'selected' : ''}>${t}</option>`).join('');
 $('m_ukuran').innerHTML = $('d_ukuran').innerHTML = UKURAN.map(u => `<option ${u === 'M' ? 'selected' : ''}>${u}</option>`).join('');
 $('tabs').addEventListener('click', e => { const b = e.target.closest('.tab'); if (!b) return; tab = b.dataset.t; document.querySelectorAll('.tab').forEach(t => t.classList.toggle('on', t === b)); render(); });
-document.addEventListener('keydown', e => { if (e.key === 'Escape') { tutup('ovMasuk'); tutup('ovDist'); } });
+document.addEventListener('keydown', e => { if (e.key === 'Escape') { tutup('ovMasuk'); tutup('ovDist'); tutup('ovTT'); } });
 load();
 </script>
 </body>

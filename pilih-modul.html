@@ -468,19 +468,16 @@
       if (lewat) parts.push(lewat + ' sudah berakhir');
       return { count: hampir + lewat, text: '⏰ ' + parts.join(' · ') };
     },
-    // Kaos Polo: karyawan aktif yang belum menerima jatah kaos tahun ini
+    // Kaos Polo: karyawan aktif yang belum pernah menerima kaos polo
     kaos: async () => {
-      const JATAH = 2; // harus sama dengan JATAH_PER_TAHUN di kaos-polo.html
-      const th = new Date().getFullYear();
       const [k, d] = await Promise.all([
         supabaseClient.from('master_karyawan').select('nik, nama').eq('status', 'Aktif'),
-        supabaseClient.from('kaos_polo_distribusi').select('nik, nama, jumlah').eq('tahun', th)
+        supabaseClient.from('kaos_polo_distribusi').select('nik, nama')
       ]);
       if (k.error) throw k.error; if (d.error) throw d.error;
-      const terima = {};
-      (d.data || []).forEach(x => { const id = x.nik || x.nama; terima[id] = (terima[id] || 0) + x.jumlah; });
-      const belum = (k.data || []).filter(x => (terima[x.nik || x.nama] || 0) < JATAH).length;
-      return { count: belum, text: '👕 ' + belum + ' karyawan belum menerima kaos polo ' + th };
+      const sudah = new Set((d.data || []).map(x => x.nik || x.nama));
+      const belum = (k.data || []).filter(x => !sudah.has(x.nik || x.nama)).length;
+      return { count: belum, text: '👕 ' + belum + ' karyawan belum menerima kaos polo' };
     },
     // IM Perpanjangan Kontrak: memo yang masih menunggu HCS / penilaian
     kontrak: async () => {
