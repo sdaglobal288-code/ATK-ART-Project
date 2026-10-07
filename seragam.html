@@ -333,10 +333,10 @@ async function simpanDist() {
   const need = {}; it.forEach(x => need[x.v] = (need[x.v] || 0) + x.jumlah);
   const sisa = Object.fromEntries(stokList().map(s => [s.key, s.sisa]));
   for (const k in need) if (need[k] > (sisa[k] || 0)) { const [j, m, w, u] = unkey(k); return alert(`Stok ${j} ${m} ${w} (${u}) tidak cukup. Sisa ${sisa[k] || 0}.`); }
-  // Nomor tanda terima: urut (0001, 0002, ...) berdasarkan nomor terbesar yang sudah ada
+  // Nomor tanda terima: SR/tahun/bulan/nomor urut. Nomor urut terus berlanjut (0001, 0002, ...) dari nomor terbesar yang sudah ada
   const nr = await supabaseClient.from('seragam_distribusi').select('no_tt');
-  const mx = (nr.data || dist).reduce((a, x) => /^\d+$/.test(x.no_tt || '') ? Math.max(a, Number(x.no_tt)) : a, 0);
-  const no = String(mx + 1).padStart(4, '0');
+  const mx = (nr.data || dist).reduce((a, x) => { const m = /^(?:SR\/\d{4}\/\d{2}\/)?(\d+)$/.exec(x.no_tt || ''); return m ? Math.max(a, Number(m[1])) : a; }, 0);
+  const no = `SR/${tg.slice(0, 4)}/${tg.slice(5, 7)}/${String(mx + 1).padStart(4, '0')}`;
   const ket = $('d_ket').value.trim() || null, by = user.username || user.nama || null;
   const payload = it.map(x => { const [jenis, model, warna, ukuran] = unkey(x.v);
     return {tanggal:tg, tahun:Number(tg.slice(0, 4)), no_tt:no, jenis, nik:selKar.nik || null, nama:selKar.nama, departemen:selKar.departemen || null, area:selKar.area || null, model, warna, ukuran, jumlah:x.jumlah, keterangan:ket, created_by:by}; });
@@ -367,10 +367,10 @@ async function setUkuran(id, jenis, u) {
 // ===== Tanda terima (cetak langsung atau "Save as PDF" lewat dialog print) =====
 function tampilTT(rows) {
   const x = rows[0], tglPanjang = d => new Date(d + 'T00:00:00').toLocaleDateString('id-ID', {day:'numeric', month:'long', year:'numeric'});
-  const no = /^\d+$/.test(x.no_tt || '') ? x.no_tt : (x.no_tt || '-');
+  const no = /^\d+$/.test(x.no_tt || '') ? `SR/${x.tanggal.slice(0, 4)}/${x.tanggal.slice(5, 7)}/${x.no_tt}` : (x.no_tt || '-');
   $('paper').innerHTML = `<div class="tt-head"><img src="images/logo-sda-global.png" alt="SDA Global"><div class="tt-ttl"><h2>TANDA TERIMA SERAGAM</h2><div class="nodok">No. ${esc(no)}</div></div></div>
     <table class="kv"><tr><td>Tanggal</td><td>:</td><td>${tglPanjang(x.tanggal)}</td></tr><tr><td>Nama Penerima</td><td>:</td><td><b>${esc(x.nama)}</b></td></tr>
-    <tr><td>NIK</td><td>:</td><td>${esc(x.nik || '-')}</td></tr><tr><td>Departemen</td><td>:</td><td>${esc(x.departemen || '-')}</td></tr>${x.area ? `<tr><td>Area</td><td>:</td><td>${esc(x.area)}</td></tr>` : ''}</table>
+    <tr><td>NIK</td><td>:</td><td>${esc(x.nik || '-')}</td></tr><tr><td>Departemen</td><td>:</td><td>${esc(x.departemen || '-')}</td></tr><tr><td>Area</td><td>:</td><td>${esc(x.area || '-')}</td></tr></table>
     <p>Dengan ini menyatakan telah menerima perlengkapan seragam dengan rincian sebagai berikut:</p>
     <table class="brg"><thead><tr><th style="width:40px;text-align:center">No</th><th>Jenis</th><th>Model / Tipe</th><th>Warna</th><th>Ukuran</th><th style="text-align:center">Jumlah</th></tr></thead>
     <tbody>${rows.map((r, i) => `<tr><td style="text-align:center">${i + 1}</td><td>${esc(r.jenis)}</td><td>${esc(r.model)}</td><td>${esc(r.warna)}</td><td>${esc(r.ukuran)}</td><td style="text-align:center">${r.jumlah} pcs</td></tr>`).join('')}</tbody></table>
