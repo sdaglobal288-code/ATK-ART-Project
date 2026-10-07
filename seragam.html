@@ -197,6 +197,7 @@ const UK_SEPATU = Array.from({length:13}, (_, i) => String(35 + i));   // 35-47
 const ukBase = j => /sepatu|boot/i.test(j) ? UK_SEPATU : /topi|helm/i.test(j) ? ['All Size'] : [...UK_PAKAIAN, 'All Size'];
 const JENIS_DEFAULT = ['Kaos Polo','Jaket','Topi'];
 let masuk = [], dist = [], kar = [], trf = [], gudangList = [], tab = 'stok', selKar = null, lastPend = -1;
+const GUDANG_FALLBACK = ['Raden Saleh', 'Margomulyo'];   // sama dengan modul Transfer Barang
 const BULAN_ROMAWI = ['I','II','III','IV','V','VI','VII','VIII','IX','X','XI','XII'];
 // Gudang aktif: akun dengan gudang dikunci ke gudangnya sendiri. Akun tanpa gudang (pusat/admin) memilih lewat filter; kosong = lihat semua (hanya baca).
 const G = () => user.gudang || $('fGudang').value || '';
@@ -309,12 +310,13 @@ function render() {
 
 let ready = false;
 async function load() {
-  const [a, b, c, d, e] = await Promise.all([
+  const [a, b, c, d, e, f] = await Promise.all([
     supabaseClient.from('seragam_masuk').select('*').order('tanggal', {ascending:false}),
     supabaseClient.from('seragam_distribusi').select('*').order('tanggal', {ascending:false}),
     supabaseClient.from('master_karyawan').select('*').eq('status', 'Aktif').order('nama', {ascending:true}),
     supabaseClient.from('seragam_transfer').select('*').order('created_at', {ascending:false}),
-    supabaseClient.from('master_gudang').select('*').order('nama_gudang')]);
+    supabaseClient.from('master_gudang').select('*').order('nama_gudang'),
+    supabaseClient.from('users').select('gudang')]);
   const er = a.error || b.error || d.error;
   if (er) {
     console.error(er);
@@ -322,7 +324,8 @@ async function load() {
     return;
   }
   ready = true; masuk = a.data || []; dist = b.data || []; kar = c.data || []; trf = d.data || [];
-  gudangList = [...new Set([...(e.data || []).map(x => x.nama_gudang), user.gudang, ...masuk.map(x => x.gudang), ...trf.flatMap(x => [x.gudang_asal, x.gudang_tujuan])].filter(Boolean))].sort();
+  const mg = (e.data || []).map(x => x.nama_gudang);
+  gudangList = [...new Set([...(mg.length ? mg : GUDANG_FALLBACK), ...(f.data || []).map(x => x.gudang), user.gudang, ...masuk.map(x => x.gudang), ...trf.flatMap(x => [x.gudang_asal, x.gudang_tujuan])].filter(Boolean))].sort();
   const cg = $('fGudang').value;
   $('fGudang').innerHTML = '<option value="">Semua Gudang</option>' + gudangList.map(x => `<option>${esc(x)}</option>`).join(''); $('fGudang').value = gudangList.includes(cg) ? cg : '';
   const opt = (arr, f) => [...new Set(arr.map(f).filter(Boolean))].map(x => `<option value="${esc(x)}">`).join('');
@@ -466,7 +469,7 @@ async function setUkuran(id, jenis, u) {
 function bukaTrf() {
   const g = perluGudang(); if (!g) return;
   const tujuan = gudangList.filter(x => x !== g);
-  if (!tujuan.length) return toastWarn('Belum ada gudang tujuan lain. Tambahkan di master gudang.');
+  if (!tujuan.length) return toastWarn('Belum ada gudang tujuan lain. Tambahkan gudang lain di master gudang atau isi kolom gudang pada akun user.');
   $('t_asal').value = g; $('t_tujuan').innerHTML = tujuan.map(x => `<option>${esc(x)}</option>`).join('');
   $('t_tanggal').value = today(); $('t_ket').value = ''; $('itemsT').innerHTML = ''; addItem(null, true); $('ovTrf').classList.add('show');
 }
