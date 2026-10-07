@@ -189,13 +189,13 @@ function belumList(jenis) {
 }
 
 function render() {
-  const q = $('cari').value.toLowerCase(), dep = $('fDep').value, th = Number($('fTahun').value), jn = $('fJenis').value;
+  const q = $('cari').value.toLowerCase(), dep = $('fDep').value, thF = Number($('fTahun').value) || 0, jn = $('fJenis').value;
   const bj = jn || jenisAll()[0], all = stokList(), stok = all.filter(s => !jn || s.jenis === jn);
   const belum = belumList(bj), perSize = {}, butuh = {};
   all.filter(s => s.jenis === bj).forEach(s => perSize[s.ukuran] = (perSize[s.ukuran] || 0) + s.sisa);
   belum.forEach(k => { const u = ukK(k, bj); if (u) butuh[u] = (butuh[u] || 0) + 1; });
   $('sStok').textContent = stok.reduce((a, s) => a + s.sisa, 0);
-  $('sDist').textContent = dist.filter(x => x.tahun === th && (!jn || x.jenis === jn)).reduce((a, x) => a + x.jumlah, 0);
+  $('sDist').textContent = dist.filter(x => x.tahun === thNow && (!jn || x.jenis === jn)).reduce((a, x) => a + x.jumlah, 0);
   $('lBelum').textContent = 'Belum Menerima ' + bj; $('sBelum').textContent = belum.length;
   $('lKurang').textContent = 'Ukuran Kurang Stok (' + bj + ')';
   $('sKurang').textContent = Object.keys(butuh).filter(u => (perSize[u] || 0) < butuh[u]).length;
@@ -209,7 +209,7 @@ function render() {
     rows = l.map(s => `<tr><td><span class="jn">${esc(s.jenis)}</span></td><td><b>${esc(s.model)}</b></td><td>${esc(s.warna)}</td><td><span class="size">${esc(s.ukuran)}</span></td><td class="num">${s.masuk}</td><td class="num">${s.keluar}</td><td class="num"><b>${s.sisa}</b></td>
       <td><span class="badge ${s.sisa <= 0 ? 'b-out' : s.sisa <= STOK_MIN ? 'b-low' : 'b-ok'}">${s.sisa <= 0 ? 'Habis' : s.sisa <= STOK_MIN ? 'Menipis' : 'Tersedia'}</span></td></tr>`).join('');
   } else if (tab === 'dist') {
-    const l = dist.filter(x => x.tahun === th && (!jn || x.jenis === jn) && (!dep || x.departemen === dep) && [x.nama, x.nik, x.jenis, x.model, x.warna, x.ukuran, x.no_tt].some(v => (v || '').toLowerCase().includes(q))); n = l.length;
+    const l = dist.filter(x => (!thF || x.tahun === thF) && (!jn || x.jenis === jn) && (!dep || x.departemen === dep) && [x.nama, x.nik, x.jenis, x.model, x.warna, x.ukuran, x.no_tt].some(v => (v || '').toLowerCase().includes(q))); n = l.length;
     h = '<tr><th>Tanggal</th><th>Karyawan</th><th>Departemen</th><th>Barang</th><th>Jumlah</th><th>Keterangan</th><th></th></tr>';
     rows = l.map(x => `<tr><td>${tgl(x.tanggal)}</td><td><b>${esc(x.nama)}</b><small>${esc(x.nik || '')}</small></td><td>${esc(x.departemen || '-')}<small>${esc(x.area || '')}</small></td>
       <td><span class="jn">${esc(x.jenis)}</span>${esc(x.model)} · ${esc(x.warna)} <span class="size">${esc(x.ukuran)}</span></td><td class="num">${x.jumlah}</td><td>${esc(x.keterangan || '')}</td>
@@ -245,6 +245,8 @@ async function load() {
   const cur = $('fJenis').value;
   $('fJenis').innerHTML = '<option value="">Semua Jenis</option>' + jenisAll().map(j => `<option>${esc(j)}</option>`).join('');
   $('fJenis').value = jenisAll().includes(cur) ? cur : '';
+  const ct = $('fTahun').value, thn = [...new Set([thNow, ...dist.map(x => x.tahun)])].sort((a, b) => b - a);
+  $('fTahun').innerHTML = '<option value="">Semua Tahun</option>' + thn.map(t => `<option>${t}</option>`).join(''); $('fTahun').value = ct;
   const deps = [...new Set(kar.map(k => k.departemen).filter(Boolean))].sort(), cd = $('fDep').value;
   $('fDep').innerHTML = '<option value="">Semua Departemen</option>' + deps.map(d => `<option>${esc(d)}</option>`).join(''); $('fDep').value = cd;
   $('dlKar').innerHTML = kar.map(k => `<option value="${esc(k.nama)}">${esc(k.nik || '')} ${esc(k.departemen || '')}</option>`).join('');
@@ -383,7 +385,7 @@ function cetakTT(id) { const x = dist.find(d => d.id === id); if (x) tampilTT(x.
 
 // init
 const thNow = new Date().getFullYear();
-$('fTahun').innerHTML = [thNow + 1, thNow, thNow - 1, thNow - 2].map(t => `<option ${t === thNow ? 'selected' : ''}>${t}</option>`).join('');
+$('fTahun').innerHTML = '<option value="">Semua Tahun</option>';
 $('tabs').addEventListener('click', e => {
   const b = e.target.closest('.tab'); if (!b) return; tab = b.dataset.t;
   document.querySelectorAll('.tab').forEach(t => t.classList.toggle('on', t === b));
