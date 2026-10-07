@@ -391,12 +391,12 @@
       <div class="go"><span>Buka modul</span><span class="arr">→</span></div>
     </a>
 
-    <a class="card" data-modul="kaos" href="kaos-polo.html" style="--accent:#b693f5; --accent-soft: rgba(182,147,245,0.14);">
+    <a class="card" data-modul="seragam" href="seragam.html" style="--accent:#b693f5; --accent-soft: rgba(182,147,245,0.14);">
       <span class="tag">HR</span>
-      <div class="icon-box">👕<span class="notif-badge" hidden></span></div>
+      <div class="icon-box">🧥<span class="notif-badge" hidden></span></div>
       <div>
-        <h2>Kaos Polo</h2>
-        <p>Stok kaos polo per ukuran, pencatatan penyerahan ke karyawan, dan rekap kebutuhan pemesanan.</p>
+        <h2>Seragam</h2>
+        <p>Kaos polo, jaket, topi: stok per ukuran, penyerahan ke karyawan dengan tanda terima, dan rekap kebutuhan.</p>
       </div>
       <div class="notif-line"></div>
       <div class="go"><span>Buka modul</span><span class="arr">→</span></div>
@@ -468,16 +468,21 @@
       if (lewat) parts.push(lewat + ' sudah berakhir');
       return { count: hampir + lewat, text: '⏰ ' + parts.join(' · ') };
     },
-    // Kaos Polo: karyawan aktif yang belum pernah menerima kaos polo
-    kaos: async () => {
-      const [k, d] = await Promise.all([
+    // Seragam: per jenis yang sudah punya stok masuk, karyawan aktif yang belum pernah menerima
+    seragam: async () => {
+      const [k, m, d] = await Promise.all([
         supabaseClient.from('master_karyawan').select('nik, nama').eq('status', 'Aktif'),
-        supabaseClient.from('kaos_polo_distribusi').select('nik, nama')
+        supabaseClient.from('seragam_masuk').select('jenis'),
+        supabaseClient.from('seragam_distribusi').select('nik, nama, jenis')
       ]);
-      if (k.error) throw k.error; if (d.error) throw d.error;
-      const sudah = new Set((d.data || []).map(x => x.nik || x.nama));
-      const belum = (k.data || []).filter(x => !sudah.has(x.nik || x.nama)).length;
-      return { count: belum, text: '👕 ' + belum + ' karyawan belum menerima kaos polo' };
+      if (k.error) throw k.error; if (m.error) throw m.error; if (d.error) throw d.error;
+      const parts = []; let total = 0;
+      [...new Set((m.data || []).map(x => x.jenis))].forEach(j => {
+        const sudah = new Set((d.data || []).filter(x => x.jenis === j).map(x => x.nik || x.nama));
+        const belum = (k.data || []).filter(x => !sudah.has(x.nik || x.nama)).length;
+        if (belum) { parts.push(belum + ' belum terima ' + j); total += belum; }
+      });
+      return { count: total, text: '👕 ' + parts.join(' · ') };
     },
     // IM Perpanjangan Kontrak: memo yang masih menunggu HCS / penilaian
     kontrak: async () => {

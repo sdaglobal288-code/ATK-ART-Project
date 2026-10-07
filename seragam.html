@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Seragam</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="supabase/config.js"></script>
+<style>
+  :root{ --bg:#1c1410; --panel:#2b2018; --panel-2:#241a13; --line:#3d2f22; --text:#f3ebe0; --muted:#a8967d; --dim:#7d6d58;
+         --teal:#4dd0c4; --orange:#f0913f; --pink:#e5708f; --ac:#b693f5; --r:12px; }
+  *{ box-sizing:border-box; }
+  body{ margin:0; background:radial-gradient(1200px 500px at 80% -10%, rgba(182,147,245,.08), transparent 60%), var(--bg); color:var(--text);
+        font-family:'Inter','Segoe UI',system-ui,sans-serif; font-size:14px; line-height:1.45; padding:32px 24px 80px; }
+  .wrap{ max-width:1480px; margin:0 auto; }
+  .topbar{ display:flex; justify-content:space-between; align-items:flex-end; gap:16px; flex-wrap:wrap; margin-bottom:24px; padding-bottom:22px; border-bottom:1px solid var(--line); }
+  .back{ display:inline-block; color:var(--muted); text-decoration:none; font-size:12.5px; margin-bottom:14px; } .back:hover{ color:var(--ac); }
+  .title{ display:flex; align-items:center; gap:14px; }
+  .title .ico{ width:46px; height:46px; border-radius:12px; display:grid; place-items:center; font-size:22px; background:linear-gradient(135deg,rgba(182,147,245,.25),rgba(182,147,245,.08)); border:1px solid rgba(182,147,245,.35); }
+  h1{ font-size:24px; margin:0; font-weight:700; } .muted{ color:var(--muted); font-size:13px; margin-top:2px; }
+  .btn{ display:inline-flex; align-items:center; gap:8px; background:linear-gradient(135deg,#c6a8f8,#9a70e0); color:#1a1226; border:none; padding:10px 18px; border-radius:9px; font-weight:700; font-size:13px; cursor:pointer; font-family:inherit; }
+  .btn:hover{ filter:brightness(1.07); } .btn:disabled{ opacity:.6; cursor:wait; }
+  .btn.secondary{ background:transparent; border:1px solid var(--line); color:var(--text); } .btn.secondary:hover{ background:var(--panel-2); }
+  .btn.sm{ padding:6px 12px; font-size:12px; }
+  .stats{ display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin-bottom:22px; }
+  @media(max-width:900px){ .stats{ grid-template-columns:repeat(2,1fr); } }
+  .stat{ position:relative; background:var(--panel); border:1px solid var(--line); border-radius:var(--r); padding:16px 18px 16px 22px; overflow:hidden; }
+  .stat::before{ content:''; position:absolute; left:0; top:0; bottom:0; width:4px; background:var(--c,var(--ac)); }
+  .stat:nth-child(2){ --c:var(--teal);} .stat:nth-child(3){ --c:var(--orange);} .stat:nth-child(4){ --c:var(--pink);}
+  .stat .l{ font-size:11.5px; color:var(--muted); font-weight:600; text-transform:uppercase; letter-spacing:.04em; }
+  .stat .n{ font-size:28px; font-weight:700; margin-top:6px; line-height:1.1; }
+  .tabs{ display:flex; gap:6px; flex-wrap:wrap; margin-bottom:16px; }
+  .tab{ background:transparent; border:1px solid var(--line); color:var(--muted); padding:8px 16px; border-radius:9px; font-size:13px; font-weight:600; cursor:pointer; font-family:inherit; }
+  .tab.on{ background:rgba(182,147,245,.14); color:var(--ac); border-color:var(--ac); }
+  .bar{ display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin-bottom:14px; }
+  input,select,textarea{ background:var(--panel-2); border:1px solid var(--line); color:var(--text); padding:10px 12px; border-radius:9px; font-size:13.5px; font-family:inherit; width:100%; }
+  input:focus,select:focus,textarea:focus{ outline:none; border-color:var(--ac); box-shadow:0 0 0 3px rgba(182,147,245,.18); }
+  .bar input{ flex:1; min-width:200px; width:auto; } .bar select{ width:auto; min-width:130px; }
+  .count{ margin-left:auto; color:var(--muted); font-size:12.5px; }
+  .card{ background:var(--panel); border:1px solid var(--line); border-radius:var(--r); overflow-x:auto; box-shadow:0 8px 30px rgba(0,0,0,.25); }
+  table{ width:100%; border-collapse:collapse; min-width:760px; }
+  th{ text-align:left; padding:12px; font-size:11px; font-weight:700; color:var(--muted); text-transform:uppercase; letter-spacing:.06em; background:var(--panel-2); border-bottom:1px solid var(--line); white-space:nowrap; }
+  td{ padding:12px; font-size:12.5px; border-bottom:1px solid var(--line); vertical-align:middle; }
+  tbody tr:last-child td{ border-bottom:none; } tbody tr:hover{ background:rgba(255,255,255,.03); }
+  td small{ display:block; color:var(--muted); font-size:11.5px; margin-top:2px; } td.num{ font-variant-numeric:tabular-nums; }
+  .badge{ display:inline-flex; align-items:center; padding:3px 10px; border-radius:20px; font-size:11.5px; font-weight:600; }
+  .b-ok{ background:rgba(77,208,196,.13); color:var(--teal);} .b-low{ background:rgba(240,145,63,.14); color:var(--orange);} .b-out{ background:rgba(229,112,143,.14); color:var(--pink);}
+  .size{ display:inline-block; min-width:34px; text-align:center; background:rgba(182,147,245,.14); color:var(--ac); font-weight:800; padding:3px 8px; border-radius:7px; }
+  .jn{ display:inline-block; background:rgba(255,255,255,.07); border-radius:6px; padding:2px 8px; font-size:11.5px; font-weight:700; margin-right:6px; }
+  .empty{ padding:48px 20px; text-align:center; color:var(--muted); }
+  .del{ background:transparent; border:1px solid var(--line); color:var(--muted); border-radius:8px; padding:5px 10px; cursor:pointer; font-size:12px; font-family:inherit; } .del:hover{ color:var(--pink); border-color:var(--pink); }
+  .overlay{ position:fixed; inset:0; background:rgba(10,6,3,.72); backdrop-filter:blur(3px); display:none; align-items:flex-start; justify-content:center; padding:32px 16px; overflow-y:auto; z-index:50; }
+  .overlay.show{ display:flex; }
+  .modal{ background:var(--panel); border:1px solid var(--line); border-radius:16px; width:100%; max-width:640px; padding:26px 28px; box-shadow:0 24px 70px rgba(0,0,0,.55); }
+  .modal.wide{ max-width:820px; } .modal h2{ margin:0 0 4px; font-size:19px; }
+  .fg{ display:grid; grid-template-columns:1fr 1fr; gap:16px 18px; margin-top:20px; } @media(max-width:600px){ .fg{ grid-template-columns:1fr; } }
+  .full{ grid-column:1/-1; } label{ display:block; font-size:12px; color:var(--muted); font-weight:600; margin-bottom:6px; }
+  .it{ display:grid; grid-template-columns:1.1fr 1fr 2.4fr .7fr 36px; gap:8px; margin-bottom:8px; } .it select,.it input{ padding:9px 8px; } @media(max-width:700px){ .it{ grid-template-columns:1fr 1fr; } }
+  .it-h{ display:grid; grid-template-columns:1.1fr 1fr 2.4fr .7fr 36px; gap:8px; font-size:11px; color:var(--muted); font-weight:700; margin-bottom:6px; } @media(max-width:700px){ .it-h{ display:none; } }
+  .foot{ display:flex; justify-content:flex-end; gap:10px; margin-top:24px; padding-top:18px; border-top:1px solid var(--line); }
+  .hid{ display:none !important; }
+  .paper{ background:#fff; color:#111; width:100%; border-radius:10px; padding:42px 48px; font-family:'Segoe UI',Arial,sans-serif; box-shadow:0 24px 70px rgba(0,0,0,.55); }
+  .paper h2{ text-align:center; margin:0; font-size:20px; letter-spacing:.08em; } .paper .nodok{ text-align:center; font-size:12.5px; color:#555; margin:4px 0 22px; padding-bottom:14px; border-bottom:2px solid #111; }
+  .paper table{ min-width:0; width:100%; } .paper td,.paper th{ color:#111; border:1px solid #bbb; padding:8px 10px; font-size:13px; background:none; text-transform:none; letter-spacing:0; }
+  .paper th{ background:#eee; text-align:left; font-size:12px; } .paper .kv td{ border:none; padding:3px 0; } .paper .kv td:first-child{ width:130px; color:#555; }
+  .paper p{ font-size:13px; margin:18px 0; } .ttd{ display:flex; justify-content:space-between; margin-top:30px; font-size:13px; text-align:center; } .ttd div{ width:42%; } .ttd .sp{ height:76px; } .ttd .ln{ border-top:1px solid #111; padding-top:4px; font-weight:600; }
+  .tt-actions{ display:flex; justify-content:flex-end; gap:10px; margin-top:16px; }
+  @media print{
+    @page{ size:A4; margin:14mm; }
+    body{ background:#fff !important; padding:0 !important; } .wrap, .overlay:not(#ovTT), .tt-actions{ display:none !important; }
+    #ovTT{ position:static !important; display:block !important; background:none !important; padding:0 !important; backdrop-filter:none !important; }
+    .paper{ box-shadow:none !important; padding:0 !important; border-radius:0 !important; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="topbar">
+    <div>
+      <a class="back" href="pilih-modul.html">← Kembali ke pilih modul</a>
+      <div class="title"><div class="ico">🧥</div><div><h1>Seragam</h1>
+        <div class="muted">Kaos polo, jaket, topi, dan lainnya: stok per ukuran, penyerahan ke karyawan, tanda terima, dan rekap kebutuhan.</div></div></div>
+    </div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap">
+      <button class="btn secondary" onclick="bukaMasuk()">＋ Stok Masuk</button>
+      <button class="btn" onclick="bukaDist()">＋ Catat Penyerahan</button>
+    </div>
+  </div>
+
+  <div class="stats">
+    <div class="stat"><div class="l">Total Stok Tersedia</div><div class="n" id="sStok">-</div></div>
+    <div class="stat"><div class="l">Diserahkan Tahun Ini</div><div class="n" id="sDist">-</div></div>
+    <div class="stat"><div class="l" id="lBelum">Belum Menerima</div><div class="n" id="sBelum">-</div></div>
+    <div class="stat"><div class="l" id="lKurang">Ukuran Kurang Stok</div><div class="n" id="sKurang">-</div></div>
+  </div>
+
+  <div class="tabs" id="tabs">
+    <button class="tab on" data-t="stok">Stok</button>
+    <button class="tab" data-t="dist">Riwayat Penyerahan</button>
+    <button class="tab" data-t="belum">Belum Menerima</button>
+    <button class="tab" data-t="rekap">Rekap Kebutuhan</button>
+  </div>
+
+  <div class="bar">
+    <input id="cari" placeholder="Cari..." oninput="render()">
+    <select id="fJenis" onchange="render()"></select>
+    <select id="fTahun" onchange="render()"></select>
+    <select id="fDep" onchange="render()"><option value="">Semua Departemen</option></select>
+    <span class="count" id="count"></span>
+  </div>
+  <div class="card"><table><thead id="head"></thead><tbody id="body"><tr><td class="empty">Memuat data...</td></tr></tbody></table></div>
+</div>
+
+<div class="overlay" id="ovMasuk"><div class="modal">
+  <h2>Stok Masuk dari Vendor</h2><div class="muted">Kolom bertanda * wajib diisi. Jenis baru bisa diketik langsung.</div>
+  <div class="fg">
+    <div><label>Jenis *</label><input id="m_jenis" list="dlJenis" placeholder="Kaos Polo / Jaket / Topi"><datalist id="dlJenis"></datalist></div>
+    <div><label>Tanggal *</label><input type="date" id="m_tanggal"></div>
+    <div><label>Model / Tipe *</label><input id="m_model" list="dlModel" placeholder="mis. Lengan Pendek Pria"><datalist id="dlModel"></datalist></div>
+    <div><label>Warna *</label><input id="m_warna" list="dlWarna"><datalist id="dlWarna"></datalist></div>
+    <div><label>Ukuran * <span style="font-weight:400">(Topi: All Size)</span></label><select id="m_ukuran"></select></div>
+    <div><label>Jumlah *</label><input type="number" id="m_jumlah" min="1"></div>
+    <div class="full"><label>Vendor</label><input id="m_vendor"></div>
+    <div class="full"><label>Keterangan</label><textarea id="m_ket" rows="2"></textarea></div>
+  </div>
+  <div class="foot"><button class="btn secondary" onclick="tutup('ovMasuk')">Batal</button><button class="btn" id="btnMasuk" onclick="simpanMasuk()">Simpan</button></div>
+</div></div>
+
+<div class="overlay" id="ovDist"><div class="modal wide">
+  <h2>Catat Penyerahan Seragam</h2><div class="muted">Satu karyawan bisa menerima beberapa barang sekaligus dalam satu tanda terima.</div>
+  <div class="fg">
+    <div><label>Karyawan *</label><input id="d_kar" list="dlKar" placeholder="Ketik nama atau NIK" oninput="pilihKar()"><datalist id="dlKar"></datalist>
+      <div class="muted" id="d_info"></div></div>
+    <div><label>Tanggal *</label><input type="date" id="d_tanggal"></div>
+    <div class="full"><div class="it-h"><span>JENIS</span><span>UKURAN</span><span>MODEL / WARNA</span><span>JUMLAH</span><span></span></div>
+      <div id="items"></div>
+      <button class="btn secondary sm" type="button" onclick="addItem()">＋ Tambah Barang</button></div>
+    <div class="full"><label>Keterangan</label><textarea id="d_ket" rows="2" placeholder="mis. karyawan baru, penggantian"></textarea></div>
+  </div>
+  <div class="foot"><button class="btn secondary" onclick="tutup('ovDist')">Batal</button><button class="btn" id="btnDist" onclick="simpanDist()">Simpan &amp; Buat Tanda Terima</button></div>
+</div></div>
+
+<div class="overlay" id="ovTT"><div style="width:100%;max-width:760px;margin:0 auto">
+  <div class="paper" id="paper"></div>
+  <div class="tt-actions"><button class="btn secondary" onclick="tutup('ovTT')">Tutup</button><button class="btn" onclick="window.print()">🖨 Cetak / Simpan PDF</button></div>
+</div></div>
+
+<script>
+const user = JSON.parse(sessionStorage.getItem('user') || 'null');
+if (!user) location.href = 'login.html';
+
+const STOK_MIN = 5;   // batas stok menipis per jenis/model/warna/ukuran
+const UKURAN = ['XS','S','M','L','XL','XXL','3XL','4XL','All Size'];
+const JENIS_DEFAULT = ['Kaos Polo','Jaket','Topi'];
+let masuk = [], dist = [], kar = [], tab = 'stok', selKar = null;
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const tgl = d => d ? new Date(d + 'T00:00:00').toLocaleDateString('id-ID', {day:'numeric', month:'short', year:'numeric'}) : '-';
+const key = x => [x.jenis, x.model, x.warna, x.ukuran].map(encodeURIComponent).join('|');
+const unkey = k => k.split('|').map(decodeURIComponent);
+const sizeIdx = u => { const i = UKURAN.indexOf(u); return i < 0 ? 99 : i; };
+const jenisAll = () => [...new Set([...JENIS_DEFAULT, ...masuk.map(x => x.jenis), ...dist.map(x => x.jenis)].filter(Boolean))];
+const ukK = (k, j) => (k && k.ukuran_seragam && k.ukuran_seragam[j]) || '';
+const defUk = j => j === 'Topi' ? 'All Size' : 'M';
+const idKar = k => k.nik || k.nama;
+
+function stokList() {
+  const m = {};
+  [[masuk, 'masuk'], [dist, 'keluar']].forEach(([arr, f]) => arr.forEach(x => {
+    const k = key(x); m[k] ??= {key:k, jenis:x.jenis, model:x.model, warna:x.warna, ukuran:x.ukuran, masuk:0, keluar:0}; m[k][f] += x.jumlah; }));
+  return Object.values(m).map(x => ({...x, sisa:x.masuk - x.keluar}))
+    .sort((a, b) => a.jenis.localeCompare(b.jenis) || a.model.localeCompare(b.model) || a.warna.localeCompare(b.warna) || sizeIdx(a.ukuran) - sizeIdx(b.ukuran));
+}
+// Karyawan aktif yang belum pernah menerima jenis tertentu (semua periode)
+function belumList(jenis) {
+  const sudah = new Set(dist.filter(x => x.jenis === jenis).map(x => x.nik || x.nama));
+  return kar.filter(k => !sudah.has(idKar(k)));
+}
+
+function render() {
+  const q = $('cari').value.toLowerCase(), dep = $('fDep').value, th = Number($('fTahun').value), jn = $('fJenis').value;
+  const bj = jn || jenisAll()[0], all = stokList(), stok = all.filter(s => !jn || s.jenis === jn);
+  const belum = belumList(bj), perSize = {}, butuh = {};
+  all.filter(s => s.jenis === bj).forEach(s => perSize[s.ukuran] = (perSize[s.ukuran] || 0) + s.sisa);
+  belum.forEach(k => { const u = ukK(k, bj); if (u) butuh[u] = (butuh[u] || 0) + 1; });
+  $('sStok').textContent = stok.reduce((a, s) => a + s.sisa, 0);
+  $('sDist').textContent = dist.filter(x => x.tahun === th && (!jn || x.jenis === jn)).reduce((a, x) => a + x.jumlah, 0);
+  $('lBelum').textContent = 'Belum Menerima ' + bj; $('sBelum').textContent = belum.length;
+  $('lKurang').textContent = 'Ukuran Kurang Stok (' + bj + ')';
+  $('sKurang').textContent = Object.keys(butuh).filter(u => (perSize[u] || 0) < butuh[u]).length;
+  $('fDep').classList.toggle('hid', tab === 'stok'); $('fTahun').classList.toggle('hid', tab !== 'dist');
+  $('fJenis').options[0].hidden = tab === 'belum' || tab === 'rekap';
+  let h = '', rows = '', n = 0;
+
+  if (tab === 'stok') {
+    const l = stok.filter(s => [s.jenis, s.model, s.warna, s.ukuran].some(x => x.toLowerCase().includes(q))); n = l.length;
+    h = '<tr><th>Jenis</th><th>Model / Tipe</th><th>Warna</th><th>Ukuran</th><th>Masuk</th><th>Diserahkan</th><th>Sisa</th><th>Status</th></tr>';
+    rows = l.map(s => `<tr><td><span class="jn">${esc(s.jenis)}</span></td><td><b>${esc(s.model)}</b></td><td>${esc(s.warna)}</td><td><span class="size">${esc(s.ukuran)}</span></td><td class="num">${s.masuk}</td><td class="num">${s.keluar}</td><td class="num"><b>${s.sisa}</b></td>
+      <td><span class="badge ${s.sisa <= 0 ? 'b-out' : s.sisa <= STOK_MIN ? 'b-low' : 'b-ok'}">${s.sisa <= 0 ? 'Habis' : s.sisa <= STOK_MIN ? 'Menipis' : 'Tersedia'}</span></td></tr>`).join('');
+  } else if (tab === 'dist') {
+    const l = dist.filter(x => x.tahun === th && (!jn || x.jenis === jn) && (!dep || x.departemen === dep) && [x.nama, x.nik, x.jenis, x.model, x.warna, x.ukuran, x.no_tt].some(v => (v || '').toLowerCase().includes(q))); n = l.length;
+    h = '<tr><th>Tanggal</th><th>Karyawan</th><th>Departemen</th><th>Barang</th><th>Jumlah</th><th>Keterangan</th><th></th></tr>';
+    rows = l.map(x => `<tr><td>${tgl(x.tanggal)}</td><td><b>${esc(x.nama)}</b><small>${esc(x.nik || '')}</small></td><td>${esc(x.departemen || '-')}<small>${esc(x.area || '')}</small></td>
+      <td><span class="jn">${esc(x.jenis)}</span>${esc(x.model)} · ${esc(x.warna)} <span class="size">${esc(x.ukuran)}</span></td><td class="num">${x.jumlah}</td><td>${esc(x.keterangan || '')}</td>
+      <td style="white-space:nowrap"><button class="btn sm" onclick="cetakTT('${x.id}')">🖨 Tanda Terima</button> <button class="del" onclick="hapusDist('${x.id}')">Hapus</button></td></tr>`).join('');
+  } else if (tab === 'belum') {
+    const l = belum.filter(k => (!dep || k.departemen === dep) && [k.nama, k.nik, k.departemen].some(v => (v || '').toLowerCase().includes(q))); n = l.length;
+    h = `<tr><th>Karyawan</th><th>Departemen</th><th>Ukuran ${esc(bj)}</th><th>Status</th><th></th></tr>`;
+    rows = l.map(k => `<tr><td><b>${esc(k.nama)}</b><small>${esc(k.nik || '')}</small></td><td>${esc(k.departemen || '-')}<small>${esc(k.area || '')}</small></td>
+      <td><select style="width:110px;padding:6px" onchange="setUkuran('${k.id}', '${esc(bj)}', this.value)"><option value="">-</option>${UKURAN.map(u => `<option ${ukK(k, bj) === u ? 'selected' : ''}>${u}</option>`).join('')}</select></td>
+      <td><span class="badge b-low">Belum pernah menerima</span></td><td><button class="btn sm" onclick="bukaDist('${k.id}', '${esc(bj)}')">Serahkan</button></td></tr>`).join('');
+  } else {
+    const m = {}; belum.filter(k => !dep || k.departemen === dep).forEach(k => {
+      const u = ukK(k, bj) || 'Belum diisi'; m[u] ??= {perlu:0, dep:{}}; m[u].perlu++; const d = k.departemen || '-'; m[u].dep[d] = (m[u].dep[d] || 0) + 1; });
+    const l = Object.keys(m).sort((a, b) => sizeIdx(a) - sizeIdx(b)); n = l.length;
+    h = `<tr><th>Ukuran ${esc(bj)}</th><th>Dibutuhkan</th><th>Stok Tersedia</th><th>Perlu Dipesan</th><th>Rincian Departemen</th></tr>`;
+    rows = l.map(u => { const s = perSize[u] || 0, kurang = Math.max(0, m[u].perlu - s);
+      return `<tr><td><span class="size">${esc(u)}</span></td><td class="num">${m[u].perlu}</td><td class="num">${s}</td>
+      <td><span class="badge ${kurang ? 'b-out' : 'b-ok'}">${kurang ? kurang + ' pcs' : 'Cukup'}</span></td>
+      <td><small>${Object.entries(m[u].dep).map(([d, c]) => esc(d) + ': ' + c).join(' · ')}</small></td></tr>`; }).join('');
+  }
+  $('head').innerHTML = h; $('count').textContent = n + ' data';
+  $('body').innerHTML = rows || `<tr><td class="empty" colspan="8">Tidak ada data.</td></tr>`;
+}
+
+async function load() {
+  const [a, b, c] = await Promise.all([
+    supabaseClient.from('seragam_masuk').select('*').order('tanggal', {ascending:false}),
+    supabaseClient.from('seragam_distribusi').select('*').order('tanggal', {ascending:false}),
+    supabaseClient.from('master_karyawan').select('*').eq('status', 'Aktif').order('nama', {ascending:true})]);
+  if (a.error || b.error) { console.error(a.error || b.error); $('body').innerHTML = '<tr><td class="empty">Gagal memuat data. Jalankan sql/seragam_schema.sql di Supabase terlebih dulu.</td></tr>'; return; }
+  masuk = a.data || []; dist = b.data || []; kar = c.data || [];
+  const opt = (arr, f) => [...new Set(arr.map(f).filter(Boolean))].map(x => `<option value="${esc(x)}">`).join('');
+  const cur = $('fJenis').value;
+  $('fJenis').innerHTML = '<option value="">Semua Jenis</option>' + jenisAll().map(j => `<option>${esc(j)}</option>`).join('');
+  $('fJenis').value = jenisAll().includes(cur) ? cur : '';
+  const deps = [...new Set(kar.map(k => k.departemen).filter(Boolean))].sort(), cd = $('fDep').value;
+  $('fDep').innerHTML = '<option value="">Semua Departemen</option>' + deps.map(d => `<option>${esc(d)}</option>`).join(''); $('fDep').value = cd;
+  $('dlKar').innerHTML = kar.map(k => `<option value="${esc(k.nama)}">${esc(k.nik || '')} ${esc(k.departemen || '')}</option>`).join('');
+  $('dlJenis').innerHTML = jenisAll().map(j => `<option value="${esc(j)}">`).join('');
+  $('dlModel').innerHTML = opt(masuk, x => x.model); $('dlWarna').innerHTML = opt(masuk, x => x.warna);
+  render();
+}
+
+const tutup = id => $(id).classList.remove('show');
+const today = () => new Date().toLocaleDateString('sv-SE');
+function bukaMasuk() { ['m_jenis','m_vendor','m_model','m_warna','m_jumlah','m_ket'].forEach(i => $(i).value = ''); $('m_jenis').value = $('fJenis').value; $('m_tanggal').value = today(); $('ovMasuk').classList.add('show'); }
+async function simpanMasuk() {
+  const p = {tanggal:$('m_tanggal').value, jenis:$('m_jenis').value.trim(), vendor:$('m_vendor').value.trim() || null, model:$('m_model').value.trim(), warna:$('m_warna').value.trim(),
+    ukuran:$('m_ukuran').value, jumlah:Number($('m_jumlah').value), keterangan:$('m_ket').value.trim() || null, created_by:user.username || user.nama || null};
+  if (!p.tanggal || !p.jenis || !p.model || !p.warna || !(p.jumlah > 0)) return alert('Lengkapi kolom yang wajib diisi (*).');
+  $('btnMasuk').disabled = true;
+  const { error } = await supabaseClient.from('seragam_masuk').insert(p);
+  $('btnMasuk').disabled = false;
+  if (error) return alert('Gagal menyimpan: ' + error.message);
+  tutup('ovMasuk'); load();
+}
+
+// ===== Form penyerahan (multi barang) =====
+const ukOpts = sel => UKURAN.map(u => `<option ${u === sel ? 'selected' : ''}>${u}</option>`).join('');
+function addItem(jenis) {
+  const j = jenis || $('fJenis').value || jenisAll()[0], r = document.createElement('div'); r.className = 'it';
+  r.innerHTML = `<select class="i-jenis" onchange="rowJenis(this)">${jenisAll().map(x => `<option ${x === j ? 'selected' : ''}>${esc(x)}</option>`).join('')}</select>
+    <select class="i-uk" onchange="fillVar(this.closest('.it'))">${ukOpts(ukK(selKar, j) || defUk(j))}</select><select class="i-var"></select>
+    <input type="number" class="i-jml" min="1" value="1"><button class="del" type="button" onclick="this.closest('.it').remove()" title="Hapus baris">✕</button>`;
+  $('items').appendChild(r); fillVar(r);
+}
+function rowJenis(sel) { const r = sel.closest('.it'); r.querySelector('.i-uk').value = ukK(selKar, sel.value) || defUk(sel.value); fillVar(r); }
+function fillVar(r) {
+  const j = r.querySelector('.i-jenis').value, u = r.querySelector('.i-uk').value, v = r.querySelector('.i-var');
+  const l = stokList().filter(s => s.jenis === j && s.ukuran === u && s.sisa > 0);
+  v.innerHTML = l.length ? l.map(s => `<option value="${esc(s.key)}">${esc(s.model)} · ${esc(s.warna)} (sisa ${s.sisa})</option>`).join('') : '<option value="">Stok kosong</option>';
+}
+function bukaDist(id, jenis) {
+  selKar = null; $('d_kar').value = ''; $('d_info').textContent = ''; $('d_ket').value = ''; $('d_tanggal').value = today(); $('items').innerHTML = '';
+  if (id) { const k = kar.find(x => x.id === id); $('d_kar').value = k.nama; selKar = k; }
+  addItem(jenis); if (id) pilihKar(); $('ovDist').classList.add('show');
+}
+function pilihKar() {
+  const v = $('d_kar').value.trim().toLowerCase();
+  selKar = kar.find(k => k.nama.toLowerCase() === v || (k.nik || '').toLowerCase() === v) || null;
+  if (!selKar) { $('d_info').textContent = ''; return; }
+  const got = {}; dist.filter(x => (x.nik || x.nama) === idKar(selKar)).forEach(x => got[x.jenis] = (got[x.jenis] || 0) + x.jumlah);
+  const g = Object.entries(got).map(([j, c]) => `${j} ×${c}`).join(', ');
+  $('d_info').textContent = `${selKar.nik || ''} · ${selKar.departemen || '-'} · ${g ? 'pernah menerima: ' + g : 'belum pernah menerima seragam'}`;
+  document.querySelectorAll('#items .it').forEach(r => { const u = ukK(selKar, r.querySelector('.i-jenis').value); if (u) { r.querySelector('.i-uk').value = u; fillVar(r); } });
+}
+async function simpanDist() {
+  if (!selKar) return alert('Pilih karyawan dari daftar.');
+  const tg = $('d_tanggal').value; if (!tg) return alert('Tanggal wajib diisi.');
+  const it = [...document.querySelectorAll('#items .it')].map(r => ({v:r.querySelector('.i-var').value, jumlah:Number(r.querySelector('.i-jml').value)}));
+  if (!it.length) return alert('Tambahkan minimal satu barang.');
+  if (it.some(x => !x.v)) return alert('Ada barang yang stoknya kosong untuk ukuran tersebut.');
+  if (it.some(x => !(x.jumlah > 0))) return alert('Jumlah tidak valid.');
+  const need = {}; it.forEach(x => need[x.v] = (need[x.v] || 0) + x.jumlah);
+  const sisa = Object.fromEntries(stokList().map(s => [s.key, s.sisa]));
+  for (const k in need) if (need[k] > (sisa[k] || 0)) { const [j, m, w, u] = unkey(k); return alert(`Stok ${j} ${m} ${w} (${u}) tidak cukup. Sisa ${sisa[k] || 0}.`); }
+  const no = `SR/${tg.slice(0, 4)}/${tg.slice(5, 7)}/${Math.random().toString(36).slice(2, 8).toUpperCase()}`;
+  const ket = $('d_ket').value.trim() || null, by = user.username || user.nama || null;
+  const payload = it.map(x => { const [jenis, model, warna, ukuran] = unkey(x.v);
+    return {tanggal:tg, tahun:Number(tg.slice(0, 4)), no_tt:no, jenis, nik:selKar.nik || null, nama:selKar.nama, departemen:selKar.departemen || null, area:selKar.area || null, model, warna, ukuran, jumlah:x.jumlah, keterangan:ket, created_by:by}; });
+  $('btnDist').disabled = true;
+  const { data, error } = await supabaseClient.from('seragam_distribusi').insert(payload).select();
+  if (!error) { // simpan ukuran terbaru per jenis ke master karyawan
+    const uk = {...(selKar.ukuran_seragam || {})}; payload.forEach(p => uk[p.jenis] = p.ukuran);
+    await supabaseClient.from('master_karyawan').update({ukuran_seragam:uk}).eq('id', selKar.id);
+  }
+  $('btnDist').disabled = false;
+  if (error) return alert('Gagal menyimpan: ' + error.message);
+  tutup('ovDist'); await load(); tampilTT(data);
+}
+async function hapusDist(id) {
+  const x = dist.find(d => d.id === id);
+  if (!confirm(`Hapus penyerahan ${x.jenis} ${x.model} ke ${x.nama}? Stok akan kembali bertambah.`)) return;
+  const { error } = await supabaseClient.from('seragam_distribusi').delete().eq('id', id);
+  if (error) return alert('Gagal menghapus: ' + error.message); load();
+}
+async function setUkuran(id, jenis, u) {
+  const k = kar.find(x => x.id === id), uk = {...(k.ukuran_seragam || {})};
+  if (u) uk[jenis] = u; else delete uk[jenis];
+  const { error } = await supabaseClient.from('master_karyawan').update({ukuran_seragam:uk}).eq('id', id);
+  if (error) return alert('Gagal menyimpan ukuran: ' + error.message);
+  k.ukuran_seragam = uk; render();
+}
+
+// ===== Tanda terima (cetak langsung atau "Save as PDF" lewat dialog print) =====
+function tampilTT(rows) {
+  const x = rows[0], d = new Date(x.tanggal + 'T00:00:00'), penyerah = user.nama || user.username || '';
+  const no = x.no_tt || `SR/${d.getFullYear()}/${String(d.getMonth() + 1).padStart(2, '0')}/${String(x.id).slice(0, 6).toUpperCase()}`;
+  $('paper').innerHTML = `<h2>TANDA TERIMA SERAGAM</h2><div class="nodok">No. ${esc(no)}</div>
+    <table class="kv"><tr><td>Tanggal</td><td>: ${tgl(x.tanggal)}</td></tr><tr><td>Nama Penerima</td><td>: <b>${esc(x.nama)}</b></td></tr>
+    <tr><td>NIK</td><td>: ${esc(x.nik || '-')}</td></tr><tr><td>Departemen</td><td>: ${esc(x.departemen || '-')}</td></tr><tr><td>Area</td><td>: ${esc(x.area || '-')}</td></tr></table>
+    <p>Dengan ini menyatakan telah menerima perlengkapan seragam dengan rincian sebagai berikut:</p>
+    <table><thead><tr><th style="width:36px">No</th><th>Jenis</th><th>Model / Tipe</th><th>Warna</th><th>Ukuran</th><th style="text-align:center">Jumlah</th></tr></thead>
+    <tbody>${rows.map((r, i) => `<tr><td>${i + 1}</td><td>${esc(r.jenis)}</td><td>${esc(r.model)}</td><td>${esc(r.warna)}</td><td>${esc(r.ukuran)}</td><td style="text-align:center">${r.jumlah} pcs</td></tr>`).join('')}</tbody></table>
+    ${x.keterangan ? `<p><b>Keterangan:</b> ${esc(x.keterangan)}</p>` : ''}
+    <p>Barang diterima dalam keadaan baik dan sesuai dengan rincian di atas.</p>
+    <div class="ttd"><div>Penerima,<div class="sp"></div><div class="ln">${esc(x.nama)}</div></div><div>Yang Menyerahkan,<div class="sp"></div><div class="ln">${esc(penyerah)}</div></div></div>`;
+  document.title = 'Tanda Terima Seragam - ' + x.nama;
+  $('ovTT').classList.add('show');
+}
+function cetakTT(id) { const x = dist.find(d => d.id === id); if (x) tampilTT(x.no_tt ? dist.filter(d => d.no_tt === x.no_tt) : [x]); }
+
+// init
+const thNow = new Date().getFullYear();
+$('fTahun').innerHTML = [thNow + 1, thNow, thNow - 1, thNow - 2].map(t => `<option ${t === thNow ? 'selected' : ''}>${t}</option>`).join('');
+$('m_ukuran').innerHTML = ukOpts('M');
+$('tabs').addEventListener('click', e => {
+  const b = e.target.closest('.tab'); if (!b) return; tab = b.dataset.t;
+  document.querySelectorAll('.tab').forEach(t => t.classList.toggle('on', t === b));
+  if ((tab === 'belum' || tab === 'rekap') && !$('fJenis').value) $('fJenis').value = jenisAll()[0];
+  render();
+});
+document.addEventListener('keydown', e => { if (e.key === 'Escape') { tutup('ovMasuk'); tutup('ovDist'); tutup('ovTT'); } });
+load();
+</script>
+</body>
+</html>
