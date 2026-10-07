@@ -47,6 +47,11 @@
   .b-ok{ background:rgba(77,208,196,.13); color:var(--teal);} .b-low{ background:rgba(240,145,63,.14); color:var(--orange);} .b-out{ background:rgba(229,112,143,.14); color:var(--pink);}
   .size{ display:inline-block; min-width:34px; text-align:center; background:rgba(182,147,245,.14); color:var(--ac); font-weight:800; padding:3px 8px; border-radius:7px; }
   .jn{ display:inline-block; background:rgba(255,255,255,.07); border-radius:6px; padding:2px 8px; font-size:11.5px; font-weight:700; margin-right:6px; }
+  .b-pend{ background:rgba(240,145,63,.14); color:var(--orange);} .b-in{ background:rgba(77,208,196,.13); color:var(--teal);} .b-mute{ background:rgba(255,255,255,.07); color:var(--muted);}
+  .cnt{ display:inline-block; min-width:18px; text-align:center; background:var(--orange); color:#1a1226; border-radius:10px; font-size:11px; font-weight:800; padding:1px 6px; margin-left:6px; }
+  .chip{ display:inline-block; background:rgba(182,147,245,.14); color:var(--ac); border:1px solid rgba(182,147,245,.35); border-radius:20px; padding:2px 10px; font-size:12px; font-weight:700; margin-top:6px; }
+  .btn.ok{ background:linear-gradient(135deg,#6fe3d8,#2fb3a6); } .del.ok:hover{ color:var(--teal); border-color:var(--teal); }
+  .trf-items small{ display:block; margin:0; color:var(--text); } .trf-items{ min-width:240px; }
   .empty{ padding:48px 20px; text-align:center; color:var(--muted); }
   .del{ background:transparent; border:1px solid var(--line); color:var(--muted); border-radius:8px; padding:5px 10px; cursor:pointer; font-size:12px; font-family:inherit; } .del:hover{ color:var(--pink); border-color:var(--pink); }
   .overlay{ position:fixed; inset:0; background:rgba(10,6,3,.72); backdrop-filter:blur(3px); display:none; align-items:flex-start; justify-content:center; padding:32px 16px; overflow-y:auto; z-index:50; }
@@ -93,10 +98,12 @@
     <div>
       <a class="back" href="pilih-modul.html">← Kembali ke pilih modul</a>
       <div class="title"><div class="ico">🧥</div><div><h1>Seragam</h1>
-        <div class="muted">Kaos polo, jaket, topi, dan lainnya: stok per ukuran, penyerahan ke karyawan, tanda terima, dan rekap kebutuhan.</div></div></div>
+        <div class="muted">Kaos polo, jaket, topi, dan lainnya: stok per ukuran, penyerahan ke karyawan, tanda terima, dan rekap kebutuhan.</div>
+        <div class="chip" id="gdInfo"></div></div></div>
     </div>
     <div style="display:flex;gap:10px;flex-wrap:wrap">
       <span class="live" id="live">Menyambungkan...</span>
+      <button class="btn secondary" onclick="bukaTrf()">⇄ Transfer Stok</button>
       <button class="btn secondary" onclick="bukaMasuk()">＋ Stok Masuk</button>
       <button class="btn" onclick="bukaDist()">＋ Catat Penyerahan</button>
     </div>
@@ -111,6 +118,7 @@
 
   <div class="tabs" id="tabs">
     <button class="tab on" data-t="stok">Stok</button>
+    <button class="tab" data-t="trf">Transfer Stok <span class="cnt hid" id="cntTrf">0</span></button>
     <button class="tab" data-t="dist">Riwayat Penyerahan</button>
     <button class="tab" data-t="belum">Belum Menerima</button>
     <button class="tab" data-t="rekap">Rekap Kebutuhan</button>
@@ -118,6 +126,7 @@
 
   <div class="bar">
     <input id="cari" placeholder="Cari..." oninput="render()">
+    <select id="fGudang" onchange="render()" class="hid" title="Pilih gudang"></select>
     <select id="fJenis" onchange="render()"></select>
     <select id="fTahun" onchange="render()"></select>
     <select id="fDep" onchange="render()"><option value="">Semua Departemen</option></select>
@@ -157,6 +166,21 @@
   <div class="foot"><button class="btn secondary" onclick="tutup('ovDist')">Batal</button><button class="btn" id="btnDist" onclick="simpanDist()">Simpan &amp; Buat Tanda Terima</button></div>
 </div></div>
 
+<div class="overlay" id="ovTrf"><div class="modal wide">
+  <h2>Transfer Stok Antar Gudang</h2><div class="muted">Stok gudang Anda langsung ditahan. Stok baru masuk ke gudang tujuan setelah gudang tujuan menekan Approve.</div>
+  <div class="fg">
+    <div><label>Gudang Asal</label><input id="t_asal" readonly></div>
+    <div><label>Gudang Tujuan *</label><select id="t_tujuan"></select></div>
+    <div><label>Tanggal *</label><input type="date" id="t_tanggal"></div>
+    <div></div>
+    <div class="full"><div class="it-h"><span>JENIS</span><span>UKURAN</span><span>MODEL / WARNA</span><span>JUMLAH</span><span></span></div>
+      <div id="itemsT"></div>
+      <button class="btn secondary sm" type="button" onclick="addItem(null, true)">＋ Tambah Barang</button></div>
+    <div class="full"><label>Keterangan</label><textarea id="t_ket" rows="2" placeholder="mis. permintaan stok untuk karyawan baru"></textarea></div>
+  </div>
+  <div class="foot"><button class="btn secondary" onclick="tutup('ovTrf')">Batal</button><button class="btn" id="btnTrf" onclick="simpanTrf()">Ajukan Transfer</button></div>
+</div></div>
+
 <div class="overlay" id="ovTT"><div style="width:100%;max-width:760px;margin:0 auto">
   <div class="paper" id="paper"></div>
   <div class="tt-actions"><button class="btn secondary" onclick="tutup('ovTT')">Tutup</button><button class="btn" onclick="window.print()">🖨 Cetak / Simpan PDF</button></div>
@@ -172,7 +196,11 @@ const UK_SEPATU = Array.from({length:13}, (_, i) => String(35 + i));   // 35-47
 // Daftar ukuran mengikuti jenis: sepatu/boot = angka, topi/helm = All Size, selain itu = ukuran pakaian. "Ukuran lain" bisa diketik.
 const ukBase = j => /sepatu|boot/i.test(j) ? UK_SEPATU : /topi|helm/i.test(j) ? ['All Size'] : [...UK_PAKAIAN, 'All Size'];
 const JENIS_DEFAULT = ['Kaos Polo','Jaket','Topi'];
-let masuk = [], dist = [], kar = [], tab = 'stok', selKar = null;
+let masuk = [], dist = [], kar = [], trf = [], gudangList = [], tab = 'stok', selKar = null, lastPend = -1;
+const BULAN_ROMAWI = ['I','II','III','IV','V','VI','VII','VIII','IX','X','XI','XII'];
+// Gudang aktif: akun dengan gudang dikunci ke gudangnya sendiri. Akun tanpa gudang (pusat/admin) memilih lewat filter; kosong = lihat semua (hanya baca).
+const G = () => user.gudang || $('fGudang').value || '';
+const perluGudang = () => { const g = G(); if (!g) toastWarn('Pilih gudang dulu pada filter Gudang.'); return g; };
 const $ = id => document.getElementById(id);
 function toast(msg, type = 'ok', ms) {
   const t = {ok:['✔', 'Berhasil'], err:['✖', 'Gagal'], warn:['⚠', 'Perhatian']}[type], el = document.createElement('div');
@@ -194,13 +222,24 @@ const ukK = (k, j) => (k && k.ukuran_seragam && k.ukuran_seragam[j]) || '';
 const defUk = j => /sepatu|boot/i.test(j) ? '41' : /topi|helm/i.test(j) ? 'All Size' : 'M';
 const idKar = k => k.nik || k.nama;
 
-function stokList() {
+// Sisa = masuk vendor + transfer masuk (Approved) - transfer keluar (Pending/Approved) - diserahkan. Kosong = semua gudang.
+function stokList(g) {
   const m = {};
-  [[masuk, 'masuk'], [dist, 'keluar']].forEach(([arr, f]) => arr.forEach(x => {
-    const k = key(x); m[k] ??= {key:k, jenis:x.jenis, model:x.model, warna:x.warna, ukuran:x.ukuran, masuk:0, keluar:0}; m[k][f] += x.jumlah; }));
-  return Object.values(m).map(x => ({...x, sisa:x.masuk - x.keluar}))
+  const add = (x, gd, f) => { if (g && gd !== g) return;
+    const k = key(x); m[k] ??= {key:k, jenis:x.jenis, model:x.model, warna:x.warna, ukuran:x.ukuran, masuk:0, tIn:0, tOut:0, keluar:0}; m[k][f] += x.jumlah; };
+  masuk.forEach(x => add(x, x.gudang, 'masuk'));
+  dist.forEach(x => add(x, x.gudang, 'keluar'));
+  trf.forEach(x => { if (x.status === 'Approved') add(x, x.gudang_tujuan, 'tIn'); if (x.status === 'Pending' || x.status === 'Approved') add(x, x.gudang_asal, 'tOut'); });
+  return Object.values(m).map(x => ({...x, sisa:x.masuk + x.tIn - x.tOut - x.keluar}))
     .sort((a, b) => a.jenis.localeCompare(b.jenis) || a.model.localeCompare(b.model) || a.warna.localeCompare(b.warna) || sizeIdx(a.ukuran) - sizeIdx(b.ukuran));
 }
+// Satu dokumen transfer = beberapa baris dengan no_transfer sama
+function trfGroups() {
+  const m = {};
+  trf.forEach(x => { const t = m[x.no_transfer] ??= {no:x.no_transfer, tanggal:x.tanggal, asal:x.gudang_asal, tujuan:x.gudang_tujuan, status:x.status, ket:x.keterangan, by:x.created_by, appBy:x.approved_by, appAt:x.approved_at, alasan:x.alasan_tolak, created:x.created_at, items:[]}; t.items.push(x); });
+  return Object.values(m).sort((a, b) => (b.status === 'Pending') - (a.status === 'Pending') || (b.created || '').localeCompare(a.created || ''));
+}
+const pendMasuk = () => { const g = G(); return g ? trfGroups().filter(t => t.status === 'Pending' && t.tujuan === g) : []; };
 // Karyawan aktif yang belum pernah menerima jenis tertentu (semua periode)
 function belumList(jenis) {
   const sudah = new Set(dist.filter(x => x.jenis === jenis).map(x => x.nik || x.nama));
@@ -209,30 +248,45 @@ function belumList(jenis) {
 
 function render() {
   const q = $('cari').value.toLowerCase(), dep = $('fDep').value, thF = Number($('fTahun').value) || 0, jn = $('fJenis').value;
-  const bj = jn || jenisAll()[0], all = stokList(), stok = all.filter(s => !jn || s.jenis === jn);
+  const g = G(), distG = dist.filter(x => !g || x.gudang === g), bj = jn || jenisAll()[0], all = stokList(g), stok = all.filter(s => !jn || s.jenis === jn);
   const belum = belumList(bj), perSize = {}, butuh = {};
   all.filter(s => s.jenis === bj).forEach(s => perSize[s.ukuran] = (perSize[s.ukuran] || 0) + s.sisa);
   belum.forEach(k => { const u = ukK(k, bj); if (u) butuh[u] = (butuh[u] || 0) + 1; });
   $('sStok').textContent = stok.reduce((a, s) => a + s.sisa, 0);
-  $('sDist').textContent = dist.filter(x => x.tahun === thNow && (!jn || x.jenis === jn)).reduce((a, x) => a + x.jumlah, 0);
+  $('sDist').textContent = distG.filter(x => x.tahun === thNow && (!jn || x.jenis === jn)).reduce((a, x) => a + x.jumlah, 0);
   $('lBelum').textContent = 'Belum Menerima ' + bj; $('sBelum').textContent = belum.length;
   $('lKurang').textContent = 'Ukuran Kurang Stok (' + bj + ')';
   $('sKurang').textContent = Object.keys(butuh).filter(u => (perSize[u] || 0) < butuh[u]).length;
-  $('fDep').classList.toggle('hid', tab === 'stok'); $('fTahun').classList.toggle('hid', tab !== 'dist');
+  $('fDep').classList.toggle('hid', tab === 'stok' || tab === 'trf'); $('fTahun').classList.toggle('hid', tab !== 'dist');
+  const np = pendMasuk().length; $('cntTrf').textContent = np; $('cntTrf').classList.toggle('hid', !np);
   $('fJenis').options[0].hidden = tab === 'belum' || tab === 'rekap';
   let h = '', rows = '', n = 0;
 
   if (tab === 'stok') {
     const l = stok.filter(s => [s.jenis, s.model, s.warna, s.ukuran].some(x => x.toLowerCase().includes(q))); n = l.length;
-    h = '<tr><th>Jenis</th><th>Model / Tipe</th><th>Warna</th><th>Ukuran</th><th>Masuk</th><th>Diserahkan</th><th>Sisa</th><th>Status</th></tr>';
-    rows = l.map(s => `<tr><td><span class="jn">${esc(s.jenis)}</span></td><td><b>${esc(s.model)}</b></td><td>${esc(s.warna)}</td><td><span class="size">${esc(s.ukuran)}</span></td><td class="num">${s.masuk}</td><td class="num">${s.keluar}</td><td class="num"><b>${s.sisa}</b></td>
+    h = '<tr><th>Jenis</th><th>Model / Tipe</th><th>Warna</th><th>Ukuran</th><th>Masuk</th><th>Transfer Masuk</th><th>Transfer Keluar</th><th>Diserahkan</th><th>Sisa</th><th>Status</th></tr>';
+    rows = l.map(s => `<tr><td><span class="jn">${esc(s.jenis)}</span></td><td><b>${esc(s.model)}</b></td><td>${esc(s.warna)}</td><td><span class="size">${esc(s.ukuran)}</span></td><td class="num">${s.masuk}</td><td class="num">${s.tIn}</td><td class="num">${s.tOut}</td><td class="num">${s.keluar}</td><td class="num"><b>${s.sisa}</b></td>
       <td><span class="badge ${s.sisa <= 0 ? 'b-out' : s.sisa <= STOK_MIN ? 'b-low' : 'b-ok'}">${s.sisa <= 0 ? 'Habis' : s.sisa <= STOK_MIN ? 'Menipis' : 'Tersedia'}</span></td></tr>`).join('');
   } else if (tab === 'dist') {
-    const l = dist.filter(x => (!thF || x.tahun === thF) && (!jn || x.jenis === jn) && (!dep || x.departemen === dep) && [x.nama, x.nik, x.jenis, x.model, x.warna, x.ukuran, x.no_tt].some(v => (v || '').toLowerCase().includes(q))); n = l.length;
+    const l = distG.filter(x => (!thF || x.tahun === thF) && (!jn || x.jenis === jn) && (!dep || x.departemen === dep) && [x.nama, x.nik, x.jenis, x.model, x.warna, x.ukuran, x.no_tt].some(v => (v || '').toLowerCase().includes(q))); n = l.length;
     h = '<tr><th>Tanggal</th><th>Karyawan</th><th>Departemen</th><th>Barang</th><th>Jumlah</th><th>Keterangan</th><th></th></tr>';
     rows = l.map(x => `<tr><td>${tgl(x.tanggal)}</td><td><b>${esc(x.nama)}</b><small>${esc(x.nik || '')}</small></td><td>${esc(x.departemen || '-')}<small>${esc(x.area || '')}</small></td>
       <td><span class="jn">${esc(x.jenis)}</span>${esc(x.model)} · ${esc(x.warna)} <span class="size">${esc(x.ukuran)}</span></td><td class="num">${x.jumlah}</td><td>${esc(x.keterangan || '')}</td>
-      <td style="white-space:nowrap"><button class="btn sm" onclick="cetakTT('${x.id}')">🖨 Tanda Terima</button> <button class="del" onclick="hapusDist('${x.id}')">Hapus</button></td></tr>`).join('');
+      <td style="white-space:nowrap"><button class="btn sm" onclick="cetakTT('${x.id}')">🖨 Tanda Terima</button> ${g && x.gudang === g ? `<button class="del" onclick="hapusDist('${x.id}')">Hapus</button>` : ''}</td></tr>`).join('');
+  } else if (tab === 'trf') {
+    const l = trfGroups().filter(t => (!g || t.asal === g || t.tujuan === g) && [t.no, t.asal, t.tujuan, t.status, t.by, ...t.items.flatMap(i => [i.jenis, i.model, i.warna, i.ukuran])].some(v => (v || '').toLowerCase().includes(q))); n = l.length;
+    h = '<tr><th>No. Transfer</th><th>Tanggal</th><th>Asal → Tujuan</th><th>Barang</th><th>Status</th><th></th></tr>';
+    rows = l.map(t => {
+      const masukAnda = g && t.tujuan === g, keluarAnda = g && t.asal === g, pend = t.status === 'Pending', total = t.items.reduce((a, i) => a + i.jumlah, 0);
+      const bd = {Pending:'b-pend', Approved:'b-in', Rejected:'b-out', Dibatalkan:'b-mute'}[t.status] || 'b-mute';
+      const lbl = {Pending:'Menunggu Approval', Approved:'Disetujui', Rejected:'Ditolak', Dibatalkan:'Dibatalkan'}[t.status] || t.status;
+      const info = t.status === 'Approved' ? `oleh ${esc(t.appBy || '-')}` : t.status === 'Rejected' ? `oleh ${esc(t.appBy || '-')}${t.alasan ? ' · ' + esc(t.alasan) : ''}` : '';
+      const aksi = pend && masukAnda ? `<button class="btn sm ok" onclick="approveTrf('${esc(t.no)}')">✔ Approve</button> <button class="del" onclick="tolakTrf('${esc(t.no)}')">Tolak</button>`
+        : pend && keluarAnda ? `<button class="del" onclick="batalTrf('${esc(t.no)}')">Batalkan</button>` : '';
+      return `<tr><td><b>${esc(t.no)}</b><small>oleh ${esc(t.by || '-')}</small></td><td>${tgl(t.tanggal)}</td>
+        <td>${esc(t.asal)} → <b>${esc(t.tujuan)}</b><small>${masukAnda ? 'Masuk ke gudang Anda' : keluarAnda ? 'Keluar dari gudang Anda' : ''}</small></td>
+        <td class="trf-items">${t.items.map(i => `<small><span class="jn">${esc(i.jenis)}</span>${esc(i.model)} · ${esc(i.warna)} <span class="size">${esc(i.ukuran)}</span> × ${i.jumlah}</small>`).join('')}${t.ket ? `<small style="color:var(--muted);margin-top:4px">${esc(t.ket)}</small>` : ''}</td>
+        <td><span class="badge ${bd}">${lbl}</span><small>${total} pcs ${info}</small></td><td style="white-space:nowrap">${aksi}</td></tr>`; }).join('');
   } else if (tab === 'belum') {
     const l = belum.filter(k => (!dep || k.departemen === dep) && [k.nama, k.nik, k.departemen].some(v => (v || '').toLowerCase().includes(q))); n = l.length;
     h = `<tr><th>Karyawan</th><th>Departemen</th><th>Ukuran ${esc(bj)}</th><th>Status</th><th></th></tr>`;
@@ -250,21 +304,27 @@ function render() {
       <td><small>${Object.entries(m[u].dep).map(([d, c]) => esc(d) + ': ' + c).join(' · ')}</small></td></tr>`; }).join('');
   }
   $('head').innerHTML = h; $('count').textContent = n + ' data';
-  $('body').innerHTML = rows || `<tr><td class="empty" colspan="8">Tidak ada data.</td></tr>`;
+  $('body').innerHTML = rows || `<tr><td class="empty" colspan="10">Tidak ada data.</td></tr>`;
 }
 
 let ready = false;
 async function load() {
-  const [a, b, c] = await Promise.all([
+  const [a, b, c, d, e] = await Promise.all([
     supabaseClient.from('seragam_masuk').select('*').order('tanggal', {ascending:false}),
     supabaseClient.from('seragam_distribusi').select('*').order('tanggal', {ascending:false}),
-    supabaseClient.from('master_karyawan').select('*').eq('status', 'Aktif').order('nama', {ascending:true})]);
-  if (a.error || b.error) {
-    console.error(a.error || b.error);
-    if (!ready) { $('body').innerHTML = '<tr><td class="empty">Gagal memuat data. Jalankan sql/seragam_schema.sql di Supabase terlebih dulu.</td></tr>'; toastErr('Data seragam tidak dapat dimuat: ' + (a.error || b.error).message); }
+    supabaseClient.from('master_karyawan').select('*').eq('status', 'Aktif').order('nama', {ascending:true}),
+    supabaseClient.from('seragam_transfer').select('*').order('created_at', {ascending:false}),
+    supabaseClient.from('master_gudang').select('*').order('nama_gudang')]);
+  const er = a.error || b.error || d.error;
+  if (er) {
+    console.error(er);
+    if (!ready) { $('body').innerHTML = '<tr><td class="empty">Gagal memuat data. Jalankan seragam_schema.sql (bagian gudang &amp; transfer) di Supabase terlebih dulu.</td></tr>'; toastErr('Data seragam tidak dapat dimuat: ' + er.message); }
     return;
   }
-  ready = true; masuk = a.data || []; dist = b.data || []; kar = c.data || [];
+  ready = true; masuk = a.data || []; dist = b.data || []; kar = c.data || []; trf = d.data || [];
+  gudangList = [...new Set([...(e.data || []).map(x => x.nama_gudang), user.gudang, ...masuk.map(x => x.gudang), ...trf.flatMap(x => [x.gudang_asal, x.gudang_tujuan])].filter(Boolean))].sort();
+  const cg = $('fGudang').value;
+  $('fGudang').innerHTML = '<option value="">Semua Gudang</option>' + gudangList.map(x => `<option>${esc(x)}</option>`).join(''); $('fGudang').value = gudangList.includes(cg) ? cg : '';
   const opt = (arr, f) => [...new Set(arr.map(f).filter(Boolean))].map(x => `<option value="${esc(x)}">`).join('');
   const cur = $('fJenis').value;
   $('fJenis').innerHTML = '<option value="">Semua Jenis</option>' + jenisAll().map(j => `<option>${esc(j)}</option>`).join('');
@@ -276,6 +336,9 @@ async function load() {
   $('dlKar').innerHTML = kar.map(k => `<option value="${esc(k.nama)}">${esc(k.nik || '')} ${esc(k.departemen || '')}</option>`).join('');
   $('dlModel').innerHTML = opt(masuk, x => x.model);
   render();
+  const np = pendMasuk().length;
+  if (np && np > lastPend) toastWarn(`Ada ${np} transfer stok menunggu approval Anda (tab Transfer Stok).`);
+  lastPend = np;
 }
 
 const tutup = id => $(id).classList.remove('show');
@@ -307,7 +370,8 @@ function bukaMasuk() {
 }
 async function simpanMasuk() {
   let model = rapih($('m_model').value); model = [...new Set(masuk.map(x => x.model))].find(x => x.toLowerCase() === model.toLowerCase()) || model;
-  const p = {tanggal:$('m_tanggal').value, jenis:nilaiPilih('m_jenis', jenisAll()), vendor:rapih($('m_vendor').value) || null, model, warna:nilaiPilih('m_warna', warnaAll()),
+  const gd = perluGudang(); if (!gd) return;
+  const p = {gudang:gd, tanggal:$('m_tanggal').value, jenis:nilaiPilih('m_jenis', jenisAll()), vendor:rapih($('m_vendor').value) || null, model, warna:nilaiPilih('m_warna', warnaAll()),
     ukuran:nilaiUkuran(), jumlah:Number($('m_jumlah').value), keterangan:$('m_ket').value.trim() || null, created_by:user.username || user.nama || null};
   if (!p.tanggal || !p.jenis || !p.model || !p.warna || !(p.jumlah > 0)) return toastWarn('Lengkapi kolom yang wajib diisi (*).');
   $('btnMasuk').disabled = true;
@@ -321,21 +385,22 @@ async function simpanMasuk() {
 
 // ===== Form penyerahan (multi barang) =====
 const ukOpts = (list, sel) => list.map(u => `<option ${u === sel ? 'selected' : ''}>${esc(u)}</option>`).join('');
-function addItem(jenis) {
-  const j = jenis || $('fJenis').value || jenisAll()[0], r = document.createElement('div'); r.className = 'it';
+function addItem(jenis, isTrf) {
+  const j = jenis || $('fJenis').value || jenisAll()[0], r = document.createElement('div'); r.className = 'it'; const kk = isTrf ? null : selKar;
   r.innerHTML = `<select class="i-jenis" onchange="rowJenis(this)">${jenisAll().map(x => `<option ${x === j ? 'selected' : ''}>${esc(x)}</option>`).join('')}</select>
-    <select class="i-uk" onchange="fillVar(this.closest('.it'))">${ukOpts(ukuranFor(j, [ukK(selKar, j)]), ukK(selKar, j) || defUk(j))}</select><select class="i-var"></select>
+    <select class="i-uk" onchange="fillVar(this.closest('.it'))">${ukOpts(ukuranFor(j, [ukK(kk, j)]), ukK(kk, j) || defUk(j))}</select><select class="i-var"></select>
     <input type="number" class="i-jml" min="1" value="1"><button class="del" type="button" onclick="this.closest('.it').remove()" title="Hapus baris">✕</button>`;
-  $('items').appendChild(r); fillVar(r);
+  $(isTrf ? 'itemsT' : 'items').appendChild(r); fillVar(r);
 }
 function setUk(r, j, u) { const v = u || defUk(j); r.querySelector('.i-uk').innerHTML = ukOpts(ukuranFor(j, [v]), v); fillVar(r); }
-function rowJenis(sel) { const r = sel.closest('.it'); setUk(r, sel.value, ukK(selKar, sel.value)); }
+function rowJenis(sel) { const r = sel.closest('.it'); setUk(r, sel.value, r.closest('#itemsT') ? '' : ukK(selKar, sel.value)); }
 function fillVar(r) {
   const j = r.querySelector('.i-jenis').value, u = r.querySelector('.i-uk').value, v = r.querySelector('.i-var');
-  const l = stokList().filter(s => s.jenis === j && s.ukuran === u && s.sisa > 0);
+  const l = stokList(G()).filter(s => s.jenis === j && s.ukuran === u && s.sisa > 0);
   v.innerHTML = l.length ? l.map(s => `<option value="${esc(s.key)}">${esc(s.model)} · ${esc(s.warna)} (sisa ${s.sisa})</option>`).join('') : '<option value="">Stok kosong</option>';
 }
 function bukaDist(id, jenis) {
+  if (!perluGudang()) return;
   selKar = null; $('d_kar').value = ''; $('d_info').textContent = ''; $('d_ket').value = ''; $('d_tanggal').value = today(); $('items').innerHTML = '';
   if (id) { const k = kar.find(x => x.id === id); $('d_kar').value = k.nama; selKar = k; }
   addItem(jenis); if (id) pilihKar(); $('ovDist').classList.add('show');
@@ -356,8 +421,9 @@ async function simpanDist() {
   if (!it.length) return toastWarn('Tambahkan minimal satu barang.');
   if (it.some(x => !x.v)) return toastWarn('Ada barang yang stoknya kosong untuk ukuran tersebut.');
   if (it.some(x => !(x.jumlah > 0))) return toastWarn('Jumlah tidak valid.');
+  const gd = perluGudang(); if (!gd) return;
   const need = {}; it.forEach(x => need[x.v] = (need[x.v] || 0) + x.jumlah);
-  const sisa = Object.fromEntries(stokList().map(s => [s.key, s.sisa]));
+  const sisa = Object.fromEntries(stokList(gd).map(s => [s.key, s.sisa]));
   for (const k in need) if (need[k] > (sisa[k] || 0)) { const [j, m, w, u] = unkey(k); return toastWarn(`Stok ${j} ${m} ${w} (${u}) tidak cukup. Sisa ${sisa[k] || 0}.`); }
   $('btnDist').disabled = true;
   try {
@@ -367,7 +433,7 @@ async function simpanDist() {
     const no = `SR/${tg.slice(0, 4)}/${tg.slice(5, 7)}/${String(mx + 1).padStart(4, '0')}`;
     const ket = $('d_ket').value.trim() || null, by = user.username || user.nama || null;
     const payload = it.map(x => { const [jenis, model, warna, ukuran] = unkey(x.v);
-      return {tanggal:tg, tahun:Number(tg.slice(0, 4)), no_tt:no, jenis, nik:selKar.nik || null, nama:selKar.nama, departemen:selKar.departemen || null, area:selKar.area || null, model, warna, ukuran, jumlah:x.jumlah, keterangan:ket, created_by:by}; });
+      return {gudang:gd, tanggal:tg, tahun:Number(tg.slice(0, 4)), no_tt:no, jenis, nik:selKar.nik || null, nama:selKar.nama, departemen:selKar.departemen || null, area:selKar.area || null, model, warna, ukuran, jumlah:x.jumlah, keterangan:ket, created_by:by}; });
     const { data, error } = await supabaseClient.from('seragam_distribusi').insert(payload).select(); if (error) throw error;
     // simpan ukuran terbaru per jenis ke master karyawan
     const uk = {...(selKar.ukuran_seragam || {})}; payload.forEach(p => uk[p.jenis] = p.ukuran);
@@ -380,6 +446,7 @@ async function simpanDist() {
 }
 async function hapusDist(id) {
   const x = dist.find(d => d.id === id);
+  if (!G() || x.gudang !== G()) return toastWarn('Penyerahan ini tercatat di gudang ' + (x.gudang || '-') + ', hanya akun gudang tersebut yang bisa menghapus.');
   if (!confirm(`Hapus penyerahan ${x.jenis} ${x.model} ke ${x.nama}? Stok akan kembali bertambah.`)) return;
   try {
     const { error } = await supabaseClient.from('seragam_distribusi').delete().eq('id', id); if (error) throw error;
@@ -393,6 +460,67 @@ async function setUkuran(id, jenis, u) {
     const { error } = await supabaseClient.from('master_karyawan').update({ukuran_seragam:uk}).eq('id', id); if (error) throw error;
     k.ukuran_seragam = uk; render(); toastOk(`Ukuran ${jenis} ${k.nama} disimpan${u ? ': ' + u : ' (dikosongkan)'}.`);
   } catch (e) { console.error(e); toastErr('Ukuran tidak tersimpan. ' + (e.message || e)); render(); }
+}
+
+// ===== Transfer stok antar gudang =====
+function bukaTrf() {
+  const g = perluGudang(); if (!g) return;
+  const tujuan = gudangList.filter(x => x !== g);
+  if (!tujuan.length) return toastWarn('Belum ada gudang tujuan lain. Tambahkan di master gudang.');
+  $('t_asal').value = g; $('t_tujuan').innerHTML = tujuan.map(x => `<option>${esc(x)}</option>`).join('');
+  $('t_tanggal').value = today(); $('t_ket').value = ''; $('itemsT').innerHTML = ''; addItem(null, true); $('ovTrf').classList.add('show');
+}
+async function noTrf(tg) {
+  const suf = `/${BULAN_ROMAWI[Number(tg.slice(5, 7)) - 1]}/${tg.slice(0, 4)}`;
+  const r = await supabaseClient.from('seragam_transfer').select('no_transfer'); if (r.error) throw r.error;
+  const mx = r.data.reduce((a, x) => { const m = /^TRS-(\d+)(\/.+)$/.exec(x.no_transfer || ''); return m && m[2] === suf ? Math.max(a, Number(m[1])) : a; }, 0);
+  return `TRS-${String(mx + 1).padStart(4, '0')}${suf}`;
+}
+async function simpanTrf() {
+  const g = perluGudang(); if (!g) return;
+  const tujuan = $('t_tujuan').value, tg = $('t_tanggal').value;
+  if (!tujuan || !tg) return toastWarn('Gudang tujuan dan tanggal wajib diisi.');
+  const it = [...document.querySelectorAll('#itemsT .it')].map(r => ({v:r.querySelector('.i-var').value, jumlah:Number(r.querySelector('.i-jml').value)}));
+  if (!it.length) return toastWarn('Tambahkan minimal satu barang.');
+  if (it.some(x => !x.v)) return toastWarn('Ada barang yang stoknya kosong untuk ukuran tersebut.');
+  if (it.some(x => !(x.jumlah > 0))) return toastWarn('Jumlah tidak valid.');
+  const need = {}; it.forEach(x => need[x.v] = (need[x.v] || 0) + x.jumlah);
+  const sisa = Object.fromEntries(stokList(g).map(s => [s.key, s.sisa]));
+  for (const k in need) if (need[k] > (sisa[k] || 0)) { const [j, m, w, u] = unkey(k); return toastWarn(`Stok ${j} ${m} ${w} (${u}) di ${g} tidak cukup. Sisa ${sisa[k] || 0}.`); }
+  $('btnTrf').disabled = true;
+  try {
+    const no = await noTrf(tg), ket = $('t_ket').value.trim() || null, by = user.nama || user.username || null;
+    const payload = it.map(x => { const [jenis, model, warna, ukuran] = unkey(x.v);
+      return {no_transfer:no, tanggal:tg, gudang_asal:g, gudang_tujuan:tujuan, jenis, model, warna, ukuran, jumlah:x.jumlah, status:'Pending', keterangan:ket, created_by:by}; });
+    const { error } = await supabaseClient.from('seragam_transfer').insert(payload); if (error) throw error;
+    tutup('ovTrf'); toastOk(`Transfer ${no} ke ${tujuan} diajukan. Menunggu approval gudang tujuan.`);
+    tab = 'trf'; document.querySelectorAll('.tab').forEach(t => t.classList.toggle('on', t.dataset.t === 'trf')); await load();
+  } catch (e) { console.error(e); toastErr('Transfer tidak tersimpan. ' + (e.message || e)); }
+  finally { $('btnTrf').disabled = false; }
+}
+// Perubahan status hanya berlaku bila masih Pending (mencegah dobel approve / bentrok dengan pembatalan)
+async function ubahTrf(no, cond, patch, okMsg) {
+  try {
+    const { data, error } = await supabaseClient.from('seragam_transfer').update(patch).eq('no_transfer', no).eq('status', 'Pending').eq(cond[0], cond[1]).select();
+    if (error) throw error;
+    if (!data.length) { toastWarn('Transfer ini sudah tidak berstatus Pending atau bukan untuk gudang Anda.'); return load(); }
+    toastOk(okMsg); load();
+  } catch (e) { console.error(e); toastErr('Gagal memproses transfer. ' + (e.message || e)); }
+}
+function approveTrf(no) {
+  const g = G(), t = trfGroups().find(x => x.no === no); if (!g || !t || t.tujuan !== g) return toastWarn('Hanya gudang tujuan yang dapat meng-approve transfer ini.');
+  if (!confirm(`Approve transfer ${no} dari ${t.asal}? Stok akan bertambah di gudang ${g}.`)) return;
+  ubahTrf(no, ['gudang_tujuan', g], {status:'Approved', approved_by:user.nama || user.username, approved_at:new Date().toISOString()}, `Transfer ${no} disetujui. Stok gudang ${g} bertambah.`);
+}
+function tolakTrf(no) {
+  const g = G(), t = trfGroups().find(x => x.no === no); if (!g || !t || t.tujuan !== g) return toastWarn('Hanya gudang tujuan yang dapat menolak transfer ini.');
+  const alasan = prompt(`Tolak transfer ${no}? Stok akan kembali ke ${t.asal}.\nAlasan penolakan (opsional):`); if (alasan === null) return;
+  ubahTrf(no, ['gudang_tujuan', g], {status:'Rejected', alasan_tolak:alasan.trim() || null, approved_by:user.nama || user.username, approved_at:new Date().toISOString()}, `Transfer ${no} ditolak. Stok kembali ke ${t.asal}.`);
+}
+function batalTrf(no) {
+  const g = G(), t = trfGroups().find(x => x.no === no); if (!g || !t || t.asal !== g) return toastWarn('Hanya gudang asal yang dapat membatalkan transfer ini.');
+  if (!confirm(`Batalkan transfer ${no}? Stok akan kembali ke gudang ${g}.`)) return;
+  ubahTrf(no, ['gudang_asal', g], {status:'Dibatalkan'}, `Transfer ${no} dibatalkan. Stok kembali ke gudang ${g}.`);
 }
 
 // ===== Tanda terima (cetak langsung atau "Save as PDF" lewat dialog print) =====
@@ -416,6 +544,8 @@ function cetakTT(id) { const x = dist.find(d => d.id === id); if (x) tampilTT(x.
 
 // init
 const thNow = new Date().getFullYear();
+if (user.gudang) $('gdInfo').textContent = '📦 Gudang: ' + user.gudang;
+else { $('fGudang').classList.remove('hid'); $('gdInfo').textContent = '📦 Akun tanpa gudang: pilih gudang pada filter untuk input / transfer'; }
 $('fTahun').innerHTML = '<option value="">Semua Tahun</option>';
 $('tabs').addEventListener('click', e => {
   const b = e.target.closest('.tab'); if (!b) return; tab = b.dataset.t;
@@ -423,7 +553,7 @@ $('tabs').addEventListener('click', e => {
   if ((tab === 'belum' || tab === 'rekap') && !$('fJenis').value) $('fJenis').value = jenisAll()[0];
   render();
 });
-document.addEventListener('keydown', e => { if (e.key === 'Escape') { tutup('ovMasuk'); tutup('ovDist'); tutup('ovTT'); } });
+document.addEventListener('keydown', e => { if (e.key === 'Escape') { tutup('ovMasuk'); tutup('ovDist'); tutup('ovTrf'); tutup('ovTT'); } });
 load();
 
 // ===== Real-time: tampilan ikut berubah saat ada perubahan dari siapa pun, tanpa refresh =====
@@ -434,6 +564,7 @@ try {
   supabaseClient.channel('seragam-rt')
     .on('postgres_changes', {event:'*', schema:'public', table:'seragam_masuk'}, muatUlang)
     .on('postgres_changes', {event:'*', schema:'public', table:'seragam_distribusi'}, muatUlang)
+    .on('postgres_changes', {event:'*', schema:'public', table:'seragam_transfer'}, muatUlang)
     .on('postgres_changes', {event:'*', schema:'public', table:'master_karyawan'}, muatUlang)
     .subscribe(st => setLive(st === 'SUBSCRIBED'));
 } catch (e) { console.error(e); setLive(false); }
