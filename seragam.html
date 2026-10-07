@@ -114,11 +114,11 @@
 <div class="overlay" id="ovMasuk"><div class="modal">
   <h2>Stok Masuk dari Vendor</h2><div class="muted">Kolom bertanda * wajib diisi. Pilih jenis dan warna dari daftar, atau pilih &quot;＋ Tambah baru...&quot;.</div>
   <div class="fg">
-    <div><label>Jenis *</label><select id="m_jenis" onchange="cekBaru('m_jenis')"></select><input id="m_jenis_baru" class="hid" placeholder="Nama jenis baru" style="margin-top:8px"></div>
+    <div><label>Jenis *</label><select id="m_jenis" onchange="cekBaru('m_jenis'); refUkMasuk()"></select><input id="m_jenis_baru" oninput="refUkMasuk()" class="hid" placeholder="Nama jenis baru" style="margin-top:8px"></div>
     <div><label>Tanggal *</label><input type="date" id="m_tanggal"></div>
     <div><label>Model / Tipe *</label><input id="m_model" list="dlModel" placeholder="mis. Lengan Pendek Pria"><datalist id="dlModel"></datalist></div>
     <div><label>Warna *</label><select id="m_warna" onchange="cekBaru('m_warna')"></select><input id="m_warna_baru" class="hid" placeholder="Nama warna baru" style="margin-top:8px"></div>
-    <div><label>Ukuran * <span style="font-weight:400">(Topi: All Size)</span></label><select id="m_ukuran"></select></div>
+    <div><label>Ukuran * <span style="font-weight:400">(daftar menyesuaikan jenis)</span></label><select id="m_ukuran" onchange="cekBaru('m_ukuran')"></select><input id="m_ukuran_baru" class="hid" placeholder="mis. 8, 10, 42,5" style="margin-top:8px"></div>
     <div><label>Jumlah *</label><input type="number" id="m_jumlah" min="1"></div>
     <div class="full"><label>Vendor</label><input id="m_vendor"></div>
     <div class="full"><label>Keterangan</label><textarea id="m_ket" rows="2"></textarea></div>
@@ -150,7 +150,10 @@ const user = JSON.parse(sessionStorage.getItem('user') || 'null');
 if (!user) location.href = 'login.html';
 
 const STOK_MIN = 5;   // batas stok menipis per jenis/model/warna/ukuran
-const UKURAN = ['XS','S','M','L','XL','XXL','3XL','4XL','All Size'];
+const UK_PAKAIAN = ['XS','S','M','L','XL','XXL','3XL','4XL'];
+const UK_SEPATU = Array.from({length:13}, (_, i) => String(35 + i));   // 35-47
+// Daftar ukuran mengikuti jenis: sepatu/boot = angka, topi/helm = All Size, selain itu = ukuran pakaian. "Ukuran lain" bisa diketik.
+const ukBase = j => /sepatu|boot/i.test(j) ? UK_SEPATU : /topi|helm/i.test(j) ? ['All Size'] : [...UK_PAKAIAN, 'All Size'];
 const JENIS_DEFAULT = ['Kaos Polo','Jaket','Topi'];
 let masuk = [], dist = [], kar = [], tab = 'stok', selKar = null;
 const $ = id => document.getElementById(id);
@@ -158,10 +161,12 @@ const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt
 const tgl = d => d ? new Date(d + 'T00:00:00').toLocaleDateString('id-ID', {day:'numeric', month:'short', year:'numeric'}) : '-';
 const key = x => [x.jenis, x.model, x.warna, x.ukuran].map(encodeURIComponent).join('|');
 const unkey = k => k.split('|').map(decodeURIComponent);
-const sizeIdx = u => { const i = UKURAN.indexOf(u); return i < 0 ? 99 : i; };
+const sizeIdx = u => { const i = UK_PAKAIAN.indexOf(u); if (i >= 0) return i; if (u === 'All Size') return 50; const n = parseFloat(u); return isNaN(n) ? 999 : 100 + n; };
+const ukuranFor = (j, extra = []) => [...new Set([...ukBase(j), ...[...masuk, ...dist].filter(x => x.jenis === j).map(x => x.ukuran), ...extra].filter(Boolean))]
+  .sort((a, b) => sizeIdx(a) - sizeIdx(b) || a.localeCompare(b));
 const jenisAll = () => [...new Set([...JENIS_DEFAULT, ...masuk.map(x => x.jenis), ...dist.map(x => x.jenis)].filter(Boolean))];
 const ukK = (k, j) => (k && k.ukuran_seragam && k.ukuran_seragam[j]) || '';
-const defUk = j => j === 'Topi' ? 'All Size' : 'M';
+const defUk = j => /sepatu|boot/i.test(j) ? '41' : /topi|helm/i.test(j) ? 'All Size' : 'M';
 const idKar = k => k.nik || k.nama;
 
 function stokList() {
@@ -207,7 +212,7 @@ function render() {
     const l = belum.filter(k => (!dep || k.departemen === dep) && [k.nama, k.nik, k.departemen].some(v => (v || '').toLowerCase().includes(q))); n = l.length;
     h = `<tr><th>Karyawan</th><th>Departemen</th><th>Ukuran ${esc(bj)}</th><th>Status</th><th></th></tr>`;
     rows = l.map(k => `<tr><td><b>${esc(k.nama)}</b><small>${esc(k.nik || '')}</small></td><td>${esc(k.departemen || '-')}<small>${esc(k.area || '')}</small></td>
-      <td><select style="width:110px;padding:6px" onchange="setUkuran('${k.id}', '${esc(bj)}', this.value)"><option value="">-</option>${UKURAN.map(u => `<option ${ukK(k, bj) === u ? 'selected' : ''}>${u}</option>`).join('')}</select></td>
+      <td><select style="width:110px;padding:6px" onchange="setUkuran('${k.id}', '${esc(bj)}', this.value)"><option value="">-</option>${ukOpts(ukuranFor(bj, [ukK(k, bj)]), ukK(k, bj))}</select></td>
       <td><span class="badge b-low">Belum pernah menerima</span></td><td><button class="btn sm" onclick="bukaDist('${k.id}', '${esc(bj)}')">Serahkan</button></td></tr>`).join('');
   } else {
     const m = {}; belum.filter(k => !dep || k.departemen === dep).forEach(k => {
@@ -254,15 +259,24 @@ function nilaiPilih(id, daftar) {
   const v = $(id).value; if (v !== '__baru') return v;
   const n = judul($(id + '_baru').value); return daftar.find(x => x.toLowerCase() === n.toLowerCase()) || n;
 }
+function refUkMasuk() {
+  const j = nilaiPilih('m_jenis', jenisAll()), cur = $('m_ukuran').value, list = ukuranFor(j);
+  $('m_ukuran').innerHTML = ukOpts(list, list.includes(cur) ? cur : defUk(j)) + '<option value="__baru">＋ Ukuran lain...</option>';
+  if (cur === '__baru') $('m_ukuran').value = '__baru';
+}
+function nilaiUkuran() {
+  const v = $('m_ukuran').value; if (v !== '__baru') return v;
+  const n = rapih($('m_ukuran_baru').value).toUpperCase(); return ukuranFor(nilaiPilih('m_jenis', jenisAll())).find(x => x.toUpperCase() === n) || n;
+}
 function bukaMasuk() {
-  ['m_vendor','m_model','m_jumlah','m_ket','m_jenis_baru','m_warna_baru'].forEach(i => $(i).value = '');
+  ['m_vendor','m_model','m_jumlah','m_ket','m_jenis_baru','m_warna_baru','m_ukuran_baru'].forEach(i => $(i).value = '');
   $('m_jenis').innerHTML = opsiBaru(jenisAll(), $('fJenis').value); $('m_warna').innerHTML = opsiBaru(warnaAll());
-  cekBaru('m_jenis'); cekBaru('m_warna'); $('m_tanggal').value = today(); $('ovMasuk').classList.add('show');
+  $('m_ukuran').innerHTML = ''; refUkMasuk(); cekBaru('m_jenis'); cekBaru('m_warna'); cekBaru('m_ukuran'); $('m_tanggal').value = today(); $('ovMasuk').classList.add('show');
 }
 async function simpanMasuk() {
   let model = rapih($('m_model').value); model = [...new Set(masuk.map(x => x.model))].find(x => x.toLowerCase() === model.toLowerCase()) || model;
   const p = {tanggal:$('m_tanggal').value, jenis:nilaiPilih('m_jenis', jenisAll()), vendor:rapih($('m_vendor').value) || null, model, warna:nilaiPilih('m_warna', warnaAll()),
-    ukuran:$('m_ukuran').value, jumlah:Number($('m_jumlah').value), keterangan:$('m_ket').value.trim() || null, created_by:user.username || user.nama || null};
+    ukuran:nilaiUkuran(), jumlah:Number($('m_jumlah').value), keterangan:$('m_ket').value.trim() || null, created_by:user.username || user.nama || null};
   if (!p.tanggal || !p.jenis || !p.model || !p.warna || !(p.jumlah > 0)) return alert('Lengkapi kolom yang wajib diisi (*).');
   $('btnMasuk').disabled = true;
   const { error } = await supabaseClient.from('seragam_masuk').insert(p);
@@ -272,15 +286,16 @@ async function simpanMasuk() {
 }
 
 // ===== Form penyerahan (multi barang) =====
-const ukOpts = sel => UKURAN.map(u => `<option ${u === sel ? 'selected' : ''}>${u}</option>`).join('');
+const ukOpts = (list, sel) => list.map(u => `<option ${u === sel ? 'selected' : ''}>${esc(u)}</option>`).join('');
 function addItem(jenis) {
   const j = jenis || $('fJenis').value || jenisAll()[0], r = document.createElement('div'); r.className = 'it';
   r.innerHTML = `<select class="i-jenis" onchange="rowJenis(this)">${jenisAll().map(x => `<option ${x === j ? 'selected' : ''}>${esc(x)}</option>`).join('')}</select>
-    <select class="i-uk" onchange="fillVar(this.closest('.it'))">${ukOpts(ukK(selKar, j) || defUk(j))}</select><select class="i-var"></select>
+    <select class="i-uk" onchange="fillVar(this.closest('.it'))">${ukOpts(ukuranFor(j, [ukK(selKar, j)]), ukK(selKar, j) || defUk(j))}</select><select class="i-var"></select>
     <input type="number" class="i-jml" min="1" value="1"><button class="del" type="button" onclick="this.closest('.it').remove()" title="Hapus baris">✕</button>`;
   $('items').appendChild(r); fillVar(r);
 }
-function rowJenis(sel) { const r = sel.closest('.it'); r.querySelector('.i-uk').value = ukK(selKar, sel.value) || defUk(sel.value); fillVar(r); }
+function setUk(r, j, u) { const v = u || defUk(j); r.querySelector('.i-uk').innerHTML = ukOpts(ukuranFor(j, [v]), v); fillVar(r); }
+function rowJenis(sel) { const r = sel.closest('.it'); setUk(r, sel.value, ukK(selKar, sel.value)); }
 function fillVar(r) {
   const j = r.querySelector('.i-jenis').value, u = r.querySelector('.i-uk').value, v = r.querySelector('.i-var');
   const l = stokList().filter(s => s.jenis === j && s.ukuran === u && s.sisa > 0);
@@ -298,7 +313,7 @@ function pilihKar() {
   const got = {}; dist.filter(x => (x.nik || x.nama) === idKar(selKar)).forEach(x => got[x.jenis] = (got[x.jenis] || 0) + x.jumlah);
   const g = Object.entries(got).map(([j, c]) => `${j} ×${c}`).join(', ');
   $('d_info').textContent = `${selKar.nik || ''} · ${selKar.departemen || '-'} · ${g ? 'pernah menerima: ' + g : 'belum pernah menerima seragam'}`;
-  document.querySelectorAll('#items .it').forEach(r => { const u = ukK(selKar, r.querySelector('.i-jenis').value); if (u) { r.querySelector('.i-uk').value = u; fillVar(r); } });
+  document.querySelectorAll('#items .it').forEach(r => { const j = r.querySelector('.i-jenis').value, u = ukK(selKar, j); if (u) setUk(r, j, u); });
 }
 async function simpanDist() {
   if (!selKar) return alert('Pilih karyawan dari daftar.');
@@ -359,7 +374,6 @@ function cetakTT(id) { const x = dist.find(d => d.id === id); if (x) tampilTT(x.
 // init
 const thNow = new Date().getFullYear();
 $('fTahun').innerHTML = [thNow + 1, thNow, thNow - 1, thNow - 2].map(t => `<option ${t === thNow ? 'selected' : ''}>${t}</option>`).join('');
-$('m_ukuran').innerHTML = ukOpts('M');
 $('tabs').addEventListener('click', e => {
   const b = e.target.closest('.tab'); if (!b) return; tab = b.dataset.t;
   document.querySelectorAll('.tab').forEach(t => t.classList.toggle('on', t === b));
