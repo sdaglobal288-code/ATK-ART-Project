@@ -509,7 +509,7 @@ function bukaRevisi(t, id) {
       <div><label>Tanggal *</label><input type="date" id="rv_tanggal" value="${esc(row.tanggal)}"></div>
       <div><label>Model / Tipe *</label><input id="rv_model" list="dlModel" value="${esc(row.model)}"></div>
       <div><label>Warna *</label><select id="rv_warna">${o(warnaAll(), row.warna)}</select></div>
-      <div><label>Ukuran *</label><select id="rv_ukuran"></select></div>
+      <div><label>Ukuran *</label><select id="rv_ukuran" onchange="rvUkBaru()"></select><input id="rv_ukuran_baru" class="hid" placeholder="mis. 4L, 8, 42,5" style="margin-top:8px"></div>
       <div><label>Jumlah *</label><input type="number" id="rv_jumlah" min="1" value="${row.jumlah}"></div>
       <div class="full"><label>Vendor</label><input id="rv_vendor" value="${esc(row.vendor || '')}"></div>
       <div class="full"><label>Keterangan</label><input id="rv_ket" value="${esc(row.keterangan || '')}"></div>`;
@@ -528,7 +528,12 @@ function bukaRevisi(t, id) {
 }
 function rvUk() {
   const j = $('rv_jenis').value, r = revCtx.row, cur = j === r.jenis ? r.ukuran : defUk(j);
-  $('rv_ukuran').innerHTML = ukOpts(ukuranFor(j, [cur]), cur);
+  $('rv_ukuran').innerHTML = ukOpts(ukuranFor(j, [cur]), cur) + '<option value="__baru">＋ Ukuran lain...</option>'; rvUkBaru();
+}
+function rvUkBaru() { const b = $('rv_ukuran_baru'), on = $('rv_ukuran').value === '__baru'; b.classList.toggle('hid', !on); if (on) b.focus(); }
+function rvNilaiUkuran() {
+  const v = $('rv_ukuran').value; if (v !== '__baru') return v;
+  const n = rapih($('rv_ukuran_baru').value).toUpperCase(); return ukuranFor($('rv_jenis').value).find(x => x.toUpperCase() === n) || n;
 }
 async function simpanRevisi() {
   const {t, row} = revCtx, alasan = $('rv_alasan').value.trim(), tg = $('rv_tanggal').value, jml = Number($('rv_jumlah').value);
@@ -538,7 +543,8 @@ async function simpanRevisi() {
   if (t === 'masuk') {
     let model = rapih($('rv_model').value); model = [...new Set(masuk.map(x => x.model))].find(x => x.toLowerCase() === model.toLowerCase()) || model;
     if (!model) return toastWarn('Model wajib diisi.');
-    nw = {tanggal:tg, jenis:$('rv_jenis').value, model, warna:$('rv_warna').value, ukuran:$('rv_ukuran').value, jumlah:jml, vendor:rapih($('rv_vendor').value) || null, keterangan:$('rv_ket').value.trim() || null};
+    if (!rvNilaiUkuran()) return toastWarn('Ukuran baru belum diisi.');
+    nw = {tanggal:tg, jenis:$('rv_jenis').value, model, warna:$('rv_warna').value, ukuran:rvNilaiUkuran(), jumlah:jml, vendor:rapih($('rv_vendor').value) || null, keterangan:$('rv_ket').value.trim() || null};
   } else {
     const [, model, warna, ukuran] = unkey($('rv_var').value);
     nw = {tanggal:tg, tahun:Number(tg.slice(0, 4)), model, warna, ukuran, jumlah:jml, keterangan:$('rv_ket').value.trim() || null};
