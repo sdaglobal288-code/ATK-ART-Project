@@ -118,10 +118,12 @@
 
   <div class="tabs" id="tabs">
     <button class="tab on" data-t="stok">Stok</button>
+    <button class="tab" data-t="masuk">Stok Masuk</button>
     <button class="tab" data-t="trf">Transfer Stok <span class="cnt hid" id="cntTrf">0</span></button>
     <button class="tab" data-t="dist">Riwayat Penyerahan</button>
     <button class="tab" data-t="belum">Belum Menerima</button>
     <button class="tab" data-t="rekap">Rekap Kebutuhan</button>
+    <button class="tab" data-t="rev">Riwayat Revisi</button>
   </div>
 
   <div class="bar">
@@ -166,6 +168,13 @@
   <div class="foot"><button class="btn secondary" onclick="tutup('ovDist')">Batal</button><button class="btn" id="btnDist" onclick="simpanDist()">Simpan &amp; Buat Tanda Terima</button></div>
 </div></div>
 
+<div class="overlay" id="ovRev"><div class="modal">
+  <h2 id="rv_title">Revisi Data</h2><div class="muted" id="rv_info"></div>
+  <div class="fg" id="rv_form"></div>
+  <div style="margin-top:12px"><label>Alasan revisi *</label><textarea id="rv_alasan" rows="2" placeholder="mis. salah input jumlah, ukuran tertukar"></textarea></div>
+  <div class="foot"><button class="btn secondary" onclick="tutup('ovRev')">Batal</button><button class="btn" id="btnRev" onclick="simpanRevisi()">Simpan Revisi</button></div>
+</div></div>
+
 <div class="overlay" id="ovTrf"><div class="modal wide">
   <h2>Transfer Stok Antar Gudang</h2><div class="muted">Stok gudang Anda langsung ditahan. Stok baru masuk ke gudang tujuan setelah gudang tujuan menekan Approve.</div>
   <div class="fg">
@@ -196,7 +205,7 @@ const UK_SEPATU = Array.from({length:13}, (_, i) => String(35 + i));   // 35-47
 // Daftar ukuran mengikuti jenis: sepatu/boot = angka, topi/helm = All Size, selain itu = ukuran pakaian. "Ukuran lain" bisa diketik.
 const ukBase = j => /sepatu|boot/i.test(j) ? UK_SEPATU : /topi|helm/i.test(j) ? ['All Size'] : [...UK_PAKAIAN, 'All Size'];
 const JENIS_DEFAULT = ['Kaos Polo','Jaket','Topi'];
-let masuk = [], dist = [], kar = [], trf = [], gudangList = [], tab = 'stok', selKar = null, lastPend = -1;
+let masuk = [], dist = [], kar = [], trf = [], rev = [], revId = null, revCtx = null, gudangList = [], tab = 'stok', selKar = null, lastPend = -1;
 const GUDANG_FALLBACK = ['Raden Saleh', 'Margomulyo'];   // sama dengan modul Transfer Barang
 const BULAN_ROMAWI = ['I','II','III','IV','V','VI','VII','VIII','IX','X','XI','XII'];
 // Gudang aktif: akun dengan gudang dikunci ke gudangnya sendiri. Akun tanpa gudang (pusat/admin) memilih lewat filter; kosong = lihat semua (hanya baca).
@@ -244,6 +253,10 @@ function trfGroups() {
   trf.forEach(x => { const t = m[x.no_transfer] ??= {no:x.no_transfer, tanggal:x.tanggal, asal:x.gudang_asal, tujuan:x.gudang_tujuan, status:x.status, ket:x.keterangan, by:x.created_by, appBy:x.approved_by, appAt:x.approved_at, alasan:x.alasan_tolak, created:x.created_at, items:[]}; t.items.push(x); });
   return Object.values(m).sort((a, b) => (b.status === 'Pending') - (a.status === 'Pending') || (b.created || '').localeCompare(a.created || ''));
 }
+const REV_LBL = {tanggal:'Tanggal', jenis:'Jenis', model:'Model', warna:'Warna', ukuran:'Ukuran', jumlah:'Jumlah', vendor:'Vendor', keterangan:'Keterangan'};
+let revOk = true;
+const revBadge = id => { const n = rev.filter(r => r.record_id === id && r.aksi === 'Revisi').length; return n ? `<a class="badge b-mute" style="cursor:pointer" title="Lihat riwayat revisi" onclick="lihatRev('${id}')">Revisi ×${n}</a>` : ''; };
+function lihatRev(id) { revId = id; tab = 'rev'; document.querySelectorAll('.tab').forEach(t => t.classList.toggle('on', t.dataset.t === 'rev')); render(); }
 const pendMasuk = () => { const g = G(); return g ? trfGroups().filter(t => t.status === 'Pending' && t.tujuan === g) : []; };
 // Karyawan aktif yang belum pernah menerima jenis tertentu (semua periode)
 function belumList(jenis) {
@@ -262,7 +275,7 @@ function render() {
   $('lBelum').textContent = 'Belum Menerima ' + bj; $('sBelum').textContent = belum.length;
   $('lKurang').textContent = 'Ukuran Kurang Stok (' + bj + ')';
   $('sKurang').textContent = Object.keys(butuh).filter(u => (perSize[u] || 0) < butuh[u]).length;
-  $('fDep').classList.toggle('hid', tab === 'stok' || tab === 'trf'); $('fTahun').classList.toggle('hid', tab !== 'dist');
+  $('fDep').classList.toggle('hid', ['stok', 'trf', 'masuk', 'rev'].includes(tab)); $('fTahun').classList.toggle('hid', tab !== 'dist');
   const np = pendMasuk().length; $('cntTrf').textContent = np; $('cntTrf').classList.toggle('hid', !np);
   $('fJenis').options[0].hidden = tab === 'belum' || tab === 'rekap';
   let h = '', rows = '', n = 0;
@@ -277,7 +290,22 @@ function render() {
     h = '<tr><th>Tanggal</th><th>Karyawan</th><th>Departemen</th><th>Barang</th><th>Jumlah</th><th>Keterangan</th><th></th></tr>';
     rows = l.map(x => `<tr><td>${tgl(x.tanggal)}</td><td><b>${esc(x.nama)}</b><small>${esc(x.nik || '')}</small></td><td>${esc(depDari(x) || '-')}<small>${esc(areaDari(x))}</small></td>
       <td><span class="jn">${esc(x.jenis)}</span>${esc(x.model)} · ${esc(x.warna)} <span class="size">${esc(x.ukuran)}</span></td><td class="num">${x.jumlah}</td><td>${esc(x.keterangan || '')}</td>
-      <td style="white-space:nowrap"><button class="btn sm" onclick="cetakTT('${x.id}')">🖨 Tanda Terima</button> ${g && x.gudang === g ? `<button class="del" onclick="hapusDist('${x.id}')">Hapus</button>` : ''}</td></tr>`).join('');
+      <td style="white-space:nowrap"><button class="btn sm" onclick="cetakTT('${x.id}')">🖨 Tanda Terima</button> ${revBadge(x.id)} ${g && x.gudang === g ? `<button class="del" onclick="bukaRevisi('distribusi','${x.id}')">Revisi</button> <button class="del" onclick="hapusData('distribusi','${x.id}')">Hapus</button>` : ''}</td></tr>`).join('');
+  } else if (tab === 'masuk') {
+    const l = masuk.filter(x => (!g || x.gudang === g) && (!jn || x.jenis === jn) && [x.jenis, x.model, x.warna, x.ukuran, x.vendor, x.keterangan].some(v => (v || '').toLowerCase().includes(q))); n = l.length;
+    h = '<tr><th>Tanggal</th><th>Barang</th><th>Jumlah</th><th>Vendor</th><th>Keterangan</th><th>Dicatat oleh</th><th></th></tr>';
+    rows = l.map(x => `<tr><td>${tgl(x.tanggal)}${g ? '' : `<small>${esc(x.gudang || '-')}</small>`}</td><td><span class="jn">${esc(x.jenis)}</span>${esc(x.model)} · ${esc(x.warna)} <span class="size">${esc(x.ukuran)}</span></td>
+      <td class="num"><b>${x.jumlah}</b></td><td>${esc(x.vendor || '-')}</td><td>${esc(x.keterangan || '')}</td><td>${esc(x.created_by || '-')}</td>
+      <td style="white-space:nowrap">${revBadge(x.id)} ${g && x.gudang === g ? `<button class="del" onclick="bukaRevisi('masuk','${x.id}')">Revisi</button> <button class="del" onclick="hapusData('masuk','${x.id}')">Hapus</button>` : ''}</td></tr>`).join('');
+  } else if (tab === 'rev') {
+    const l = rev.filter(r => (!g || r.gudang === g) && (!revId || r.record_id === revId) && [r.ref, r.alasan, r.revised_by, r.aksi, r.tabel === 'masuk' ? 'stok masuk' : 'penyerahan'].some(v => (v || '').toLowerCase().includes(q))); n = l.length;
+    h = '<tr><th>Waktu</th><th>Data</th><th>Perubahan</th><th>Alasan</th><th>Oleh</th></tr>';
+    const fv = (f, v) => v === null || v === undefined || v === '' ? '<i>kosong</i>' : f === 'tanggal' ? tgl(v) : esc(v);
+    rows = (revId ? `<tr><td colspan="5" style="color:var(--muted)">Menampilkan riwayat satu data saja. <button class="btn sm secondary" onclick="revId = null; render()">Tampilkan semua</button></td></tr>` : '') + l.map(r => {
+      const per = r.aksi === 'Hapus' ? `<small><span class="badge b-out">Dihapus</span> ${esc(r.perubahan.jumlah)} pcs${r.gudang ? ' dari ' + esc(r.gudang) : ''}. Stok disesuaikan.</small>`
+        : Object.entries(r.perubahan || {}).map(([f, [a, b]]) => `<small>${REV_LBL[f] || f}: <s style="color:var(--muted)">${fv(f, a)}</s> → <b>${fv(f, b)}</b></small>`).join('');
+      return `<tr><td style="white-space:nowrap">${new Date(r.revised_at).toLocaleString('id-ID', {day:'numeric', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit'})}</td>
+        <td><span class="badge b-mute">${r.tabel === 'masuk' ? 'Stok Masuk' : 'Penyerahan'}</span><small>${esc(r.ref || '')}</small></td><td>${per}</td><td>${esc(r.alasan)}</td><td>${esc(r.revised_by || '-')}</td></tr>`; }).join('');
   } else if (tab === 'trf') {
     const l = trfGroups().filter(t => (!g || t.asal === g || t.tujuan === g) && [t.no, t.asal, t.tujuan, t.status, t.by, ...t.items.flatMap(i => [i.jenis, i.model, i.warna, i.ukuran])].some(v => (v || '').toLowerCase().includes(q))); n = l.length;
     h = '<tr><th>No. Transfer</th><th>Tanggal</th><th>Asal → Tujuan</th><th>Barang</th><th>Status</th><th></th></tr>';
@@ -309,25 +337,26 @@ function render() {
       <td><small>${Object.entries(m[u].dep).map(([d, c]) => esc(d) + ': ' + c).join(' · ')}</small></td></tr>`; }).join('');
   }
   $('head').innerHTML = h; $('count').textContent = n + ' data';
-  $('body').innerHTML = rows || `<tr><td class="empty" colspan="10">Tidak ada data.</td></tr>`;
+  $('body').innerHTML = rows || `<tr><td class="empty" colspan="10">${tab === 'rev' && !revOk ? 'Tabel seragam_revisi belum ada. Jalankan seragam_schema.sql (bagian revisi) di Supabase.' : 'Tidak ada data.'}</td></tr>`;
 }
 
 let ready = false;
 async function load() {
-  const [a, b, c, d, e, f] = await Promise.all([
+  const [a, b, c, d, e, f, rv] = await Promise.all([
     supabaseClient.from('seragam_masuk').select('*').order('tanggal', {ascending:false}),
     supabaseClient.from('seragam_distribusi').select('*').order('tanggal', {ascending:false}),
     supabaseClient.from('master_karyawan').select('*').eq('status', 'Aktif').order('nama', {ascending:true}),
     supabaseClient.from('seragam_transfer').select('*').order('created_at', {ascending:false}),
     supabaseClient.from('master_gudang').select('*').order('nama_gudang'),
-    supabaseClient.from('users').select('gudang')]);
+    supabaseClient.from('users').select('gudang'),
+    supabaseClient.from('seragam_revisi').select('*').order('revised_at', {ascending:false}).limit(2000)]);
   const er = a.error || b.error || d.error;
   if (er) {
     console.error(er);
     if (!ready) { $('body').innerHTML = '<tr><td class="empty">Gagal memuat data. Jalankan seragam_schema.sql (bagian gudang &amp; transfer) di Supabase terlebih dulu.</td></tr>'; toastErr('Data seragam tidak dapat dimuat: ' + er.message); }
     return;
   }
-  ready = true; masuk = a.data || []; dist = b.data || []; kar = c.data || []; trf = d.data || [];
+  ready = true; masuk = a.data || []; dist = b.data || []; kar = c.data || []; trf = d.data || []; revOk = !rv.error; rev = rv.error ? [] : rv.data || [];
   const mg = (e.data || []).map(x => x.nama_gudang);
   gudangList = [...new Set([...(mg.length ? mg : GUDANG_FALLBACK), ...(f.data || []).map(x => x.gudang), user.gudang, ...masuk.map(x => x.gudang), ...trf.flatMap(x => [x.gudang_asal, x.gudang_tujuan])].filter(Boolean))].sort();
   const cg = $('fGudang').value;
@@ -451,14 +480,93 @@ async function simpanDist() {
   } catch (e) { console.error(e); toastErr('Penyerahan tidak tersimpan. ' + (e.message || e)); }
   finally { $('btnDist').disabled = false; }
 }
-async function hapusDist(id) {
-  const x = dist.find(d => d.id === id);
-  if (!G() || x.gudang !== G()) return toastWarn('Penyerahan ini tercatat di gudang ' + (x.gudang || '-') + ', hanya akun gudang tersebut yang bisa menghapus.');
-  if (!confirm(`Hapus penyerahan ${x.jenis} ${x.model} ke ${x.nama}? Stok akan kembali bertambah.`)) return;
+// ===== Revisi & hapus data (dengan riwayat) =====
+const refDari = (t, x) => t === 'masuk' ? `${x.jenis} ${x.model} ${x.warna} ${x.ukuran} (${tgl(x.tanggal)})` : `${x.no_tt || ''} · ${x.nama} · ${x.jenis} ${x.model} ${x.warna} ${x.ukuran}`;
+const tblDari = t => t === 'masuk' ? 'seragam_masuk' : 'seragam_distribusi';
+// Simulasi stok setelah perubahan (nw = null berarti dihapus). Mengembalikan pesan bila ada varian yang jadi minus.
+function cekStok(t, row, nw) {
+  const g = row.gudang, ks = [key(row), ...(nw ? [key({...row, ...nw})] : [])], bm = masuk, bd = dist;
+  const sim = arr => arr.flatMap(x => x.id !== row.id ? [x] : nw ? [{...x, ...nw}] : []);
   try {
-    const { error } = await supabaseClient.from('seragam_distribusi').delete().eq('id', id); if (error) throw error;
-    toastOk(`Penyerahan ke ${x.nama} dihapus, stok dikembalikan.`); load();
-  } catch (e) { console.error(e); toastErr('Penyerahan tidak terhapus. ' + (e.message || e)); }
+    if (t === 'masuk') masuk = sim(masuk); else dist = sim(dist);
+    const bad = stokList(g).find(s => ks.includes(s.key) && s.sisa < 0);
+    return bad ? `Stok ${bad.jenis} ${bad.model} ${bad.warna} (${bad.ukuran}) di ${g} akan menjadi ${bad.sisa}. Perubahan ditolak karena stok sudah terpakai / ditransfer.` : '';
+  } finally { masuk = bm; dist = bd; }
+}
+async function catatRevisi(t, row, aksi, perubahan, alasan) {
+  const { error } = await supabaseClient.from('seragam_revisi').insert({tabel:t, record_id:row.id, gudang:row.gudang, ref:refDari(t, row), aksi, perubahan, alasan, revised_by:user.nama || user.username || null});
+  if (error) { console.error(error); toastWarn('Perubahan tersimpan, tetapi riwayat revisi gagal dicatat: ' + error.message + ' (cek apakah seragam_schema.sql sudah dijalankan)'); }
+}
+function bukaRevisi(t, id) {
+  const row = (t === 'masuk' ? masuk : dist).find(x => x.id === id), g = G();
+  if (!row) return;
+  if (!g || row.gudang !== g) return toastWarn('Data ini tercatat di gudang ' + (row.gudang || '-') + ', hanya akun gudang tersebut yang bisa merevisi.');
+  revCtx = {t, row}; $('rv_alasan').value = '';
+  const o = (list, cur) => [...new Set([cur, ...list])].map(v => `<option ${v === cur ? 'selected' : ''}>${esc(v)}</option>`).join('');
+  if (t === 'masuk') {
+    $('rv_title').textContent = 'Revisi Stok Masuk'; $('rv_info').textContent = refDari(t, row);
+    $('rv_form').innerHTML = `<div><label>Jenis *</label><select id="rv_jenis" onchange="rvUk()">${o(jenisAll(), row.jenis)}</select></div>
+      <div><label>Tanggal *</label><input type="date" id="rv_tanggal" value="${esc(row.tanggal)}"></div>
+      <div><label>Model / Tipe *</label><input id="rv_model" list="dlModel" value="${esc(row.model)}"></div>
+      <div><label>Warna *</label><select id="rv_warna">${o(warnaAll(), row.warna)}</select></div>
+      <div><label>Ukuran *</label><select id="rv_ukuran"></select></div>
+      <div><label>Jumlah *</label><input type="number" id="rv_jumlah" min="1" value="${row.jumlah}"></div>
+      <div class="full"><label>Vendor</label><input id="rv_vendor" value="${esc(row.vendor || '')}"></div>
+      <div class="full"><label>Keterangan</label><input id="rv_ket" value="${esc(row.keterangan || '')}"></div>`;
+    rvUk();
+  } else {
+    $('rv_title').textContent = 'Revisi Penyerahan'; $('rv_info').textContent = refDari(t, row) + ' · tanda terima yang dicetak ulang akan memakai data hasil revisi';
+    const vars = stokList(g).filter(s => s.jenis === row.jenis), kc = key(row);
+    if (!vars.some(s => s.key === kc)) vars.push({key:kc, model:row.model, warna:row.warna, ukuran:row.ukuran, sisa:0});
+    $('rv_form').innerHTML = `<div><label>Karyawan</label><input value="${esc(row.nama)}" readonly></div>
+      <div><label>Tanggal *</label><input type="date" id="rv_tanggal" value="${esc(row.tanggal)}"></div>
+      <div class="full"><label>Barang * <span style="font-weight:400">(sisa = stok saat ini di gudang)</span></label><select id="rv_var">${vars.map(s => `<option value="${esc(s.key)}" ${s.key === kc ? 'selected' : ''}>${esc(s.model)} · ${esc(s.warna)} · ${esc(s.ukuran)} (sisa ${s.sisa})</option>`).join('')}</select></div>
+      <div><label>Jumlah *</label><input type="number" id="rv_jumlah" min="1" value="${row.jumlah}"></div>
+      <div><label>Keterangan</label><input id="rv_ket" value="${esc(row.keterangan || '')}"></div>`;
+  }
+  $('ovRev').classList.add('show');
+}
+function rvUk() {
+  const j = $('rv_jenis').value, r = revCtx.row, cur = j === r.jenis ? r.ukuran : defUk(j);
+  $('rv_ukuran').innerHTML = ukOpts(ukuranFor(j, [cur]), cur);
+}
+async function simpanRevisi() {
+  const {t, row} = revCtx, alasan = $('rv_alasan').value.trim(), tg = $('rv_tanggal').value, jml = Number($('rv_jumlah').value);
+  if (!tg || !(jml > 0)) return toastWarn('Tanggal dan jumlah wajib diisi dengan benar.');
+  if (!alasan) return toastWarn('Alasan revisi wajib diisi.');
+  let nw;
+  if (t === 'masuk') {
+    let model = rapih($('rv_model').value); model = [...new Set(masuk.map(x => x.model))].find(x => x.toLowerCase() === model.toLowerCase()) || model;
+    if (!model) return toastWarn('Model wajib diisi.');
+    nw = {tanggal:tg, jenis:$('rv_jenis').value, model, warna:$('rv_warna').value, ukuran:$('rv_ukuran').value, jumlah:jml, vendor:rapih($('rv_vendor').value) || null, keterangan:$('rv_ket').value.trim() || null};
+  } else {
+    const [, model, warna, ukuran] = unkey($('rv_var').value);
+    nw = {tanggal:tg, tahun:Number(tg.slice(0, 4)), model, warna, ukuran, jumlah:jml, keterangan:$('rv_ket').value.trim() || null};
+  }
+  const diff = {}; Object.keys(nw).forEach(f => { if (f !== 'tahun' && String(nw[f] ?? '') !== String(row[f] ?? '')) diff[f] = [row[f] ?? null, nw[f]]; });
+  if (!Object.keys(diff).length) return toastWarn('Tidak ada yang berubah.');
+  const msg = cekStok(t, row, nw); if (msg) return toastWarn(msg);
+  $('btnRev').disabled = true;
+  try {
+    const { data, error } = await supabaseClient.from(tblDari(t)).update(nw).eq('id', row.id).select();
+    if (error) throw error; if (!data.length) throw new Error('Data tidak ditemukan (mungkin sudah dihapus).');
+    await catatRevisi(t, row, 'Revisi', diff, alasan);
+    tutup('ovRev'); toastOk('Revisi tersimpan dan tercatat di Riwayat Revisi.'); await load();
+  } catch (e) { console.error(e); toastErr('Revisi tidak tersimpan. ' + (e.message || e)); }
+  finally { $('btnRev').disabled = false; }
+}
+async function hapusData(t, id) {
+  const x = (t === 'masuk' ? masuk : dist).find(d => d.id === id), g = G();
+  if (!x) return;
+  if (!g || x.gudang !== g) return toastWarn('Data ini tercatat di gudang ' + (x.gudang || '-') + ', hanya akun gudang tersebut yang bisa menghapus.');
+  const msg = cekStok(t, x, null); if (msg) return toastWarn(msg);
+  const alasan = (prompt(`Hapus ${t === 'masuk' ? 'stok masuk' : 'penyerahan'}: ${refDari(t, x)} × ${x.jumlah}?\\nStok akan ${t === 'masuk' ? 'berkurang' : 'dikembalikan'}.\\n\\nAlasan penghapusan (wajib):`) || '').trim();
+  if (!alasan) return toastWarn('Penghapusan dibatalkan: alasan wajib diisi.');
+  try {
+    const { error } = await supabaseClient.from(tblDari(t)).delete().eq('id', id); if (error) throw error;
+    await catatRevisi(t, x, 'Hapus', x, alasan);
+    toastOk('Data dihapus dan tercatat di Riwayat Revisi.'); load();
+  } catch (e) { console.error(e); toastErr('Data tidak terhapus. ' + (e.message || e)); }
 }
 async function setUkuran(id, jenis, u) {
   const k = kar.find(x => x.id === id), uk = {...(k.ukuran_seragam || {})};
@@ -555,12 +663,12 @@ if (user.gudang) $('gdInfo').textContent = '📦 Gudang: ' + user.gudang;
 else { $('fGudang').classList.remove('hid'); $('gdInfo').textContent = '📦 Akun tanpa gudang: pilih gudang pada filter untuk input / transfer'; }
 $('fTahun').innerHTML = '<option value="">Semua Tahun</option>';
 $('tabs').addEventListener('click', e => {
-  const b = e.target.closest('.tab'); if (!b) return; tab = b.dataset.t;
+  const b = e.target.closest('.tab'); if (!b) return; tab = b.dataset.t; revId = null;
   document.querySelectorAll('.tab').forEach(t => t.classList.toggle('on', t === b));
   if ((tab === 'belum' || tab === 'rekap') && !$('fJenis').value) $('fJenis').value = jenisAll()[0];
   render();
 });
-document.addEventListener('keydown', e => { if (e.key === 'Escape') { tutup('ovMasuk'); tutup('ovDist'); tutup('ovTrf'); tutup('ovTT'); } });
+document.addEventListener('keydown', e => { if (e.key === 'Escape') { tutup('ovMasuk'); tutup('ovDist'); tutup('ovRev'); tutup('ovTrf'); tutup('ovTT'); } });
 load();
 
 // ===== Real-time: tampilan ikut berubah saat ada perubahan dari siapa pun, tanpa refresh =====
@@ -572,6 +680,7 @@ try {
     .on('postgres_changes', {event:'*', schema:'public', table:'seragam_masuk'}, muatUlang)
     .on('postgres_changes', {event:'*', schema:'public', table:'seragam_distribusi'}, muatUlang)
     .on('postgres_changes', {event:'*', schema:'public', table:'seragam_transfer'}, muatUlang)
+    .on('postgres_changes', {event:'*', schema:'public', table:'seragam_revisi'}, muatUlang)
     .on('postgres_changes', {event:'*', schema:'public', table:'master_karyawan'}, muatUlang)
     .subscribe(st => setLive(st === 'SUBSCRIBED'));
 } catch (e) { console.error(e); setLive(false); }
