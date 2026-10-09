@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dashboard Analitik HR</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+<script src="supabase/config.js"></script>
+<style>
+  :root{ --bg:#10181a; --panel:#18262a; --panel-2:#13201f; --line:#294045; --text:#e8f3f1; --muted:#8fb0ab; --ac:#5fd3a6;
+         --teal:#4dd0c4; --orange:#f0913f; --pink:#e5708f; --blue:#7aa2f7; --violet:#b693f5; --gold:#e5c35a; --r:12px; }
+  *{ box-sizing:border-box; }
+  body{ margin:0; background:radial-gradient(1100px 480px at 85% -10%, rgba(95,211,166,.09), transparent 60%), var(--bg); color:var(--text);
+        font-family:'Inter','Segoe UI',system-ui,sans-serif; font-size:14px; line-height:1.45; padding:28px 24px 80px; }
+  .wrap{ max-width:1480px; margin:0 auto; } .hid{ display:none !important; }
+  .back{ color:var(--muted); text-decoration:none; font-size:12.5px; } .back:hover{ color:var(--ac); }
+  .top{ display:flex; justify-content:space-between; align-items:flex-end; gap:14px; flex-wrap:wrap; margin:14px 0 18px; }
+  .title{ display:flex; gap:14px; align-items:center; } .ico{ width:46px; height:46px; border-radius:12px; display:grid; place-items:center; font-size:22px; background:rgba(95,211,166,.14); border:1px solid rgba(95,211,166,.4); }
+  h1{ font-size:24px; margin:0; } .muted{ color:var(--muted); font-size:13px; }
+  .btn{ display:inline-flex; align-items:center; gap:8px; background:linear-gradient(135deg,#7fe6bd,#35a981); color:#08201a; border:0; padding:10px 18px; border-radius:9px; font-weight:700; font-size:13px; cursor:pointer; font-family:inherit; }
+  .btn:hover{ filter:brightness(1.07); } .btn:disabled{ opacity:.55; cursor:wait; }
+  .btn.sec{ background:transparent; border:1px solid var(--line); color:var(--text); } .btn.sm{ padding:6px 12px; font-size:12px; }
+  input,select{ background:var(--panel-2); border:1px solid var(--line); color:var(--text); padding:9px 11px; border-radius:9px; font-size:13px; font-family:inherit; }
+  input:focus,select:focus{ outline:none; border-color:var(--ac); }
+  .filters{ display:flex; gap:10px; flex-wrap:wrap; align-items:center; background:var(--panel); border:1px solid var(--line); border-radius:var(--r); padding:12px 14px; margin-bottom:16px; }
+  .filters label{ font-size:11px; color:var(--muted); font-weight:700; text-transform:uppercase; letter-spacing:.05em; display:flex; flex-direction:column; gap:4px; }
+  .tabs{ display:flex; gap:6px; flex-wrap:wrap; margin-bottom:16px; }
+  .tab{ background:transparent; border:1px solid var(--line); color:var(--muted); padding:8px 16px; border-radius:9px; font-weight:600; font-size:13px; cursor:pointer; font-family:inherit; }
+  .tab.on{ background:rgba(95,211,166,.14); color:var(--ac); border-color:var(--ac); }
+  .stats{ display:grid; grid-template-columns:repeat(5,1fr); gap:14px; margin-bottom:16px; } @media(max-width:1000px){ .stats{ grid-template-columns:repeat(2,1fr);} }
+  .stat{ position:relative; background:var(--panel); border:1px solid var(--line); border-radius:var(--r); padding:15px 18px 15px 22px; overflow:hidden; }
+  .stat::before{ content:''; position:absolute; left:0; top:0; bottom:0; width:4px; background:var(--c); }
+  .stat .l{ font-size:11px; color:var(--muted); font-weight:700; text-transform:uppercase; letter-spacing:.05em; } .stat .n{ font-size:27px; font-weight:700; margin-top:5px; line-height:1.1; } .stat .s{ font-size:11.5px; color:var(--muted); margin-top:4px; }
+  .grid2{ display:grid; grid-template-columns:repeat(2,1fr); gap:14px; margin-bottom:14px; } @media(max-width:1000px){ .grid2{ grid-template-columns:1fr; } }
+  .box{ background:var(--panel); border:1px solid var(--line); border-radius:var(--r); padding:16px 18px; } .box.span{ grid-column:1/-1; }
+  .box h3{ margin:0 0 12px; font-size:13.5px; } .ch{ position:relative; height:280px; }
+  .ins{ margin:0; padding:0; list-style:none; display:grid; gap:8px; } .ins li{ background:var(--panel-2); border:1px solid var(--line); border-left:3px solid var(--ac); border-radius:9px; padding:9px 12px; font-size:13px; } .ins li.w{ border-left-color:var(--orange); }
+  .tw{ background:var(--panel); border:1px solid var(--line); border-radius:var(--r); overflow-x:auto; }
+  table{ width:100%; border-collapse:collapse; min-width:760px; }
+  th{ text-align:left; padding:11px 12px; font-size:11px; font-weight:700; color:var(--muted); text-transform:uppercase; letter-spacing:.05em; background:var(--panel-2); border-bottom:1px solid var(--line); white-space:nowrap; }
+  th.s{ cursor:pointer; } th.s:hover{ color:var(--ac); } td{ padding:10px 12px; font-size:12.5px; border-bottom:1px solid var(--line); } tr:last-child td{ border-bottom:0; } td.n{ font-variant-numeric:tabular-nums; } td small{ display:block; color:var(--muted); font-size:11.5px; }
+  .badge{ display:inline-block; padding:2px 9px; border-radius:20px; font-size:11.5px; font-weight:700; background:rgba(255,255,255,.07); } .b-w{ background:rgba(240,145,63,.15); color:var(--orange);} .b-d{ background:rgba(229,112,143,.15); color:var(--pink);} .b-g{ background:rgba(77,208,196,.14); color:var(--teal);}
+  .empty{ padding:42px 20px; text-align:center; color:var(--muted); } .warn{ background:rgba(240,145,63,.12); border:1px solid rgba(240,145,63,.4); color:var(--orange); border-radius:10px; padding:10px 14px; margin-bottom:14px; font-size:13px; }
+  .step{ background:var(--panel); border:1px solid var(--line); border-radius:var(--r); padding:16px 18px; margin-bottom:14px; } .step h3{ margin:0 0 4px; font-size:14px; }
+  .map{ display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-top:12px; } @media(max-width:1000px){ .map{ grid-template-columns:repeat(2,1fr);} } .map label{ font-size:11.5px; color:var(--muted); font-weight:600; display:flex; flex-direction:column; gap:4px; } .map select,.map input{ width:100%; }
+  .row{ display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin-top:12px; } .tog{ display:flex; gap:6px; align-items:center; font-size:12.5px; color:var(--muted); } .tog input{ width:auto; }
+  .toast{ position:fixed; right:24px; bottom:24px; background:var(--panel); border:1px solid var(--ac); border-radius:10px; padding:12px 16px; max-width:380px; z-index:99; box-shadow:0 12px 40px rgba(0,0,0,.5); } .toast.e{ border-color:var(--pink); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <a class="back" href="pilih-modul.html">← Kembali ke pilih modul</a>
+  <div class="top">
+    <div class="title"><div class="ico">📊</div><div><h1>Dashboard Analitik HR</h1><div class="muted">Kehadiran, keterlambatan, dan ketidakhadiran karyawan. Data absensi diimport dari Excel.</div></div></div>
+    <button class="btn" onclick="gantiTab('imp')">⬆ Import Absensi (Excel)</button>
+  </div>
+
+  <div class="filters">
+    <label>Periode<select id="fPreset" onchange="preset()"><option value="bln">Bulan ini</option><option value="lalu">Bulan lalu</option><option value="3bln">3 bulan terakhir</option><option value="thn">Tahun ini</option><option value="x">Kustom</option></select></label>
+    <label>Dari<input type="date" id="fDari" onchange="$('fPreset').value='x'"></label>
+    <label>Sampai<input type="date" id="fSampai" onchange="$('fPreset').value='x'"></label>
+    <label>Departemen<select id="fDep" onchange="render()"><option value="">Semua</option></select></label>
+    <label>Area<select id="fArea" onchange="render()"><option value="">Semua</option></select></label>
+    <button class="btn sm" style="align-self:flex-end" onclick="muat()">Terapkan</button>
+    <span class="muted" id="info" style="margin-left:auto;align-self:flex-end"></span>
+  </div>
+
+  <div id="warnDb" class="warn hid"></div>
+  <div class="tabs"><button class="tab on" data-t="ring">Ringkasan</button><button class="tab" data-t="kar">Per Karyawan</button><button class="tab" data-t="imp">Import Absensi</button></div>
+
+  <!-- RINGKASAN -->
+  <div id="p-ring">
+    <div class="stats" id="stats"></div>
+    <div class="box" style="margin-bottom:14px"><h3>Temuan otomatis</h3><ul class="ins" id="ins"></ul></div>
+    <div class="grid2">
+      <div class="box span"><h3 id="tTren">Tren status kehadiran</h3><div class="ch"><canvas id="cTren"></canvas></div></div>
+      <div class="box"><h3>Komposisi status</h3><div class="ch"><canvas id="cKomp"></canvas></div></div>
+      <div class="box"><h3>Pola per hari dalam seminggu</h3><div class="ch"><canvas id="cHari"></canvas></div></div>
+      <div class="box span"><h3>Per departemen: kehadiran vs keterlambatan (%)</h3><div class="ch"><canvas id="cDep"></canvas></div></div>
+    </div>
+  </div>
+
+  <!-- PER KARYAWAN -->
+  <div id="p-kar" class="hid">
+    <div class="row" style="margin:0 0 12px"><input id="q" placeholder="Cari nama / NIK..." style="flex:1;min-width:220px" oninput="renderKar()"><span class="muted" id="cKar"></span></div>
+    <div class="tw"><table><thead id="hKar"></thead><tbody id="bKar"></tbody></table></div>
+    <div class="muted" style="margin-top:8px">Perlu perhatian: Alpha ≥ <b id="tA"></b> hari atau Terlambat ≥ <b id="tT"></b> kali pada periode terpilih.</div>
+  </div>
+
+  <!-- IMPORT -->
+  <div id="p-imp" class="hid">
+    <div class="step"><h3>1. Pilih file Excel absensi</h3>
+      <div class="muted">Format: satu baris per karyawan per tanggal (NIK, tanggal, jam masuk/keluar dan/atau status). Format rekap yang tanggalnya berupa kolom belum didukung.</div>
+      <div class="row"><input type="file" id="file" accept=".xlsx,.xls,.csv" onchange="bacaFile(this.files[0])"><select id="sheet" class="hid" onchange="bacaSheet()"></select><button class="btn sec sm" onclick="templateXlsx()">⬇ Unduh template</button></div>
+    </div>
+    <div id="s2" class="step hid"><h3>2. Cocokkan kolom</h3><div class="muted" id="fInfo"></div>
+      <div class="map">
+        <label>Baris header<input type="number" id="hRow" min="1" value="1" onchange="bacaSheet(true)"></label>
+        <label>NIK *<select id="mNik"></select></label><label>Tanggal *<select id="mTgl"></select></label><label>Nama<select id="mNama"></select></label>
+        <label>Jam masuk<select id="mIn"></select></label><label>Jam keluar<select id="mOut"></select></label><label>Status<select id="mSt"></select></label><label>Keterangan<select id="mKet"></select></label>
+        <label>Jam masuk standar<input type="time" id="jStd" value="08:00" onchange="olah()"></label><label>Toleransi terlambat (menit)<input type="number" id="jTol" min="0" value="0" onchange="olah()"></label>
+      </div>
+      <div class="row"><label class="tog"><input type="checkbox" id="oAlpha" onchange="olah()">Baris tanpa jam masuk &amp; tanpa status dianggap Alpha (bila tidak dicentang, baris itu dilewati)</label></div>
+      <div id="stMap" class="row"></div>
+    </div>
+    <div id="s3" class="step hid"><h3>3. Pratinjau &amp; import</h3><div id="pv"></div>
+      <div class="row"><button class="btn" id="btnImp" onclick="doImport()">Import ke database</button><span class="muted">Data dengan NIK + tanggal yang sama akan ditimpa.</span></div>
+    </div>
+    <div class="step"><h3>Riwayat import</h3><div class="tw" style="margin-top:10px"><table style="min-width:600px"><thead><tr><th>Waktu</th><th>File</th><th>Periode</th><th>Baris</th><th>Oleh</th><th></th></tr></thead><tbody id="bHist"></tbody></table></div></div>
+  </div>
+</div>
+
+<script>
+const user = JSON.parse(sessionStorage.getItem('user') || 'null');
+if (!user) location.href = 'login.html';
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const BLN = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'], HARI = ['Minggu','Senin','Selasa','Rabu','Kamis','Jumat','Sabtu'];
+const ST = ['Hadir','Terlambat','Dinas','Sakit','Izin','Cuti','Alpha'], WARNA = {Hadir:'#4dd0c4', Terlambat:'#f0913f', Dinas:'#7aa2f7', Sakit:'#b693f5', Izin:'#e5c35a', Cuti:'#8fa3b8', Alpha:'#e5708f'};
+const HADIR = ['Hadir','Terlambat','Dinas'], BATAS_ALPHA = 3, BATAS_TELAT = 5;
+const iso = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+const pct = (a, b) => b ? a / b * 100 : 0, f1 = n => (Math.round(n * 10) / 10).toLocaleString('id-ID');
+const toast = (m, e) => { const t = document.createElement('div'); t.className = 'toast' + (e ? ' e' : ''); t.textContent = m; document.body.appendChild(t); setTimeout(() => t.remove(), 5000); };
+let kar = [], abs = [], karMap = {}, tab = 'ring', sortK = 'alpha', sortD = -1, charts = {};
+
+async function fetchAll(mk) { let all = [], from = 0; for (;;) { const { data, error } = await mk().range(from, from + 999); if (error) throw error; all.push(...data); if (data.length < 1000) break; from += 1000; } return all; }
+
+// ---------- Periode & muat data ----------
+function preset() {
+  const p = $('fPreset').value, n = new Date(), y = n.getFullYear(), m = n.getMonth(); let a, b;
+  if (p === 'x') return;
+  if (p === 'bln') { a = new Date(y, m, 1); b = new Date(y, m + 1, 0); } else if (p === 'lalu') { a = new Date(y, m - 1, 1); b = new Date(y, m, 0); }
+  else if (p === '3bln') { a = new Date(y, m - 2, 1); b = new Date(y, m + 1, 0); } else { a = new Date(y, 0, 1); b = new Date(y, 11, 31); }
+  $('fDari').value = iso(a); $('fSampai').value = iso(b);
+}
+async function muat() {
+  $('info').textContent = 'Memuat...';
+  try {
+    if (!kar.length) {
+      kar = await fetchAll(() => supabaseClient.from('master_karyawan').select('nik, nama, departemen, area, jabatan, status').order('nik'));
+      karMap = Object.fromEntries(kar.map(k => [String(k.nik || '').toUpperCase(), k]));
+      const isi = (id, k) => { $(id).innerHTML = '<option value="">Semua</option>' + [...new Set(kar.map(x => x[k]).filter(Boolean))].sort().map(v => `<option>${esc(v)}</option>`).join(''); };
+      isi('fDep', 'departemen'); isi('fArea', 'area');
+    }
+    abs = await fetchAll(() => supabaseClient.from('hr_absensi').select('*').gte('tanggal', $('fDari').value).lte('tanggal', $('fSampai').value).order('tanggal').order('nik'));
+    $('warnDb').classList.add('hid');
+  } catch (e) {
+    console.error(e); abs = [];
+    $('warnDb').textContent = 'Data absensi tidak dapat dimuat: ' + e.message + '. Jalankan sql/hr_analitik_schema.sql di Supabase terlebih dulu.'; $('warnDb').classList.remove('hid');
+  }
+  $('info').textContent = ''; render(); muatRiwayat();
+}
+
+// ---------- Hitung ----------
+const infoKar = r => karMap[r.nik] || {nama:r.nama, departemen:'(Belum terdaftar)', area:''};
+const saring = () => { const d = $('fDep').value, a = $('fArea').value; return abs.filter(r => { const k = infoKar(r); return (!d || k.departemen === d) && (!a || k.area === a); }); };
+function hitung(rows) {
+  const c = Object.fromEntries([...ST, 'Libur'].map(s => [s, 0])); let mt = 0, nt = 0, jk = 0, nj = 0;
+  rows.forEach(r => { c[r.status]++; if (r.status === 'Terlambat') { mt += r.terlambat_menit || 0; nt++; } if (Number(r.jam_kerja) > 0) { jk += Number(r.jam_kerja); nj++; } });
+  const kerja = ST.reduce((a, s) => a + c[s], 0), hadir = HADIR.reduce((a, s) => a + c[s], 0);
+  return {c, kerja, hadir, hPct:pct(hadir, kerja), tPct:pct(c.Terlambat, c.Hadir + c.Terlambat), aPct:pct(c.Sakit + c.Izin + c.Alpha, kerja), avgT:nt ? mt / nt : 0, avgJ:nj ? jk / nj : 0};
+}
+const agg = (rows, kf) => { const m = {}; rows.forEach(r => (m[kf(r)] ??= []).push(r)); return m; };
+
+// ---------- Render ----------
+function render() { if (tab === 'ring') renderRing(); else if (tab === 'kar') renderKar(); }
+function chart(id, cfg) {
+  charts[id]?.destroy(); Chart.defaults.color = '#8fb0ab'; Chart.defaults.borderColor = '#294045';
+  charts[id] = new Chart($(id), {...cfg, options:{responsive:true, maintainAspectRatio:false, ...cfg.options}});
+}
+function renderRing() {
+  const rows = saring(), s = hitung(rows);
+  if (!rows.length) { ['stats', 'ins'].forEach(i => $(i).innerHTML = ''); $('stats').innerHTML = `<div class="box" style="grid-column:1/-1"><div class="empty">Belum ada data absensi pada periode ini. Pilih periode lain atau <a href="#" style="color:var(--ac)" onclick="gantiTab('imp');return false">import file Excel absensi</a>.</div></div>`; Object.values(charts).forEach(c => c.destroy()); charts = {}; return; }
+  const aktif = kar.filter(k => k.status === 'Aktif' && (!$('fDep').value || k.departemen === $('fDep').value) && (!$('fArea').value || k.area === $('fArea').value));
+  const ada = new Set(rows.map(r => r.nik));
+  const card = (l, n, sub, c) => `<div class="stat" style="--c:${c}"><div class="l">${l}</div><div class="n">${n}</div><div class="s">${sub}</div></div>`;
+  $('stats').innerHTML = card('Tingkat kehadiran', f1(s.hPct) + '%', `${s.hadir} dari ${s.kerja} hari kerja tercatat`, '#4dd0c4') + card('Tingkat keterlambatan', f1(s.tPct) + '%', `${s.c.Terlambat} kali, rata-rata ${Math.round(s.avgT)} menit`, '#f0913f')
+    + card('Ketidakhadiran', f1(s.aPct) + '%', `Sakit ${s.c.Sakit} · Izin ${s.c.Izin} · Alpha ${s.c.Alpha}`, '#e5708f') + card('Rata-rata jam kerja', f1(s.avgJ) + ' jam', 'per hari hadir (jam masuk &amp; keluar)', '#7aa2f7')
+    + card('Karyawan terpantau', ada.size, `dari ${aktif.length} karyawan aktif`, '#b693f5');
+  // Tren
+  const bulanan = (new Date($('fSampai').value) - new Date($('fDari').value)) / 864e5 > 62, kf = r => bulanan ? r.tanggal.slice(0, 7) : r.tanggal;
+  const g = agg(rows, kf), ks = Object.keys(g).sort(), lbl = k => bulanan ? `${BLN[+k.slice(5) - 1]} ${k.slice(2, 4)}` : `${+k.slice(8)} ${BLN[+k.slice(5, 7) - 1]}`;
+  $('tTren').textContent = 'Tren status kehadiran ' + (bulanan ? 'per bulan' : 'per hari');
+  chart('cTren', {type:'bar', data:{labels:ks.map(lbl), datasets:ST.map(st => ({label:st, backgroundColor:WARNA[st], data:ks.map(k => g[k].filter(r => r.status === st).length)}))}, options:{scales:{x:{stacked:true}, y:{stacked:true}}}});
+  chart('cKomp', {type:'doughnut', data:{labels:ST, datasets:[{data:ST.map(x => s.c[x]), backgroundColor:ST.map(x => WARNA[x]), borderWidth:0}]}, options:{plugins:{legend:{position:'right'}}}});
+  // Hari
+  const gh = agg(rows.filter(r => r.status !== 'Libur'), r => new Date(r.tanggal + 'T00:00:00').getDay()), hs = [1, 2, 3, 4, 5, 6, 0].filter(h => gh[h]), sh = h => hitung(gh[h]);
+  chart('cHari', {type:'bar', data:{labels:hs.map(h => HARI[h]), datasets:[{label:'Ketidakhadiran %', backgroundColor:'#e5708f', data:hs.map(h => +sh(h).aPct.toFixed(1))}, {label:'Keterlambatan %', backgroundColor:'#f0913f', data:hs.map(h => +sh(h).tPct.toFixed(1))}]}});
+  // Dept
+  const gd = agg(rows, r => infoKar(r).departemen || '-'), ds = Object.keys(gd).sort((a, b) => hitung(gd[b]).tPct - hitung(gd[a]).tPct).slice(0, 12);
+  chart('cDep', {type:'bar', data:{labels:ds, datasets:[{label:'Kehadiran %', backgroundColor:'#4dd0c4', data:ds.map(d => +hitung(gd[d]).hPct.toFixed(1))}, {label:'Keterlambatan %', backgroundColor:'#f0913f', data:ds.map(d => +hitung(gd[d]).tPct.toFixed(1))}]}, options:{scales:{y:{max:100}}}});
+  // Temuan
+  const out = [], pk = Object.entries(agg(rows, r => r.nik)).map(([nik, l]) => ({nik, ...hitung(l)}));
+  const dv = ds.filter(d => hitung(gd[d]).kerja >= 20), top = dv.length > 1 && hitung(gd[dv[0]]);
+  if (top && top.tPct > 0) out.push([`Keterlambatan tertinggi di <b>${esc(dv[0])}</b>: ${f1(top.tPct)}% (rata-rata ${Math.round(top.avgT)} menit).`]);
+  const dh = hs.slice().sort((a, b) => sh(b).aPct - sh(a).aPct)[0]; if (dh !== undefined && hs.length > 1) out.push([`Ketidakhadiran paling tinggi terjadi pada hari <b>${HARI[dh]}</b> (${f1(sh(dh).aPct)}%).`]);
+  const na = pk.filter(p => p.c.Alpha >= BATAS_ALPHA).length, nt = pk.filter(p => p.c.Terlambat >= BATAS_TELAT).length;
+  if (na) out.push([`<b>${na}</b> karyawan Alpha ≥ ${BATAS_ALPHA} hari.`, 1]); if (nt) out.push([`<b>${nt}</b> karyawan terlambat ≥ ${BATAS_TELAT} kali.`, 1]);
+  const tdk = aktif.filter(k => !ada.has(String(k.nik).toUpperCase())).length; if (tdk) out.push([`<b>${tdk}</b> karyawan aktif tidak punya data absensi pada periode ini (cek apakah belum diimport atau NIK berbeda).`, 1]);
+  $('ins').innerHTML = out.map(([t, w]) => `<li class="${w ? 'w' : ''}">${t}</li>`).join('') || '<li>Tidak ada temuan khusus.</li>';
+}
+function renderKar() {
+  if (tab !== 'kar') return; $('tA').textContent = BATAS_ALPHA; $('tT').textContent = BATAS_TELAT;
+  const q = $('q').value.toLowerCase();
+  let l = Object.entries(agg(saring(), r => r.nik)).map(([nik, rs]) => { const s = hitung(rs), k = infoKar(rs[0]); return {nik, nama:k.nama || rs[0].nama || '-', dep:k.departemen || '-', ...s.c, hadirHari:s.hadir, hPct:s.hPct, kerja:s.kerja}; })
+    .filter(x => !q || x.nama.toLowerCase().includes(q) || x.nik.toLowerCase().includes(q));
+  const key = {nama:'nama', dep:'dep', hadir:'hadirHari', terlambat:'Terlambat', sakit:'Sakit', izin:'Izin', cuti:'Cuti', alpha:'Alpha', pct:'hPct'}[sortK];
+  l.sort((a, b) => (typeof a[key] === 'string' ? a[key].localeCompare(b[key]) : a[key] - b[key]) * sortD); $('cKar').textContent = l.length + ' karyawan';
+  const th = (k, t) => `<th class="s" onclick="urut('${k}')">${t}${sortK === k ? (sortD < 0 ? ' ▼' : ' ▲') : ''}</th>`;
+  $('hKar').innerHTML = '<tr>' + th('nama', 'Karyawan') + th('dep', 'Departemen') + th('hadir', 'Hari hadir') + th('terlambat', 'Terlambat') + th('sakit', 'Sakit') + th('izin', 'Izin') + th('cuti', 'Cuti') + th('alpha', 'Alpha') + th('pct', '% Hadir') + '<th></th></tr>';
+  $('bKar').innerHTML = l.map(x => `<tr><td><b>${esc(x.nama)}</b><small>${esc(x.nik)}</small></td><td>${esc(x.dep)}</td><td class="n">${x.hadirHari}</td><td class="n">${x.Terlambat}</td><td class="n">${x.Sakit}</td><td class="n">${x.Izin}</td><td class="n">${x.Cuti}</td><td class="n">${x.Alpha}</td><td class="n"><b>${f1(x.hPct)}%</b></td>
+    <td>${x.Alpha >= BATAS_ALPHA ? '<span class="badge b-d">Alpha tinggi</span> ' : ''}${x.Terlambat >= BATAS_TELAT ? '<span class="badge b-w">Sering terlambat</span>' : ''}</td></tr>`).join('') || '<tr><td colspan="10" class="empty">Tidak ada data.</td></tr>';
+}
+function urut(k) { if (sortK === k) sortD = -sortD; else { sortK = k; sortD = k === 'nama' || k === 'dep' ? 1 : -1; } renderKar(); }
+function gantiTab(t) {
+  tab = t; document.querySelectorAll('.tab').forEach(b => b.classList.toggle('on', b.dataset.t === t));
+  ['ring', 'kar', 'imp'].forEach(x => $('p-' + x).classList.toggle('hid', x !== t)); render();
+}
+document.querySelector('.tabs').addEventListener('click', e => { const b = e.target.closest('.tab'); if (b) gantiTab(b.dataset.t); });
+
+// ---------- Import Excel ----------
+let wb = null, aoa = [], hdr = [], impRows = [], impNama = '';
+const FIELD = {mNik:/^(nik|nip|no\.?\s*induk|id\s*(karyawan|pegawai)?|employee\s*id|badge|pin)\b/i, mTgl:/tanggal|tgl|date/i, mNama:/nama|name/i, mIn:/masuk|check.?in|clock.?in|datang|scan\s*in|^in$/i, mOut:/keluar|pulang|check.?out|clock.?out|scan\s*out|^out$/i, mSt:/^status|kehadiran|^absen/i, mKet:/keterangan|^ket\b|remark|note/i};
+const SYN = [[/^(h|hadir|present|masuk|p)$/i, 'Hadir'], [/terlambat|telat|late|^tl$/i, 'Terlambat'], [/^(s|sakit|sick|sk)$/i, 'Sakit'], [/^(i|izin|ijin|permit|permisi)$/i, 'Izin'], [/^(c|ct|cuti.*|leave|annual.*)$/i, 'Cuti'], [/^(a|ab|alpha|alpa|absen.*|mangkir|tanpa.*)$/i, 'Alpha'], [/dinas|^dl$|tugas|visit/i, 'Dinas'], [/libur|^off$|holiday|^l$|weekend/i, 'Libur']];
+const tebak = v => (SYN.find(([r]) => r.test(String(v).trim())) || [0, 'Abaikan'])[1];
+function templateXlsx() {
+  const ws = XLSX.utils.aoa_to_sheet([['NIK', 'Nama', 'Tanggal', 'Jam Masuk', 'Jam Keluar', 'Status', 'Keterangan'], ['6.7.170723.0103', 'ABDUL MUIN FARUK', '2026-10-01', '07:55', '17:05', 'Hadir', ''], ['6.7.170723.0103', 'ABDUL MUIN FARUK', '2026-10-02', '08:20', '17:00', 'Hadir', ''], ['6.7.170723.0103', 'ABDUL MUIN FARUK', '2026-10-03', '', '', 'Sakit', 'Surat dokter']]);
+  const w = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(w, ws, 'Absensi'); XLSX.writeFile(w, 'template-absensi.xlsx');
+}
+async function bacaFile(f) {
+  if (!f) return; impNama = f.name;
+  try { wb = XLSX.read(await f.arrayBuffer(), {type:'array'}); } catch (e) { return toast('File tidak dapat dibaca: ' + e.message, 1); }
+  $('sheet').innerHTML = wb.SheetNames.map(n => `<option>${esc(n)}</option>`).join(''); $('sheet').classList.toggle('hid', wb.SheetNames.length < 2); bacaSheet();
+}
+function bacaSheet(ulang) {
+  aoa = XLSX.utils.sheet_to_json(wb.Sheets[$('sheet').value], {header:1, raw:true, defval:''});
+  if (!ulang) $('hRow').value = Math.max(1, aoa.findIndex(r => r.filter(c => String(c).trim() !== '').length >= 3) + 1);
+  const hi = +$('hRow').value - 1; hdr = (aoa[hi] || []).map(c => String(c).trim());
+  const opt = '<option value="">- tidak ada -</option>' + hdr.map((h, i) => h ? `<option value="${i}">${esc(h)}</option>` : '').join('');
+  Object.entries(FIELD).forEach(([id, re]) => { $(id).innerHTML = opt; const i = hdr.findIndex(h => h && re.test(h)); if (i >= 0) $(id).value = i; $(id).onchange = id === 'mSt' ? () => { petaStatus(); olah(); } : olah; });
+  $('fInfo').textContent = `${impNama} · ${aoa.length - hi - 1} baris data. Kolom sudah ditebak dari judul; ubah bila kurang tepat.`; $('s2').classList.remove('hid'); petaStatus(); olah();
+}
+function petaStatus() {
+  const c = $('mSt').value; if (c === '') { $('stMap').innerHTML = ''; return; }
+  const vals = [...new Set(aoa.slice(+$('hRow').value).map(r => String(r[c]).trim()).filter(Boolean))].slice(0, 30);
+  $('stMap').innerHTML = '<div class="muted" style="width:100%">Arti nilai status di file:</div>' + vals.map(v => `<label class="tog">“${esc(v)}” →<select data-raw="${esc(v)}" onchange="olah()">${[...ST, 'Libur', 'Abaikan'].map(s => `<option ${s === tebak(v) ? 'selected' : ''}>${s}</option>`).join('')}</select></label>`).join('');
+}
+function pdate(v) {
+  let y, m, d;
+  if (typeof v === 'number') { const p = XLSX.SSF.parse_date_code(Math.floor(v)); if (!p) return null; ({y, m, d} = p); }
+  else { const s = String(v).trim(); let t;
+    if ((t = /(\d{4})[-\/.](\d{1,2})[-\/.](\d{1,2})/.exec(s))) [y, m, d] = [+t[1], +t[2], +t[3]];
+    else if ((t = /(\d{1,2})[-\/.\s]([A-Za-z]{3,})[-\/.\s,]*(\d{2,4})/.exec(s))) { const mi = ['jan', 'feb', 'mar', 'apr', 'mei|may', 'jun', 'jul', 'agu|aug', 'sep', 'okt|oct', 'nov', 'des|dec'].findIndex(n => new RegExp('^(' + n + ')', 'i').test(t[2])); if (mi < 0) return null; [y, m, d] = [+t[3], mi + 1, +t[1]]; }
+    else if ((t = /(\d{1,2})[-\/.](\d{1,2})[-\/.](\d{2,4})/.exec(s))) [y, m, d] = [+t[3], +t[2], +t[1]];   // dd/mm/yyyy
+    else return null; }
+  if (y < 100) y += 2000; if (y < 2000 || y > 2100 || m < 1 || m > 12 || d < 1 || d > 31) return null;
+  return `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+}
+function ptime(v) {
+  if (typeof v === 'number') { const mn = Math.round((v - Math.floor(v)) * 1440); return mn > 0 ? mn : null; }
+  const t = /(\d{1,2})[:.](\d{2})/.exec(String(v)); if (!t) return null; const mn = +t[1] * 60 + +t[2]; return mn > 0 && +t[1] < 24 && +t[2] < 60 ? mn : null;
+}
+const hhmm = m => m == null ? null : `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}:00`;
+function olah() {
+  const col = id => $(id).value === '' ? -1 : +$(id).value, cN = col('mNik'), cT = col('mTgl'), cNm = col('mNama'), cI = col('mIn'), cO = col('mOut'), cS = col('mSt'), cK = col('mKet');
+  if (cN < 0 || cT < 0) { $('s3').classList.add('hid'); return; }
+  const std = ptime($('jStd').value) ?? 480, tol = +$('jTol').value || 0, smap = {}; document.querySelectorAll('#stMap select').forEach(s => smap[s.dataset.raw] = s.value);
+  const m = new Map(), lewat = {kosong:0, tgl:0, abaikan:0, dobel:0}; let tak = 0;
+  aoa.slice(+$('hRow').value).forEach(r => {
+    if (r.every(c => String(c).trim() === '')) return;
+    const nik = String(r[cN]).trim().toUpperCase().replace(/\s+/g, ''), tg = pdate(r[cT]); if (!nik) { lewat.kosong++; return; } if (!tg) { lewat.tgl++; return; }
+    const jm = cI >= 0 ? ptime(r[cI]) : null, jk = cO >= 0 ? ptime(r[cO]) : null; let st = cS >= 0 && String(r[cS]).trim() ? smap[String(r[cS]).trim()] : null;
+    if (st === 'Abaikan') { lewat.abaikan++; return; }
+    if (!st) { if (jm != null) st = 'Hadir'; else if ($('oAlpha').checked) st = 'Alpha'; else { lewat.abaikan++; return; } }
+    let tm = 0; if (jm != null && (st === 'Hadir' || st === 'Terlambat')) { const lt = jm - std; if (lt > tol) { st = 'Terlambat'; tm = lt; } else if (st === 'Terlambat') tm = Math.max(0, lt); }
+    let jam = null; if (jm != null && jk != null) { const d = (jk - jm + 1440) % 1440 / 60; jam = d <= 16 ? +d.toFixed(2) : null; }
+    const k = nik + '|' + tg; if (m.has(k)) lewat.dobel++;
+    m.set(k, {nik, nama:(cNm >= 0 ? String(r[cNm]).trim() : '') || karMap[nik]?.nama || null, tanggal:tg, jam_masuk:hhmm(jm), jam_keluar:hhmm(jk), status:st, terlambat_menit:tm, jam_kerja:jam, keterangan:cK >= 0 ? String(r[cK]).trim() || null : null});
+  });
+  impRows = [...m.values()]; tak = new Set(impRows.filter(r => !karMap[r.nik]).map(r => r.nik)).size;
+  const tg = impRows.map(r => r.tanggal).sort(), c = hitung(impRows).c;
+  $('pv').innerHTML = `<div class="row" style="margin-top:6px"><span class="badge b-g">${impRows.length} baris siap import</span>${tg.length ? `<span class="badge">Periode ${tg[0]} s/d ${tg.at(-1)}</span>` : ''}
+    ${tak ? `<span class="badge b-w">${tak} NIK tidak ada di master karyawan</span>` : ''}${lewat.tgl ? `<span class="badge b-d">${lewat.tgl} baris tanggal tidak terbaca (dilewati)</span>` : ''}${lewat.kosong ? `<span class="badge b-w">${lewat.kosong} baris tanpa NIK (dilewati)</span>` : ''}${lewat.abaikan ? `<span class="badge">${lewat.abaikan} baris dilewati (tanpa jam/status atau diabaikan)</span>` : ''}${lewat.dobel ? `<span class="badge b-w">${lewat.dobel} dobel NIK+tanggal (dipakai yang terakhir)</span>` : ''}</div>
+    <div class="muted" style="margin:8px 0">${ST.map(s => `${s} ${c[s]}`).join(' · ')}</div>
+    <div class="tw"><table style="min-width:640px"><thead><tr><th>NIK</th><th>Nama</th><th>Tanggal</th><th>Masuk</th><th>Keluar</th><th>Status</th><th>Telat (mnt)</th></tr></thead><tbody>${impRows.slice(0, 8).map(r => `<tr><td>${esc(r.nik)}</td><td>${esc(r.nama || '-')}</td><td>${r.tanggal}</td><td>${(r.jam_masuk || '-').slice(0, 5)}</td><td>${(r.jam_keluar || '-').slice(0, 5)}</td><td>${r.status}</td><td>${r.terlambat_menit || ''}</td></tr>`).join('') || '<tr><td colspan="7" class="empty">Tidak ada baris valid. Periksa pemetaan kolom.</td></tr>'}</tbody></table></div>`;
+  $('s3').classList.remove('hid'); $('btnImp').disabled = !impRows.length;
+}
+async function doImport() {
+  if (!impRows.length) return; const tg = impRows.map(r => r.tanggal).sort(); $('btnImp').disabled = true;
+  try {
+    const { data:b, error:e0 } = await supabaseClient.from('hr_absensi_import').insert({nama_file:impNama, periode_awal:tg[0], periode_akhir:tg.at(-1), jumlah_baris:impRows.length, diimport_oleh:user.nama || user.username || null}).select().single(); if (e0) throw e0;
+    for (let i = 0; i < impRows.length; i += 500) {
+      const { error } = await supabaseClient.from('hr_absensi').upsert(impRows.slice(i, i + 500).map(r => ({...r, batch_id:b.id, created_by:user.nama || user.username || null})), {onConflict:'nik,tanggal'}); if (error) throw error;
+    }
+    toast(`${impRows.length} baris absensi berhasil diimport.`);
+    $('fPreset').value = 'x'; $('fDari').value = tg[0].slice(0, 7) + '-01'; $('fSampai').value = iso(new Date(+tg.at(-1).slice(0, 4), +tg.at(-1).slice(5, 7), 0));
+    $('file').value = ''; $('s2').classList.add('hid'); $('s3').classList.add('hid'); impRows = []; await muat(); gantiTab('ring');
+  } catch (e) { console.error(e); toast('Import gagal: ' + e.message + ' (pastikan sql/hr_analitik_schema.sql sudah dijalankan)', 1); }
+  finally { $('btnImp').disabled = false; }
+}
+async function muatRiwayat() {
+  const { data, error } = await supabaseClient.from('hr_absensi_import').select('*').order('created_at', {ascending:false}).limit(30);
+  $('bHist').innerHTML = error || !data.length ? '<tr><td colspan="6" class="empty">Belum ada import.</td></tr>' : data.map(h => `<tr><td>${new Date(h.created_at).toLocaleString('id-ID', {day:'numeric', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit'})}</td><td>${esc(h.nama_file)}</td><td>${h.periode_awal} s/d ${h.periode_akhir}</td><td class="n">${h.jumlah_baris}</td><td>${esc(h.diimport_oleh || '-')}</td><td><button class="btn sec sm" onclick="batalImport('${h.id}')">Hapus data import ini</button></td></tr>`).join('');
+}
+async function batalImport(id) {
+  if (!confirm('Hapus semua data absensi dari import ini? (Baris yang sudah ditimpa import lain tidak terpengaruh.)')) return;
+  const a = await supabaseClient.from('hr_absensi').delete().eq('batch_id', id); if (a.error) return toast('Gagal menghapus: ' + a.error.message, 1);
+  await supabaseClient.from('hr_absensi_import').delete().eq('id', id); toast('Data import dihapus.'); muat();
+}
+
+// ---------- Awal ----------
+(async () => {
+  preset();
+  try { const { data } = await supabaseClient.from('hr_absensi').select('tanggal').order('tanggal', {ascending:false}).limit(1);   // langsung ke bulan data terakhir
+    if (data?.length) { const t = data[0].tanggal; $('fPreset').value = 'x'; $('fDari').value = t.slice(0, 7) + '-01'; $('fSampai').value = iso(new Date(+t.slice(0, 4), +t.slice(5, 7), 0)); } } catch (e) {}
+  muat();
+})();
+</script>
+</body>
+</html>
