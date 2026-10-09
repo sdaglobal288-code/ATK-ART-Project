@@ -53,7 +53,7 @@
 <div class="wrap">
   <a class="back" href="pilih-modul.html">← Kembali ke pilih modul</a>
   <div class="top">
-    <div class="title"><div class="ico">📊</div><div><h1>Dashboard Analitik HR</h1><div class="muted">Kehadiran, keterlambatan, dan ketidakhadiran karyawan. Data absensi diimport dari Excel.</div></div></div>
+    <div class="title"><div class="ico">📊</div><div><h1>Dashboard Analitik HR</h1><div class="muted">Kehadiran, keterlambatan, dan ketidakhadiran karyawan. Data absensi diimport dari Excel (format rekap per periode).</div></div></div>
     <button class="btn" onclick="gantiTab('imp')">⬆ Import Absensi (Excel)</button>
   </div>
 
@@ -92,18 +92,14 @@
   <!-- IMPORT -->
   <div id="p-imp" class="hid">
     <div class="step"><h3>1. Pilih file Excel absensi</h3>
-      <div class="muted">Format: satu baris per karyawan per tanggal (NIK, tanggal, jam masuk/keluar dan/atau status). Format rekap yang tanggalnya berupa kolom belum didukung.</div>
-      <div class="row"><input type="file" id="file" accept=".xlsx,.xls,.csv" onchange="bacaFile(this.files[0])"><select id="sheet" class="hid" onchange="bacaSheet()"></select><button class="btn sec sm" onclick="templateXlsx()">⬇ Unduh template</button></div>
+      <div class="muted">Format rekap seperti contoh: satu baris per karyawan, tanggal berupa kolom (ABS / LB-LL). Bisa memilih <b>beberapa file sekaligus</b>; setiap sheet dan setiap blok periode di dalam satu sheet dibaca otomatis.</div>
+      <div class="row"><input type="file" id="file" accept=".xlsx,.xls,.csv" multiple onchange="bacaFile(this.files)"></div>
+      <div class="row"><span class="muted">Template kosong untuk periode:</span><input type="date" id="tDari"><span class="muted">s/d</span><input type="date" id="tSampai"><button class="btn sec sm" onclick="templateXlsx()">⬇ Unduh template</button><span class="muted">(berisi karyawan aktif dari master)</span></div>
     </div>
-    <div id="s2" class="step hid"><h3>2. Cocokkan kolom</h3><div class="muted" id="fInfo"></div>
-      <div class="map">
-        <label>Baris header<input type="number" id="hRow" min="1" value="1" onchange="bacaSheet(true)"></label>
-        <label>NIK *<select id="mNik"></select></label><label>Tanggal *<select id="mTgl"></select></label><label>Nama<select id="mNama"></select></label>
-        <label>Jam masuk<select id="mIn"></select></label><label>Jam keluar<select id="mOut"></select></label><label>Status<select id="mSt"></select></label><label>Keterangan<select id="mKet"></select></label>
-        <label>Jam masuk standar<input type="time" id="jStd" value="08:00" onchange="olah()"></label><label>Toleransi terlambat (menit)<input type="number" id="jTol" min="0" value="0" onchange="olah()"></label>
-      </div>
-      <div class="row"><label class="tog"><input type="checkbox" id="oAlpha" onchange="olah()">Baris tanpa jam masuk &amp; tanpa status dianggap Alpha (bila tidak dicentang, baris itu dilewati)</label></div>
-      <div id="stMap" class="row"></div>
+    <div id="s2" class="step hid"><h3>2. Periode terdeteksi</h3>
+      <div class="tw" style="margin-top:10px"><table style="min-width:780px"><thead><tr><th></th><th>Sumber</th><th>Label periode</th><th>Mulai</th><th>Sampai</th><th>Karyawan</th><th>Hari</th></tr></thead><tbody id="bPer"></tbody></table></div>
+      <div class="muted" style="margin-top:8px">Tanggal mulai diambil dari label periode; ubah bila keliru. Periode yang tumpang tindih menimpa tanggal yang sama (yang terakhir dipakai).</div>
+      <h3 style="margin-top:16px">Arti kode absensi</h3><div id="kodeMap" class="row" style="margin-top:6px"></div>
     </div>
     <div id="s3" class="step hid"><h3>3. Pratinjau &amp; import</h3><div id="pv"></div>
       <div class="row"><button class="btn" id="btnImp" onclick="doImport()">Import ke database</button><span class="muted">Data dengan NIK + tanggal yang sama akan ditimpa.</span></div>
@@ -141,11 +137,9 @@ async function muat() {
     if (!kar.length) {
       kar = await fetchAll(() => supabaseClient.from('master_karyawan').select('nik, nama, departemen, area, jabatan, status').order('nik'));
       karMap = Object.fromEntries(kar.map(k => [String(k.nik || '').toUpperCase(), k]));
-      const isi = (id, k) => { $(id).innerHTML = '<option value="">Semua</option>' + [...new Set(kar.map(x => x[k]).filter(Boolean))].sort().map(v => `<option>${esc(v)}</option>`).join(''); };
-      isi('fDep', 'departemen'); isi('fArea', 'area');
     }
     abs = await fetchAll(() => supabaseClient.from('hr_absensi').select('*').gte('tanggal', $('fDari').value).lte('tanggal', $('fSampai').value).order('tanggal').order('nik'));
-    $('warnDb').classList.add('hid');
+    isiFilter(); $('warnDb').classList.add('hid');
   } catch (e) {
     console.error(e); abs = [];
     $('warnDb').textContent = 'Data absensi tidak dapat dimuat: ' + e.message + '. Jalankan sql/hr_analitik_schema.sql di Supabase terlebih dulu.'; $('warnDb').classList.remove('hid');
@@ -154,13 +148,14 @@ async function muat() {
 }
 
 // ---------- Hitung ----------
-const infoKar = r => karMap[r.nik] || {nama:r.nama, departemen:'(Belum terdaftar)', area:''};
+const infoKar = r => { const k = karMap[r.nik] || {}; return {nama:k.nama || r.nama, departemen:r.departemen || k.departemen || '(Belum terdaftar)', area:r.unit_kerja || k.area || ''}; };
+function isiFilter() { const f = (id, v) => { const cur = $(id).value, l = [...new Set(v.filter(Boolean))].sort(); $(id).innerHTML = '<option value="">Semua</option>' + l.map(x => `<option>${esc(x)}</option>`).join(''); $(id).value = l.includes(cur) ? cur : ''; }; f('fDep', abs.map(r => infoKar(r).departemen)); f('fArea', abs.map(r => infoKar(r).area)); }
 const saring = () => { const d = $('fDep').value, a = $('fArea').value; return abs.filter(r => { const k = infoKar(r); return (!d || k.departemen === d) && (!a || k.area === a); }); };
 function hitung(rows) {
-  const c = Object.fromEntries([...ST, 'Libur'].map(s => [s, 0])); let mt = 0, nt = 0, jk = 0, nj = 0;
-  rows.forEach(r => { c[r.status]++; if (r.status === 'Terlambat') { mt += r.terlambat_menit || 0; nt++; } if (Number(r.jam_kerja) > 0) { jk += Number(r.jam_kerja); nj++; } });
+  const c = Object.fromEntries([...ST, 'Libur'].map(s => [s, 0])); let mt = 0, nt = 0, jk = 0, nj = 0, t12 = 0, lem = 0;
+  rows.forEach(r => { c[r.status]++; if (r.kode === 'T1' || r.kode === 'T2') t12++; lem += Number(r.lembur_jam) || 0; if (r.status === 'Terlambat') { mt += r.terlambat_menit || 0; nt++; } if (Number(r.jam_kerja) > 0) { jk += Number(r.jam_kerja); nj++; } });
   const kerja = ST.reduce((a, s) => a + c[s], 0), hadir = HADIR.reduce((a, s) => a + c[s], 0);
-  return {c, kerja, hadir, hPct:pct(hadir, kerja), tPct:pct(c.Terlambat, c.Hadir + c.Terlambat), aPct:pct(c.Sakit + c.Izin + c.Alpha, kerja), avgT:nt ? mt / nt : 0, avgJ:nj ? jk / nj : 0};
+  return {c, kerja, hadir, hPct:pct(hadir, kerja), tPct:pct(c.Terlambat, c.Hadir + c.Terlambat), aPct:pct(c.Sakit + c.Izin + c.Alpha, kerja), avgT:nt ? mt / nt : 0, avgJ:nj ? jk / nj : 0, t12, lem};
 }
 const agg = (rows, kf) => { const m = {}; rows.forEach(r => (m[kf(r)] ??= []).push(r)); return m; };
 
@@ -173,11 +168,12 @@ function chart(id, cfg) {
 function renderRing() {
   const rows = saring(), s = hitung(rows);
   if (!rows.length) { ['stats', 'ins'].forEach(i => $(i).innerHTML = ''); $('stats').innerHTML = `<div class="box" style="grid-column:1/-1"><div class="empty">Belum ada data absensi pada periode ini. Pilih periode lain atau <a href="#" style="color:var(--ac)" onclick="gantiTab('imp');return false">import file Excel absensi</a>.</div></div>`; Object.values(charts).forEach(c => c.destroy()); charts = {}; return; }
-  const aktif = kar.filter(k => k.status === 'Aktif' && (!$('fDep').value || k.departemen === $('fDep').value) && (!$('fArea').value || k.area === $('fArea').value));
+  const dpt = $('fDep').value, ar = $('fArea').value, scope = new Set(abs.filter(r => (!dpt || infoKar(r).departemen === dpt) && (!ar || infoKar(r).area === ar)).map(r => r.nik));
+  const aktif = kar.filter(k => k.status === 'Aktif' && ((!dpt && !ar) || scope.has(String(k.nik).toUpperCase())));
   const ada = new Set(rows.map(r => r.nik));
   const card = (l, n, sub, c) => `<div class="stat" style="--c:${c}"><div class="l">${l}</div><div class="n">${n}</div><div class="s">${sub}</div></div>`;
-  $('stats').innerHTML = card('Tingkat kehadiran', f1(s.hPct) + '%', `${s.hadir} dari ${s.kerja} hari kerja tercatat`, '#4dd0c4') + card('Tingkat keterlambatan', f1(s.tPct) + '%', `${s.c.Terlambat} kali, rata-rata ${Math.round(s.avgT)} menit`, '#f0913f')
-    + card('Ketidakhadiran', f1(s.aPct) + '%', `Sakit ${s.c.Sakit} · Izin ${s.c.Izin} · Alpha ${s.c.Alpha}`, '#e5708f') + card('Rata-rata jam kerja', f1(s.avgJ) + ' jam', 'per hari hadir (jam masuk &amp; keluar)', '#7aa2f7')
+  $('stats').innerHTML = card('Tingkat kehadiran', f1(s.hPct) + '%', `${s.hadir} dari ${s.kerja} hari kerja tercatat`, '#4dd0c4') + card('Tingkat keterlambatan', f1(s.tPct) + '%', `${s.c.Terlambat} kali` + (s.avgT > 0 ? `, rata-rata ${Math.round(s.avgT)} menit` : ''), '#f0913f')
+    + card('Ketidakhadiran', f1(s.aPct) + '%', `Sakit ${s.c.Sakit} · Izin ${s.c.Izin} · Alpha ${s.c.Alpha}`, '#e5708f') + card('Jam kerja kurang', s.t12 + ' hari', `Kode T1/T2 · Lembur ${f1(s.lem)} jam`, '#7aa2f7')
     + card('Karyawan terpantau', ada.size, `dari ${aktif.length} karyawan aktif`, '#b693f5');
   // Tren
   const bulanan = (new Date($('fSampai').value) - new Date($('fDari').value)) / 864e5 > 62, kf = r => bulanan ? r.tanggal.slice(0, 7) : r.tanggal;
@@ -204,14 +200,14 @@ function renderRing() {
 function renderKar() {
   if (tab !== 'kar') return; $('tA').textContent = BATAS_ALPHA; $('tT').textContent = BATAS_TELAT;
   const q = $('q').value.toLowerCase();
-  let l = Object.entries(agg(saring(), r => r.nik)).map(([nik, rs]) => { const s = hitung(rs), k = infoKar(rs[0]); return {nik, nama:k.nama || rs[0].nama || '-', dep:k.departemen || '-', ...s.c, hadirHari:s.hadir, hPct:s.hPct, kerja:s.kerja}; })
+  let l = Object.entries(agg(saring(), r => r.nik)).map(([nik, rs]) => { const s = hitung(rs), k = infoKar(rs[0]); return {nik, nama:k.nama || rs[0].nama || '-', dep:k.departemen || '-', ...s.c, hadirHari:s.hadir, hPct:s.hPct, kerja:s.kerja, t12:s.t12, lem:s.lem}; })
     .filter(x => !q || x.nama.toLowerCase().includes(q) || x.nik.toLowerCase().includes(q));
-  const key = {nama:'nama', dep:'dep', hadir:'hadirHari', terlambat:'Terlambat', sakit:'Sakit', izin:'Izin', cuti:'Cuti', alpha:'Alpha', pct:'hPct'}[sortK];
+  const key = {nama:'nama', dep:'dep', hadir:'hadirHari', terlambat:'Terlambat', sakit:'Sakit', izin:'Izin', cuti:'Cuti', alpha:'Alpha', t12:'t12', lem:'lem', pct:'hPct'}[sortK];
   l.sort((a, b) => (typeof a[key] === 'string' ? a[key].localeCompare(b[key]) : a[key] - b[key]) * sortD); $('cKar').textContent = l.length + ' karyawan';
   const th = (k, t) => `<th class="s" onclick="urut('${k}')">${t}${sortK === k ? (sortD < 0 ? ' ▼' : ' ▲') : ''}</th>`;
-  $('hKar').innerHTML = '<tr>' + th('nama', 'Karyawan') + th('dep', 'Departemen') + th('hadir', 'Hari hadir') + th('terlambat', 'Terlambat') + th('sakit', 'Sakit') + th('izin', 'Izin') + th('cuti', 'Cuti') + th('alpha', 'Alpha') + th('pct', '% Hadir') + '<th></th></tr>';
-  $('bKar').innerHTML = l.map(x => `<tr><td><b>${esc(x.nama)}</b><small>${esc(x.nik)}</small></td><td>${esc(x.dep)}</td><td class="n">${x.hadirHari}</td><td class="n">${x.Terlambat}</td><td class="n">${x.Sakit}</td><td class="n">${x.Izin}</td><td class="n">${x.Cuti}</td><td class="n">${x.Alpha}</td><td class="n"><b>${f1(x.hPct)}%</b></td>
-    <td>${x.Alpha >= BATAS_ALPHA ? '<span class="badge b-d">Alpha tinggi</span> ' : ''}${x.Terlambat >= BATAS_TELAT ? '<span class="badge b-w">Sering terlambat</span>' : ''}</td></tr>`).join('') || '<tr><td colspan="10" class="empty">Tidak ada data.</td></tr>';
+  $('hKar').innerHTML = '<tr>' + th('nama', 'Karyawan') + th('dep', 'Departemen') + th('hadir', 'Hari hadir') + th('terlambat', 'Terlambat') + th('sakit', 'Sakit') + th('izin', 'Izin') + th('cuti', 'Cuti') + th('alpha', 'Alpha') + th('t12', 'Jam kurang') + th('lem', 'Lembur (jam)') + th('pct', '% Hadir') + '<th></th></tr>';
+  $('bKar').innerHTML = l.map(x => `<tr><td><b>${esc(x.nama)}</b><small>${esc(x.nik)}</small></td><td>${esc(x.dep)}</td><td class="n">${x.hadirHari}</td><td class="n">${x.Terlambat}</td><td class="n">${x.Sakit}</td><td class="n">${x.Izin}</td><td class="n">${x.Cuti}</td><td class="n">${x.Alpha}</td><td class="n">${x.t12}</td><td class="n">${f1(x.lem)}</td><td class="n"><b>${f1(x.hPct)}%</b></td>
+    <td>${x.Alpha >= BATAS_ALPHA ? '<span class="badge b-d">Alpha tinggi</span> ' : ''}${x.Terlambat >= BATAS_TELAT ? '<span class="badge b-w">Sering terlambat</span>' : ''}</td></tr>`).join('') || '<tr><td colspan="12" class="empty">Tidak ada data.</td></tr>';
 }
 function urut(k) { if (sortK === k) sortD = -sortD; else { sortK = k; sortD = k === 'nama' || k === 'dep' ? 1 : -1; } renderKar(); }
 function gantiTab(t) {
@@ -220,72 +216,93 @@ function gantiTab(t) {
 }
 document.querySelector('.tabs').addEventListener('click', e => { const b = e.target.closest('.tab'); if (b) gantiTab(b.dataset.t); });
 
-// ---------- Import Excel ----------
-let wb = null, aoa = [], hdr = [], impRows = [], impNama = '';
-const FIELD = {mNik:/^(nik|nip|no\.?\s*induk|id\s*(karyawan|pegawai)?|employee\s*id|badge|pin)\b/i, mTgl:/tanggal|tgl|date/i, mNama:/nama|name/i, mIn:/masuk|check.?in|clock.?in|datang|scan\s*in|^in$/i, mOut:/keluar|pulang|check.?out|clock.?out|scan\s*out|^out$/i, mSt:/^status|kehadiran|^absen/i, mKet:/keterangan|^ket\b|remark|note/i};
+// ---------- Import Excel (rekap: tanggal menyamping, tiap tanggal = kolom ABS + LB/LL) ----------
+const MON = {jan:1, januari:1, feb:2, februari:2, mar:3, maret:3, apr:4, april:4, mei:5, may:5, jun:6, juni:6, jul:7, juli:7, agu:8, agt:8, agustus:8, aug:8, sep:9, sept:9, september:9, okt:10, oktober:10, oct:10, nov:11, november:11, des:12, desember:12, dec:12};
+const RANGE = /(\d{1,2})\s*([A-Za-z]+)?\s*(\d{4})?\s*(?:-|–|—|s\/d|sd|sampai)\s*(\d{1,2})\s*([A-Za-z]+)\s*(\d{4})/i;
+const ymd = (y, m, d) => `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+function parseRange(t) {   // "21 Agustus - 20 September 2026" -> {start, end}
+  const m = RANGE.exec(String(t)); if (!m) return null; const em = MON[m[5].toLowerCase()], sm = m[2] ? MON[m[2].toLowerCase()] : em; if (!em || !sm) return null;
+  const ey = +m[6], sy = m[3] ? +m[3] : (sm > em ? ey - 1 : ey); return {start:ymd(sy, sm, +m[1]), end:ymd(ey, em, +m[4])};
+}
 const SYN = [[/^(h|hadir|present|masuk|p)$/i, 'Hadir'], [/terlambat|telat|late|^tl$/i, 'Terlambat'], [/^(s|sakit|sick|sk)$/i, 'Sakit'], [/^(i|izin|ijin|permit|permisi)$/i, 'Izin'], [/^(c|ct|cuti.*|leave|annual.*)$/i, 'Cuti'], [/^(a|ab|alpha|alpa|absen.*|mangkir|tanpa.*)$/i, 'Alpha'], [/dinas|^dl$|tugas|visit/i, 'Dinas'], [/libur|^off$|holiday|^l$|weekend/i, 'Libur']];
-const tebak = v => (SYN.find(([r]) => r.test(String(v).trim())) || [0, 'Abaikan'])[1];
-function templateXlsx() {
-  const ws = XLSX.utils.aoa_to_sheet([['NIK', 'Nama', 'Tanggal', 'Jam Masuk', 'Jam Keluar', 'Status', 'Keterangan'], ['6.7.170723.0103', 'ABDUL MUIN FARUK', '2026-10-01', '07:55', '17:05', 'Hadir', ''], ['6.7.170723.0103', 'ABDUL MUIN FARUK', '2026-10-02', '08:20', '17:00', 'Hadir', ''], ['6.7.170723.0103', 'ABDUL MUIN FARUK', '2026-10-03', '', '', 'Sakit', 'Surat dokter']]);
-  const w = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(w, ws, 'Absensi'); XLSX.writeFile(w, 'template-absensi.xlsx');
+// V hadir · T terlambat · T1/T2 hadir dengan jam kerja kurang (kode asli tetap disimpan) · 0 = bukan hari kerja
+const KODE = {V:'Hadir', H:'Hadir', T:'Terlambat', T1:'Hadir', T2:'Hadir', S:'Sakit', I:'Izin', C:'Cuti', A:'Alpha', '0':'Libur'};
+const tebak = v => KODE[v] || (SYN.find(([r]) => r.test(String(v).trim())) || [0, 'Abaikan'])[1];
+const bersih = v => { const t = String(v ?? '').trim(); return !t || t.startsWith('#') ? null : t; };   // "#N/A" dll dianggap kosong
+const isDay = v => { const n = Number(v); return v !== '' && v !== null && Number.isInteger(n) && n >= 1 && n <= 31; };
+let blocks = [], kodeMap = {}, impRows = [], impNama = '';
+
+function parseSheet(aoa, src) {
+  const hi = aoa.findIndex(r => r.some(c => /^nik$/i.test(String(c).trim()))); if (hi < 0) return [];
+  const H = aoa[hi].map(c => String(c ?? '').trim()), ix = re => H.findIndex(h => re.test(h)), cN = ix(/^nik$/i);
+  const cId = {nama:ix(/nama/i), unit:ix(/unit|lokasi/i), dep:ix(/^dep/i), bag:ix(/^bagian/i), jab:ix(/^jabatan/i), grade:ix(/grade|level/i)};
+  let di = -1; for (let r = hi; r <= hi + 3 && r < aoa.length; r++) if (aoa[r].filter((v, c) => c > cN && isDay(v)).length >= 5) { di = r; break; }
+  if (di < 0) return [];
+  const codeRow = aoa[di + 1] || [], dayCols = []; aoa[di].forEach((v, c) => { if (c > cN && isDay(v)) dayCols.push(c); });
+  const lbOf = c => /^(LB|LL)$/i.test(String(codeRow[c + 1] ?? '').trim()) ? c + 1 : -1;
+  const width = Math.max(...aoa.map(r => r.length)); let cur = '', lab = [];
+  for (let c = 0; c < width; c++) { for (let r = hi; r <= di; r++) if (RANGE.test(String(aoa[r][c] ?? ''))) { cur = String(aoa[r][c]).trim(); break; } lab[c] = cur; }
+  const atas = aoa.slice(0, hi).flat().map(String).find(t => RANGE.test(t));           // cadangan: label periode di atas tabel
+  const out = []; dayCols.forEach(c => { const l = lab[c] || (atas || '').trim(); let b = out.at(-1); if (!b || b.label !== l) { b = {src, label:l, start:(parseRange(l) || {}).start || '', days:[], libur:[], cols:[], rows:[], on:true}; out.push(b); } b.days.push(+aoa[di][c]); b.cols.push(c); b.libur.push(/^LL$/i.test(String(codeRow[lbOf(c)] ?? '').trim())); });
+  for (let r = di + 2; r < aoa.length; r++) {
+    const nik = String(aoa[r][cN] ?? '').trim().toUpperCase().replace(/\s+/g, ''); if (!/\d/.test(nik)) continue;
+    const g = k => cId[k] >= 0 ? bersih(aoa[r][cId[k]]) : null, p = {nik, nama:g('nama'), unit:g('unit'), dep:g('dep'), bag:g('bag'), jab:g('jab'), grade:g('grade')};
+    out.forEach(b => { const items = []; b.cols.forEach((c, i) => { const v = aoa[r][c]; if (v === '' || v === null || v === undefined) return;
+      const lb = lbOf(c), lv = lb >= 0 ? Number(aoa[r][lb]) : 0; items.push({i, code:typeof v === 'number' ? String(v) : String(v).trim().toUpperCase(), lem:lv > 0 ? lv : 0}); }); b.rows.push({p, items}); });
+  }
+  return out;
 }
-async function bacaFile(f) {
-  if (!f) return; impNama = f.name;
-  try { wb = XLSX.read(await f.arrayBuffer(), {type:'array'}); } catch (e) { return toast('File tidak dapat dibaca: ' + e.message, 1); }
-  $('sheet').innerHTML = wb.SheetNames.map(n => `<option>${esc(n)}</option>`).join(''); $('sheet').classList.toggle('hid', wb.SheetNames.length < 2); bacaSheet();
+function tanggalBlok(b) {   // tanggal tiap kolom: mulai dari tanggal awal periode, bulan naik saat nomor hari mengecil (21..31 -> 1..20)
+  if (!b.start) return null; let [y, m] = b.start.split('-').map(Number), prev = 0;
+  return b.days.map(d => { if (d < prev) { m++; if (m > 12) { m = 1; y++; } } prev = d; const t = new Date(y, m - 1, d); return t.getMonth() === m - 1 ? ymd(y, m, d) : null; });
 }
-function bacaSheet(ulang) {
-  aoa = XLSX.utils.sheet_to_json(wb.Sheets[$('sheet').value], {header:1, raw:true, defval:''});
-  if (!ulang) $('hRow').value = Math.max(1, aoa.findIndex(r => r.filter(c => String(c).trim() !== '').length >= 3) + 1);
-  const hi = +$('hRow').value - 1; hdr = (aoa[hi] || []).map(c => String(c).trim());
-  const opt = '<option value="">- tidak ada -</option>' + hdr.map((h, i) => h ? `<option value="${i}">${esc(h)}</option>` : '').join('');
-  Object.entries(FIELD).forEach(([id, re]) => { $(id).innerHTML = opt; const i = hdr.findIndex(h => h && re.test(h)); if (i >= 0) $(id).value = i; $(id).onchange = id === 'mSt' ? () => { petaStatus(); olah(); } : olah; });
-  $('fInfo').textContent = `${impNama} · ${aoa.length - hi - 1} baris data. Kolom sudah ditebak dari judul; ubah bila kurang tepat.`; $('s2').classList.remove('hid'); petaStatus(); olah();
+async function bacaFile(files) {
+  blocks = []; const lewat = [];
+  for (const f of files) {
+    let wb; try { wb = XLSX.read(await f.arrayBuffer(), {type:'array'}); } catch (e) { toast(`${f.name} tidak dapat dibaca: ${e.message}`, 1); continue; }
+    wb.SheetNames.forEach(n => { const bl = parseSheet(XLSX.utils.sheet_to_json(wb.Sheets[n], {header:1, raw:true, defval:''}), `${f.name} · ${n}`); if (!bl.length && !/^(kode|keterangan|legend)/i.test(n)) lewat.push(n); blocks.push(...bl); });
+  }
+  impNama = [...files].map(f => f.name).join(', ').slice(0, 200);
+  if (!blocks.length) { $('s2').classList.add('hid'); $('s3').classList.add('hid'); return toast('Format tidak dikenali. Pastikan ada kolom NIK, baris nomor tanggal (1-31), dan baris ABS/LB. Gunakan "Unduh template" sebagai contoh.', 1); }
+  if (lewat.length) toast('Sheet dilewati (bukan format absensi): ' + lewat.join(', '));
+  $('bPer').innerHTML = blocks.map((b, i) => `<tr><td><input type="checkbox" checked onchange="blocks[${i}].on=this.checked;petaKode();olah()" style="width:auto"></td><td>${esc(b.src)}</td><td>${esc(b.label || '(tidak ada label)')}</td>
+    <td><input type="date" value="${b.start}" onchange="blocks[${i}].start=this.value;olah()"></td><td id="pEnd${i}">-</td><td class="n">${b.rows.length}</td><td class="n">${b.days.length}</td></tr>`).join('');
+  $('s2').classList.remove('hid'); petaKode(); olah();
 }
-function petaStatus() {
-  const c = $('mSt').value; if (c === '') { $('stMap').innerHTML = ''; return; }
-  const vals = [...new Set(aoa.slice(+$('hRow').value).map(r => String(r[c]).trim()).filter(Boolean))].slice(0, 30);
-  $('stMap').innerHTML = '<div class="muted" style="width:100%">Arti nilai status di file:</div>' + vals.map(v => `<label class="tog">“${esc(v)}” →<select data-raw="${esc(v)}" onchange="olah()">${[...ST, 'Libur', 'Abaikan'].map(s => `<option ${s === tebak(v) ? 'selected' : ''}>${s}</option>`).join('')}</select></label>`).join('');
+function petaKode() {
+  const n = {}; blocks.filter(b => b.on).forEach(b => b.rows.forEach(r => r.items.forEach(it => n[it.code] = (n[it.code] || 0) + 1)));
+  Object.keys(n).forEach(k => { kodeMap[k] ??= tebak(k); });
+  $('kodeMap').innerHTML = Object.keys(n).sort().map(k => `<label class="tog">“${esc(k)}” <span>(${n[k]}×)</span> →<select data-k="${esc(k)}" onchange="kodeMap[this.dataset.k]=this.value;olah()">${[...ST, 'Libur', 'Abaikan'].map(x => `<option ${x === kodeMap[k] ? 'selected' : ''}>${x}</option>`).join('')}</select></label>`).join('');
 }
-function pdate(v) {
-  let y, m, d;
-  if (typeof v === 'number') { const p = XLSX.SSF.parse_date_code(Math.floor(v)); if (!p) return null; ({y, m, d} = p); }
-  else { const s = String(v).trim(); let t;
-    if ((t = /(\d{4})[-\/.](\d{1,2})[-\/.](\d{1,2})/.exec(s))) [y, m, d] = [+t[1], +t[2], +t[3]];
-    else if ((t = /(\d{1,2})[-\/.\s]([A-Za-z]{3,})[-\/.\s,]*(\d{2,4})/.exec(s))) { const mi = ['jan', 'feb', 'mar', 'apr', 'mei|may', 'jun', 'jul', 'agu|aug', 'sep', 'okt|oct', 'nov', 'des|dec'].findIndex(n => new RegExp('^(' + n + ')', 'i').test(t[2])); if (mi < 0) return null; [y, m, d] = [+t[3], mi + 1, +t[1]]; }
-    else if ((t = /(\d{1,2})[-\/.](\d{1,2})[-\/.](\d{2,4})/.exec(s))) [y, m, d] = [+t[3], +t[2], +t[1]];   // dd/mm/yyyy
-    else return null; }
-  if (y < 100) y += 2000; if (y < 2000 || y > 2100 || m < 1 || m > 12 || d < 1 || d > 31) return null;
-  return `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
-}
-function ptime(v) {
-  if (typeof v === 'number') { const mn = Math.round((v - Math.floor(v)) * 1440); return mn > 0 ? mn : null; }
-  const t = /(\d{1,2})[:.](\d{2})/.exec(String(v)); if (!t) return null; const mn = +t[1] * 60 + +t[2]; return mn > 0 && +t[1] < 24 && +t[2] < 60 ? mn : null;
-}
-const hhmm = m => m == null ? null : `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}:00`;
 function olah() {
-  const col = id => $(id).value === '' ? -1 : +$(id).value, cN = col('mNik'), cT = col('mTgl'), cNm = col('mNama'), cI = col('mIn'), cO = col('mOut'), cS = col('mSt'), cK = col('mKet');
-  if (cN < 0 || cT < 0) { $('s3').classList.add('hid'); return; }
-  const std = ptime($('jStd').value) ?? 480, tol = +$('jTol').value || 0, smap = {}; document.querySelectorAll('#stMap select').forEach(s => smap[s.dataset.raw] = s.value);
-  const m = new Map(), lewat = {kosong:0, tgl:0, abaikan:0, dobel:0}; let tak = 0;
-  aoa.slice(+$('hRow').value).forEach(r => {
-    if (r.every(c => String(c).trim() === '')) return;
-    const nik = String(r[cN]).trim().toUpperCase().replace(/\s+/g, ''), tg = pdate(r[cT]); if (!nik) { lewat.kosong++; return; } if (!tg) { lewat.tgl++; return; }
-    const jm = cI >= 0 ? ptime(r[cI]) : null, jk = cO >= 0 ? ptime(r[cO]) : null; let st = cS >= 0 && String(r[cS]).trim() ? smap[String(r[cS]).trim()] : null;
-    if (st === 'Abaikan') { lewat.abaikan++; return; }
-    if (!st) { if (jm != null) st = 'Hadir'; else if ($('oAlpha').checked) st = 'Alpha'; else { lewat.abaikan++; return; } }
-    let tm = 0; if (jm != null && (st === 'Hadir' || st === 'Terlambat')) { const lt = jm - std; if (lt > tol) { st = 'Terlambat'; tm = lt; } else if (st === 'Terlambat') tm = Math.max(0, lt); }
-    let jam = null; if (jm != null && jk != null) { const d = (jk - jm + 1440) % 1440 / 60; jam = d <= 16 ? +d.toFixed(2) : null; }
-    const k = nik + '|' + tg; if (m.has(k)) lewat.dobel++;
-    m.set(k, {nik, nama:(cNm >= 0 ? String(r[cNm]).trim() : '') || karMap[nik]?.nama || null, tanggal:tg, jam_masuk:hhmm(jm), jam_keluar:hhmm(jk), status:st, terlambat_menit:tm, jam_kerja:jam, keterangan:cK >= 0 ? String(r[cK]).trim() || null : null});
+  const m = new Map(); let dobel = 0, buruk = 0, nol = 0, tanpa = 0;
+  blocks.forEach((b, bi) => {
+    if (!b.on) return; const dt = tanggalBlok(b), e = $('pEnd' + bi); if (e) e.textContent = dt ? dt.filter(Boolean).at(-1) || '-' : '-'; if (!dt) { tanpa++; return; }
+    b.rows.forEach(r => r.items.forEach(it => { const tg = dt[it.i]; if (!tg) { buruk++; return; } const st = kodeMap[it.code]; if (!st || st === 'Abaikan') return;
+      if (it.code === '0' && !b.libur[it.i]) nol++;
+      const k = r.p.nik + '|' + tg; if (m.has(k)) dobel++;
+      m.set(k, {nik:r.p.nik, nama:r.p.nama || karMap[r.p.nik]?.nama || null, tanggal:tg, status:st, kode:it.code, terlambat_menit:0, lembur_jam:it.lem, hari_libur:!!b.libur[it.i], unit_kerja:r.p.unit, departemen:r.p.dep, bagian:r.p.bag, jabatan:r.p.jab, grade:r.p.grade}); }));
   });
-  impRows = [...m.values()]; tak = new Set(impRows.filter(r => !karMap[r.nik]).map(r => r.nik)).size;
-  const tg = impRows.map(r => r.tanggal).sort(), c = hitung(impRows).c;
-  $('pv').innerHTML = `<div class="row" style="margin-top:6px"><span class="badge b-g">${impRows.length} baris siap import</span>${tg.length ? `<span class="badge">Periode ${tg[0]} s/d ${tg.at(-1)}</span>` : ''}
-    ${tak ? `<span class="badge b-w">${tak} NIK tidak ada di master karyawan</span>` : ''}${lewat.tgl ? `<span class="badge b-d">${lewat.tgl} baris tanggal tidak terbaca (dilewati)</span>` : ''}${lewat.kosong ? `<span class="badge b-w">${lewat.kosong} baris tanpa NIK (dilewati)</span>` : ''}${lewat.abaikan ? `<span class="badge">${lewat.abaikan} baris dilewati (tanpa jam/status atau diabaikan)</span>` : ''}${lewat.dobel ? `<span class="badge b-w">${lewat.dobel} dobel NIK+tanggal (dipakai yang terakhir)</span>` : ''}</div>
-    <div class="muted" style="margin:8px 0">${ST.map(s => `${s} ${c[s]}`).join(' · ')}</div>
-    <div class="tw"><table style="min-width:640px"><thead><tr><th>NIK</th><th>Nama</th><th>Tanggal</th><th>Masuk</th><th>Keluar</th><th>Status</th><th>Telat (mnt)</th></tr></thead><tbody>${impRows.slice(0, 8).map(r => `<tr><td>${esc(r.nik)}</td><td>${esc(r.nama || '-')}</td><td>${r.tanggal}</td><td>${(r.jam_masuk || '-').slice(0, 5)}</td><td>${(r.jam_keluar || '-').slice(0, 5)}</td><td>${r.status}</td><td>${r.terlambat_menit || ''}</td></tr>`).join('') || '<tr><td colspan="7" class="empty">Tidak ada baris valid. Periksa pemetaan kolom.</td></tr>'}</tbody></table></div>`;
+  impRows = [...m.values()]; const tg = impRows.map(r => r.tanggal).sort(), c = hitung(impRows).c, tak = new Set(impRows.filter(r => !karMap[r.nik]).map(r => r.nik)).size, nk = new Set(impRows.map(r => r.nik)).size;
+  $('pv').innerHTML = `<div class="row" style="margin-top:6px"><span class="badge b-g">${impRows.length} data absensi siap import</span><span class="badge">${nk} karyawan</span>${tg.length ? `<span class="badge">Periode ${tg[0]} s/d ${tg.at(-1)}</span>` : ''}
+    ${tanpa ? `<span class="badge b-d">${tanpa} periode belum punya tanggal mulai (diisi di langkah 2)</span>` : ''}${tak ? `<span class="badge b-w">${tak} NIK belum ada di master karyawan</span>` : ''}${buruk ? `<span class="badge b-d">${buruk} sel tanggal tidak valid (dilewati)</span>` : ''}${nol ? `<span class="badge">${nol} sel “0” jatuh di hari kerja (kolom LB), diperlakukan sebagai “${esc(kodeMap['0'] || 'Abaikan')}”</span>` : ''}${dobel ? `<span class="badge b-w">${dobel} tanggal tumpang tindih antar periode (dipakai yang terakhir)</span>` : ''}</div>
+    <div class="muted" style="margin:8px 0">${ST.map(x => `${x} ${c[x]}`).join(' · ')} · Libur ${c.Libur}</div>
+    <div class="tw"><table style="min-width:640px"><thead><tr><th>NIK</th><th>Nama</th><th>Departemen</th><th>Tanggal</th><th>Kode</th><th>Status</th><th>Lembur (jam)</th></tr></thead><tbody>${impRows.filter(r => r.status !== 'Libur').slice(0, 8).map(r => `<tr><td>${esc(r.nik)}</td><td>${esc(r.nama || '-')}</td><td>${esc(r.departemen || '-')}</td><td>${r.tanggal}</td><td>${esc(r.kode)}</td><td>${r.status}</td><td>${r.lembur_jam || ''}</td></tr>`).join('') || '<tr><td colspan="7" class="empty">Belum ada data. Periksa tanggal mulai periode dan arti kode.</td></tr>'}</tbody></table></div>`;
   $('s3').classList.remove('hid'); $('btnImp').disabled = !impRows.length;
+}
+function templateXlsx() {
+  const a = $('tDari').value, b = $('tSampai').value; if (!a || !b || a > b) return toast('Isi tanggal periode template dengan benar.', 1);
+  const days = []; for (let d = new Date(a + 'T00:00:00'); iso(d) <= b; d.setDate(d.getDate() + 1)) days.push(new Date(d)); if (days.length > 62) return toast('Maksimal 62 hari per template.', 1);
+  const BP = ['', 'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'], d0 = days[0], d1 = days.at(-1);
+  const lbl = `${d0.getDate()} ${BP[d0.getMonth() + 1]}${d0.getFullYear() !== d1.getFullYear() ? ' ' + d0.getFullYear() : ''} - ${d1.getDate()} ${BP[d1.getMonth() + 1]} ${d1.getFullYear()}`;
+  const head = ['NO', 'NIK', 'Nama KTP', 'UNIT Kerja', 'Departemen', 'Bagian', 'Jabatan', 'Grade/ Level'], n0 = head.length, nc = days.length * 2;
+  const aktif = kar.filter(k => k.status === 'Aktif').sort((x, y) => String(x.nama).localeCompare(String(y.nama)));
+  const aoa = [['DATA ABSENSI KARYAWAN'], ['PERIODE', lbl], [], [...head, lbl, ...Array(nc - 1).fill('')], [...Array(n0).fill(''), ...days.flatMap(d => [d.getDate(), ''])],
+    [...Array(n0).fill(''), ...days.flatMap(d => ['ABS', d.getDay() === 0 ? 'LL' : 'LB'])], ...aktif.map((k, i) => [i + 1, k.nik, k.nama, k.area || '', k.departemen || '', '', k.jabatan || '', '', ...Array(nc).fill('')])];
+  const ws = XLSX.utils.aoa_to_sheet(aoa); ws['!merges'] = [{s:{r:3, c:n0}, e:{r:3, c:n0 + nc - 1}}, ...days.map((_, i) => ({s:{r:4, c:n0 + 2 * i}, e:{r:4, c:n0 + 2 * i + 1}}))];
+  ws['!cols'] = [{wch:5}, {wch:18}, {wch:28}, {wch:26}, {wch:22}, {wch:18}, {wch:22}, {wch:12}];
+  const kd = XLSX.utils.aoa_to_sheet([['Kode', 'Arti'], ['V', 'Hadir'], ['T', 'Terlambat'], ['T1', 'Hadir, jam kerja kurang (4 < n ≤ 5 jam)'], ['T2', 'Hadir, jam kerja sangat kurang (n < 4 jam)'], ['S', 'Sakit'], ['I', 'Izin'], ['C', 'Cuti'], ['A', 'Alpha'], ['0', 'Bukan hari kerja / libur'], [], ['Kolom LB / LL', 'Isi jam lembur hari biasa (LB) atau hari libur (LL). Kosongkan bila tidak ada.'], ['Sel kosong', 'Dilewati (mis. karyawan belum bergabung)']]);
+  kd['!cols'] = [{wch:16}, {wch:60}]; const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, 'Absensi'); XLSX.utils.book_append_sheet(wb, kd, 'Kode'); XLSX.writeFile(wb, `template-absensi-${a}-sd-${b}.xlsx`);
 }
 async function doImport() {
   if (!impRows.length) return; const tg = impRows.map(r => r.tanggal).sort(); $('btnImp').disabled = true;
@@ -294,10 +311,10 @@ async function doImport() {
     for (let i = 0; i < impRows.length; i += 500) {
       const { error } = await supabaseClient.from('hr_absensi').upsert(impRows.slice(i, i + 500).map(r => ({...r, batch_id:b.id, created_by:user.nama || user.username || null})), {onConflict:'nik,tanggal'}); if (error) throw error;
     }
-    toast(`${impRows.length} baris absensi berhasil diimport.`);
-    $('fPreset').value = 'x'; $('fDari').value = tg[0].slice(0, 7) + '-01'; $('fSampai').value = iso(new Date(+tg.at(-1).slice(0, 4), +tg.at(-1).slice(5, 7), 0));
-    $('file').value = ''; $('s2').classList.add('hid'); $('s3').classList.add('hid'); impRows = []; await muat(); gantiTab('ring');
-  } catch (e) { console.error(e); toast('Import gagal: ' + e.message + ' (pastikan sql/hr_analitik_schema.sql sudah dijalankan)', 1); }
+    toast(`${impRows.length} data absensi berhasil diimport.`);
+    $('fPreset').value = 'x'; $('fDari').value = tg[0]; $('fSampai').value = tg.at(-1);
+    $('file').value = ''; $('s2').classList.add('hid'); $('s3').classList.add('hid'); impRows = []; blocks = []; await muat(); gantiTab('ring');
+  } catch (e) { console.error(e); toast('Import gagal: ' + e.message + ' (pastikan sql/hr_analitik_schema.sql, termasuk bagian TAMBAHAN, sudah dijalankan)', 1); }
   finally { $('btnImp').disabled = false; }
 }
 async function muatRiwayat() {
@@ -313,6 +330,7 @@ async function batalImport(id) {
 // ---------- Awal ----------
 (async () => {
   preset();
+  { const n = new Date(), a = n.getDate() > 20 ? new Date(n.getFullYear(), n.getMonth(), 21) : new Date(n.getFullYear(), n.getMonth() - 1, 21), b = new Date(a.getFullYear(), a.getMonth() + 1, 20); $('tDari').value = iso(a); $('tSampai').value = iso(b); }   // cut-off gaji 21 - 20
   try { const { data } = await supabaseClient.from('hr_absensi').select('tanggal').order('tanggal', {ascending:false}).limit(1);   // langsung ke bulan data terakhir
     if (data?.length) { const t = data[0].tanggal; $('fPreset').value = 'x'; $('fDari').value = t.slice(0, 7) + '-01'; $('fSampai').value = iso(new Date(+t.slice(0, 4), +t.slice(5, 7), 0)); } } catch (e) {}
   muat();

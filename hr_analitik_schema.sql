@@ -42,3 +42,17 @@ drop policy if exists "akses_anon_hr_absensi" on public.hr_absensi;
 create policy "akses_anon_hr_absensi" on public.hr_absensi for all to anon using (true) with check (true);
 drop policy if exists "akses_anon_hr_absensi_import" on public.hr_absensi_import;
 create policy "akses_anon_hr_absensi_import" on public.hr_absensi_import for all to anon using (true) with check (true);
+
+
+-- =====================================================================
+-- TAMBAHAN: format rekap absensi (tanggal menyamping, kode V/T/T1/T2/S/I/C/A/0 + kolom lembur LB/LL)
+-- Jalankan bagian ini (aman diulang) bila tabel hr_absensi sudah dibuat sebelumnya.
+-- =====================================================================
+alter table public.hr_absensi add column if not exists kode text;            -- kode asli dari file (V, T, T1, T2, S, I, C, A, 0)
+alter table public.hr_absensi add column if not exists lembur_jam numeric(5,2) not null default 0;
+alter table public.hr_absensi add column if not exists hari_libur boolean not null default false;   -- kolom LL pada file
+alter table public.hr_absensi add column if not exists unit_kerja text;
+alter table public.hr_absensi add column if not exists departemen text;
+alter table public.hr_absensi add column if not exists bagian text;
+alter table public.hr_absensi add column if not exists jabatan text;
+alter table public.hr_absensi add column if not exists grade text;
