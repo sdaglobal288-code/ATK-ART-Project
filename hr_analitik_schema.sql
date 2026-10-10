@@ -56,3 +56,17 @@ alter table public.hr_absensi add column if not exists departemen text;
 alter table public.hr_absensi add column if not exists bagian text;
 alter table public.hr_absensi add column if not exists jabatan text;
 alter table public.hr_absensi add column if not exists grade text;
+
+
+-- =====================================================================
+-- TAMBAHAN: kategori yang diisi manual lewat sistem (tab "Kategorisasi")
+--   Cuti    -> 'Cuti Tahunan' | 'Cuti Khusus'
+--   T1 / T2 -> 'Terlambat'    | 'Pulang Cepat'
+-- Import ulang TIDAK menghapus kategori (kolom ini tidak ikut ditimpa).
+-- =====================================================================
+alter table public.hr_absensi add column if not exists kategori text;
+alter table public.hr_absensi add column if not exists kategori_oleh text;
+alter table public.hr_absensi add column if not exists kategori_at timestamptz;
+alter table public.hr_absensi drop constraint if exists hr_absensi_kategori_check;
+alter table public.hr_absensi add constraint hr_absensi_kategori_check
+  check (kategori is null or kategori in ('Cuti Tahunan','Cuti Khusus','Terlambat','Pulang Cepat'));
