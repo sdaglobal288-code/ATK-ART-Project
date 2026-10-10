@@ -95,9 +95,9 @@
       <details><summary class="muted" style="cursor:pointer">Pengaturan skor &amp; syarat</summary>
         <div class="map">
           <label>Bobot kehadiran (%)<input type="number" id="cWK" min="0"></label><label>Bobot ketepatan waktu (%)<input type="number" id="cWT" min="0"></label><label>Bobot tanpa alpha (%)<input type="number" id="cWA" min="0"></label><label>Bobot jam kerja penuh (%)<input type="number" id="cWJ" min="0"></label>
-          <label>Minimal data (% dari hari kerja)<input type="number" id="cMin" min="0" max="100"></label><label>Maks. terlambat (kali)<input type="number" id="cTel" min="0"></label><label>Maks. alpha (hari)<input type="number" id="cAlp" min="0"></label><label>Departemen dikecualikan (pisah koma)<input id="cEx"></label>
+          <label>Minimal data (% dari hari kerja)<input type="number" id="cMin" min="0" max="100"></label><label>Maks. terlambat (kali)<input type="number" id="cTel" min="0"></label><label>Maks. alpha (hari)<input type="number" id="cAlp" min="0"></label><label>Maks. izin (hari)<input type="number" id="cIzn" min="0"></label><label>Maks. sakit (hari, kosong = tanpa batas)<input type="number" id="cSak" min="0" placeholder="tanpa batas"></label><label>Maks. cuti (hari, kosong = tanpa batas)<input type="number" id="cCut" min="0" placeholder="tanpa batas"></label><label>Maks. jam kerja kurang T1/T2 (hari, kosong = tanpa batas)<input type="number" id="cJk" min="0" placeholder="tanpa batas"></label><label>Departemen dikecualikan (pisah koma)<input id="cEx"></label>
         </div>
-        <div class="row"><button class="btn sm" onclick="simpanCfg()">Terapkan</button><button class="btn sec sm" onclick="resetCfg()">Kembalikan bawaan</button><span class="muted">Sakit/izin hanya mengurangi 30% dari bobot alpha. Cuti, libur, dan dinas tidak mengurangi skor.</span></div>
+        <div class="row"><button class="btn sm" onclick="simpanCfg()">Terapkan</button><button class="btn sec sm" onclick="resetCfg()">Kembalikan bawaan</button><span class="muted">Bawaan: harus benar-benar hadir (tanpa terlambat, alpha, izin, sakit, cuti, dan jam kerja kurang T1/T2). Dinas dan hari libur tidak mengurangi. Jika sakit/cuti diizinkan, sakit mengurangi skor 30% dari bobot alpha. “Tidak pernah” dihitung pada periode yang dipilih di filter (pilih rentang lebih panjang untuk syarat yang lebih ketat).</span></div>
       </details></div>
     <div id="bestInfo" class="muted" style="margin-bottom:10px"></div>
     <div class="grid2" id="podium" style="grid-template-columns:repeat(3,1fr)"></div>
@@ -236,12 +236,12 @@ function gantiTab(t) {
 document.querySelector('.tabs').addEventListener('click', e => { const b = e.target.closest('.tab'); if (b) gantiTab(b.dataset.t); });
 
 // ---------- Karyawan Terbaik (kedisiplinan) ----------
-const CFG0 = {wK:40, wT:30, wA:20, wJ:10, min:80, tel:3, alp:0, ex:'Direksi'}; let cfg = {...CFG0};
-try { cfg = {...CFG0, ...JSON.parse(localStorage.getItem('hr_best_cfg') || '{}')}; } catch (e) {}
-const CF = {cWK:'wK', cWT:'wT', cWA:'wA', cWJ:'wJ', cMin:'min', cTel:'tel', cAlp:'alp', cEx:'ex'};
+const CFG0 = {wK:40, wT:30, wA:20, wJ:10, min:80, tel:0, alp:0, izn:0, sak:0, cut:0, jk:0, ex:'Direksi'};   // syarat: harus benar-benar hadir (tanpa terlambat, alpha, izin, sakit, cuti, jam kerja kurang T1/T2); dinas dihitung hadir let cfg = {...CFG0};
+try { cfg = {...CFG0, ...JSON.parse(localStorage.getItem('hr_best_cfg4') || '{}')}; } catch (e) {}
+const CF = {cWK:'wK', cWT:'wT', cWA:'wA', cWJ:'wJ', cMin:'min', cTel:'tel', cAlp:'alp', cIzn:'izn', cSak:'sak', cCut:'cut', cJk:'jk', cEx:'ex'};
 const isiCfg = () => Object.entries(CF).forEach(([id, k]) => $(id).value = cfg[k]);
-function simpanCfg() { Object.entries(CF).forEach(([id, k]) => cfg[k] = k === 'ex' ? $(id).value : Math.max(0, Number($(id).value) || 0)); try { localStorage.setItem('hr_best_cfg', JSON.stringify(cfg)); } catch (e) {} renderBest(); toast('Pengaturan diterapkan.'); }
-function resetCfg() { cfg = {...CFG0}; try { localStorage.removeItem('hr_best_cfg'); } catch (e) {} isiCfg(); renderBest(); }
+function simpanCfg() { Object.entries(CF).forEach(([id, k]) => cfg[k] = k === 'ex' ? $(id).value : (k === 'sak' || k === 'cut' || k === 'jk') && $(id).value.trim() === '' ? '' : Math.max(0, Number($(id).value) || 0)); try { localStorage.setItem('hr_best_cfg4', JSON.stringify(cfg)); } catch (e) {} renderBest(); toast('Pengaturan diterapkan.'); }
+function resetCfg() { cfg = {...CFG0}; try { localStorage.removeItem('hr_best_cfg4'); } catch (e) {} isiCfg(); renderBest(); }
 // Skor 0-100 = kehadiran (alpha penuh, sakit/izin 30%) + ketepatan waktu + tanpa alpha + jam kerja penuh, dengan bobot dari pengaturan
 function skorList(rows) {
   const list = Object.entries(agg(rows, r => r.nik)).map(([nik, rs]) => ({nik, s:hitung(rs), k:infoKar(rs[0])})), pot = Math.max(1, ...list.map(x => x.s.kerja));
@@ -249,8 +249,8 @@ function skorList(rows) {
   return list.map(x => { const c = x.s.c, h = x.s.hadir, ef = x.s.kerja - c.Cuti, cov = x.s.kerja / pot * 100;
     const K = ef > 0 ? Math.max(0, 1 - (c.Alpha + 0.3 * (c.Sakit + c.Izin)) / ef) : 0, T = h ? 1 - c.Terlambat / h : 0, A = Math.max(0, 1 - c.Alpha / 3), J = h ? 1 - x.s.t12 / h : 0;
     const layak = cov >= cfg.min && h > 0 && !ex.includes(String(x.k.departemen).toLowerCase());
-    return {nik:x.nik, nama:x.k.nama || '-', dep:x.k.departemen || '-', masuk:karMap[x.nik]?.tanggal_masuk || '9999', skor:(cfg.wK * K + cfg.wT * T + cfg.wA * A + cfg.wJ * J) / ws * 100, K, T, J, tel:c.Terlambat, alp:c.Alpha, layak,
-      ok:layak && c.Terlambat <= cfg.tel && c.Alpha <= cfg.alp, perfect:layak && !c.Terlambat && !c.Alpha && !c.Sakit && !c.Izin && !x.s.t12}; })
+    return {nik:x.nik, nama:x.k.nama || '-', dep:x.k.departemen || '-', masuk:karMap[x.nik]?.tanggal_masuk || '9999', skor:(cfg.wK * K + cfg.wT * T + cfg.wA * A + cfg.wJ * J) / ws * 100, K, T, J, tel:c.Terlambat, alp:c.Alpha, izn:c.Izin, sak:c.Sakit, cut:c.Cuti, jk:x.s.t12, layak,
+      ok:layak && c.Terlambat <= cfg.tel && c.Alpha <= cfg.alp && c.Izin <= cfg.izn && (cfg.sak === '' || c.Sakit <= cfg.sak) && (cfg.cut === '' || c.Cuti <= cfg.cut) && (cfg.jk === '' || x.s.t12 <= cfg.jk), perfect:layak && !c.Terlambat && !c.Alpha && !c.Sakit && !c.Izin && !x.s.t12}; })
     .sort((a, b) => b.skor - a.skor || a.tel - b.tel || a.masuk.localeCompare(b.masuk));
 }
 const rk = l => l.map((x, i) => { const j = l.findIndex(y => f1(y.skor) === f1(x.skor)); return {...x, rank:j + 1}; });   // skor sama = peringkat sama
@@ -260,7 +260,7 @@ function renderBest() {
   const rows = saring().filter(r => r.status !== 'Libur'), all = skorList(rows), ok = rk(all.filter(x => x.ok));
   if (!all.length) { $('bestInfo').textContent = ''; $('podium').innerHTML = '<div class="box" style="grid-column:1/-1"><div class="empty">Belum ada data absensi pada periode ini.</div></div>'; ['bBest', 'perDep', 'perfect', 'bJuara', 'konsisten', 'hBest'].forEach(i => $(i).innerHTML = ''); return; }
   const seri = ok.filter(x => x.rank === 1).length;
-  $('bestInfo').innerHTML = `${ok.length} dari ${all.length} karyawan memenuhi syarat (data ≥ ${cfg.min}%, terlambat ≤ ${cfg.tel}×, alpha ≤ ${cfg.alp} hari${cfg.ex ? ', di luar: ' + esc(cfg.ex) : ''}).`
+  $('bestInfo').innerHTML = `${ok.length} dari ${all.length} karyawan memenuhi syarat (data ≥ ${cfg.min}%; ${[cfg.tel ? `terlambat ≤ ${cfg.tel}×` : 'tidak pernah terlambat', cfg.alp ? `alpha ≤ ${cfg.alp} hari` : 'tidak pernah alpha', cfg.izn ? `izin ≤ ${cfg.izn} hari` : 'tidak pernah izin', cfg.sak === '' ? '' : cfg.sak ? `sakit ≤ ${cfg.sak} hari` : 'tidak pernah sakit', cfg.cut === '' ? '' : cfg.cut ? `cuti ≤ ${cfg.cut} hari` : 'tidak pernah cuti', cfg.jk === '' ? '' : cfg.jk ? `jam kurang (T1/T2) ≤ ${cfg.jk} hari` : 'tanpa T1/T2'].filter(Boolean).join(', ')}${cfg.ex ? '; di luar: ' + esc(cfg.ex) : ''}).`
     + (seri > 3 ? `<div class="warn" style="margin:10px 0 0"><b>${seri} karyawan sama-sama peringkat 1</b> (skor ${f1(ok[0].skor)}). Mereka berhak dianggap juara bersama; urutan di daftar hanya berdasarkan masa kerja (lebih lama di atas). Untuk memilah lebih lanjut, perketat syarat atau tambahkan penilaian kinerja.</div>` : seri > 1 ? ` Peringkat 1 diraih bersama oleh ${seri} karyawan.` : '');
   $('podium').innerHTML = ok.slice(0, 3).map((x, i) => `<div class="box" style="text-align:center;border-color:${['#e5c35a', '#a9b8c4', '#c98b5a'][Math.min(x.rank, 3) - 1]}"><div style="font-size:30px">${medal(x.rank)}</div><div style="font-weight:700;font-size:16px;margin-top:4px">${esc(x.nama)}</div><div class="muted">${esc(x.dep)}</div><div style="font-size:28px;font-weight:700;margin-top:6px;color:var(--ac)">${f1(x.skor)}</div><div class="muted">Terlambat ${x.tel}× · Alpha ${x.alp}${x.perfect ? ' · 🏅 Perfect' : ''}</div></div>`).join('') || '<div class="box" style="grid-column:1/-1"><div class="empty">Belum ada karyawan yang memenuhi syarat. Longgarkan syarat di Pengaturan.</div></div>';
   $('hBest').innerHTML = '<tr><th>#</th><th>Karyawan</th><th>Departemen</th><th>Skor</th><th>Kehadiran</th><th>Ketepatan</th><th>Jam penuh</th><th>Terlambat</th><th></th></tr>';
