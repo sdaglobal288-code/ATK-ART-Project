@@ -197,7 +197,7 @@
 
   tbody tr:last-child td{ border-bottom:none; }
 
-  #tableLevelJabatan tbody tr:hover td{
+  #tableBagian tbody tr:hover td{
     background:transparent !important;
     color:var(--ml-text) !important;
   }
@@ -348,7 +348,7 @@
   .modal-close:hover{ background:var(--ml-surface-2); color:var(--ml-text); }
 
   /* Paksa block agar dashboard.css grid tidak memecah layout modal */
-  #formLevelJabatan{
+  #formBagian{
     display:block !important;
   }
 
@@ -392,6 +392,11 @@
   }
   .field input::placeholder, .field textarea::placeholder{ color:#5d6175; }
   .filter-select{ background:var(--ml-surface-2); border:1px solid var(--ml-border); color:inherit; padding:9px 12px; border-radius:10px; font-family:inherit; font-size:13px; }
+  /* pencarian + filter sebaris */
+  .table-toolbar{ display:flex !important; flex-wrap:wrap; gap:10px; align-items:center; }
+  .table-toolbar .search-box{ flex:1 1 240px; min-width:200px; width:auto; margin:0 !important; }
+  .table-toolbar .filter-select{ flex:0 0 260px; width:260px; max-width:100%; margin:0 !important; height:44px; box-sizing:border-box; }
+  .modal-footer button{ flex:0 0 auto; }
   .pill-dept{ display:inline-block; padding:2px 10px; border-radius:20px; font-size:12px; background:rgba(182,147,245,.14); color:#b693f5; }
   .pill-umum{ display:inline-block; padding:2px 10px; border-radius:20px; font-size:12px; background:rgba(255,255,255,.07); color:#8b8fa3; }
   .field input:focus, .field textarea:focus, .field select:focus{
