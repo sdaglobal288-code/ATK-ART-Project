@@ -206,7 +206,7 @@ function renderRing() {
   const ada = new Set(rows.map(r => r.nik));
   const card = (l, n, sub, c) => `<div class="stat" style="--c:${c}"><div class="l">${l}</div><div class="n">${n}</div><div class="s">${sub}</div></div>`;
   $('stats').innerHTML = card('Tingkat kehadiran', f1(s.hPct) + '%', `${s.hadir} dari ${s.kerja} hari kerja tercatat`, '#4dd0c4') + card('Tingkat keterlambatan', f1(s.tPct) + '%', `${s.c.Terlambat} kali` + (s.avgT > 0 ? `, rata-rata ${Math.round(s.avgT)} menit` : ''), '#f0913f')
-    + card('Ketidakhadiran', f1(s.aPct) + '%', `Sakit ${s.c.Sakit} · Izin ${s.c.Izin} · Alpha ${s.c.Alpha}`, '#e5708f') + card('Jam kerja kurang', s.t12 + ' hari', `Terlambat ${s.jkk.t} · Pulang cepat ${s.jkk.p}${s.jkk.b ? ` · Belum ${s.jkk.b}` : ''} · Lembur ${f1(s.lem)} jam`, '#7aa2f7')
+    + card('Ketidakhadiran', f1(s.aPct) + '%', `Sakit ${s.c.Sakit} · Izin ${s.c.Izin} · Alpha ${s.c.Alpha}`, '#e5708f') + card('Jam kerja kurang', (s.jkk.t + s.jkk.b) + ' hari', `Pulang cepat ${s.jkk.p} · Cuti khusus ${s.ct.k}${s.jkk.b ? ` · ${s.jkk.b} belum dikategorikan` : ''} · Lembur ${f1(s.lem)} jam`, '#7aa2f7')
     + card('Karyawan terpantau', ada.size, `dari ${aktif.length} karyawan aktif`, '#b693f5');
   // Tren
   const bulanan = (new Date($('fSampai').value) - new Date($('fDari').value)) / 864e5 > 62, kf = r => bulanan ? r.tanggal.slice(0, 7) : r.tanggal;
@@ -228,21 +228,21 @@ function renderRing() {
   const na = pk.filter(p => p.c.Alpha >= BATAS_ALPHA).length, nt = pk.filter(p => p.c.Terlambat >= BATAS_TELAT).length;
   if (na) out.push([`<b>${na}</b> karyawan Alpha ≥ ${BATAS_ALPHA} hari.`, 1]); if (nt) out.push([`<b>${nt}</b> karyawan terlambat ≥ ${BATAS_TELAT} kali.`, 1]);
   const nb = s.ct.b + s.jkk.b; if (nb) out.push([`<b>${nb}</b> data cuti / jam kurang belum dikategorikan (Cuti ${s.ct.b}, T1/T2 ${s.jkk.b}). <a href="#" style="color:var(--ac)" onclick="gantiTab('kat');return false">Kategorikan sekarang</a>`, 1]);
-  const ctt = s.ct.t + s.ct.k; if (s.c.Cuti) out.push([`Cuti: <b>${s.c.Cuti}</b> hari (Tahunan ${s.ct.t}, Khusus ${s.ct.k}, belum dikategorikan ${s.ct.b}).`]);
+  const ctt = s.ct.t + s.ct.k; if (s.c.Cuti) out.push([`Cuti: <b>${s.c.Cuti}</b> hari (Tahunan ${s.ct.t}, Khusus ${s.ct.k}, belum dikategorikan ${s.ct.b}). Jam kurang: Terlambat ${s.jkk.t}, Pulang cepat ${s.jkk.p}.`]);
   const tdk = aktif.filter(k => !ada.has(String(k.nik).toUpperCase())).length; if (tdk) out.push([`<b>${tdk}</b> karyawan aktif tidak punya data absensi pada periode ini (cek apakah belum diimport atau NIK berbeda).`, 1]);
   $('ins').innerHTML = out.map(([t, w]) => `<li class="${w ? 'w' : ''}">${t}</li>`).join('') || '<li>Tidak ada temuan khusus.</li>';
 }
 function renderKar() {
   if (tab !== 'kar') return; $('tA').textContent = BATAS_ALPHA; $('tT').textContent = BATAS_TELAT;
   const q = $('q').value.toLowerCase();
-  let l = Object.entries(agg(saring(), r => r.nik)).map(([nik, rs]) => { const s = hitung(rs), k = infoKar(rs[0]); return {nik, nama:k.nama || rs[0].nama || '-', dep:k.departemen || '-', ...s.c, hadirHari:s.hadir, hPct:s.hPct, kerja:s.kerja, t12:s.t12, lem:s.lem, ct:s.ct, jkk:s.jkk}; })
+  let l = Object.entries(agg(saring(), r => r.nik)).map(([nik, rs]) => { const s = hitung(rs), k = infoKar(rs[0]); return {nik, nama:k.nama || rs[0].nama || '-', dep:k.departemen || '-', ...s.c, hadirHari:s.hadir, hPct:s.hPct, kerja:s.kerja, t12:s.t12, lem:s.lem, ct:s.ct, jkk:s.jkk, ctT:s.ct.t, ctK:s.ct.k, jkMain:s.jkk.t + s.jkk.b, pc:s.jkk.p}; })
     .filter(x => !q || x.nama.toLowerCase().includes(q) || x.nik.toLowerCase().includes(q));
-  const key = {nama:'nama', dep:'dep', hadir:'hadirHari', terlambat:'Terlambat', sakit:'Sakit', izin:'Izin', cuti:'Cuti', alpha:'Alpha', t12:'t12', lem:'lem', pct:'hPct'}[sortK];
+  const key = {nama:'nama', dep:'dep', hadir:'hadirHari', terlambat:'Terlambat', sakit:'Sakit', izin:'Izin', cuti:'ctT', ctk:'ctK', alpha:'Alpha', t12:'jkMain', pc:'pc', lem:'lem', pct:'hPct'}[sortK];
   l.sort((a, b) => (typeof a[key] === 'string' ? a[key].localeCompare(b[key]) : a[key] - b[key]) * sortD); $('cKar').textContent = l.length + ' karyawan';
   const th = (k, t) => `<th class="s" onclick="urut('${k}')">${t}${sortK === k ? (sortD < 0 ? ' ▼' : ' ▲') : ''}</th>`;
-  $('hKar').innerHTML = '<tr>' + th('nama', 'Karyawan') + th('dep', 'Departemen') + th('hadir', 'Hari hadir') + th('terlambat', 'Terlambat') + th('sakit', 'Sakit') + th('izin', 'Izin') + th('cuti', 'Cuti') + th('alpha', 'Alpha') + th('t12', 'Jam kurang') + th('lem', 'Lembur (jam)') + th('pct', '% Hadir') + '<th></th></tr>';
-  $('bKar').innerHTML = l.map(x => `<tr><td><b>${esc(x.nama)}</b><small>${esc(x.nik)}</small></td><td>${esc(x.dep)}</td><td class="n">${x.hadirHari}</td><td class="n">${x.Terlambat}</td><td class="n">${x.Sakit}</td><td class="n">${x.Izin}</td><td class="n">${x.Cuti}${x.Cuti ? `<small>${[x.ct.t && 'Tahunan ' + x.ct.t, x.ct.k && 'Khusus ' + x.ct.k, x.ct.b && `<b style="color:var(--orange)">Belum ${x.ct.b}</b>`].filter(Boolean).join(' · ')}</small>` : ''}</td><td class="n">${x.Alpha}</td><td class="n">${x.t12}${x.t12 ? `<small>${[x.jkk.t && 'Terlambat ' + x.jkk.t, x.jkk.p && 'Pulang cepat ' + x.jkk.p, x.jkk.b && `<b style="color:var(--orange)">Belum ${x.jkk.b}</b>`].filter(Boolean).join(' · ')}</small>` : ''}</td><td class="n">${f1(x.lem)}</td><td class="n"><b>${f1(x.hPct)}%</b></td>
-    <td>${x.Alpha >= BATAS_ALPHA ? '<span class="badge b-d">Alpha tinggi</span> ' : ''}${x.Terlambat >= BATAS_TELAT ? '<span class="badge b-w">Sering terlambat</span> ' : ''}${x.ct.b + x.jkk.b ? `<button class="btn sec sm" onclick="bukaKat('${esc(x.nik)}')">Kategorikan</button>` : ''}</td></tr>`).join('') || '<tr><td colspan="12" class="empty">Tidak ada data.</td></tr>';
+  $('hKar').innerHTML = '<tr>' + th('nama', 'Karyawan') + th('dep', 'Departemen') + th('hadir', 'Hari hadir') + th('terlambat', 'Terlambat') + th('sakit', 'Sakit') + th('izin', 'Izin') + th('cuti', 'Cuti Tahunan') + th('ctk', 'Cuti Khusus') + th('alpha', 'Alpha') + th('t12', 'Jam kurang') + th('pc', 'Pulang cepat') + th('lem', 'Lembur (jam)') + th('pct', '% Hadir') + '<th></th></tr>';
+  $('bKar').innerHTML = l.map(x => `<tr><td><b>${esc(x.nama)}</b><small>${esc(x.nik)}</small></td><td>${esc(x.dep)}</td><td class="n">${x.hadirHari}</td><td class="n">${x.Terlambat}</td><td class="n">${x.Sakit}</td><td class="n">${x.Izin}</td><td class="n">${x.ctT}${x.ct.b ? `<small><b style="color:var(--orange)">+${x.ct.b} belum dikategorikan</b></small>` : ''}</td><td class="n">${x.ctK}</td><td class="n">${x.Alpha}</td><td class="n">${x.jkMain}${x.jkk.b ? `<small><b style="color:var(--orange)">${x.jkk.b} belum dikategorikan</b></small>` : ''}</td><td class="n">${x.pc}</td><td class="n">${f1(x.lem)}</td><td class="n"><b>${f1(x.hPct)}%</b></td>
+    <td>${x.Alpha >= BATAS_ALPHA ? '<span class="badge b-d">Alpha tinggi</span> ' : ''}${x.Terlambat >= BATAS_TELAT ? '<span class="badge b-w">Sering terlambat</span> ' : ''}${x.ct.b + x.jkk.b ? `<button class="btn sec sm" onclick="bukaKat('${esc(x.nik)}')">Kategorikan</button>` : ''}</td></tr>`).join('') || '<tr><td colspan="14" class="empty">Tidak ada data.</td></tr>';
 }
 function urut(k) { if (sortK === k) sortD = -sortD; else { sortK = k; sortD = k === 'nama' || k === 'dep' ? 1 : -1; } renderKar(); }
 function gantiTab(t) {
