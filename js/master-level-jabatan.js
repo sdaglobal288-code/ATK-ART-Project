@@ -184,6 +184,8 @@ document.getElementById("formLevelJabatan").addEventListener("submit", async fun
 
         } else {
 
+            const lama = dataLevel.find(d => String(d.id) === String(idEdit));
+
             const { error } = await supabaseClient
                 .from("master_level_jabatan")
                 .update({
@@ -193,6 +195,15 @@ document.getElementById("formLevelJabatan").addEventListener("submit", async fun
                 .eq("id", idEdit);
 
             if (error) throw error;
+
+            // nama level berubah -> ikutkan karyawan yang memakainya (kolom level di master_karyawan), supaya data tetap sinkron
+            if (lama && lama.nama_level !== namaLevel) {
+                const { error: errK } = await supabaseClient
+                    .from("master_karyawan")
+                    .update({ level: namaLevel })
+                    .eq("level", lama.nama_level);
+                if (errK) console.warn("Nama level pada master karyawan tidak ikut diperbarui:", errK.message);
+            }
 
         }
 
@@ -220,6 +231,17 @@ async function hapusData(id) {
 
     const item = dataLevel.find(d => String(d.id) === String(id));
     if (!item) return;
+
+    // level yang masih dipakai karyawan tidak boleh dihapus
+    const { count: dipakai, error: errCek } = await supabaseClient
+        .from("master_karyawan")
+        .select("id", { count: "exact", head: true })
+        .eq("level", item.nama_level);
+
+    if (!errCek && dipakai > 0) {
+        alert(`Level "${item.nama_level}" masih dipakai ${dipakai} karyawan.\nPindahkan karyawannya ke level lain di Master Karyawan terlebih dulu.`);
+        return;
+    }
 
     const konfirmasi = confirm(`Hapus level jabatan "${item.nama_level}"?`);
     if (!konfirmasi) return;

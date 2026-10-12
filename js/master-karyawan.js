@@ -10,6 +10,10 @@ if (!user) {
 
 let editId = null;
 let allKaryawan = [];
+let allLevel  = [];   // dari master_level_jabatan (diurutkan menurut urutan level)
+let allBagian = [];   // dari master_bagian (bisa terikat ke departemen)
+
+const escAttr = s => String(s ?? "").replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;");
 
 // =====================================
 // MODAL HELPERS
@@ -19,6 +23,7 @@ function bukaModalTambah() {
 
     editId = null;
     form.reset();
+    isiBagian("");
 
     document.getElementById("nik").readOnly = false;
     document.getElementById("judulForm").innerHTML = "➕ Tambah Karyawan";
@@ -128,6 +133,64 @@ async function loadJabatan() {
 }
 
 // =====================================
+// LOAD LEVEL & BAGIAN (dropdown form)
+// Level = master_level_jabatan, Bagian = master_bagian (disaring menurut departemen yang dipilih)
+// =====================================
+
+// pilihan lama yang sudah tidak ada di master tetap ditampilkan agar tidak hilang diam-diam
+function setSelectAman(id, nilai) {
+    const sel = document.getElementById(id);
+    if (nilai && ![...sel.options].some(o => o.value === nilai)) {
+        sel.innerHTML += `<option value="${escAttr(nilai)}">${escAttr(nilai)}</option>`;
+    }
+    sel.value = nilai || "";
+}
+
+async function loadLevel() {
+    try {
+        const { data, error } = await supabaseClient
+            .from("master_level_jabatan").select("*").order("urutan", { ascending: true });
+        if (error) throw error;
+        allLevel = data || [];
+        const sel = document.getElementById("level");
+        sel.innerHTML = `<option value="">-- Pilih Level --</option>` +
+            allLevel.map(l => `<option value="${escAttr(l.nama_level)}">${escAttr(l.nama_level)}</option>`).join("");
+    } catch (err) {
+        console.error("Gagal memuat level:", err);
+    }
+}
+
+async function loadBagian() {
+    try {
+        const { data, error } = await supabaseClient
+            .from("master_bagian").select("*").order("nama_bagian");
+        if (error) throw error;
+        allBagian = data || [];
+        isiBagian(document.getElementById("bagian").value);
+    } catch (err) {
+        console.error("Gagal memuat bagian (jalankan sql/master_bagian_schema.sql):", err);
+    }
+}
+
+// Bagian yang tampil: milik departemen terpilih + bagian umum (tanpa departemen).
+// pertahankanLama = true -> nilai yang sedang dipilih tetap ada walau bukan bagian departemen ini (mode edit)
+function isiBagian(terpilih, pertahankanLama) {
+    const dept = document.getElementById("departemen").value;
+    const sel  = document.getElementById("bagian");
+    const nama = [...new Set(
+        allBagian.filter(b => !b.departemen || !dept || b.departemen === dept).map(b => b.nama_bagian)
+    )];
+    if (terpilih && pertahankanLama && !nama.includes(terpilih)) nama.push(terpilih);
+    sel.innerHTML = `<option value="">-- Pilih Bagian --</option>` +
+        nama.map(n => `<option value="${escAttr(n)}">${escAttr(n)}</option>`).join("");
+    sel.value = nama.includes(terpilih) ? terpilih : "";
+}
+
+document.getElementById("departemen").addEventListener("change", () => {
+    isiBagian(document.getElementById("bagian").value, false);   // ganti departemen -> bagian yang tidak cocok dikosongkan
+});
+
+// =====================================
 // LOAD KARYAWAN
 // =====================================
 
@@ -137,7 +200,7 @@ async function loadKaryawan() {
 
     tbody.innerHTML = `
         <tr>
-            <td colspan="9" class="loading-state">
+            <td colspan="11" class="loading-state">
                 <span class="spinner"></span> Memuat data...
             </td>
         </tr>
@@ -159,7 +222,7 @@ async function loadKaryawan() {
         console.error(err);
         tbody.innerHTML = `
             <tr>
-                <td colspan="9" class="empty-state">
+                <td colspan="11" class="empty-state">
                     ⚠ Gagal memuat data: ${err.message}
                 </td>
             </tr>
@@ -205,7 +268,7 @@ function renderKaryawan(list) {
     if (list.length === 0) {
         tbody.innerHTML = `
             <tr>
-                <td colspan="9" class="empty-state">
+                <td colspan="11" class="empty-state">
                     Tidak ada data karyawan yang cocok.
                 </td>
             </tr>
@@ -228,6 +291,8 @@ function renderKaryawan(list) {
                 <td>${item.departemen ?? "-"}</td>
                 <td>${item.area ?? "-"}</td>
                 <td>${item.jabatan ?? "-"}</td>
+                <td>${item.level ?? "-"}</td>
+                <td>${item.bagian ?? "-"}</td>
                 <td>${formatTanggalTampil(item.tanggal_masuk)}</td>
                 <td>${badgeStatus}</td>
                 <td>${item.created_by ?? "-"}</td>
@@ -300,6 +365,8 @@ if (form) {
             const departemen    = document.getElementById("departemen").value;
             const area          = document.getElementById("area").value || null;
             const jabatan       = document.getElementById("jabatan").value;
+            const level         = document.getElementById("level").value || null;
+            const bagian        = document.getElementById("bagian").value || null;
             const tanggalMasuk  = document.getElementById("tanggal_masuk").value || null;
             const status        = document.getElementById("status").value;
 
@@ -316,7 +383,7 @@ if (form) {
 
                 const { error } = await supabaseClient
                     .from("master_karyawan")
-                    .update({ nama, departemen, area, jabatan, tanggal_masuk: tanggalMasuk, status })
+                    .update({ nama, departemen, area, jabatan, level, bagian, tanggal_masuk: tanggalMasuk, status })
                     .eq("id", editId);
 
                 if (error) throw error;
@@ -350,6 +417,8 @@ if (form) {
                     departemen,
                     area,
                     jabatan,
+                    level,
+                    bagian,
                     tanggal_masuk : tanggalMasuk,
                     status,
                     gudang     : user.gudang,   // ← otomatis sesuai akun
@@ -397,6 +466,8 @@ async function editKaryawan(id) {
         document.getElementById("departemen").value   = data.departemen;
         document.getElementById("area").value         = data.area ?? "";
         document.getElementById("jabatan").value      = data.jabatan;
+        setSelectAman("level", data.level);
+        isiBagian(data.bagian ?? "", true);   // departemen sudah terisi di atas, bagian disaring menurutnya
         document.getElementById("tanggal_masuk").value = data.tanggal_masuk
             ? String(data.tanggal_masuk).slice(0, 10)
             : "";
@@ -467,6 +538,8 @@ function exportExcel() {
         "DEPARTEMEN"      : item.departemen ?? "-",
         "AREA"            : item.area ?? "-",
         "JABATAN"         : item.jabatan ?? "-",
+        "LEVEL"           : item.level ?? "-",
+        "BAGIAN"          : item.bagian ?? "-",
         "TANGGAL BERGABUNG": item.tanggal_masuk ?? "-",
         "STATUS"          : item.status,
         "GUDANG"          : item.gudang ?? "-",
@@ -513,6 +586,15 @@ if (fileImport) {
                 return;
             }
 
+            // Kolom LEVEL / BAGIAN hanya diproses bila ada di file, supaya import file lama tidak mengosongkan data yang sudah ada
+            const adaLevel  = rows.some(r => "LEVEL"  in r || "level"  in r);
+            const adaBagian = rows.some(r => "BAGIAN" in r || "bagian" in r);
+            const samakan = (nilai, daftar, kolom) => {
+                const v = String(nilai ?? "").trim();
+                if (!v || v === "-") return null;
+                return daftar.find(x => String(x[kolom]).toLowerCase() === v.toLowerCase())?.[kolom] ?? v;
+            };
+
             const payload = rows.map(row => {
 
                 // Tanggal bergabung bisa berupa serial number Excel atau teks tanggal
@@ -542,6 +624,8 @@ if (fileImport) {
                     departemen    : String(row.DEPARTEMEN ?? row.departemen ?? "").trim(),
                     area          : String(row.AREA ?? row.area ?? "").trim() || null,
                     jabatan       : String(row.JABATAN ?? row.jabatan ?? "").trim(),
+                    ...(adaLevel  ? { level  : samakan(row.LEVEL  ?? row.level,  allLevel,  "nama_level")  } : {}),
+                    ...(adaBagian ? { bagian : samakan(row.BAGIAN ?? row.bagian, allBagian, "nama_bagian") } : {}),
                     tanggal_masuk : tanggalMasuk,
                     status        : String(row.STATUS ?? row.status ?? "Aktif").trim(),
                     gudang        : user.gudang,   // ← otomatis sesuai akun, abaikan kolom gudang di file
@@ -554,6 +638,15 @@ if (fileImport) {
                 alert("Tidak ada baris valid. Pastikan kolom NIK dan NAMA terisi.");
                 return;
             }
+
+            // nilai level / bagian yang tidak ada di master ditandai agar tidak masuk diam-diam
+            const lvAda = new Set(allLevel.map(l => l.nama_level.toLowerCase()));
+            const bgAda = new Set(allBagian.map(b => b.nama_bagian.toLowerCase()));
+            const asing = [...new Set(payload.flatMap(p => [
+                p.level  && !lvAda.has(p.level.toLowerCase())  ? "Level: "  + p.level  : null,
+                p.bagian && !bgAda.has(p.bagian.toLowerCase()) ? "Bagian: " + p.bagian : null
+            ]).filter(Boolean))];
+            if (asing.length && !confirm(`${asing.length} nilai tidak ada di master:\n${asing.slice(0, 10).join("\n")}\n\nTetap import? (tambahkan dulu di Master Level / Master Bagian bila perlu)`)) return;
 
             const { error } = await supabaseClient
                 .from("master_karyawan")
@@ -580,6 +673,6 @@ if (fileImport) {
 // =====================================
 
 document.addEventListener("DOMContentLoaded", async () => {
-    await Promise.all([ loadDepartemen(), loadJabatan(), loadArea() ]);
+    await Promise.all([ loadDepartemen(), loadJabatan(), loadArea(), loadLevel(), loadBagian() ]);
     await loadKaryawan();
 });
