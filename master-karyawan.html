@@ -555,6 +555,8 @@
             <th width="160">Departemen</th>
             <th width="140">Area</th>
             <th width="160">Jabatan</th>
+            <th width="140">Level</th>
+            <th width="150">Bagian</th>
             <th width="130">Tgl Bergabung</th>
             <th width="110">Status</th>
             <th width="150">Dibuat Oleh</th>
@@ -563,7 +565,7 @@
         </thead>
         <tbody>
           <tr>
-            <td colspan="8" class="loading-state">
+            <td colspan="11" class="loading-state">
               <span class="spinner"></span> Memuat data...
             </td>
           </tr>
@@ -614,6 +616,20 @@
           <label for="jabatan">Jabatan</label>
           <select id="jabatan" required>
             <option value="">-- Pilih Jabatan --</option>
+          </select>
+        </div>
+
+        <div class="field">
+          <label for="level">Level</label>
+          <select id="level">
+            <option value="">-- Pilih Level --</option>
+          </select>
+        </div>
+
+        <div class="field">
+          <label for="bagian">Bagian</label>
+          <select id="bagian">
+            <option value="">-- Pilih Bagian --</option>
           </select>
         </div>
 
