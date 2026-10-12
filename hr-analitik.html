@@ -63,7 +63,7 @@
     <label>Sampai<input type="date" id="fSampai" onchange="$('fPreset').value='x'"></label>
     <label>Departemen<select id="fDep" onchange="render()"><option value="">Semua</option></select></label>
     <label>Area<select id="fArea" onchange="render()"><option value="">Semua</option></select></label>
-    <button class="btn sm" style="align-self:flex-end" onclick="muat()">Terapkan</button>
+    <label class="tog" style="align-self:flex-end;padding-bottom:9px"><input type="checkbox" id="fNon" onchange="isiFilter();render()">Termasuk non aktif</label><button class="btn sm" style="align-self:flex-end" onclick="muat()">Terapkan</button>
     <span class="muted" id="info" style="margin-left:auto;align-self:flex-end"></span>
   </div>
 
@@ -179,8 +179,10 @@ async function muat() {
 
 // ---------- Hitung ----------
 const infoKar = r => { const k = karMap[r.nik] || {}; return {nama:k.nama || r.nama, departemen:r.departemen || k.departemen || '(Belum terdaftar)', area:r.unit_kerja || k.area || ''}; };
-function isiFilter() { const f = (id, v) => { const cur = $(id).value, l = [...new Set(v.filter(Boolean))].sort(); $(id).innerHTML = '<option value="">Semua</option>' + l.map(x => `<option>${esc(x)}</option>`).join(''); $(id).value = l.includes(cur) ? cur : ''; }; f('fDep', abs.map(r => infoKar(r).departemen)); f('fArea', abs.map(r => infoKar(r).area)); }
-const saring = () => { const d = $('fDep').value, a = $('fArea').value; return abs.filter(r => { const k = infoKar(r); return (!d || k.departemen === d) && (!a || k.area === a); }); };
+function isiFilter() { const f = (id, v) => { const cur = $(id).value, l = [...new Set(v.filter(Boolean))].sort(); $(id).innerHTML = '<option value="">Semua</option>' + l.map(x => `<option>${esc(x)}</option>`).join(''); $(id).value = l.includes(cur) ? cur : ''; }; const vis = abs.filter(tampil); f('fDep', vis.map(r => infoKar(r).departemen)); f('fArea', vis.map(r => infoKar(r).area)); }
+// karyawan yang berstatus non aktif di master disembunyikan (kecuali dicentang "Termasuk non aktif"); NIK yang tidak ada di master tetap tampil
+const tampil = r => $('fNon').checked || !karMap[r.nik] || karMap[r.nik].status === 'Aktif';
+const saring = () => { const d = $('fDep').value, a = $('fArea').value; return abs.filter(r => { const k = infoKar(r); return tampil(r) && (!d || k.departemen === d) && (!a || k.area === a); }); };
 const KAT = {cuti:['Cuti Tahunan', 'Cuti Khusus'], jk:['Terlambat', 'Pulang Cepat']};
 const jenisKat = r => r.status === 'Cuti' ? 'cuti' : (r.kode === 'T1' || r.kode === 'T2') ? 'jk' : null;
 const katNilai = r => { const j = jenisKat(r); return j && KAT[j].includes(r.kategori) ? r.kategori : ''; };   // kategori hanya berlaku bila jenisnya cocok
@@ -201,7 +203,7 @@ function chart(id, cfg) {
 function renderRing() {
   const rows = saring(), s = hitung(rows);
   if (!rows.length) { ['stats', 'ins'].forEach(i => $(i).innerHTML = ''); $('stats').innerHTML = `<div class="box" style="grid-column:1/-1"><div class="empty">Belum ada data absensi pada periode ini. Pilih periode lain atau <a href="#" style="color:var(--ac)" onclick="gantiTab('imp');return false">import file Excel absensi</a>.</div></div>`; Object.values(charts).forEach(c => c.destroy()); charts = {}; return; }
-  const dpt = $('fDep').value, ar = $('fArea').value, scope = new Set(abs.filter(r => (!dpt || infoKar(r).departemen === dpt) && (!ar || infoKar(r).area === ar)).map(r => r.nik));
+  const dpt = $('fDep').value, ar = $('fArea').value, scope = new Set(abs.filter(r => tampil(r) && (!dpt || infoKar(r).departemen === dpt) && (!ar || infoKar(r).area === ar)).map(r => r.nik));
   const aktif = kar.filter(k => k.status === 'Aktif' && ((!dpt && !ar) || scope.has(String(k.nik).toUpperCase())));
   const ada = new Set(rows.map(r => r.nik));
   const card = (l, n, sub, c) => `<div class="stat" style="--c:${c}"><div class="l">${l}</div><div class="n">${n}</div><div class="s">${sub}</div></div>`;
