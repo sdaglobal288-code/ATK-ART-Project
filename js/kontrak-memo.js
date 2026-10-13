@@ -91,6 +91,38 @@
     </div>`;
   }
 
+  // Tanda tangan dari kanvas sering punya ruang kosong di sisi gambar, sehingga coretannya tidak pas di tengah.
+  // Potong area kosong (transparan/putih) supaya coretan benar-benar berada di tengah di atas nama.
+  function trimSignature(img) {
+    if (img.dataset.trimmed) return;
+    img.dataset.trimmed = '1';
+    try {
+      const w = img.naturalWidth, h = img.naturalHeight;
+      if (!w || !h) return;
+      const c = document.createElement('canvas'); c.width = w; c.height = h;
+      const g = c.getContext('2d'); g.drawImage(img, 0, 0);
+      const d = g.getImageData(0, 0, w, h).data;
+      let x0 = w, y0 = h, x1 = -1, y1 = -1;
+      for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+        const i = (y * w + x) * 4;
+        if (d[i + 3] > 20 && !(d[i] > 240 && d[i + 1] > 240 && d[i + 2] > 240)) {
+          if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y;
+        }
+      }
+      if (x1 < 0) return;
+      const pad = 4;
+      x0 = Math.max(0, x0 - pad); y0 = Math.max(0, y0 - pad); x1 = Math.min(w - 1, x1 + pad); y1 = Math.min(h - 1, y1 + pad);
+      const c2 = document.createElement('canvas'); c2.width = x1 - x0 + 1; c2.height = y1 - y0 + 1;
+      c2.getContext('2d').drawImage(c, x0, y0, c2.width, c2.height, 0, 0, c2.width, c2.height);
+      img.src = c2.toDataURL('image/png');
+    } catch (e) { /* biarkan gambar apa adanya */ }
+  }
+  if (typeof document !== 'undefined') {
+    document.addEventListener('load', e => {
+      if (e.target && e.target.classList && e.target.classList.contains('im-sigimg')) trimSignature(e.target);
+    }, true);
+  }
+
   if (typeof document !== 'undefined') { const st = document.createElement('style'); st.textContent = CSS; document.head.appendChild(st); }
   root.KontrakMemo = { css: CSS, html, tgl };
   if (typeof module !== 'undefined') module.exports = root.KontrakMemo;
