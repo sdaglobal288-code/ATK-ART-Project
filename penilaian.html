@@ -127,6 +127,8 @@
   .cetak-btn:hover{ color:var(--gold); border-color:var(--gold); }
 
   .btn:disabled{ opacity:.55; cursor:wait; }
+  .btn-hapus{ color:var(--pink); border-color:var(--pink); }
+  .btn-hapus:hover{ background:rgba(255,100,130,.12); }
   .exp-msg{ font-size:12px; margin:-8px 0 14px; min-height:16px; }
   .exp-msg.err{ color:var(--pink); } .exp-msg.ok{ color:var(--teal); }
   .prog-row{ display:flex; justify-content:space-between; align-items:center; padding:9px 0; border-bottom:1px solid var(--border); gap:10px; font-size:12px; }
@@ -384,7 +386,7 @@ function renderDetailPanel(p) {
       <h3>Karyawan yang Dinilai (${p._members.length})</h3>
       ${p._members.map((m, i) => `<div class="info-line">${i + 1}. <b>${escapeHtml(m.nama_snapshot || '-')}</b> · ${escapeHtml(m.nik_snapshot || '')}<br>&nbsp;&nbsp;&nbsp;${escapeHtml(m.jabatan_snapshot || '-')} · ${escapeHtml(m.departemen_snapshot || '-')}${m.sub_departemen_snapshot ? ' / ' + escapeHtml(m.sub_departemen_snapshot) : ''}</div>`).join('')}
       <div class="info-line" style="margin-top:6px;">Dibuat oleh: ${escapeHtml(p.dibuat_oleh || '-')}</div>
-      <div style="margin-top:10px;"><a class="cetak-btn" style="text-decoration:none;display:inline-block;" href="penilaian-cetak.html?id=${p.id}" onclick="event.stopPropagation()">🖨 Cetak Form</a> <a class="cetak-btn" style="text-decoration:none;display:inline-block;" href="penilaian-nilai.html?id=${p.id}" onclick="event.stopPropagation()">✏️ Input / Edit Nilai</a></div>
+      <div style="margin-top:10px;"><a class="cetak-btn" style="text-decoration:none;display:inline-block;" href="penilaian-cetak.html?id=${p.id}" onclick="event.stopPropagation()">🖨 Cetak Form</a> <a class="cetak-btn" style="text-decoration:none;display:inline-block;" href="penilaian-nilai.html?id=${p.id}" onclick="event.stopPropagation()">✏️ Input / Edit Nilai</a> <button type="button" class="cetak-btn btn-hapus" onclick="event.stopPropagation(); hapusPenilaian('${p.id}')">🗑 Hapus</button></div>
     </div>
   ` : `
     <div>
@@ -395,7 +397,7 @@ function renderDetailPanel(p) {
       <div class="info-line">Departemen: ${p.departemen_snapshot || '-'} ${p.sub_departemen_snapshot ? '/ '+p.sub_departemen_snapshot : ''}</div>
       <div class="info-line">Unit: ${p.unit_snapshot || '-'}</div>
       <div class="info-line">Dibuat oleh: ${p.dibuat_oleh || '-'}</div>
-      <div style="margin-top:10px;"><a class="cetak-btn" style="text-decoration:none;display:inline-block;" href="penilaian-cetak.html?id=${p.id}" onclick="event.stopPropagation()">🖨 Cetak Form</a> <a class="cetak-btn" style="text-decoration:none;display:inline-block;" href="penilaian-nilai.html?id=${p.id}" onclick="event.stopPropagation()">✏️ Input / Edit Nilai</a></div>
+      <div style="margin-top:10px;"><a class="cetak-btn" style="text-decoration:none;display:inline-block;" href="penilaian-cetak.html?id=${p.id}" onclick="event.stopPropagation()">🖨 Cetak Form</a> <a class="cetak-btn" style="text-decoration:none;display:inline-block;" href="penilaian-nilai.html?id=${p.id}" onclick="event.stopPropagation()">✏️ Input / Edit Nilai</a> <button type="button" class="cetak-btn btn-hapus" onclick="event.stopPropagation(); hapusPenilaian('${p.id}')">🗑 Hapus</button></div>
       ${p.saran_kekuatan ? `<div class="info-line" style="margin-top:10px;"><b>Kekuatan</b><br>${escapeHtml(p.saran_kekuatan)}</div>` : ''}
       ${p.saran_pengembangan ? `<div class="info-line"><b>Area pengembangan</b><br>${escapeHtml(p.saran_pengembangan)}</div>` : ''}
       ${p.catatan_atasan ? `<div class="info-line"><b>Catatan atasan</b><br>${escapeHtml(p.catatan_atasan)}</div>` : ''}
@@ -497,6 +499,27 @@ document.getElementById('btnExport').addEventListener('click', async () => {
   }
   btn.disabled = false; updateExportLabel();
 });
+
+// Hapus penilaian (Form A batch = semua karyawan dalam form itu) beserta nilai & approval-nya
+async function hapusPenilaian(id) {
+  const p = penilaianList.find(x => String(x.id) === String(id));
+  if (!p) return;
+  const members = p._members || [p];
+  const nama = p._members ? members.length + ' karyawan (' + members.map(m => m.nama_snapshot).join(', ') + ')' : (p.nama_snapshot || '-');
+  if (!confirm('Hapus penilaian ' + (FORM_LABELS[p.tipe_form] || p.tipe_form) + ' periode ' + p.periode + ' untuk ' + nama + '?\n\nSemua nilai ikut terhapus dan tidak bisa dikembalikan.')) return;
+  const ids = members.map(m => m.id);
+  const msg = document.getElementById('expMsg');
+  try {
+    let r = await supabaseClient.from('penilaian_approval').delete().in('penilaian_id', ids); if (r.error) throw r.error;
+    r = await supabaseClient.from('penilaian_detail').delete().in('penilaian_id', ids); if (r.error) throw r.error;
+    r = await supabaseClient.from('penilaian_karyawan').delete().in('id', ids); if (r.error) throw r.error;
+    msg.className = 'exp-msg ok'; msg.textContent = 'Penilaian ' + nama + ' berhasil dihapus.';
+    await loadData();
+  } catch (err) {
+    console.error(err);
+    msg.className = 'exp-msg err'; msg.textContent = 'Gagal menghapus: ' + (err.message || 'terjadi kesalahan.');
+  }
+}
 
 loadData();
 </script>
