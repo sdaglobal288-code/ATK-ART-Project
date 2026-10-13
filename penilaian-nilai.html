@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Input / Edit Nilai Penilaian</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="supabase/config.js"></script>
+<style>
+  :root{
+    --bg: #241a12;
+    --panel: #3a2b1e;
+    --panel-2: #302213;
+    --border: #4f3d29;
+    --text: #f2e9dc;
+    --text-muted: #b6a48c;
+    --gold: #d4a24c;
+    --teal: #4dd0c4;
+    --danger: #e06b8b;
+  }
+  *{ box-sizing:border-box; }
+  body{
+    margin:0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    padding: 28px 20px 80px;
+  }
+  .wrap{ max-width: 880px; margin: 0 auto; }
+  .topbar{ display:flex; align-items:center; justify-content:space-between; margin-bottom:24px; }
+  .back{ color: var(--text-muted); text-decoration:none; font-size:13px; }
+  .back:hover{ color: var(--gold); }
+  h1{ font-size:22px; margin: 4px 0 4px; }
+  .muted{ color: var(--text-muted); font-size:13px; }
+
+  .card{
+    background: var(--panel);
+    border:1px solid var(--border);
+    border-radius:14px;
+    padding:22px;
+    margin-bottom:20px;
+  }
+  .card h2{ font-size:15px; margin:0 0 16px; color: var(--gold); }
+
+  .grid2{ display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+  @media (max-width:640px){ .grid2{ grid-template-columns:1fr; } }
+
+  label{ font-size:12px; color: var(--text-muted); display:block; margin-bottom:6px; }
+  input, select, textarea{
+    width:100%;
+    background: var(--panel-2);
+    border:1px solid var(--border);
+    color: var(--text);
+    padding:9px 11px;
+    border-radius:8px;
+    font-size:13px;
+    font-family:inherit;
+  }
+  textarea{ min-height:70px; resize:vertical; }
+  .field{ margin-bottom:14px; }
+
+  .form-type-options{ display:flex; gap:12px; flex-wrap:wrap; }
+  .form-type{
+    flex:1; min-width:220px;
+    border:1px solid var(--border);
+    border-radius:10px;
+    padding:14px;
+    cursor:pointer;
+    transition: border-color .15s, background .15s;
+  }
+  .form-type:hover{ border-color: var(--gold); }
+  .form-type.active{ border-color: var(--gold); background: rgba(212,162,76,0.08); }
+  .form-type input{ display:none; }
+  .form-type .t{ font-weight:600; font-size:13px; margin-bottom:4px; }
+  .form-type .d{ font-size:12px; color: var(--text-muted); }
+
+  table.kriteria{ width:100%; border-collapse:collapse; margin-bottom:6px; }
+  table.kriteria th, table.kriteria td{
+    border:1px solid var(--border);
+    padding:8px 10px;
+    font-size:13px;
+    text-align:left;
+  }
+  table.kriteria th{ background: var(--panel-2); color: var(--gold); font-size:12px; }
+  table.kriteria td.skor-col{ width:90px; }
+  table.kriteria tr.rata td{ font-style:italic; font-weight:600; background: rgba(212,162,76,0.06); }
+  table.kriteria select{ padding:6px 8px; }
+
+  .total-box{
+    display:flex; justify-content:space-between; align-items:center;
+    background: rgba(77,208,196,0.08);
+    border:1px solid rgba(77,208,196,0.3);
+    border-radius:10px;
+    padding:14px 18px;
+    margin-top: 8px;
+  }
+  .total-box .n{ font-size:24px; font-weight:700; color: var(--teal); }
+
+  .approver-row{
+    display:grid; grid-template-columns: 220px 1fr; gap:14px; align-items:center;
+    padding:10px 0; border-bottom:1px solid var(--border);
+  }
+  .approver-row:last-child{ border-bottom:none; }
+  .approver-row .role{ font-size:13px; color: var(--text); }
+  .approver-row .role small{ display:block; color:var(--text-muted); font-size:11px; margin-top:2px; }
+
+  .btn{
+    background: linear-gradient(135deg, var(--gold), #c98a3a);
+    color:#241a12; border:none; padding:12px 22px; border-radius:10px;
+    font-weight:700; font-size:14px; cursor:pointer;
+  }
+  .btn:disabled{ opacity:.5; cursor:not-allowed; }
+  .btn.secondary{ background:transparent; border:1px solid var(--border); color: var(--text); }
+
+  .status-msg{ font-size:13px; margin-top:10px; }
+  .status-msg.error{ color: var(--danger); }
+  .status-msg.ok{ color: var(--teal); }
+
+  .hidden{ display:none !important; }
+
+  .result-link{
+    background: var(--panel-2); border:1px solid var(--border); border-radius:8px;
+    padding:10px 12px; font-size:12px; margin-bottom:8px; word-break:break-all;
+  }
+  .result-link b{ color: var(--gold); display:block; margin-bottom:4px; font-size:12px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="topbar">
+    <div>
+      <a class="back" href="penilaian.html">← Kembali ke daftar penilaian</a>
+      <h1>Input / Edit Nilai</h1>
+      <div class="muted" id="subInfo">Memuat...</div>
+    </div>
+  </div>
+
+  <div id="content" class="hidden">
+    <div class="card">
+      <h2>Kriteria Penilaian</h2>
+      <div id="kriteriaContainer"></div>
+      <div class="total-box"><div>Total rata-rata</div><div class="n" id="totalRataRata">-</div></div>
+    </div>
+
+    <div class="card" id="saranCard">
+      <h2>Saran, Pengembangan &amp; Catatan Atasan</h2>
+      <div class="field"><label>Kekuatan</label><textarea id="fKekuatan"></textarea></div>
+      <div class="field"><label>Area pengembangan</label><textarea id="fAreaPengembangan"></textarea></div>
+      <div class="field"><label>Catatan atasan</label><textarea id="fCatatanAtasan"></textarea></div>
+    </div>
+
+    <div class="card">
+      <button class="btn" id="btnSave">Simpan Nilai</button>
+      <a class="btn secondary" id="btnCetak" style="text-decoration:none;display:inline-block;margin-left:8px;">🖨 Cetak Form</a>
+      <div class="status-msg" id="saveStatus"></div>
+    </div>
+  </div>
+  <div class="muted" id="errMsg"></div>
+</div>
+
+<script>
+const FORM_TEMPLATES = {
+  C: {
+    label: 'Form C',
+    sections: [
+      { kategori: 'I - Sikap', items: [
+        {kode:'a', label:'Tanggung jawab pada pekerjaan'},
+        {kode:'b', label:'Kemampuan mengendalikan diri'},
+        {kode:'c', label:'Semangat kerja'},
+        {kode:'d', label:'Kemauan untuk belajar hal baru'},
+        {kode:'e', label:'Disiplin'}
+      ]},
+      { kategori: 'II - Penguasaan Pekerjaan', items: [
+        {kode:'a', label:'Kemampuan / skill'},
+        {kode:'b', label:'Pengetahuan teknis'}
+      ]},
+      { kategori: 'III - People Management', items: [
+        {kode:'a', label:'Mengembangkan orang lain'},
+        {kode:'b', label:'Coaching and Counseling'},
+        {kode:'c', label:'Delegasi'},
+        {kode:'d', label:'Kerjasama team'}
+      ]}
+    ],
+    showSaran: true,
+    approvalLabels: ['Atasan Langsung','Atasan satu tingkat diatas atasan langsung','Atasan Dua tingkat diatas atasan langsung','HCS Unit'],
+    signRowLabels: ['Dinilai oleh','Disetujui','Diketahui','Diterima']
+  },
+  B: {
+    label: 'Form B',
+    sections: [
+      { kategori: 'I - Sikap', items: [
+        {kode:'a', label:'Tanggung jawab pada pekerjaan'},
+        {kode:'b', label:'Kemampuan mengendalikan diri'},
+        {kode:'c', label:'Semangat kerja'},
+        {kode:'d', label:'Kemauan untuk belajar hal baru'},
+        {kode:'e', label:'Disiplin'}
+      ]},
+      { kategori: 'II - Penguasaan Pekerjaan', items: [
+        {kode:'a', label:'Kemampuan / skill'},
+        {kode:'b', label:'Pengetahuan teknis'}
+      ]}
+    ],
+    showSaran: true,
+    approvalLabels: ['SPV','Atasan langsung SPV','Atasan tidak langsung SPV','HCS Unit'],
+    signRowLabels: ['Dinilai oleh','Disetujui','Diketahui','Diterima']
+  },
+  WORKER: {
+    label: 'Form Worker',
+    sections: [
+      { kategori: 'Penilaian Kinerja', items: [
+        {kode:'a', label:'Pencapaian hasil kerja'},
+        {kode:'b', label:'Kualitas hasil pekerjaan'},
+        {kode:'c', label:'Sikap bekerja'},
+        {kode:'d', label:'Disiplin / absensi'},
+        {kode:'e', label:'Potensi dikembangkan'}
+      ]}
+    ],
+    showSaran: false,
+    approvalLabels: ['SPV','Atasan langsung SPV','Atasan Tidak langsung SPV','HCS Unit'],
+    signRowLabels: ['Penilai','Disetujui','Diketahui','Diterima']
+  }
+};
+
+const currentUser = JSON.parse(sessionStorage.getItem('user') || 'null');
+if (!currentUser) window.location.href = 'login.html';
+
+const penilaianId = new URLSearchParams(location.search).get('id');
+let P = null, tipe = null, detailMap = {};   // detailMap: "kategori|kode" -> row
+
+function esc(v){ const d=document.createElement('div'); d.textContent = v==null?'':String(v); return d.innerHTML; }
+
+async function load(){
+  if (!penilaianId) { document.getElementById('errMsg').textContent = 'ID penilaian tidak ditemukan.'; return; }
+  const [p, d] = await Promise.all([
+    supabaseClient.from('penilaian_karyawan').select('*').eq('id', penilaianId).single(),
+    supabaseClient.from('penilaian_detail').select('*').eq('penilaian_id', penilaianId)
+  ]);
+  if (p.error || !p.data) { document.getElementById('errMsg').textContent = 'Data penilaian tidak ditemukan.'; return; }
+  P = p.data;
+  tipe = FORM_TEMPLATES[P.tipe_form] ? P.tipe_form : 'B';
+  (d.data || []).forEach(r => { detailMap[r.kategori + '|' + r.kode] = r; });
+  document.getElementById('subInfo').textContent = `${P.nama_snapshot || ''} · ${P.nik_snapshot || ''} · ${FORM_TEMPLATES[tipe].label} · Periode ${P.periode}`;
+  document.getElementById('btnCetak').href = 'penilaian-cetak.html?id=' + encodeURIComponent(P.id);
+  renderKriteria();
+  const tpl = FORM_TEMPLATES[tipe];
+  document.getElementById('saranCard').classList.toggle('hidden', !tpl.showSaran);
+  document.getElementById('fKekuatan').value = P.saran_kekuatan || '';
+  document.getElementById('fAreaPengembangan').value = P.saran_pengembangan || '';
+  document.getElementById('fCatatanAtasan').value = P.catatan_atasan || '';
+  document.getElementById('content').classList.remove('hidden');
+}
+
+function renderKriteria(){
+  const tpl = FORM_TEMPLATES[tipe];
+  const c = document.getElementById('kriteriaContainer');
+  c.innerHTML = '';
+  tpl.sections.forEach(sec => {
+    const t = document.createElement('table');
+    t.className = 'kriteria'; t.dataset.kategori = sec.kategori;
+    let rows = `<tr><th colspan="2">${esc(sec.kategori)}</th><th style="width:90px;">Skor</th></tr>`;
+    sec.items.forEach(it => {
+      const cur = detailMap[sec.kategori + '|' + it.kode];
+      const v = cur && cur.skor != null ? String(parseFloat(cur.skor)) : '';
+      rows += `<tr data-kode="${esc(it.kode)}" data-label="${esc(it.label)}"><td colspan="2">${esc(it.kode)}. ${esc(it.label)}</td>
+        <td class="skor-col"><select class="skor-input"><option value="">-</option>${[1,2,3,4,5].map(n => `<option value="${n}"${v === String(n) ? ' selected' : ''}>${n}</option>`).join('')}</select></td></tr>`;
+    });
+    rows += `<tr class="rata"><td colspan="2">Rata-rata</td><td class="rata-value">-</td></tr>`;
+    t.innerHTML = rows;
+    c.appendChild(t);
+  });
+  c.querySelectorAll('.skor-input').forEach(s => s.addEventListener('change', hitung));
+  hitung();
+}
+
+function hitung(){
+  const tables = document.querySelectorAll('#kriteriaContainer table.kriteria');
+  const secAvg = [], all = [];
+  tables.forEach(t => {
+    const sc = [...t.querySelectorAll('.skor-input')].map(s => s.value ? parseFloat(s.value) : null).filter(v => v !== null);
+    all.push(...sc);
+    const avg = sc.length ? sc.reduce((a,b)=>a+b,0)/sc.length : 0;
+    t.querySelector('.rata-value').textContent = sc.length ? avg.toFixed(2) : '-';
+    if (sc.length) secAvg.push(avg);
+  });
+  let total = null;
+  if (tipe === 'WORKER') total = all.length ? all.reduce((a,b)=>a+b,0)/all.length : null;
+  else total = secAvg.length ? secAvg.reduce((a,b)=>a+b,0)/secAvg.length : null;
+  document.getElementById('totalRataRata').textContent = total !== null ? total.toFixed(2) : '-';
+  return total;
+}
+
+document.getElementById('btnSave').addEventListener('click', async () => {
+  const st = document.getElementById('saveStatus');
+  const btn = document.getElementById('btnSave');
+  st.textContent = ''; st.className = 'status-msg';
+  btn.disabled = true; btn.textContent = 'Menyimpan...';
+  try {
+    const tpl = FORM_TEMPLATES[tipe];
+    const total = hitung();
+    const existing = [], baru = [];
+    document.querySelectorAll('#kriteriaContainer table.kriteria').forEach(t => {
+      const kategori = t.dataset.kategori;
+      t.querySelectorAll('tr[data-kode]').forEach(tr => {
+        const val = tr.querySelector('.skor-input').value;
+        const skor = val ? parseFloat(val) : null;
+        const cur = detailMap[kategori + '|' + tr.dataset.kode];
+        if (cur) existing.push({ id: cur.id, penilaian_id: penilaianId, kategori, kode: tr.dataset.kode, label: tr.dataset.label, skor });
+        else baru.push({ penilaian_id: penilaianId, kategori, kode: tr.dataset.kode, label: tr.dataset.label, skor });
+      });
+    });
+    if (existing.length) {
+      const { error } = await supabaseClient.from('penilaian_detail').upsert(existing);
+      if (error) throw error;
+    }
+    if (baru.length) {
+      const { error } = await supabaseClient.from('penilaian_detail').insert(baru);
+      if (error) throw error;
+    }
+    const upd = { total_rata_rata: total };
+    if (tpl.showSaran) {
+      upd.saran_kekuatan = document.getElementById('fKekuatan').value;
+      upd.saran_pengembangan = document.getElementById('fAreaPengembangan').value;
+      upd.catatan_atasan = document.getElementById('fCatatanAtasan').value;
+    }
+    const { error: e2 } = await supabaseClient.from('penilaian_karyawan').update(upd).eq('id', penilaianId);
+    if (e2) throw e2;
+    st.textContent = 'Nilai berhasil disimpan.'; st.className = 'status-msg ok';
+    // muat ulang data terbaru agar edit berikutnya memakai id yang benar
+    const d = await supabaseClient.from('penilaian_detail').select('*').eq('penilaian_id', penilaianId);
+    detailMap = {}; (d.data || []).forEach(r => { detailMap[r.kategori + '|' + r.kode] = r; });
+  } catch (err) {
+    console.error(err);
+    st.textContent = 'Gagal menyimpan: ' + (err.message || 'terjadi kesalahan.'); st.className = 'status-msg error';
+  }
+  btn.disabled = false; btn.textContent = 'Simpan Nilai';
+});
+
+load();
+</script>
+</body>
+</html>
