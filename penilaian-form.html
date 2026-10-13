@@ -433,6 +433,7 @@ function renderApprovers() {
       <div>
         <input list="karyawanList" class="approver-input" placeholder="Cari nama / NIK karyawan...">
       </div>`;
+    row.querySelector('.approver-input').addEventListener('input', e => { e.target.style.borderColor = ''; });
     container.appendChild(row);
   });
 }
@@ -448,13 +449,24 @@ document.getElementById('btnSubmit').addEventListener('click', async () => {
   if (!selectedKaryawan) { statusEl.textContent = 'Pilih karyawan yang dinilai terlebih dahulu.'; statusEl.className='status-msg error'; return; }
   if (!selectedTipe) { statusEl.textContent = 'Pilih tipe form terlebih dahulu.'; statusEl.className='status-msg error'; return; }
 
-  const approverRows = [...document.querySelectorAll('.approver-row')];
+  // Penandatangan opsional: boleh kosong semua. Yang diisi harus valid (dipilih dari daftar).
+  const approverRows = [...document.querySelectorAll('#approverContainer .approver-row')];
   const approvers = [];
-  for (const row of approverRows) {
-    const val = row.querySelector('.approver-input').value;
+  let firstInvalid = null;
+  approverRows.forEach((row, idx) => {
+    const input = row.querySelector('.approver-input');
+    const val = (input.value || '').trim();
+    if (!val) { input.style.borderColor = ''; return; }
     const found = karyawanCache.find(k => `${k.nama} - ${k.nik}` === val);
-    if (!found) { statusEl.textContent = 'Lengkapi semua penandatangan.'; statusEl.className='status-msg error'; return; }
-    approvers.push({ tahap: row.dataset.tahap, karyawan: found });
+    input.style.borderColor = found ? '' : '#e5484d';
+    if (!found) { if (!firstInvalid) firstInvalid = input; return; }
+    approvers.push({ tahap: row.dataset.tahap, urutan: idx + 1, labelIdx: idx, karyawan: found });
+  });
+  if (firstInvalid) {
+    statusEl.textContent = 'Penandatangan yang diisi harus dipilih dari daftar karyawan, atau kosongkan.';
+    statusEl.className = 'status-msg error';
+    firstInvalid.focus();
+    return;
   }
 
   const btn = document.getElementById('btnSubmit');
@@ -510,22 +522,30 @@ document.getElementById('btnSubmit').addEventListener('click', async () => {
     const approvalRows = approvers.map((a, i) => ({
       penilaian_id: penilaian.id,
       tahap: a.tahap,
-      urutan: i + 1,
+      urutan: a.urutan,
       approver_karyawan_id: a.karyawan.id
     }));
-    const { data: insertedApprovals, error: errApproval } = await supabaseClient
-      .from('penilaian_approval')
-      .insert(approvalRows)
-      .select();
-    if (errApproval) throw errApproval;
+    let insertedApprovals = [];
+    if (approvalRows.length) {
+      const { data: ins, error: errApproval } = await supabaseClient
+        .from('penilaian_approval')
+        .insert(approvalRows)
+        .select();
+      if (errApproval) throw errApproval;
+      insertedApprovals = ins || [];
+    }
 
     const resultLinks = document.getElementById('resultLinks');
     resultLinks.innerHTML = '';
+    if (!insertedApprovals.length) {
+      resultLinks.innerHTML = '<div class="result-link"><b>Penilaian tersimpan tanpa penandatangan.</b></div>';
+    }
     insertedApprovals
       .sort((a,b) => a.urutan - b.urutan)
-      .forEach((row, i) => {
-        const label = tpl.approvalLabels[i];
-        const namaApprover = approvers[i].karyawan.nama;
+      .forEach((row) => {
+        const ap = approvers.find(x => x.urutan === row.urutan);
+        const label = tpl.approvalLabels[ap.labelIdx];
+        const namaApprover = ap.karyawan.nama;
         const link = `${window.location.origin}${window.location.pathname.replace('penilaian-form.html','')}approval.html?token=${row.token}`;
         const div = document.createElement('div');
         div.className = 'result-link';
