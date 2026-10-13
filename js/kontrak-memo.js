@@ -25,18 +25,19 @@
   }
 
   const CSS = `
-  .im-memo{ font-family:'Times New Roman', Times, serif; color:#111; font-size:12pt; line-height:1.3; }
+  .im-memo{ font-family:'Times New Roman', Times, serif; color:#111; font-size:14pt; line-height:1.3; }
   .im-memo .im-title{ font-weight:700; font-size:14pt; text-decoration:underline; letter-spacing:.3px; margin:2px 0 0; line-height:1.2; }
-  .im-memo .im-number{ font-weight:700; font-size:12pt; color:#111; margin:0 0 14px; }
+  .im-memo .im-number{ font-weight:700; font-size:14pt; color:#111; margin:0 0 14px; }
   .im-memo table.im-t{ border-collapse:collapse; width:auto; table-layout:auto; margin:0 0 12px 0; }
-  .im-memo table.im-t td{ padding:0 0 1px; font-size:12pt; line-height:1.3; vertical-align:top; text-align:left; border:none; }
-  .im-memo table.im-t td.l{ width:128px; white-space:nowrap; padding-right:4px; }
+  .im-memo table.im-t td{ padding:0 0 1px; font-size:14pt; line-height:1.3; vertical-align:top; text-align:left; border:none; }
+  .im-memo table.im-t td.l{ width:150px; white-space:nowrap; padding-right:4px; }
   .im-memo table.im-t td.c{ width:16px; text-align:center; }
-  .im-memo .im-blank{ display:inline-block; width:230px; border-bottom:1px solid #111; height:14px; }
+  .im-memo .im-blank{ display:inline-block; width:260px; border-bottom:1px solid #111; height:16px; }
   .im-memo p{ margin:0 0 12px; text-align:justify; }
   .im-memo .im-sign{ margin-top:26px; text-align:left; }
   .im-memo .im-sign .im-sigspace{ display:block; height:70px; }
-  .im-memo .im-sign img.im-sigimg{ display:block; height:90px; margin:0 0 -16px 10px; }
+  .im-memo .im-sign .im-signbox{ display:inline-block; text-align:left; }
+  .im-memo .im-sign img.im-sigimg{ display:block; height:90px; margin:0 auto -18px; }
   .im-memo .im-sign .im-name{ font-weight:700; text-decoration:underline; }
   .im-memo .im-sign .im-role{ font-style:italic; }
   `;
@@ -81,9 +82,11 @@
 
       <div class="im-sign">
         <div>Surabaya, ${tgl(k.tanggal_memo || new Date().toISOString(), false)}<br>Hormat Saya,</div>
-        ${k.hcs_signature_data ? `<img class="im-sigimg" src="${k.hcs_signature_data}" alt="Tanda tangan">` : '<span class="im-sigspace"></span>'}
-        <div class="im-name">${esc(k.hcs_penandatangan_nama || '____________________')}</div>
-        <div class="im-role">HCS Supervisor</div>
+        <div class="im-signbox">
+          ${k.hcs_signature_data ? `<img class="im-sigimg" src="${k.hcs_signature_data}" alt="Tanda tangan">` : '<span class="im-sigspace"></span>'}
+          <div class="im-name">${esc(k.hcs_penandatangan_nama || '____________________')}</div>
+          <div class="im-role">HCS Supervisor</div>
+        </div>
       </div>
     </div>`;
   }
