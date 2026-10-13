@@ -7,6 +7,7 @@
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="supabase/config.js"></script>
+<script src="js/kontrak-memo.js"></script>
 
 <style>
   :root{
@@ -450,48 +451,8 @@ async function init() {
 }
 
 function renderMemoPreview(k) {
-  // Hanya tampilkan 3 riwayat kontrak terakhir.
-  const riwayat = (Array.isArray(k.riwayat_kontrak) ? k.riwayat_kontrak : []).slice(-3);
-  const riwayatRows = riwayat.map(r => `
-    <tr><th>Kontrak ke ${r.ke ?? '-'}</th><td>${fmtDate(r.mulai)} — ${fmtDate(r.selesai)}</td></tr>
-  `).join('');
-
-  // Baris kontrak selanjutnya (yang sedang diajukan/dinilai) — dikosongkan untuk diisi setelah keputusan.
-  const nextKe = (k.kontrak_ke_terakhir != null ? k.kontrak_ke_terakhir : riwayat.length) + 1;
-  const nextRow = `<tr><th>Kontrak ke ${nextKe}</th><td><span class="blank-line">&nbsp;</span></td></tr>`;
-
-  const rekom = k.rekomendasi;
-
-  return `
-    <div class="letterhead"><img src="images/logo-sda-global.png" alt="Logo SDA Global"></div>
-    <div class="memo-title">INTERNAL MEMO</div>
-    <div class="memo-number">${esc(k.nomor_memo || '—/A.01/HRD/—/—')}</div>
-    <table>
-      <tr><th>Kepada</th><td>${esc(k.kepada_jabatan || '-')}${k.kepada_nama ? '<br>Up. ' + esc(k.kepada_nama) : ''}</td></tr>
-      <tr><th>Dari</th><td>${esc(k.dari || 'Dept. HCS')}</td></tr>
-      <tr><th>Perihal</th><td>Masa Berakhirnya Kontrak Kerja</td></tr>
-    </table>
-    <p>Dengan hormat,</p>
-    <p>Dengan ini kami informasikan, bahwa berdasarkan data perjanjian kerja karyawan yang tersebut di bawah ini telah berakhir masa perjanjian kontraknya:</p>
-    <table>
-      <tr><th>Nama</th><td>${esc(k.nama_snapshot)}</td></tr>
-      <tr><th>Unit</th><td>${esc(k.unit_snapshot || '-')}</td></tr>
-      <tr><th>Bagian</th><td>${esc(k.jabatan_snapshot || '-')}</td></tr>
-      <tr><th>Tanggal Masuk</th><td>${fmtDate(k.tanggal_masuk)}</td></tr>
-      ${riwayatRows}
-      ${nextRow}
-    </table>
-    <p>Untuk selanjutnya apabila ${b(rekom==='diperpanjang','diperpanjang')} ( ${b(k.durasi_perpanjangan==='3','3')} / ${b(k.durasi_perpanjangan==='6','6')} / ${b(k.durasi_perpanjangan==='12','12')} bulan ) / ${b(rekom==='tidak_diperpanjang','Tidak diperpanjang')} / ${b(rekom==='karyawan_tetap','Diusulkan sebagai karyawan tetap')}, dilengkapi dengan pengisian form sebagaimana terlampir. Balasan internal memo maksimal 30 hari sebelum kontrak karyawan berakhir, jika melebihi batas waktu yang telah ditetapkan maka hal - hal yang berkaitan dengan legalitas karyawan (status kekaryawanan) menjadi tanggungan Departemen.</p>
-    <p>Demikian pemberitahuan dari kami atas perhatian dan kerjasamanya kami sampaikan terima kasih.</p>
-    <div class="sign-off">
-      <div class="sign-off-box">
-        <div class="place-date">Surabaya, ${fmtDateLong(k.tanggal_memo || new Date())}<br>Hormat Saya,</div>
-        ${k.hcs_signature_data ? `<img class="sig-img" src="${k.hcs_signature_data}" alt="Tanda tangan">` : ''}
-        <div class="sig-name">${esc(k.hcs_penandatangan_nama || '-')}</div>
-        <div class="sig-role">HCS Supervisor</div>
-      </div>
-    </div>
-  `;
+  // Format IM mengikuti contoh PDF resmi HCS (js/kontrak-memo.js); kop surat/logo di atasnya
+  return `<div class="letterhead"><img src="images/logo-sda-global.png" alt="Logo SDA Global"></div>` + KontrakMemo.html(k);
 }
 
 function renderHcs() {

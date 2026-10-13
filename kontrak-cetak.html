@@ -7,6 +7,7 @@
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="supabase/config.js"></script>
+<script src="js/kontrak-memo.js"></script>
 
 <style>
   :root{
@@ -262,44 +263,7 @@ function render(k) {
         <div class="logo-mark"><img src="images/logo-sda-global.png" alt="Logo"></div>
       </div>
 
-      <div class="memo-title">INTERNAL MEMO</div>
-      <div class="memo-number">${esc(k.nomor_memo || '—/A.01/HRD/—/—')}</div>
-
-      <div class="memo-meta">
-        <table>
-          <tr><td class="k">Kepada</td><td><span class="colon-space">:</span>${esc(k.kepada_jabatan || '-')}${k.kepada_nama ? '<br><span class="colon-space"></span>Up. ' + esc(k.kepada_nama) : ''}</td></tr>
-          <tr><td class="k">Dari</td><td>: ${esc(k.dari || 'Dept. HCS')}</td></tr>
-          <tr><td class="k">Perihal</td><td>: Masa Berakhirnya Kontrak Kerja</td></tr>
-        </table>
-      </div>
-
-      <div class="memo-body">
-        <p>Dengan hormat,</p>
-        <p>Dengan ini kami informasikan, bahwa berdasarkan data perjanjian kerja karyawan yang tersebut di bawah ini telah berakhir masa perjanjian kontraknya:</p>
-      </div>
-
-      <table class="info-table">
-        <tr><th>Nama</th><td>${esc(k.nama_snapshot)}</td></tr>
-        <tr><th>Unit</th><td>${esc(k.unit_snapshot || '-')}</td></tr>
-        <tr><th>Bagian</th><td>${esc(k.jabatan_snapshot || '-')}</td></tr>
-        <tr><th>Tanggal Masuk</th><td>${fmtDate(k.tanggal_masuk, {day:'2-digit',month:'2-digit',year:'numeric'})}</td></tr>
-        ${riwayatRows}
-        ${nextRow}
-      </table>
-
-      <div class="memo-body">
-        <p>Untuk selanjutnya apabila ${b(rekom==='diperpanjang','diperpanjang')} ( ${b(k.durasi_perpanjangan==='3','3')} / ${b(k.durasi_perpanjangan==='6','6')} / ${b(k.durasi_perpanjangan==='12','12')} bulan ) / ${b(rekom==='tidak_diperpanjang','Tidak diperpanjang')} / ${b(rekom==='karyawan_tetap','Diusulkan sebagai karyawan tetap')}, dilengkapi dengan pengisian form sebagaimana terlampir. Balasan internal memo maksimal 30 hari sebelum kontrak karyawan berakhir, jika melebihi batas waktu yang telah ditetapkan maka hal - hal yang berkaitan dengan legalitas karyawan (status kekaryawanan) menjadi tanggungan Departemen.</p>
-        <p>Demikian pemberitahuan dari kami atas perhatian dan kerjasamanya kami sampaikan terima kasih.</p>
-      </div>
-
-      <div class="sign-block">
-        <div class="sign-box">
-          <div class="place-date">Surabaya, ${fmtDate(k.tanggal_memo)}<br>Hormat Saya,</div>
-          ${k.hcs_signature_data ? `<img class="sig-img" src="${k.hcs_signature_data}" alt="Tanda tangan">` : `<span class="sig-blank"></span>`}
-          <div class="name">${esc(k.hcs_penandatangan_nama || '____________________')}</div>
-          <div class="role">HCS Supervisor</div>
-        </div>
-      </div>
+      ${KontrakMemo.html(k)}
     </div>
   `;
 
