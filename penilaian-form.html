@@ -139,29 +139,9 @@
     </div>
   </div>
 
-  <!-- STEP 1: Pilih Karyawan -->
+  <!-- STEP 1: Pilih Tipe Form -->
   <div class="card">
-    <h2>1. Pilih Karyawan yang Dinilai</h2>
-    <div class="field">
-      <label>Cari nama / NIK karyawan</label>
-      <input list="karyawanList" id="karyawanSearch" placeholder="Ketik nama atau NIK...">
-      <datalist id="karyawanList"></datalist>
-    </div>
-    <div class="grid2">
-      <div class="field"><label>NIK</label><input id="fNik" readonly></div>
-      <div class="field"><label>Nama</label><input id="fNama" readonly></div>
-      <div class="field"><label>Jabatan</label><input id="fJabatan"></div>
-      <div class="field"><label>Level</label><input id="fLevel" readonly placeholder="Otomatis dari Master Karyawan"></div>
-      <div class="field"><label>Department</label><input id="fDepartemen" readonly></div>
-      <div class="field"><label>Sub. Departement (Bagian)</label><input id="fSubDepartemen" readonly placeholder="Otomatis dari Master Karyawan"></div>
-      <div class="field"><label>Unit (Area)</label><input id="fUnit" readonly placeholder="Otomatis dari Master Karyawan"></div>
-      <div class="field" id="wrapTglMasuk"><label>Tanggal Masuk Kerja (otomatis dari Master Karyawan)</label><input type="date" id="fTglMasuk" readonly style="pointer-events:none;"></div>
-    </div>
-  </div>
-
-  <!-- STEP 2: Pilih Tipe Form -->
-  <div class="card">
-    <h2>2. Pilih Tipe Form Penilaian</h2>
+    <h2>1. Pilih Tipe Form Penilaian</h2>
     <div class="form-type-options" id="formTypeOptions">
       <label class="form-type" data-type="C">
         <input type="radio" name="tipeForm" value="C">
@@ -175,9 +155,43 @@
       </label>
       <label class="form-type" data-type="WORKER">
         <input type="radio" name="tipeForm" value="WORKER">
-        <div class="t">Form Worker</div>
-        <div class="d">Worker, Helper, Driver, Security, OB, CS, Tukang</div>
+        <div class="t">Form A</div>
+        <div class="d">Worker, Helper, Driver, Security, OB, CS, Tukang (bisa lebih dari satu karyawan)</div>
       </label>
+    </div>
+  </div>
+
+  <!-- STEP 2: Pilih Karyawan -->
+  <div class="card hidden" id="karyawanCard">
+    <h2 id="karyawanTitle">2. Pilih Karyawan yang Dinilai</h2>
+
+    <div id="singleBlock">
+      <div class="field">
+        <label>Cari nama / NIK karyawan</label>
+        <input list="karyawanList" id="karyawanSearch" placeholder="Ketik nama atau NIK...">
+        <datalist id="karyawanList"></datalist>
+      </div>
+    <div class="grid2">
+        <div class="field"><label>NIK</label><input id="fNik" readonly></div>
+        <div class="field"><label>Nama</label><input id="fNama" readonly></div>
+        <div class="field"><label>Jabatan</label><input id="fJabatan"></div>
+        <div class="field"><label>Level</label><input id="fLevel" readonly placeholder="Otomatis dari Master Karyawan"></div>
+        <div class="field"><label>Department</label><input id="fDepartemen" readonly></div>
+        <div class="field"><label>Sub. Departement (Bagian)</label><input id="fSubDepartemen" readonly placeholder="Otomatis dari Master Karyawan"></div>
+        <div class="field"><label>Unit (Area)</label><input id="fUnit" readonly placeholder="Otomatis dari Master Karyawan"></div>
+        <div class="field" id="wrapTglMasuk"><label>Tanggal Masuk Kerja (otomatis dari Master Karyawan)</label><input type="date" id="fTglMasuk" readonly style="pointer-events:none;"></div>
+      </div>
+    </div>
+
+    <div id="multiBlock" class="hidden">
+      <div class="field">
+        <label>Tambah karyawan (cari nama / NIK, pilih dari daftar — bisa lebih dari satu)</label>
+        <input list="karyawanList" id="multiSearch" placeholder="Ketik nama atau NIK lalu pilih...">
+      </div>
+      <div style="overflow-x:auto;">
+        <table class="kriteria" id="multiTable"><tbody></tbody></table>
+      </div>
+      <div class="muted" id="multiEmpty" style="margin-top:8px;">Belum ada karyawan dipilih.</div>
     </div>
   </div>
 
@@ -270,7 +284,7 @@ const FORM_TEMPLATES = {
     signRowLabels: ['Dinilai oleh','Disetujui','Diketahui','Diterima']
   },
   WORKER: {
-    label: 'Form Worker',
+    label: 'Form A',
     sections: [
       { kategori: 'Penilaian Kinerja', items: [
         {kode:'a', label:'Pencapaian hasil kerja'},
@@ -291,7 +305,7 @@ let selectedKaryawan = null;
 let selectedTipe = null;
 
 document.getElementById('periodeLabel').textContent = new Date().getFullYear();
-document.getElementById('wrapTglMasuk').classList.add('hidden');
+document.getElementById('wrapTglMasuk').classList.add('hidden');  // diisi otomatis, tidak ditampilkan
 
 // =====================================================
 // GUARD LOGIN SEDERHANA
@@ -335,6 +349,68 @@ document.getElementById('karyawanSearch').addEventListener('input', (e) => {
 });
 
 // =====================================================
+// FORM A: BANYAK KARYAWAN DALAM SATU FORM
+// =====================================================
+let multiList = [];   // [{ k: karyawan, scores: {a:'',b:'',...} }]
+
+function masaKerjaTahun(tgl) {
+  if (!tgl) return '';
+  const d = new Date(String(tgl).slice(0, 10));
+  if (isNaN(d)) return '';
+  const th = (Date.now() - d.getTime()) / (365.25 * 24 * 3600 * 1000);
+  return th < 0 ? '' : th.toFixed(1).replace('.', ',');
+}
+function fmtTgl(tgl) {
+  if (!tgl) return '';
+  const [y, m, d] = String(tgl).slice(0, 10).split('-');
+  return y && m && d ? `${d}/${m}/${y}` : '';
+}
+function escH(v) { const d = document.createElement('div'); d.textContent = v == null ? '' : String(v); return d.innerHTML; }
+function aItems() { return FORM_TEMPLATES.WORKER.sections[0].items; }
+function aKategori() { return FORM_TEMPLATES.WORKER.sections[0].kategori; }
+
+function hitungMulti(m) {
+  const vals = aItems().map(it => m.scores[it.kode]).filter(v => v !== '' && v != null).map(Number);
+  const total = vals.length ? vals.reduce((a, b) => a + b, 0) : null;
+  const avg = vals.length ? total / vals.length : null;
+  return { total, avg };
+}
+
+function renderMulti() {
+  const tb = document.querySelector('#multiTable tbody');
+  document.getElementById('multiEmpty').classList.toggle('hidden', multiList.length > 0);
+  if (!multiList.length) { tb.innerHTML = ''; return; }
+  const items = aItems();
+  let html = `<tr><th rowspan="2">No</th><th rowspan="2">Nama</th><th rowspan="2">Departemen</th><th rowspan="2">Bagian</th><th rowspan="2">Jabatan</th><th rowspan="2">Tgl masuk kerja</th><th rowspan="2">Masa kerja</th><th colspan="${items.length}" style="text-align:center;">Penilaian Kinerja</th><th rowspan="2">Total</th><th rowspan="2">Rata-rata</th><th rowspan="2"></th></tr><tr>${items.map(it => `<th style="min-width:86px;">${escH(it.label)}</th>`).join('')}</tr>`;
+  multiList.forEach((m, i) => {
+    const k = m.k, r = hitungMulti(m);
+    html += `<tr data-i="${i}"><td>${i + 1}</td><td>${escH(k.nama)}</td><td>${escH(k.departemen)}</td><td>${escH(k.bagian)}</td><td>${escH(k.jabatan)}</td><td>${escH(fmtTgl(k.tanggal_masuk))}</td><td>${escH(masaKerjaTahun(k.tanggal_masuk))}</td>` +
+      items.map(it => `<td><select class="m-skor" data-kode="${it.kode}"><option value="">-</option>${[1,2,3,4,5].map(n => `<option value="${n}"${String(m.scores[it.kode]) === String(n) ? ' selected' : ''}>${n}</option>`).join('')}</select></td>`).join('') +
+      `<td class="m-total">${r.total != null ? r.total : ''}</td><td class="m-avg">${r.avg != null ? r.avg.toFixed(2) : ''}</td><td><button type="button" class="m-del" style="background:none;border:none;color:var(--danger);cursor:pointer;font-size:16px;" title="Hapus">✕</button></td></tr>`;
+  });
+  tb.innerHTML = html;
+  tb.querySelectorAll('tr[data-i]').forEach(tr => {
+    const i = +tr.dataset.i;
+    tr.querySelector('.m-del').addEventListener('click', () => { multiList.splice(i, 1); renderMulti(); });
+    tr.querySelectorAll('.m-skor').forEach(sel => sel.addEventListener('change', () => {
+      multiList[i].scores[sel.dataset.kode] = sel.value;
+      const r = hitungMulti(multiList[i]);
+      tr.querySelector('.m-total').textContent = r.total != null ? r.total : '';
+      tr.querySelector('.m-avg').textContent = r.avg != null ? r.avg.toFixed(2) : '';
+    }));
+  });
+}
+
+document.getElementById('multiSearch').addEventListener('input', (e) => {
+  const found = karyawanCache.find(k => `${k.nama} - ${k.nik}` === e.target.value);
+  if (!found) return;
+  e.target.value = '';
+  if (multiList.some(m => m.k.id === found.id)) return;   // cegah dobel
+  multiList.push({ k: found, scores: {} });
+  renderMulti();
+});
+
+// =====================================================
 // PILIH TIPE FORM
 // =====================================================
 document.querySelectorAll('.form-type').forEach(el => {
@@ -343,9 +419,17 @@ document.querySelectorAll('.form-type').forEach(el => {
     el.classList.add('active');
     el.querySelector('input').checked = true;
     selectedTipe = el.dataset.type;
-    document.getElementById('wrapTglMasuk').classList.toggle('hidden', selectedTipe !== 'WORKER');
+    const isMulti = selectedTipe === 'WORKER';
+    document.getElementById('karyawanCard').classList.remove('hidden');
+    document.getElementById('singleBlock').classList.toggle('hidden', isMulti);
+    document.getElementById('multiBlock').classList.toggle('hidden', !isMulti);
+    document.getElementById('karyawanTitle').textContent = isMulti
+      ? '2. Pilih Karyawan yang Dinilai (bisa lebih dari satu)'
+      : '2. Pilih Karyawan yang Dinilai';
     renderKriteria();
     renderApprovers();
+    document.getElementById('approverTitle').textContent = isMulti ? '3. Pilih Penandatangan' : '5. Pilih Penandatangan';
+    if (isMulti) renderMulti();
   });
 });
 
@@ -387,7 +471,7 @@ function renderKriteria() {
     sel.addEventListener('change', hitungRataRata);
   });
 
-  document.getElementById('kriteriaCard').classList.remove('hidden');
+  document.getElementById('kriteriaCard').classList.toggle('hidden', selectedTipe === 'WORKER');
   document.getElementById('saranCard').classList.toggle('hidden', !tpl.showSaran);
   document.getElementById('approverCard').classList.remove('hidden');
   document.getElementById('submitCard').classList.remove('hidden');
@@ -448,8 +532,10 @@ document.getElementById('btnSubmit').addEventListener('click', async () => {
   statusEl.textContent = '';
   statusEl.className = 'status-msg';
 
-  if (!selectedKaryawan) { statusEl.textContent = 'Pilih karyawan yang dinilai terlebih dahulu.'; statusEl.className='status-msg error'; return; }
   if (!selectedTipe) { statusEl.textContent = 'Pilih tipe form terlebih dahulu.'; statusEl.className='status-msg error'; return; }
+  const isMulti = selectedTipe === 'WORKER';
+  if (isMulti && !multiList.length) { statusEl.textContent = 'Tambahkan minimal satu karyawan yang dinilai.'; statusEl.className='status-msg error'; return; }
+  if (!isMulti && !selectedKaryawan) { statusEl.textContent = 'Pilih karyawan yang dinilai terlebih dahulu.'; statusEl.className='status-msg error'; return; }
 
   // Penandatangan opsional: boleh kosong semua. Yang diisi harus valid (dipilih dari daftar).
   const approverRows = [...document.querySelectorAll('#approverContainer .approver-row')];
@@ -478,12 +564,42 @@ document.getElementById('btnSubmit').addEventListener('click', async () => {
     const tpl = FORM_TEMPLATES[selectedTipe];
     const totalRataRata = parseFloat(document.getElementById('totalRataRata').textContent) || null;
 
-    const { data: penilaian, error: errPenilaian } = await supabaseClient
+    const periode = String(new Date().getFullYear());
+    const dibuatOleh = currentUser?.nama || currentUser?.username || 'Admin';
+    let penilaian;   // baris utama (pemegang approval)
+
+    if (isMulti) {
+      // Form A: satu baris penilaian per karyawan, dikelompokkan dengan batch_id (butuh kolom batch_id)
+      const batchId = crypto.randomUUID();
+      for (const m of multiList) {
+        const k = m.k, r = hitungMulti(m);
+        const { data: row, error: errRow } = await supabaseClient
+          .from('penilaian_karyawan')
+          .insert({
+            karyawan_id: k.id, periode, dibuat_oleh: dibuatOleh, status: 'Proses', tipe_form: 'WORKER', batch_id: batchId,
+            nik_snapshot: k.nik || '', nama_snapshot: k.nama || '', jabatan_snapshot: k.jabatan || '', level_snapshot: k.level || '',
+            departemen_snapshot: k.departemen || '', sub_departemen_snapshot: k.bagian || '', unit_snapshot: k.area || '',
+            tgl_masuk_kerja: k.tanggal_masuk ? String(k.tanggal_masuk).slice(0, 10) : null,
+            catatan_atasan: null, saran_kekuatan: null, saran_pengembangan: null,
+            total_rata_rata: r.avg
+          })
+          .select().single();
+        if (errRow) throw errRow;
+        if (!penilaian) penilaian = row;
+        const det = aItems().map(it => ({
+          penilaian_id: row.id, kategori: aKategori(), kode: it.kode, label: it.label,
+          skor: m.scores[it.kode] ? parseFloat(m.scores[it.kode]) : null
+        }));
+        const { error: errDet } = await supabaseClient.from('penilaian_detail').insert(det);
+        if (errDet) throw errDet;
+      }
+    } else {
+    const { data: row1, error: errPenilaian } = await supabaseClient
       .from('penilaian_karyawan')
       .insert({
         karyawan_id: selectedKaryawan.id,
-        periode: String(new Date().getFullYear()),
-        dibuat_oleh: currentUser?.nama || currentUser?.username || 'Admin',
+        periode,
+        dibuat_oleh: dibuatOleh,
         status: 'Proses',
         tipe_form: selectedTipe,
         nik_snapshot: document.getElementById('fNik').value,
@@ -502,6 +618,7 @@ document.getElementById('btnSubmit').addEventListener('click', async () => {
       .select()
       .single();
     if (errPenilaian) throw errPenilaian;
+    penilaian = row1;
 
     const detailRows = [];
     document.querySelectorAll('#kriteriaContainer table.kriteria').forEach(table => {
@@ -519,6 +636,7 @@ document.getElementById('btnSubmit').addEventListener('click', async () => {
     if (detailRows.length) {
       const { error: errDetail } = await supabaseClient.from('penilaian_detail').insert(detailRows);
       if (errDetail) throw errDetail;
+    }
     }
 
     const approvalRows = approvers.map((a, i) => ({
@@ -556,7 +674,7 @@ document.getElementById('btnSubmit').addEventListener('click', async () => {
       });
 
     document.getElementById('resultCard').classList.remove('hidden');
-    ['kriteriaCard','saranCard','approverCard','submitCard'].forEach(id => document.getElementById(id).classList.add('hidden'));
+    ['karyawanCard','kriteriaCard','saranCard','approverCard','submitCard'].forEach(id => document.getElementById(id).classList.add('hidden'));
     window.scrollTo({ top: document.getElementById('resultCard').offsetTop - 20, behavior:'smooth' });
 
   } catch (err) {

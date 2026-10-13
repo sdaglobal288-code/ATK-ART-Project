@@ -158,7 +158,7 @@
       <option value="">Semua Tipe Form</option>
       <option value="C">Form C</option>
       <option value="B">Form B</option>
-      <option value="WORKER">Form Worker</option>
+      <option value="WORKER">Form A</option>
     </select>
   </div>
 
@@ -184,7 +184,7 @@
 </div>
 
 <script>
-const FORM_LABELS = { C: 'Form C', B: 'Form B', WORKER: 'Form Worker' };
+const FORM_LABELS = { C: 'Form C', B: 'Form B', WORKER: 'Form A' };
 const APPROVAL_LABELS = {
   C: ['Atasan Langsung','Atasan satu tingkat diatas atasan langsung','Atasan Dua tingkat diatas atasan langsung','HCS Unit'],
   B: ['SPV','Atasan langsung SPV','Atasan tidak langsung SPV','HCS Unit'],
@@ -212,7 +212,17 @@ async function loadData() {
 
   if (err2) console.error(err2);
 
-  penilaianList = penilaian || [];
+  // Form A: beberapa karyawan dalam satu form (batch_id sama) ditampilkan sebagai satu baris.
+  // Baris utama = yang paling awal dibuat (pemegang approval).
+  const asc = [...(penilaian || [])].sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+  const batches = {}, singles = [];
+  asc.forEach(r => {
+    if (r.batch_id) {
+      if (!batches[r.batch_id]) { batches[r.batch_id] = { ...r, _members: [] }; singles.push(batches[r.batch_id]); }
+      batches[r.batch_id]._members.push(r);
+    } else singles.push(r);
+  });
+  penilaianList = singles.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
   approvalByPenilaian = {};
   (approvals || []).forEach(a => {
     if (!approvalByPenilaian[a.penilaian_id]) approvalByPenilaian[a.penilaian_id] = [];
@@ -264,7 +274,8 @@ function getFiltered() {
   const tipe = document.getElementById('tipeFilter').value;
 
   return penilaianList.filter(p => {
-    if (search && !(`${p.nama_snapshot} ${p.nik_snapshot}`.toLowerCase().includes(search))) return false;
+    const hay = p._members ? p._members.map(m => `${m.nama_snapshot} ${m.nik_snapshot}`).join(' ') : `${p.nama_snapshot} ${p.nik_snapshot}`;
+    if (search && !hay.toLowerCase().includes(search)) return false;
     if (periode && p.periode !== periode) return false;
     if (status && p.status !== status) return false;
     if (tipe && p.tipe_form !== tipe) return false;
@@ -296,7 +307,7 @@ function renderTable() {
 
     return `
       <tr class="main-row" data-id="${p.id}">
-        <td><b>${p.nama_snapshot || '-'}</b><br><span class="muted">${p.nik_snapshot || ''}</span></td>
+        <td>${p._members ? `<b>${p._members.length} karyawan</b><br><span class="muted">${p._members.slice(0,2).map(m => m.nama_snapshot).join(', ')}${p._members.length > 2 ? ', ...' : ''}</span>` : `<b>${p.nama_snapshot || '-'}</b><br><span class="muted">${p.nik_snapshot || ''}</span>`}</td>
         <td>${FORM_LABELS[p.tipe_form] || p.tipe_form}</td>
         <td>${p.periode}</td>
         <td><span class="badge ${badgeClass(p.status)}">${p.status}</span></td>
@@ -306,7 +317,7 @@ function renderTable() {
             <span>${approvedCount}/${steps.length || 4}</span>
           </div>
         </td>
-        <td>${p.total_rata_rata != null ? Number(p.total_rata_rata).toFixed(2) : '-'}</td>
+        <td>${!p._members && p.total_rata_rata != null ? Number(p.total_rata_rata).toFixed(2) : '-'}</td>
         <td>${tanggal}</td>
       </tr>
       <tr class="detail-row hidden" data-detail-for="${p.id}">
@@ -339,7 +350,14 @@ function renderDetailPanel(p, steps) {
   const labels = APPROVAL_LABELS[p.tipe_form] || APPROVAL_LABELS.B;
   const baseUrl = `${window.location.origin}${window.location.pathname.replace('penilaian.html','')}approval.html`;
 
-  const infoHtml = `
+  const infoHtml = p._members ? `
+    <div>
+      <h3>Karyawan yang Dinilai (${p._members.length})</h3>
+      ${p._members.map((m, i) => `<div class="info-line">${i + 1}. <b>${escapeHtml(m.nama_snapshot || '-')}</b> · ${escapeHtml(m.nik_snapshot || '')}<br>&nbsp;&nbsp;&nbsp;${escapeHtml(m.jabatan_snapshot || '-')} · ${escapeHtml(m.departemen_snapshot || '-')}${m.sub_departemen_snapshot ? ' / ' + escapeHtml(m.sub_departemen_snapshot) : ''}</div>`).join('')}
+      <div class="info-line" style="margin-top:6px;">Dibuat oleh: ${escapeHtml(p.dibuat_oleh || '-')}</div>
+      <div style="margin-top:10px;"><a class="cetak-btn" style="text-decoration:none;display:inline-block;" href="penilaian-cetak.html?id=${p.id}" onclick="event.stopPropagation()">🖨 Cetak Form</a> <a class="cetak-btn" style="text-decoration:none;display:inline-block;" href="penilaian-nilai.html?id=${p.id}" onclick="event.stopPropagation()">✏️ Input / Edit Nilai</a></div>
+    </div>
+  ` : `
     <div>
       <h3>Informasi Karyawan</h3>
       <div class="info-line"><b>${p.nama_snapshot || '-'}</b></div>
