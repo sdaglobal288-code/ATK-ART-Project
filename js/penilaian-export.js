@@ -75,6 +75,7 @@
     rows.forEach((p, i) => {
       const r = START_ROW + i, row = ws.getRow(r);
       const sk = skorOf(detMap[p.id], '', ['a', 'b', 'c', 'd', 'e']);
+      sk[3] = null;   // kolom merah "Disiplin / absensi" dikosongkan (diisi manual)
       const ada = sk.filter(v => v != null);
       const tgl = tglMasukOf(p, kar);
       row.getCell(1).value = i + 1;
@@ -100,6 +101,7 @@
     rows.forEach((p, i) => {
       const r = START_ROW + i, row = ws.getRow(r);
       const sikap = skorOf(detMap[p.id], 'I -', ['a', 'b', 'c', 'd', 'e']);
+      sikap[4] = null;   // kolom merah "Disiplin" dikosongkan (diisi manual)
       const kuasa = skorOf(detMap[p.id], 'II -', ['a', 'b']);
       const people = skorOf(detMap[p.id], 'III -', ['a', 'b', 'c', 'd']);
       const all = [...sikap, ...kuasa, ...people];
@@ -112,7 +114,9 @@
       row.getCell(4).value = p.departemen_snapshot || '';
       row.getCell(5).value = p.sub_departemen_snapshot || '';
       row.getCell(6).value = p.jabatan_snapshot || '';
-      row.getCell(7).value = p.tipe_form === 'C' ? 2 : 1;   // 1 = tidak punya bawahan (Form B), 2 = punya bawahan (Form C)
+      const bawahan = p.tipe_form === 'C' ? 2 : 1;   // 1 = tidak punya bawahan (Form B), 2 = punya bawahan (Form C)
+      row.getCell(7).value = bawahan;
+      row.getCell(8).value = { formula: `VLOOKUP(G${r},Sheet1!$A$1:$B$2,2,0)`, result: bawahan === 2 ? 'punya bawahan' : 'tidak punya bawahan' };
       row.getCell(9).value = tgl;
       row.getCell(10).value = tgl ? { formula: `IF(I${r}="","",ROUND((J$4-I${r})/365.25,1))`, result: Math.round((cutoff - tgl) / 864e5 / 365.25 * 10) / 10 } : '';
       all.forEach((v, j) => { row.getCell(11 + j).value = v; });   // K..U
