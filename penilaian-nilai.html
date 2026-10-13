@@ -238,6 +238,7 @@ async function load(){
   if (p.error || !p.data) { document.getElementById('errMsg').textContent = 'Data penilaian tidak ditemukan.'; return; }
   P = p.data;
   tipe = FORM_TEMPLATES[P.tipe_form] ? P.tipe_form : 'B';
+  if (tipe === 'WORKER') { await loadGrid(); return; }
   (d.data || []).forEach(r => { detailMap[r.kategori + '|' + r.kode] = r; });
   document.getElementById('subInfo').textContent = `${P.nama_snapshot || ''} · ${P.nik_snapshot || ''} · ${FORM_TEMPLATES[tipe].label} · Periode ${P.periode}`;
   document.getElementById('btnCetak').href = 'penilaian-cetak.html?id=' + encodeURIComponent(P.id);
@@ -295,6 +296,12 @@ document.getElementById('btnSave').addEventListener('click', async () => {
   st.textContent = ''; st.className = 'status-msg';
   btn.disabled = true; btn.textContent = 'Menyimpan...';
   try {
+    if (tipe === 'WORKER') {
+      await saveGrid();
+      st.textContent = 'Nilai berhasil disimpan.'; st.className = 'status-msg ok';
+      btn.disabled = false; btn.textContent = 'Simpan Nilai';
+      return;
+    }
     const tpl = FORM_TEMPLATES[tipe];
     const total = hitung();
     const existing = [], baru = [];
@@ -334,6 +341,81 @@ document.getElementById('btnSave').addEventListener('click', async () => {
   }
   btn.disabled = false; btn.textContent = 'Simpan Nilai';
 });
+
+
+// =====================================================
+// FORM A: GRID BANYAK KARYAWAN
+// =====================================================
+let members = [];      // baris penilaian_karyawan dalam satu batch
+let gridScores = {};   // { penilaian_id: { kode: skor } }
+let gridDetail = {};   // { penilaian_id|kode: row detail }
+
+function fmtTgl(t){ if(!t) return ''; const [y,m,d]=String(t).slice(0,10).split('-'); return y&&m&&d?`${d}/${m}/${y}`:''; }
+function masaKerja(t){ if(!t) return ''; const d=new Date(String(t).slice(0,10)); if(isNaN(d)) return ''; const th=(Date.now()-d.getTime())/(365.25*24*3600*1000); return th<0?'':th.toFixed(1).replace('.',','); }
+function aItems(){ return FORM_TEMPLATES.WORKER.sections[0].items; }
+function aKategori(){ return FORM_TEMPLATES.WORKER.sections[0].kategori; }
+function hitungA(pid){
+  const vals = aItems().map(it => gridScores[pid][it.kode]).filter(v => v !== '' && v != null).map(Number);
+  const total = vals.length ? vals.reduce((a,b)=>a+b,0) : null;
+  return { total, avg: vals.length ? total/vals.length : null };
+}
+
+async function loadGrid(){
+  let q = supabaseClient.from('penilaian_karyawan').select('*');
+  q = P.batch_id ? q.eq('batch_id', P.batch_id).order('created_at', { ascending: true }) : q.eq('id', P.id);
+  const r = await q;
+  members = (r.data && r.data.length) ? r.data : [P];
+  const ids = members.map(m => m.id);
+  const d = await supabaseClient.from('penilaian_detail').select('*').in('penilaian_id', ids);
+  members.forEach(m => { gridScores[m.id] = {}; });
+  (d.data || []).forEach(x => { gridDetail[x.penilaian_id + '|' + x.kode] = x; if (gridScores[x.penilaian_id]) gridScores[x.penilaian_id][x.kode] = x.skor != null ? String(parseFloat(x.skor)) : ''; });
+
+  document.getElementById('subInfo').textContent = `Form A · Periode ${P.periode} · ${members.length} karyawan`;
+  document.getElementById('btnCetak').href = 'penilaian-cetak.html?id=' + encodeURIComponent(P.id);
+  document.getElementById('saranCard').classList.add('hidden');
+  document.querySelector('.total-box').classList.add('hidden');
+  document.querySelector('#content .card h2').textContent = 'Nilai Karyawan';
+
+  const items = aItems();
+  let html = `<div style="overflow-x:auto;"><table class="kriteria"><tr><th rowspan="2">No</th><th rowspan="2">Nama</th><th rowspan="2">Departemen</th><th rowspan="2">Bagian</th><th rowspan="2">Jabatan</th><th rowspan="2">Tgl masuk kerja</th><th rowspan="2">Masa kerja</th><th colspan="${items.length}" style="text-align:center;">Penilaian Kinerja</th><th rowspan="2">Total</th><th rowspan="2">Rata-rata</th></tr><tr>${items.map(it => `<th style="min-width:86px;">${esc(it.label)}</th>`).join('')}</tr>`;
+  members.forEach((m, i) => {
+    const r = hitungA(m.id);
+    html += `<tr data-pid="${m.id}"><td>${i+1}</td><td>${esc(m.nama_snapshot)}</td><td>${esc(m.departemen_snapshot)}</td><td>${esc(m.sub_departemen_snapshot)}</td><td>${esc(m.jabatan_snapshot)}</td><td>${esc(fmtTgl(m.tgl_masuk_kerja))}</td><td>${esc(masaKerja(m.tgl_masuk_kerja))}</td>` +
+      items.map(it => `<td><select class="g-skor" data-kode="${it.kode}"><option value="">-</option>${[1,2,3,4,5].map(n => `<option value="${n}"${gridScores[m.id][it.kode] === String(n) ? ' selected' : ''}>${n}</option>`).join('')}</select></td>`).join('') +
+      `<td class="g-total">${r.total ?? ''}</td><td class="g-avg">${r.avg != null ? r.avg.toFixed(2) : ''}</td></tr>`;
+  });
+  document.getElementById('kriteriaContainer').innerHTML = html + '</table></div>';
+  document.querySelectorAll('#kriteriaContainer tr[data-pid]').forEach(tr => {
+    const pid = tr.dataset.pid;
+    tr.querySelectorAll('.g-skor').forEach(sel => sel.addEventListener('change', () => {
+      const key = members.find(m => String(m.id) === pid).id;
+      gridScores[key][sel.dataset.kode] = sel.value;
+      const r = hitungA(key);
+      tr.querySelector('.g-total').textContent = r.total ?? '';
+      tr.querySelector('.g-avg').textContent = r.avg != null ? r.avg.toFixed(2) : '';
+    }));
+  });
+  document.getElementById('content').classList.remove('hidden');
+}
+
+async function saveGrid(){
+  const existing = [], baru = [];
+  members.forEach(m => aItems().forEach(it => {
+    const v = gridScores[m.id][it.kode];
+    const skor = v ? parseFloat(v) : null;
+    const cur = gridDetail[m.id + '|' + it.kode];
+    if (cur) existing.push({ id: cur.id, penilaian_id: m.id, kategori: cur.kategori, kode: it.kode, label: cur.label, skor });
+    else baru.push({ penilaian_id: m.id, kategori: aKategori(), kode: it.kode, label: it.label, skor });
+  }));
+  if (existing.length) { const { error } = await supabaseClient.from('penilaian_detail').upsert(existing); if (error) throw error; }
+  if (baru.length) { const { error } = await supabaseClient.from('penilaian_detail').insert(baru); if (error) throw error; }
+  for (const m of members) {
+    const { error } = await supabaseClient.from('penilaian_karyawan').update({ total_rata_rata: hitungA(m.id).avg }).eq('id', m.id);
+    if (error) throw error;
+  }
+  const d = await supabaseClient.from('penilaian_detail').select('*').in('penilaian_id', members.map(m => m.id));
+  gridDetail = {}; (d.data || []).forEach(x => { gridDetail[x.penilaian_id + '|' + x.kode] = x; });
+}
 
 load();
 </script>

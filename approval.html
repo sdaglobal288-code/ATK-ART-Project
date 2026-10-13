@@ -194,7 +194,7 @@
 </div>
 
 <script>
-const FORM_LABELS = { C: 'Form C', B: 'Form B', WORKER: 'Form Worker' };
+const FORM_LABELS = { C: 'Form C', B: 'Form B', WORKER: 'Form A' };
 const APPROVAL_LABELS = {
   C: ['Atasan Langsung','Atasan satu tingkat diatas atasan langsung','Atasan Dua tingkat diatas atasan langsung','HCS Unit'],
   B: ['SPV','Atasan langsung SPV','Atasan tidak langsung SPV','HCS Unit'],
@@ -272,7 +272,7 @@ async function init() {
 
 function renderContent() {
   const tipe = penilaian.tipe_form;
-  document.getElementById('namaKaryawan').textContent = penilaian.nama_snapshot || '-';
+  document.getElementById('namaKaryawan').textContent = penilaian.batch_id ? 'Penilaian Form A (beberapa karyawan)' : (penilaian.nama_snapshot || '-');
   document.getElementById('periodeInfo').textContent = `${FORM_LABELS[tipe] || tipe} · Periode ${penilaian.periode}`;
 
   const labels = APPROVAL_LABELS[tipe] || APPROVAL_LABELS.B;
@@ -286,7 +286,7 @@ function renderContent() {
   document.getElementById('totalRataRata').textContent =
     penilaian.total_rata_rata != null ? Number(penilaian.total_rata_rata).toFixed(2) : '-';
 
-  loadKriteria();
+  if (penilaian.batch_id) loadBatch(); else loadKriteria();
 
   const saranContainer = document.getElementById('saranContainer');
   saranContainer.innerHTML = '';
@@ -303,6 +303,28 @@ function renderContent() {
   }
 
   initSignaturePad();
+}
+
+async function loadBatch() {
+  document.getElementById('infoCard').querySelector('.info-grid').classList.add('hidden');
+  const container = document.getElementById('kriteriaContainer');
+  const { data: members } = await supabaseClient.from('penilaian_karyawan').select('*').eq('batch_id', penilaian.batch_id).order('created_at', { ascending: true });
+  const ids = (members || []).map(m => m.id);
+  const { data: det } = ids.length ? await supabaseClient.from('penilaian_detail').select('*').in('penilaian_id', ids) : { data: [] };
+  if (!members || !members.length) { container.innerHTML = '<p class="muted">Belum ada data karyawan.</p>'; return; }
+  const byP = {}; (det || []).forEach(d => { (byP[d.penilaian_id] = byP[d.penilaian_id] || []).push(d); });
+  const kodes = [], labels = {};
+  (det || []).forEach(d => { if (!labels[d.kode]) { labels[d.kode] = d.label; kodes.push(d.kode); } });
+  kodes.sort();
+  let html = `<div style="overflow-x:auto;"><table class="kriteria"><tr class="kategori"><td>No</td><td>Nama</td><td>Jabatan</td>${kodes.map(k => `<td>${escapeHtml(labels[k])}</td>`).join('')}<td>Total</td><td>Rata-rata</td></tr>`;
+  members.forEach((m, i) => {
+    const sc = {}; (byP[m.id] || []).forEach(d => sc[d.kode] = d.skor);
+    const vals = kodes.map(k => sc[k]).filter(v => v !== null && v !== undefined).map(Number);
+    const tot = vals.length ? vals.reduce((a,b)=>a+b,0) : null;
+    html += `<tr><td>${i+1}</td><td>${escapeHtml(m.nama_snapshot)}<br><span class="muted">${escapeHtml(m.nik_snapshot)}</span></td><td>${escapeHtml(m.jabatan_snapshot)}</td>${kodes.map(k => `<td class="skor">${sc[k] ?? '-'}</td>`).join('')}<td class="skor">${tot ?? '-'}</td><td class="skor">${tot !== null ? (tot / vals.length).toFixed(2) : '-'}</td></tr>`;
+  });
+  container.innerHTML = html + '</table></div>';
+  document.getElementById('totalRataRata').parentElement.classList.add('hidden');
 }
 
 async function loadKriteria() {
@@ -441,10 +463,11 @@ document.getElementById('btnSubmit').addEventListener('click', async () => {
       .eq('penilaian_id', penilaian.id);
 
     const allApproved = allSteps && allSteps.every(s => s.status === 'approved');
-    await supabaseClient
+    let upd = supabaseClient
       .from('penilaian_karyawan')
-      .update({ status: allApproved ? 'Selesai' : 'Proses', updated_at: new Date().toISOString() })
-      .eq('id', penilaian.id);
+      .update({ status: allApproved ? 'Selesai' : 'Proses', updated_at: new Date().toISOString() });
+    upd = penilaian.batch_id ? upd.eq('batch_id', penilaian.batch_id) : upd.eq('id', penilaian.id);
+    await upd;
 
     statusEl.textContent = 'Tanda tangan berhasil disimpan. Terima kasih!';
     statusEl.className = 'status-msg ok';
