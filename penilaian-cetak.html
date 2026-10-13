@@ -55,6 +55,7 @@
   .note b{ display:block; }
   .note .star{ position:absolute; margin-left:-22px; }
   .note div.l{ margin-left:0; }
+  .note .sk-list{ margin-left:0; }
 
   @media print{
     @page{ size:A4 landscape; margin:8mm; }
@@ -179,7 +180,7 @@ function render(){
     const n = sec.items.length;
     const vals = [];
     const hasSaranLabel = saran && si < SARAN_LABELS.length;
-    rows += `<tr class="sec"><td class="rom">${esc(rom)}</td><td class="nm">${esc(nm)}</td><td class="sk"></td>` +
+    rows += `<tr class="sec"><td class="rom">${esc(rom)}</td><td class="nm">${esc(nm)}</td>${si === 0 ? '' : '<td class="sk"></td>'}` +
       (saran ? `<td class="sl">${hasSaranLabel ? SARAN_LABELS[si] : ''}</td>` : '') + `</tr>`;
     sec.items.forEach((it, ii) => {
       const v = withScore ? skor[sec.kategori + '|' + it.kode] : null;
@@ -193,7 +194,7 @@ function render(){
   const total = withScore && p.total_rata_rata != null ? Number(p.total_rata_rata).toFixed(2) : '';
   rows += `<tr class="total"><td colspan="2">Total rata-rata</td><td class="sk">${total}</td>${saran ? '<td style="border-left:1px solid #000;border-right:none"></td>' : ''}</tr>`;
 
-  const head = `<tr><th colspan="2">Kriteria Penilaian</th><th>Penilai<br>Atasan</th>${saran ? '<th>Saran dan pengembangan</th>' : ''}</tr>`;
+  const head = `<tr><th colspan="2">Kriteria Penilaian</th><th rowspan="2">Penilai<br>Atasan</th>${saran ? '<th>Saran dan pengembangan</th>' : ''}</tr>`;
   const cols = saran ? '<col class="c1"><col class="c2"><col class="c3"><col class="c4">' : '<col style="width:10%"><col style="width:75%"><col style="width:15%">';
 
   const catatan = saran ? `<div class="catatan">Catatan atasan${withScore && p.catatan_atasan ? '<br>' + esc(p.catatan_atasan) : ''}</div>` : '';
@@ -224,7 +225,11 @@ function render(){
     <table class="ttd"><tr><td class="first"></td>${ttd}</tr></table>
     <div class="note"><b>NOTE :</b>
       <div class="l">* &nbsp;Skala penilaian : 1- 5</div>
-      <div>1 = Sangat Kurang &nbsp;&nbsp; 2 = Kurang &nbsp;&nbsp; 3 = Cukup &nbsp;&nbsp; 4 = Bagus &nbsp;&nbsp; 5 = Sangat bagus</div>
+      <div class="sk-list">1 = Sangat Kurang</div>
+      <div class="sk-list">2 = Kurang</div>
+      <div class="sk-list">3 = Cukup</div>
+      <div class="sk-list">4 = Bagus</div>
+      <div class="sk-list">5 = Sangat bagus</div>
     </div>
   </div>`;
 }
