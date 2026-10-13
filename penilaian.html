@@ -120,6 +120,8 @@
     font-size:11px; padding:5px 10px; border-radius:6px; cursor:pointer;
   }
   .copy-btn:hover{ color:var(--gold); border-color:var(--gold); }
+  .cetak-btn{ background:transparent; border:1px solid var(--border); color:var(--text-muted); padding:5px 12px; border-radius:6px; font-size:12px; cursor:pointer; }
+  .cetak-btn:hover{ color:var(--gold); border-color:var(--gold); }
 
   .loading{ padding:40px; text-align:center; color:var(--text-muted); }
 </style>
@@ -346,6 +348,7 @@ function renderDetailPanel(p, steps) {
       <div class="info-line">Departemen: ${p.departemen_snapshot || '-'} ${p.sub_departemen_snapshot ? '/ '+p.sub_departemen_snapshot : ''}</div>
       <div class="info-line">Unit: ${p.unit_snapshot || '-'}</div>
       <div class="info-line">Dibuat oleh: ${p.dibuat_oleh || '-'}</div>
+      <div style="margin-top:10px;"><a class="cetak-btn" style="text-decoration:none;display:inline-block;" href="penilaian-cetak.html?id=${p.id}" target="_blank" onclick="event.stopPropagation()">🖨 Cetak Form</a></div>
       ${p.saran_kekuatan ? `<div class="info-line" style="margin-top:10px;"><b>Kekuatan</b><br>${escapeHtml(p.saran_kekuatan)}</div>` : ''}
       ${p.saran_pengembangan ? `<div class="info-line"><b>Area pengembangan</b><br>${escapeHtml(p.saran_pengembangan)}</div>` : ''}
       ${p.catatan_atasan ? `<div class="info-line"><b>Catatan atasan</b><br>${escapeHtml(p.catatan_atasan)}</div>` : ''}

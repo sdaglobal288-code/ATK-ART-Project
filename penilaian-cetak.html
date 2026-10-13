@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cetak Form Penilaian Karyawan</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="supabase/config.js"></script>
+<style>
+  :root{ --bg:#241a12; --panel:#3a2b1e; --text:#f2e9dc; --muted:#b6a48c; --gold:#d6a24a; }
+  *{ box-sizing:border-box; }
+  body{ margin:0; background:var(--bg); font-family:'Segoe UI',system-ui,sans-serif; color:var(--text); padding:24px 16px 80px; }
+  .toolbar{ max-width:800px; margin:0 auto 18px; display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap; }
+  .back{ color:var(--muted); text-decoration:none; font-size:13px; }
+  .tools{ display:flex; align-items:center; gap:14px; font-size:13px; color:var(--muted); }
+  .btn{ background:linear-gradient(135deg,#e0a94f,#c78a32); color:#241a12; border:none; padding:10px 18px; border-radius:8px; font-weight:700; font-size:13px; cursor:pointer; }
+  .sheet{ background:#fff; color:#111; max-width:800px; margin:0 auto; padding:26px 40px 34px; font-family:'Times New Roman',Times,serif; font-size:12.5px; line-height:1.4; border-radius:4px; box-shadow:0 8px 30px rgba(0,0,0,.35); }
+  .head{ display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:6px; }
+  .logo{ width:200px; height:70px; object-fit:contain; object-position:left top; }
+  .title{ text-align:center; font-weight:700; font-size:16px; letter-spacing:.5px; margin:4px 0 10px; text-decoration:underline; }
+  .sub{ text-align:center; margin:-6px 0 10px; font-size:12px; }
+  table{ border-collapse:collapse; width:100%; }
+  .info td{ padding:2px 4px 2px 0; vertical-align:top; }
+  .info td.k{ width:130px; } .info td.c{ width:12px; }
+  table.kr{ margin-top:10px; }
+  table.kr th, table.kr td{ border:1px solid #111; padding:5px 8px; }
+  table.kr th{ background:#eee; text-align:left; }
+  table.kr td.no{ width:28px; text-align:center; }
+  table.kr td.sk, table.kr th.sk{ width:80px; text-align:center; }
+  table.kr tr.rata td{ font-weight:700; background:#f7f7f7; }
+  .skala{ font-size:11px; margin-top:6px; }
+  .box{ border:1px solid #111; margin-top:8px; padding:4px 8px; min-height:62px; }
+  .box b{ font-size:12px; }
+  .box .t{ white-space:pre-wrap; }
+  .ttd{ margin-top:14px; page-break-inside:avoid; }
+  .ttd td{ border:1px solid #111; text-align:center; vertical-align:top; padding:4px; width:25%; }
+  .ttd .role{ font-weight:700; }
+  .ttd .sub2{ font-size:11px; }
+  .ttd .space{ height:62px; }
+  .ttd .nm{ font-size:11.5px; border-top:1px solid #111; padding-top:3px; min-height:18px; }
+  .err{ max-width:800px; margin:40px auto; text-align:center; color:var(--muted); }
+  @media print{
+    @page{ size:A4; margin:10mm; }
+    body{ background:#fff; padding:0; }
+    .toolbar{ display:none; }
+    .sheet{ box-shadow:none; max-width:none; padding:0; border-radius:0; }
+    table.kr tr, .box{ page-break-inside:avoid; }
+  }
+</style>
+</head>
+<body>
+<div class="toolbar">
+  <a class="back" href="penilaian.html">← Kembali ke daftar penilaian</a>
+  <div class="tools">
+    <label><input type="checkbox" id="chkNilai"> Cetak dengan nilai yang tersimpan</label>
+    <button class="btn" onclick="window.print()">🖨 Cetak / Simpan PDF</button>
+  </div>
+</div>
+<div id="root"><div class="err">Memuat form...</div></div>
+
+<script>
+const FORM_TEMPLATES = {
+  C: {
+    label: 'Form C',
+    sections: [
+      { kategori: 'I - Sikap', items: [
+        {kode:'a', label:'Tanggung jawab pada pekerjaan'},
+        {kode:'b', label:'Kemampuan mengendalikan diri'},
+        {kode:'c', label:'Semangat kerja'},
+        {kode:'d', label:'Kemauan untuk belajar hal baru'},
+        {kode:'e', label:'Disiplin'}
+      ]},
+      { kategori: 'II - Penguasaan Pekerjaan', items: [
+        {kode:'a', label:'Kemampuan / skill'},
+        {kode:'b', label:'Pengetahuan teknis'}
+      ]},
+      { kategori: 'III - People Management', items: [
+        {kode:'a', label:'Mengembangkan orang lain'},
+        {kode:'b', label:'Coaching and Counseling'},
+        {kode:'c', label:'Delegasi'},
+        {kode:'d', label:'Kerjasama team'}
+      ]}
+    ],
+    showSaran: true,
+    approvalLabels: ['Atasan Langsung','Atasan satu tingkat diatas atasan langsung','Atasan Dua tingkat diatas atasan langsung','HCS Unit'],
+    signRowLabels: ['Dinilai oleh','Disetujui','Diketahui','Diterima']
+  },
+  B: {
+    label: 'Form B',
+    sections: [
+      { kategori: 'I - Sikap', items: [
+        {kode:'a', label:'Tanggung jawab pada pekerjaan'},
+        {kode:'b', label:'Kemampuan mengendalikan diri'},
+        {kode:'c', label:'Semangat kerja'},
+        {kode:'d', label:'Kemauan untuk belajar hal baru'},
+        {kode:'e', label:'Disiplin'}
+      ]},
+      { kategori: 'II - Penguasaan Pekerjaan', items: [
+        {kode:'a', label:'Kemampuan / skill'},
+        {kode:'b', label:'Pengetahuan teknis'}
+      ]}
+    ],
+    showSaran: true,
+    approvalLabels: ['SPV','Atasan langsung SPV','Atasan tidak langsung SPV','HCS Unit'],
+    signRowLabels: ['Dinilai oleh','Disetujui','Diketahui','Diterima']
+  },
+  WORKER: {
+    label: 'Form Worker',
+    sections: [
+      { kategori: 'Penilaian Kinerja', items: [
+        {kode:'a', label:'Pencapaian hasil kerja'},
+        {kode:'b', label:'Kualitas hasil pekerjaan'},
+        {kode:'c', label:'Sikap bekerja'},
+        {kode:'d', label:'Disiplin / absensi'},
+        {kode:'e', label:'Potensi dikembangkan'}
+      ]}
+    ],
+    showSaran: false,
+    approvalLabels: ['SPV','Atasan langsung SPV','Atasan Tidak langsung SPV','HCS Unit'],
+    signRowLabels: ['Penilai','Disetujui','Diketahui','Diterima']
+  }
+};
+
+const APPROVAL_STAGES = ['pimpinan_langsung','pimpinan_tidak_langsung','atasan_lebih_tinggi','hcs'];
+let DATA = null;
+
+function esc(v){ const d=document.createElement('div'); d.textContent = v==null?'':String(v); return d.innerHTML; }
+
+async function load(){
+  const root = document.getElementById('root');
+  const id = new URLSearchParams(location.search).get('id');
+  if (!id) { root.innerHTML = '<div class="err">ID penilaian tidak ditemukan.</div>'; return; }
+  const [p, d, a] = await Promise.all([
+    supabaseClient.from('penilaian_karyawan').select('*').eq('id', id).single(),
+    supabaseClient.from('penilaian_detail').select('*').eq('penilaian_id', id),
+    supabaseClient.from('penilaian_approval').select('*, approver:master_karyawan(nama)').eq('penilaian_id', id).order('urutan', { ascending: true })
+  ]);
+  if (p.error || !p.data) { root.innerHTML = '<div class="err">Data penilaian tidak ditemukan.</div>'; return; }
+  DATA = { p: p.data, detail: d.data || [], approvals: a.data || [] };
+  render();
+}
+
+function render(){
+  const { p, detail, approvals } = DATA;
+  const tpl = FORM_TEMPLATES[p.tipe_form] || FORM_TEMPLATES.B;
+  const withScore = document.getElementById('chkNilai').checked;
+  const skor = {};
+  detail.forEach(x => { skor[x.kategori + '|' + x.kode] = x.skor; });
+
+  const sections = tpl.sections.map(sec => {
+    let vals = [];
+    const rows = sec.items.map(it => {
+      const v = withScore ? skor[sec.kategori + '|' + it.kode] : null;
+      if (v != null) vals.push(Number(v));
+      return `<tr><td class="no">${esc(it.kode)}</td><td>${esc(it.label)}</td><td class="sk">${v != null ? esc(v) : ''}</td></tr>`;
+    }).join('');
+    const avg = vals.length ? (vals.reduce((x,y)=>x+y,0)/vals.length).toFixed(2) : '';
+    return `<table class="kr"><tr><th colspan="2">${esc(sec.kategori)}</th><th class="sk">Skor</th></tr>${rows}
+      <tr class="rata"><td colspan="2">Rata-rata</td><td class="sk">${avg}</td></tr></table>`;
+  }).join('');
+
+  const total = withScore && p.total_rata_rata != null ? Number(p.total_rata_rata).toFixed(2) : '';
+  const tglMasuk = p.tgl_masuk_kerja ? new Date(p.tgl_masuk_kerja).toLocaleDateString('id-ID',{day:'numeric',month:'long',year:'numeric'}) : '';
+
+  const saran = tpl.showSaran ? `
+    <div class="box"><b>Kekuatan</b><div class="t">${withScore ? esc(p.saran_kekuatan) : ''}</div></div>
+    <div class="box"><b>Area pengembangan</b><div class="t">${withScore ? esc(p.saran_pengembangan) : ''}</div></div>
+    <div class="box"><b>Catatan atasan</b><div class="t">${withScore ? esc(p.catatan_atasan) : ''}</div></div>` : '';
+
+  const ttdCells = tpl.approvalLabels.map((label, i) => {
+    const ap = approvals.find(x => x.urutan === i + 1 || x.tahap === APPROVAL_STAGES[i]);
+    return `<td><div class="role">${esc(label)}</div><div class="sub2">${esc(tpl.signRowLabels[i])}</div>
+      <div class="space"></div><div class="nm">${esc(ap && ap.approver ? ap.approver.nama : '')}</div></td>`;
+  }).join('');
+
+  const tgl = p.created_at ? new Date(p.created_at).toLocaleDateString('id-ID',{day:'numeric',month:'long',year:'numeric'}) : '';
+
+  document.getElementById('root').innerHTML = `
+  <div class="sheet">
+    <div class="head"><img class="logo" src="images/logo-sda-global.png" alt="Logo"><div>Tanggal: ${esc(tgl)}</div></div>
+    <div class="title">FORM PENILAIAN KARYAWAN (${esc(tpl.label.toUpperCase())})</div>
+    <div class="sub">Periode ${esc(p.periode)}</div>
+    <table class="info">
+      <tr><td class="k">NIK</td><td class="c">:</td><td>${esc(p.nik_snapshot)}</td><td class="k">Department</td><td class="c">:</td><td>${esc(p.departemen_snapshot)}</td></tr>
+      <tr><td class="k">Nama</td><td class="c">:</td><td>${esc(p.nama_snapshot)}</td><td class="k">Sub. Departement</td><td class="c">:</td><td>${esc(p.sub_departemen_snapshot)}</td></tr>
+      <tr><td class="k">Jabatan</td><td class="c">:</td><td>${esc(p.jabatan_snapshot)}</td><td class="k">Unit</td><td class="c">:</td><td>${esc(p.unit_snapshot)}</td></tr>
+      <tr><td class="k">Level</td><td class="c">:</td><td>${esc(p.level_snapshot)}</td>${p.tipe_form === 'WORKER' ? `<td class="k">Tanggal Masuk</td><td class="c">:</td><td>${esc(tglMasuk)}</td>` : '<td colspan="3"></td>'}</tr>
+    </table>
+    ${sections}
+    <table class="kr"><tr class="rata"><td>TOTAL RATA-RATA</td><td class="sk">${total}</td></tr></table>
+    <div class="skala">Skala skor: 1 = Sangat kurang &nbsp; 2 = Kurang &nbsp; 3 = Cukup &nbsp; 4 = Baik &nbsp; 5 = Sangat baik</div>
+    ${saran}
+    <table class="ttd"><tr>${ttdCells}</tr></table>
+  </div>`;
+}
+
+document.getElementById('chkNilai').addEventListener('change', () => { if (DATA) render(); });
+const currentUser = JSON.parse(sessionStorage.getItem('user') || 'null');
+if (!currentUser) window.location.href = 'login.html'; else load();
+</script>
+</body>
+</html>
