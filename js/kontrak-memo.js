@@ -28,7 +28,7 @@
   .im-memo{ font-family:'Times New Roman', Times, serif; color:#111; font-size:13px; line-height:1.5; }
   .im-memo .im-title{ font-weight:700; font-size:15px; text-decoration:underline; letter-spacing:.3px; margin:2px 0 0; line-height:1.2; }
   .im-memo .im-number{ font-weight:700; font-size:12.5px; color:#111; margin:0 0 14px; }
-  .im-memo table.im-t{ border-collapse:collapse; width:auto; table-layout:auto; margin:0 0 12px 8px; }
+  .im-memo table.im-t{ border-collapse:collapse; width:auto; table-layout:auto; margin:0 0 12px 0; }
   .im-memo table.im-t td{ padding:0 0 1px; font-size:13px; line-height:1.35; vertical-align:top; text-align:left; border:none; }
   .im-memo table.im-t td.l{ width:112px; white-space:nowrap; padding-right:4px; }
   .im-memo table.im-t td.c{ width:16px; text-align:center; }
