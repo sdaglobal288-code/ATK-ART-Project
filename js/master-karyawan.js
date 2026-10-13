@@ -295,7 +295,7 @@ function renderKaryawan(list) {
                 <td>${item.bagian ?? "-"}</td>
                 <td>${formatTanggalTampil(item.tanggal_masuk)}</td>
                 <td>${badgeStatus}</td>
-                <td>${item.created_by ?? "-"}</td>
+                <td class="col-oleh">${item.created_by ?? "-"}</td>
                 <td>
                     <div class="actions-cell">
                         <button class="btn-edit" onclick="editKaryawan(${item.id})">✏ Edit</button>
