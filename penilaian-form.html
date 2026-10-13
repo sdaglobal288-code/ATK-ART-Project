@@ -155,7 +155,7 @@
       <div class="field"><label>Department</label><input id="fDepartemen" readonly></div>
       <div class="field"><label>Sub. Departement (Bagian)</label><input id="fSubDepartemen" readonly placeholder="Otomatis dari Master Karyawan"></div>
       <div class="field"><label>Unit (Area)</label><input id="fUnit" readonly placeholder="Otomatis dari Master Karyawan"></div>
-      <div class="field" id="wrapTglMasuk"><label>Tanggal Masuk Kerja (khusus Form Worker)</label><input type="date" id="fTglMasuk"></div>
+      <div class="field" id="wrapTglMasuk"><label>Tanggal Masuk Kerja (otomatis dari Master Karyawan)</label><input type="date" id="fTglMasuk" readonly style="pointer-events:none;"></div>
     </div>
   </div>
 
@@ -330,6 +330,8 @@ document.getElementById('karyawanSearch').addEventListener('input', (e) => {
   document.getElementById('fUnit').value = found.area || '';
   document.getElementById('fSubDepartemen').value = found.bagian || '';
   document.getElementById('fLevel').value = found.level || '';
+  // Tanggal masuk kerja otomatis dari Master Karyawan (kolom tanggal_masuk / Tanggal Bergabung)
+  document.getElementById('fTglMasuk').value = found.tanggal_masuk ? String(found.tanggal_masuk).slice(0, 10) : '';
 });
 
 // =====================================================
