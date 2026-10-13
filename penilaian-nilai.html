@@ -221,6 +221,15 @@ const FORM_TEMPLATES = {
   }
 };
 
+// Kolom id pada penilaian_detail adalah GENERATED ALWAYS, jadi tidak boleh di-upsert; update per baris berdasarkan id
+async function updateDetail(rows) {
+  const res = await Promise.all(rows.map(r =>
+    supabaseClient.from('penilaian_detail').update({ skor: r.skor, label: r.label }).eq('id', r.id)
+  ));
+  const bad = res.find(x => x.error);
+  if (bad) throw bad.error;
+}
+
 const currentUser = JSON.parse(sessionStorage.getItem('user') || 'null');
 if (!currentUser) window.location.href = 'login.html';
 
@@ -315,10 +324,7 @@ document.getElementById('btnSave').addEventListener('click', async () => {
         else baru.push({ penilaian_id: penilaianId, kategori, kode: tr.dataset.kode, label: tr.dataset.label, skor });
       });
     });
-    if (existing.length) {
-      const { error } = await supabaseClient.from('penilaian_detail').upsert(existing);
-      if (error) throw error;
-    }
+    await updateDetail(existing);
     if (baru.length) {
       const { error } = await supabaseClient.from('penilaian_detail').insert(baru);
       if (error) throw error;
@@ -407,7 +413,7 @@ async function saveGrid(){
     if (cur) existing.push({ id: cur.id, penilaian_id: m.id, kategori: cur.kategori, kode: it.kode, label: cur.label, skor });
     else baru.push({ penilaian_id: m.id, kategori: aKategori(), kode: it.kode, label: it.label, skor });
   }));
-  if (existing.length) { const { error } = await supabaseClient.from('penilaian_detail').upsert(existing); if (error) throw error; }
+  await updateDetail(existing);
   if (baru.length) { const { error } = await supabaseClient.from('penilaian_detail').insert(baru); if (error) throw error; }
   for (const m of members) {
     const { error } = await supabaseClient.from('penilaian_karyawan').update({ total_rata_rata: hitungA(m.id).avg }).eq('id', m.id);
