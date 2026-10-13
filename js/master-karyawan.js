@@ -556,7 +556,7 @@ function exportExcel() {
 }
 
 // =====================================
-// IMPORT EXCEL — gudang otomatis dari akun yang login
+// IMPORT EXCEL — karyawan baru masuk ke gudang akun yang login; karyawan milik gudang lain tidak diubah
 // =====================================
 
 const fileImport = document.getElementById("fileImport");
@@ -648,13 +648,51 @@ if (fileImport) {
             ]).filter(Boolean))];
             if (asing.length && !confirm(`${asing.length} nilai tidak ada di master:\n${asing.slice(0, 10).join("\n")}\n\nTetap import? (tambahkan dulu di Master Level / Master Bagian bila perlu)`)) return;
 
-            const { error } = await supabaseClient
-                .from("master_karyawan")
-                .upsert(payload, { onConflict: "nik" });
+            // ===== LINDUNGI GUDANG =====
+            // NIK yang sudah ada dan milik gudang lain TIDAK disentuh (gudang & "dibuat oleh" tidak pernah ditimpa).
+            // Pindah gudang dilakukan lewat Mutasi Karyawan, bukan lewat import.
+            const gd = user.gudang || null;
+            const sudahAda = {};
+            for (let dari = 0; ; dari += 1000) {
+                const { data, error: errAda } = await supabaseClient
+                    .from("master_karyawan").select("nik, gudang").range(dari, dari + 999);
+                if (errAda) throw errAda;
+                data.forEach(r => { sudahAda[String(r.nik).toUpperCase()] = r.gudang || null; });
+                if (data.length < 1000) break;
+            }
 
-            if (error) throw error;
+            // NIK dobel di dalam file: pakai baris terakhir
+            const unik = [...new Map(payload.map(p => [p.nik, p])).values()];
 
-            alert(`${payload.length} karyawan berhasil diimport ke gudang ${user.gudang}.`);
+            const baru = [], ubah = [], klaim = [], lewat = [];
+            unik.forEach(p => {
+                const { gudang: _g, created_by: _c, ...sisa } = p;     // kolom data saja, tanpa gudang / created_by
+                if (!(p.nik in sudahAda))                          baru.push(p);                       // NIK baru -> masuk gudang akun ini
+                else if (!sudahAda[p.nik] && gd)                   klaim.push({ ...sisa, gudang: gd });  // belum punya gudang -> diambil akun ini
+                else if (!gd || sudahAda[p.nik] === gd)            ubah.push(sisa);                    // milik gudang ini -> perbarui data saja
+                else                                               lewat.push({ nik: p.nik, nama: p.nama, gudang: sudahAda[p.nik] });
+            });
+
+            let pesan = `Ringkasan import ke gudang ${gd || "(akun tanpa gudang)"}:\n• Karyawan baru: ${baru.length}\n• Diperbarui: ${ubah.length + klaim.length}\n• Dilewati (milik gudang lain): ${lewat.length}`;
+            if (lewat.length) {
+                pesan += `\n\nDilewati, contoh:\n` + lewat.slice(0, 8).map(x => `${x.nik} ${x.nama} (${x.gudang})`).join("\n")
+                      + (lewat.length > 8 ? `\n... dan ${lewat.length - 8} lainnya` : "")
+                      + `\n\nUntuk memindahkan karyawan antar gudang, gunakan Mutasi Karyawan.`;
+            }
+            if (!baru.length && !ubah.length && !klaim.length) {
+                alert(pesan + "\n\nTidak ada data yang diimport.");
+                return;
+            }
+            if (!confirm(pesan + "\n\nLanjutkan import?")) return;
+
+            // tiap kelompok dikirim terpisah agar bentuk datanya seragam (kolom yang tidak dikirim tidak ikut ditimpa)
+            for (const kelompok of [baru, ubah, klaim]) {
+                if (!kelompok.length) continue;
+                const { error } = await supabaseClient.from("master_karyawan").upsert(kelompok, { onConflict: "nik" });
+                if (error) throw error;
+            }
+
+            alert(`Import selesai: ${baru.length} karyawan baru, ${ubah.length + klaim.length} diperbarui, ${lewat.length} dilewati.`);
             await loadKaryawan();
 
         } catch (err) {
