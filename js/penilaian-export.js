@@ -22,6 +22,32 @@
   }
   const f = v => v == null ? '' : v;
 
+  // Tanggal masuk: utamakan Master Karyawan (terbaru), cadangan snapshot saat penilaian dibuat
+  function tglMasukOf(p, kar) {
+    const m = kar && ((p.karyawan_id != null && kar.byId[p.karyawan_id]) || kar.byNik[String(p.nik_snapshot || '').trim()]);
+    return parseTgl((m && m.tanggal_masuk) || p.tgl_masuk_kerja);
+  }
+
+  // Kedisiplinan dari hr_absensi: I = Izin, A = Alpha, C = Cuti Tahunan saja (Cuti Khusus tidak dihitung),
+  // T = jumlah kode T + T1 + T2. Karyawan tanpa data absensi sama sekali -> null (sel dikosongkan).
+  function hitungDisiplin(absensi) {
+    const m = {};
+    (absensi || []).forEach(a => {
+      const nik = String(a.nik || '').trim();
+      const d = m[nik] = m[nik] || { I: 0, A: 0, C: 0, T: 0 };
+      if (a.status === 'Izin') d.I++;
+      else if (a.status === 'Alpha') d.A++;
+      else if (a.status === 'Cuti' && a.kategori === 'Cuti Tahunan') d.C++;
+      if (a.kode === 'T' || a.kode === 'T1' || a.kode === 'T2' || (!a.kode && a.status === 'Terlambat')) d.T++;
+    });
+    return m;
+  }
+  function tulisDisiplin(row, firstCol, p, disiplin) {
+    const d = disiplin[String(p.nik_snapshot || '').trim()];
+    if (!d) return;
+    [d.I, d.A, d.C, d.T].forEach((v, j) => { row.getCell(firstCol + j).value = v; });
+  }
+
   // Tambah baris (salin gaya) bila data melebihi template, atau kosongkan baris template yang tidak terpakai.
   // Catatan teks "Surabaya, ..." di bawah tabel ikut dipindah agar tetap menempel di bawah data.
   function trimOrGrow(ws, n, templateRows) {
@@ -44,13 +70,13 @@
     }
   }
 
-  function fillWorker(ws, rows, detMap, cutoff) {
+  function fillWorker(ws, rows, detMap, cutoff, kar, disiplin) {
     trimOrGrow(ws, rows.length, TEMPLATE_ROWS[0]);
     rows.forEach((p, i) => {
       const r = START_ROW + i, row = ws.getRow(r);
       const sk = skorOf(detMap[p.id], '', ['a', 'b', 'c', 'd', 'e']);
       const ada = sk.filter(v => v != null);
-      const tgl = parseTgl(p.tgl_masuk_kerja);
+      const tgl = tglMasukOf(p, kar);
       row.getCell(1).value = i + 1;
       row.getCell(2).value = p.nama_snapshot || '';
       row.getCell(3).value = p.nik_snapshot || '';
@@ -64,11 +90,12 @@
       const c15 = row.getCell(15);
       c15.value = { formula: `IF(COUNT(I${r}:M${r})=0,"",AVERAGE(I${r}:M${r}))`, result: ada.length ? avg(ada) : '' };
       c15.numFmt = '0.00';
+      tulisDisiplin(row, 18, p, disiplin);   // R..U
       row.commit && row.commit();
     });
   }
 
-  function fillStaff(ws, rows, detMap, cutoff) {
+  function fillStaff(ws, rows, detMap, cutoff, kar, disiplin) {
     trimOrGrow(ws, rows.length, TEMPLATE_ROWS[1]);
     rows.forEach((p, i) => {
       const r = START_ROW + i, row = ws.getRow(r);
@@ -78,7 +105,7 @@
       const all = [...sikap, ...kuasa, ...people];
       const ada = all.filter(v => v != null);
       const secAvgs = [sikap, kuasa, people].map(s => avg(s.filter(v => v != null))).filter(v => v != null);
-      const tgl = parseTgl(p.tgl_masuk_kerja);
+      const tgl = tglMasukOf(p, kar);
       row.getCell(1).value = i + 1;
       row.getCell(2).value = p.nama_snapshot || '';
       row.getCell(3).value = p.nik_snapshot || '';
@@ -93,12 +120,17 @@
       // rata-rata = rata-rata dari rata-rata tiap bagian (sama dengan "Total Rata-rata" di aplikasi)
       const fx = `IF(COUNT(K${r}:U${r})=0,"",(IFERROR(AVERAGE(K${r}:O${r}),0)+IFERROR(AVERAGE(P${r}:Q${r}),0)+IFERROR(AVERAGE(R${r}:U${r}),0))/((COUNT(K${r}:O${r})>0)+(COUNT(P${r}:Q${r})>0)+(COUNT(R${r}:U${r})>0)))`;
       row.getCell(23).value = { formula: fx, result: secAvgs.length ? avg(secAvgs) : '' };
+      tulisDisiplin(row, 26, p, disiplin);   // Z..AC
       row.commit && row.commit();
     });
   }
 
   // rows: baris penilaian_karyawan (sudah difilter periode); details: baris penilaian_detail
-  async function buildRekapWorkbook(ExcelJS, templateBuffer, periode, rows, details) {
+  // extra (opsional): { karyawan: { byId, byNik }, absensi: [baris hr_absensi periode tsb] }
+  async function buildRekapWorkbook(ExcelJS, templateBuffer, periode, rows, details, extra) {
+    extra = extra || {};
+    const kar = extra.karyawan || { byId: {}, byNik: {} };
+    const disiplin = hitungDisiplin(extra.absensi);
     const wb = new ExcelJS.Workbook();
     await wb.xlsx.load(templateBuffer);
     const detMap = {};
@@ -111,8 +143,8 @@
     const [s1, s2] = wb.worksheets;
     s1.getCell('A2').value = y; s1.getCell('H4').value = cutoff;
     s2.getCell('A2').value = y; s2.getCell('J4').value = cutoff;
-    fillWorker(s1, worker, detMap, cutoff);
-    fillStaff(s2, staff, detMap, cutoff);
+    fillWorker(s1, worker, detMap, cutoff, kar, disiplin);
+    fillStaff(s2, staff, detMap, cutoff, kar, disiplin);
     return { wb, jumlahWorker: worker.length, jumlahStaff: staff.length };
   }
 

@@ -216,10 +216,12 @@ const currentUser = JSON.parse(sessionStorage.getItem('user') || 'null');
 if (!currentUser) window.location.href = 'login.html';
 
 // Supabase membatasi 1000 baris per permintaan, jadi diambil bertahap
-async function fetchAll(table, select, orderCol) {
+async function fetchAll(table, select, orderCol, mod) {
   const out = [], size = 1000;
   for (let from = 0; ; from += size) {
-    let q = supabaseClient.from(table).select(select).range(from, from + size - 1);
+    let q = supabaseClient.from(table).select(select);
+    if (mod) q = mod(q);
+    q = q.range(from, from + size - 1);
     if (orderCol) q = q.order(orderCol, { ascending: false });
     const { data, error } = await q;
     if (error) return { data: null, error };
@@ -249,7 +251,7 @@ function statusOf(p) {
 async function loadData() {
   const [r1, r2] = await Promise.all([
     fetchAll('penilaian_karyawan', '*', 'created_at'),
-    fetchAll('penilaian_detail', 'penilaian_id,kategori,kode,skor', null)
+    fetchAll('penilaian_detail', 'penilaian_id,kategori,kode,skor', 'id')
   ]);
 
   if (r1.error) { console.error(r1.error); document.getElementById('listBody').innerHTML = `<tr><td colspan="7"><div class="empty">Gagal memuat data.</div></td></tr>`; return; }
@@ -466,7 +468,18 @@ document.getElementById('btnExport').addEventListener('click', async () => {
     if (!resp.ok) throw new Error('Template Excel tidak ditemukan (templates/REKAP_PENILAIAN_TEMPLATE.xlsx).');
     const tpl = await resp.arrayBuffer();
     const ids = new Set(rows.map(r => r.id));
-    const { wb, jumlahWorker, jumlahStaff } = await buildRekapWorkbook(ExcelJS, tpl, periode, rows, allDetails.filter(d => ids.has(d.penilaian_id)));
+
+    // Tanggal masuk kerja otomatis dari Master Karyawan
+    const kr = await fetchAll('master_karyawan', 'id,nik,tanggal_masuk', 'id');
+    if (kr.error) console.error(kr.error);
+    const kar = { byId: {}, byNik: {} };
+    (kr.data || []).forEach(k => { kar.byId[k.id] = k; if (k.nik) kar.byNik[String(k.nik).trim()] = k; });
+
+    // Kedisiplinan otomatis dari Dashboard Analitik HR (hr_absensi) pada periode tsb
+    const ab = await fetchAll('hr_absensi', 'nik,tanggal,status,kode,kategori', 'id',
+      q => q.gte('tanggal', periode + '-01-01').lte('tanggal', periode + '-12-31'));
+    if (ab.error) console.error(ab.error);
+    const { wb, jumlahWorker, jumlahStaff } = await buildRekapWorkbook(ExcelJS, tpl, periode, rows, allDetails.filter(d => ids.has(d.penilaian_id)), { karyawan: kar, absensi: ab.data || [] });
     const buf = await wb.xlsx.writeBuffer();
     const url = URL.createObjectURL(new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }));
     const a = document.createElement('a');
@@ -474,7 +487,8 @@ document.getElementById('btnExport').addEventListener('click', async () => {
     document.body.appendChild(a); a.click(); a.remove();
     setTimeout(() => URL.revokeObjectURL(url), 2000);
     msg.className = 'exp-msg ok';
-    msg.textContent = 'Excel periode ' + periode + ' berhasil diunduh (' + jumlahWorker + ' karyawan Form A, ' + jumlahStaff + ' karyawan Form B/C).';
+    msg.textContent = 'Excel periode ' + periode + ' berhasil diunduh (' + jumlahWorker + ' karyawan Form A, ' + jumlahStaff + ' karyawan Form B/C).'
+      + (ab.error ? ' Kolom Kedisiplinan kosong karena data absensi gagal dimuat.' : (ab.data && ab.data.length ? '' : ' Belum ada data absensi periode ini, kolom Kedisiplinan dikosongkan.'));
   } catch (err) {
     console.error(err);
     msg.className = 'exp-msg err';
