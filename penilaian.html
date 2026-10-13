@@ -9,6 +9,8 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="supabase/config.js"></script>
 <script src="js/modul-popup.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
+<script src="js/penilaian-export.js"></script>
 
 <style>
   :root{
@@ -123,6 +125,12 @@
   .cetak-btn{ background:transparent; border:1px solid var(--border); color:var(--text-muted); padding:5px 12px; border-radius:6px; font-size:12px; cursor:pointer; }
   .cetak-btn:hover{ color:var(--gold); border-color:var(--gold); }
 
+  .btn:disabled{ opacity:.55; cursor:wait; }
+  .exp-msg{ font-size:12px; margin:-8px 0 14px; min-height:16px; }
+  .exp-msg.err{ color:var(--pink); } .exp-msg.ok{ color:var(--teal); }
+  .prog-row{ display:flex; justify-content:space-between; align-items:center; padding:9px 0; border-bottom:1px solid var(--border); gap:10px; font-size:12px; }
+  .prog-row:last-child{ border-bottom:none; }
+  .prog-row small{ display:block; color:var(--text-muted); font-size:11px; }
   .loading{ padding:40px; text-align:center; color:var(--text-muted); }
 </style>
 </head>
@@ -133,15 +141,18 @@
     <div>
       <a class="back" href="pilih-modul.html">← Kembali ke pilih modul</a>
       <h1>Penilaian Tahunan</h1>
-      <div class="muted">Daftar penilaian kinerja karyawan &amp; status approval</div>
+      <div class="muted">Daftar penilaian kinerja karyawan &amp; progres pengisian nilai</div>
     </div>
-    <a class="btn" href="penilaian-form.html">+ Buat Penilaian Baru</a>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;">
+      <button class="btn secondary" id="btnExport" type="button">⬇ Tarik Excel</button>
+      <a class="btn" href="penilaian-form.html">+ Buat Penilaian Baru</a>
+    </div>
   </div>
 
   <div class="stats">
     <div class="stat-card"><div class="label">Total Penilaian</div><div class="num" id="statTotal">-</div></div>
-    <div class="stat-card"><div class="label">Draft</div><div class="num" id="statDraft">-</div></div>
-    <div class="stat-card"><div class="label">Proses Approval</div><div class="num" id="statProses">-</div></div>
+    <div class="stat-card"><div class="label">Belum Dinilai</div><div class="num" id="statDraft">-</div></div>
+    <div class="stat-card"><div class="label">Proses Penilaian</div><div class="num" id="statProses">-</div></div>
     <div class="stat-card"><div class="label">Selesai</div><div class="num" id="statSelesai">-</div></div>
   </div>
 
@@ -150,8 +161,8 @@
     <select id="periodeFilter"><option value="">Semua Periode</option></select>
     <select id="statusFilter">
       <option value="">Semua Status</option>
-      <option value="Draft">Draft</option>
-      <option value="Proses">Proses</option>
+      <option value="Draft">Belum Dinilai</option>
+      <option value="Proses">Proses Penilaian</option>
       <option value="Selesai">Selesai</option>
     </select>
     <select id="tipeFilter">
@@ -162,6 +173,8 @@
     </select>
   </div>
 
+  <div class="exp-msg" id="expMsg"></div>
+
   <div class="card">
     <table class="list" id="listTable">
       <thead>
@@ -169,8 +182,8 @@
           <th>Nama Karyawan</th>
           <th>Tipe Form</th>
           <th>Periode</th>
-          <th>Status</th>
-          <th>Progres Approval</th>
+          <th>Status Penilaian</th>
+          <th>Progres Penilaian</th>
           <th>Total Rata-rata</th>
           <th>Dibuat</th>
         </tr>
@@ -185,36 +198,70 @@
 
 <script>
 const FORM_LABELS = { C: 'Form C', B: 'Form B', WORKER: 'Form A' };
-const APPROVAL_LABELS = {
-  C: ['Atasan Langsung','Atasan satu tingkat diatas atasan langsung','Atasan Dua tingkat diatas atasan langsung','HCS Unit'],
-  B: ['SPV','Atasan langsung SPV','Atasan tidak langsung SPV','HCS Unit'],
-  WORKER: ['SPV','Atasan langsung SPV','Atasan Tidak langsung SPV','HCS Unit']
+// Jumlah kriteria per bagian pada tiap tipe form (harus sama dengan template di penilaian-nilai.html)
+const SECTIONS = {
+  C: [['I - Sikap', 5], ['II - Penguasaan Pekerjaan', 2], ['III - People Management', 4]],
+  B: [['I - Sikap', 5], ['II - Penguasaan Pekerjaan', 2]],
+  WORKER: [['Penilaian Kinerja', 5]]
 };
+const totalKriteria = tipe => (SECTIONS[tipe] || SECTIONS.B).reduce((a, s) => a + s[1], 0);
+const STATUS_LABEL = { Draft: 'Belum Dinilai', Proses: 'Proses', Selesai: 'Selesai' };
 
 let penilaianList = [];
-let approvalByPenilaian = {};
+let allRows = [];        // semua baris penilaian_karyawan (tanpa pengelompokan batch)
+let allDetails = [];     // semua baris penilaian_detail
+let detailByPenilaian = {};
 
 const currentUser = JSON.parse(sessionStorage.getItem('user') || 'null');
 if (!currentUser) window.location.href = 'login.html';
 
+// Supabase membatasi 1000 baris per permintaan, jadi diambil bertahap
+async function fetchAll(table, select, orderCol) {
+  const out = [], size = 1000;
+  for (let from = 0; ; from += size) {
+    let q = supabaseClient.from(table).select(select).range(from, from + size - 1);
+    if (orderCol) q = q.order(orderCol, { ascending: false });
+    const { data, error } = await q;
+    if (error) return { data: null, error };
+    out.push(...(data || []));
+    if (!data || data.length < size) break;
+  }
+  return { data: out, error: null };
+}
+
+// Progres penilaian = jumlah skor yang sudah terisi dibanding jumlah kriteria
+function progressOf(rows) {
+  let filled = 0, total = 0;
+  rows.forEach(r => {
+    const t = totalKriteria(r.tipe_form);
+    const f = (detailByPenilaian[r.id] || []).filter(d => d.skor != null).length;
+    filled += Math.min(f, t); total += t;
+  });
+  return { filled, total, pct: total ? Math.round(filled / total * 100) : 0 };
+}
+function statusOf(p) {
+  const pr = progressOf(p._members || [p]);
+  p._prog = pr;
+  if (pr.filled === 0) return 'Draft';
+  return pr.filled >= pr.total ? 'Selesai' : 'Proses';
+}
+
 async function loadData() {
-  const { data: penilaian, error: err1 } = await supabaseClient
-    .from('penilaian_karyawan')
-    .select('*')
-    .order('created_at', { ascending: false });
+  const [r1, r2] = await Promise.all([
+    fetchAll('penilaian_karyawan', '*', 'created_at'),
+    fetchAll('penilaian_detail', 'penilaian_id,kategori,kode,skor', null)
+  ]);
 
-  if (err1) { console.error(err1); document.getElementById('listBody').innerHTML = `<tr><td colspan="7"><div class="empty">Gagal memuat data.</div></td></tr>`; return; }
+  if (r1.error) { console.error(r1.error); document.getElementById('listBody').innerHTML = `<tr><td colspan="7"><div class="empty">Gagal memuat data.</div></td></tr>`; return; }
+  if (r2.error) console.error(r2.error);
 
-  const { data: approvals, error: err2 } = await supabaseClient
-    .from('penilaian_approval')
-    .select('*, approver:master_karyawan(nama)')
-    .order('urutan', { ascending: true });
-
-  if (err2) console.error(err2);
+  allRows = r1.data || [];
+  allDetails = r2.data || [];
+  detailByPenilaian = {};
+  allDetails.forEach(d => { (detailByPenilaian[d.penilaian_id] = detailByPenilaian[d.penilaian_id] || []).push(d); });
 
   // Form A: beberapa karyawan dalam satu form (batch_id sama) ditampilkan sebagai satu baris.
-  // Baris utama = yang paling awal dibuat (pemegang approval).
-  const asc = [...(penilaian || [])].sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+  const asc = [...allRows].sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
   const batches = {}, singles = [];
   asc.forEach(r => {
     if (r.batch_id) {
@@ -223,31 +270,25 @@ async function loadData() {
     } else singles.push(r);
   });
   penilaianList = singles.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
-  approvalByPenilaian = {};
-  (approvals || []).forEach(a => {
-    if (!approvalByPenilaian[a.penilaian_id]) approvalByPenilaian[a.penilaian_id] = [];
-    approvalByPenilaian[a.penilaian_id].push(a);
-  });
+  // Status mengikuti progres pengisian nilai (approval masih manual, jadi tidak dipakai di sini)
+  penilaianList.forEach(p => { p._status = statusOf(p); });
 
   populatePeriodeFilter();
   renderStats();
   renderTable();
+  updateExportLabel();
   cekPengingat();
 }
 
-// Popup pengingat: penilaian yang masih dalam proses approval
+// Popup pengingat: penilaian yang nilainya belum lengkap
 function cekPengingat() {
-  const items = penilaianList.filter(p => p.status === 'Proses').map(p => {
-    const steps = approvalByPenilaian[p.id] || [];
-    const done = steps.filter(x => x.status === 'approved').length;
-    const kedaluwarsa = steps.some(x => x.status === 'pending' && x.expires_at && new Date(x.expires_at) < new Date());
-    return {
-      judul: p.nama_snapshot || '-',
-      sub: (FORM_LABELS[p.tipe_form] || p.tipe_form) + ' · periode ' + p.periode + (kedaluwarsa ? ' · ada link kedaluwarsa' : ''),
-      kanan: 'TTD ' + done + '/' + (steps.length || 4), lewat: kedaluwarsa
-    };
-  });
-  tampilPopupModul({ judul: items.length + ' Penilaian Dalam Proses', sub: 'Penilaian ini masih menunggu tanda tangan approver. Segera tindak lanjuti.', items });
+  const items = penilaianList.filter(p => p._status !== 'Selesai').map(p => ({
+    judul: p._members ? p._members.length + ' karyawan (' + p._members.slice(0, 2).map(m => m.nama_snapshot).join(', ') + (p._members.length > 2 ? ', ...' : '') + ')' : (p.nama_snapshot || '-'),
+    sub: (FORM_LABELS[p.tipe_form] || p.tipe_form) + ' · periode ' + p.periode,
+    kanan: p._prog.filled + '/' + p._prog.total + ' nilai', lewat: p._status === 'Draft'
+  }));
+  if (!items.length) return;
+  tampilPopupModul({ judul: items.length + ' Penilaian Belum Lengkap', sub: 'Penilaian ini nilainya belum terisi lengkap. Segera lengkapi lewat Input / Edit Nilai.', items });
 }
 
 function populatePeriodeFilter() {
@@ -262,9 +303,9 @@ function populatePeriodeFilter() {
 
 function renderStats() {
   document.getElementById('statTotal').textContent = penilaianList.length;
-  document.getElementById('statDraft').textContent = penilaianList.filter(p => p.status === 'Draft').length;
-  document.getElementById('statProses').textContent = penilaianList.filter(p => p.status === 'Proses').length;
-  document.getElementById('statSelesai').textContent = penilaianList.filter(p => p.status === 'Selesai').length;
+  document.getElementById('statDraft').textContent = penilaianList.filter(p => p._status === 'Draft').length;
+  document.getElementById('statProses').textContent = penilaianList.filter(p => p._status === 'Proses').length;
+  document.getElementById('statSelesai').textContent = penilaianList.filter(p => p._status === 'Selesai').length;
 }
 
 function getFiltered() {
@@ -277,7 +318,7 @@ function getFiltered() {
     const hay = p._members ? p._members.map(m => `${m.nama_snapshot} ${m.nik_snapshot}`).join(' ') : `${p.nama_snapshot} ${p.nik_snapshot}`;
     if (search && !hay.toLowerCase().includes(search)) return false;
     if (periode && p.periode !== periode) return false;
-    if (status && p.status !== status) return false;
+    if (status && p._status !== status) return false;
     if (tipe && p.tipe_form !== tipe) return false;
     return true;
   });
@@ -300,28 +341,26 @@ function renderTable() {
   }
 
   body.innerHTML = filtered.map(p => {
-    const steps = (approvalByPenilaian[p.id] || []);
-    const approvedCount = steps.filter(s => s.status === 'approved').length;
-    const pct = steps.length ? Math.round((approvedCount / steps.length) * 100) : 0;
+    const pr = p._prog;
     const tanggal = new Date(p.created_at).toLocaleDateString('id-ID', { day:'numeric', month:'short', year:'numeric' });
 
     return `
       <tr class="main-row" data-id="${p.id}">
-        <td>${p._members ? `<b>${p._members.length} karyawan</b><br><span class="muted">${p._members.slice(0,2).map(m => m.nama_snapshot).join(', ')}${p._members.length > 2 ? ', ...' : ''}</span>` : `<b>${p.nama_snapshot || '-'}</b><br><span class="muted">${p.nik_snapshot || ''}</span>`}</td>
+        <td>${p._members ? `<b>${p._members.length} karyawan</b><br><span class="muted">${p._members.slice(0,2).map(m => escapeHtml(m.nama_snapshot)).join(', ')}${p._members.length > 2 ? ', ...' : ''}</span>` : `<b>${escapeHtml(p.nama_snapshot || '-')}</b><br><span class="muted">${escapeHtml(p.nik_snapshot || '')}</span>`}</td>
         <td>${FORM_LABELS[p.tipe_form] || p.tipe_form}</td>
         <td>${p.periode}</td>
-        <td><span class="badge ${badgeClass(p.status)}">${p.status}</span></td>
+        <td><span class="badge ${badgeClass(p._status)}">${STATUS_LABEL[p._status]}</span></td>
         <td>
           <div class="progress">
-            <div class="progress-bar"><div style="width:${pct}%"></div></div>
-            <span>${approvedCount}/${steps.length || 4}</span>
+            <div class="progress-bar"><div style="width:${pr.pct}%"></div></div>
+            <span>${pr.filled}/${pr.total}</span>
           </div>
         </td>
         <td>${!p._members && p.total_rata_rata != null ? Number(p.total_rata_rata).toFixed(2) : '-'}</td>
         <td>${tanggal}</td>
       </tr>
       <tr class="detail-row hidden" data-detail-for="${p.id}">
-        <td colspan="7"><div class="detail-panel">${renderDetailPanel(p, steps)}</div></td>
+        <td colspan="7"><div class="detail-panel">${renderDetailPanel(p)}</div></td>
       </tr>
     `;
   }).join('');
@@ -333,22 +372,9 @@ function renderTable() {
       detailRow.classList.toggle('hidden');
     });
   });
-
-  body.querySelectorAll('.copy-btn').forEach(btn => {
-    btn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      navigator.clipboard.writeText(btn.dataset.link).then(() => {
-        const orig = btn.textContent;
-        btn.textContent = 'Tersalin!';
-        setTimeout(() => btn.textContent = orig, 1500);
-      });
-    });
-  });
 }
 
-function renderDetailPanel(p, steps) {
-  const labels = APPROVAL_LABELS[p.tipe_form] || APPROVAL_LABELS.B;
-  const baseUrl = `${window.location.origin}${window.location.pathname.replace('penilaian.html','')}approval.html`;
+function renderDetailPanel(p) {
 
   const infoHtml = p._members ? `
     <div>
@@ -373,33 +399,31 @@ function renderDetailPanel(p, steps) {
     </div>
   `;
 
-  const stepsHtml = steps.map((s, i) => {
-    const label = labels[i] || s.tahap;
-    const isExpired = s.status === 'pending' && s.expires_at && new Date(s.expires_at) < new Date();
-    const statusKey = isExpired ? 'expired' : s.status;
-    const statusText = isExpired ? 'Kedaluwarsa' : (s.status === 'approved' ? 'Sudah TTD' : 'Menunggu');
-    const link = `${baseUrl}?token=${s.token}`;
-    return `
-      <div class="approval-step">
-        <div class="role">
-          ${label}
-          <small>${s.approver?.nama || '-'}${s.signed_at ? ' · ' + new Date(s.signed_at).toLocaleDateString('id-ID') : ''}</small>
-        </div>
-        <div class="action">
-          <span class="status-dot ${statusKey}"></span>
-          <span class="muted">${statusText}</span>
-          ${s.status !== 'approved' ? `<button class="copy-btn" data-link="${link}">Salin Link</button>` : ''}
-        </div>
-      </div>
-    `;
-  }).join('') || '<div class="muted">Belum ada data approval.</div>';
+  // Progres penilaian: per karyawan (Form A) atau per bagian kriteria (Form B / C)
+  let progHtml;
+  if (p._members) {
+    progHtml = p._members.map(m => {
+      const pr = progressOf([m]);
+      const skor = (detailByPenilaian[m.id] || []).filter(d => d.skor != null).map(d => Number(d.skor));
+      const rata = skor.length ? (skor.reduce((x, y) => x + y, 0) / skor.length).toFixed(2) : '-';
+      return `<div class="prog-row"><div>${escapeHtml(m.nama_snapshot || '-')}<small>Rata-rata: ${rata}</small></div><div class="progress" style="min-width:150px;"><div class="progress-bar"><div style="width:${pr.pct}%"></div></div><span>${pr.filled}/${pr.total}</span></div></div>`;
+    }).join('');
+  } else {
+    progHtml = (SECTIONS[p.tipe_form] || SECTIONS.B).map(([kat, total]) => {
+      const det = (detailByPenilaian[p.id] || []).filter(d => String(d.kategori).trim() === kat && d.skor != null);
+      const avg = det.length ? (det.reduce((x, d) => x + Number(d.skor), 0) / det.length).toFixed(2) : '-';
+      const pct = Math.round(Math.min(det.length, total) / total * 100);
+      return `<div class="prog-row"><div>${escapeHtml(kat)}<small>Rata-rata: ${avg}</small></div><div class="progress" style="min-width:150px;"><div class="progress-bar"><div style="width:${pct}%"></div></div><span>${Math.min(det.length, total)}/${total}</span></div></div>`;
+    }).join('');
+  }
 
   return `
     <div class="detail-grid">
       ${infoHtml}
       <div>
-        <h3>Progres Tanda Tangan</h3>
-        ${stepsHtml}
+        <h3>Progres Penilaian</h3>
+        ${progHtml}
+        <div class="info-line" style="margin-top:10px;">Approval / tanda tangan dilakukan manual pada form cetak.</div>
       </div>
     </div>
   `;
@@ -414,6 +438,49 @@ function escapeHtml(str) {
 ['searchInput','periodeFilter','statusFilter','tipeFilter'].forEach(id => {
   document.getElementById(id).addEventListener('input', renderTable);
   document.getElementById(id).addEventListener('change', renderTable);
+});
+
+// =====================================================
+// TARIK EXCEL (format template REKAP_PENILAIAN_TAHUN_xxxx)
+// =====================================================
+function periodeExport() {
+  const sel = document.getElementById('periodeFilter').value;
+  if (sel) return sel;
+  const ps = [...new Set(allRows.map(r => r.periode))].sort().reverse();
+  return ps[0] || String(new Date().getFullYear());
+}
+function updateExportLabel() {
+  document.getElementById('btnExport').textContent = '⬇ Tarik Excel (' + periodeExport() + ')';
+}
+document.getElementById('periodeFilter').addEventListener('change', updateExportLabel);
+
+document.getElementById('btnExport').addEventListener('click', async () => {
+  const btn = document.getElementById('btnExport'), msg = document.getElementById('expMsg');
+  const periode = periodeExport();
+  msg.className = 'exp-msg'; msg.textContent = '';
+  btn.disabled = true; btn.textContent = 'Menyiapkan Excel...';
+  try {
+    const rows = allRows.filter(r => String(r.periode) === String(periode));
+    if (!rows.length) throw new Error('Belum ada data penilaian untuk periode ' + periode + '.');
+    const resp = await fetch('templates/REKAP_PENILAIAN_TEMPLATE.xlsx', { cache: 'no-cache' });
+    if (!resp.ok) throw new Error('Template Excel tidak ditemukan (templates/REKAP_PENILAIAN_TEMPLATE.xlsx).');
+    const tpl = await resp.arrayBuffer();
+    const ids = new Set(rows.map(r => r.id));
+    const { wb, jumlahWorker, jumlahStaff } = await buildRekapWorkbook(ExcelJS, tpl, periode, rows, allDetails.filter(d => ids.has(d.penilaian_id)));
+    const buf = await wb.xlsx.writeBuffer();
+    const url = URL.createObjectURL(new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }));
+    const a = document.createElement('a');
+    a.href = url; a.download = 'REKAP_PENILAIAN_TAHUN_' + periode + '.xlsx';
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 2000);
+    msg.className = 'exp-msg ok';
+    msg.textContent = 'Excel periode ' + periode + ' berhasil diunduh (' + jumlahWorker + ' karyawan Form A, ' + jumlahStaff + ' karyawan Form B/C).';
+  } catch (err) {
+    console.error(err);
+    msg.className = 'exp-msg err';
+    msg.textContent = 'Gagal membuat Excel: ' + (err.message || 'terjadi kesalahan.');
+  }
+  btn.disabled = false; updateExportLabel();
 });
 
 loadData();
