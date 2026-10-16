@@ -1,0 +1,585 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Kendaraan</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="supabase/config.js"></script>
+<style>
+  :root{ --bg:#1c1410; --panel:#2b2018; --panel-2:#241a13; --line:#3d2f22; --text:#f3ebe0; --muted:#a8967d; --dim:#7d6d58;
+         --gold:#d4a24c; --teal:#4dd0c4; --orange:#f0913f; --pink:#e5708f; --blue:#7aa2f7; --r:12px; }
+  *{ box-sizing:border-box; }
+  body{ margin:0; background:radial-gradient(1200px 500px at 80% -10%, rgba(122,162,247,.07), transparent 60%), var(--bg); color:var(--text);
+        font-family:'Inter','Segoe UI',system-ui,-apple-system,sans-serif; font-size:14px; line-height:1.45; padding:32px 24px 80px; -webkit-font-smoothing:antialiased; }
+  .wrap{ max-width:1480px; margin:0 auto; }
+  .topbar{ display:flex; justify-content:space-between; align-items:flex-end; gap:16px; flex-wrap:wrap; margin-bottom:28px; padding-bottom:22px; border-bottom:1px solid var(--line); }
+  .back{ display:inline-block; color:var(--muted); text-decoration:none; font-size:12.5px; margin-bottom:14px; transition:color .15s; } .back:hover{ color:var(--blue); }
+  .title{ display:flex; align-items:center; gap:14px; }
+  .title .ico{ width:46px; height:46px; border-radius:12px; display:grid; place-items:center; font-size:22px; background:linear-gradient(135deg,rgba(122,162,247,.25),rgba(122,162,247,.08)); border:1px solid rgba(122,162,247,.35); }
+  h1{ font-size:24px; margin:0; font-weight:700; letter-spacing:-.01em; }
+  .muted{ color:var(--muted); font-size:13px; margin-top:2px; }
+  .btn{ display:inline-flex; align-items:center; gap:8px; background:linear-gradient(135deg,#86a9f8,#5f86dc); color:#101826; border:none; padding:10px 18px; border-radius:9px; font-weight:700; font-size:13px; cursor:pointer; white-space:nowrap;
+        box-shadow:0 4px 14px rgba(95,134,220,.28); transition:transform .12s, box-shadow .12s, filter .12s; font-family:inherit; }
+  .btn:hover{ transform:translateY(-1px); filter:brightness(1.06); } .btn:disabled{ opacity:.6; cursor:wait; }
+  .btn.secondary{ background:transparent; border:1px solid var(--line); color:var(--text); box-shadow:none; } .btn.secondary:hover{ background:var(--panel-2); }
+  .stats{ display:grid; grid-template-columns:repeat(5,1fr); gap:14px; margin-bottom:24px; }
+  @media(max-width:1000px){ .stats{ grid-template-columns:repeat(2,1fr); } }
+  .stat{ position:relative; background:var(--panel); border:1px solid var(--line); border-radius:var(--r); padding:16px 18px 16px 22px; overflow:hidden; }
+  .stat::before{ content:''; position:absolute; left:0; top:0; bottom:0; width:4px; background:var(--c,var(--blue)); }
+  .stat:nth-child(2){ --c:var(--teal);} .stat:nth-child(3){ --c:var(--orange);} .stat:nth-child(4){ --c:var(--pink);} .stat:nth-child(5){ --c:var(--gold);}
+  .stat .l{ font-size:11.5px; color:var(--muted); font-weight:600; text-transform:uppercase; letter-spacing:.04em; }
+  .stat .n{ font-size:28px; font-weight:700; margin-top:6px; line-height:1.1; font-variant-numeric:tabular-nums; }
+  .stat .n.sm{ font-size:20px; padding-top:6px; }
+  .filters{ display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin-bottom:14px; }
+  input,select,textarea{ background:var(--panel-2); border:1px solid var(--line); color:var(--text); padding:10px 12px; border-radius:9px; font-size:13.5px; font-family:inherit; width:100%; transition:border-color .15s, box-shadow .15s; }
+  input:focus,select:focus,textarea:focus{ outline:none; border-color:var(--blue); box-shadow:0 0 0 3px rgba(122,162,247,.18); }
+  input::placeholder,textarea::placeholder{ color:var(--dim); }
+  .filters input{ flex:1; min-width:240px; width:auto; padding-left:38px;
+    background:var(--panel-2) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%237d6d58' stroke-width='2' stroke-linecap='round'%3E%3Ccircle cx='11' cy='11' r='7'/%3E%3Cpath d='M21 21l-4.3-4.3'/%3E%3C/svg%3E") no-repeat 13px center; }
+  .filters select{ width:auto; min-width:160px; }
+  .count{ margin-left:auto; color:var(--muted); font-size:12.5px; }
+  .card{ background:var(--panel); border:1px solid var(--line); border-radius:var(--r); overflow-x:auto; box-shadow:0 8px 30px rgba(0,0,0,.25); }
+  table{ width:100%; border-collapse:collapse; }
+  .card table{ table-layout:fixed; min-width:1000px; }
+  @media(min-width:1100px){ .card{ overflow:hidden; } .card table{ min-width:0; } }
+  td{ overflow-wrap:anywhere; }
+  th{ position:sticky; top:0; text-align:left; padding:12px 12px; font-size:11px; font-weight:700; color:var(--muted); text-transform:uppercase; letter-spacing:.06em; background:var(--panel-2); border-bottom:1px solid var(--line); white-space:nowrap; }
+  td{ padding:14px 12px; font-size:12.5px; border-bottom:1px solid var(--line); vertical-align:top; }
+  tbody tr{ transition:background .12s; } tbody tr:last-child td{ border-bottom:none; } tbody tr:hover{ background:rgba(255,255,255,.03); }
+  td b{ font-weight:600; }
+  td small{ display:block; color:var(--muted); font-size:11.5px; margin-top:3px; }
+  td.nowrap{ white-space:nowrap; } td.num{ font-variant-numeric:tabular-nums; white-space:nowrap; }
+  tr.r-b-segera td:first-child{ box-shadow:inset 3px 0 0 var(--orange); } tr.r-b-berakhir td:first-child{ box-shadow:inset 3px 0 0 var(--pink); } tr.r-b-aktif td:first-child{ box-shadow:inset 3px 0 0 transparent; }
+  .badge{ text-align:left; display:inline-flex; align-items:center; gap:6px; padding:4px 10px; border-radius:20px; font-size:11.5px; font-weight:600; }
+  .badge::before{ content:''; width:6px; height:6px; border-radius:50%; background:currentColor; }
+  .b-aktif{ background:rgba(77,208,196,.13); color:var(--teal); } .b-segera{ background:rgba(240,145,63,.14); color:var(--orange); } .b-berakhir{ background:rgba(229,112,143,.14); color:var(--pink); }
+  .b-ke{ background:rgba(212,162,76,.13); color:var(--gold); margin-top:6px; font-size:10.5px; padding:2px 8px; } .b-ke::before{ display:none; }
+  .bar{ height:4px; border-radius:4px; background:var(--line); margin-top:8px; overflow:hidden; } .bar i{ display:block; height:100%; border-radius:4px; background:var(--teal); }
+  .bar.b-segera i{ background:var(--orange);} .bar.b-berakhir i{ background:var(--pink);}
+  .aksi{ display:flex; flex-wrap:wrap; gap:6px; align-items:center; }
+  .aksi button,.aksi a{ display:inline-grid; place-items:center; width:30px; height:30px; border-radius:8px; border:1px solid var(--line); background:transparent; color:var(--muted); cursor:pointer; text-decoration:none; padding:0; transition:all .12s; }
+  .aksi button:hover,.aksi a:hover{ background:var(--panel-2); color:var(--text); border-color:var(--dim); }
+  .aksi .pj{ flex:1 1 100%; width:auto; justify-content:center; padding:0 11px; gap:6px; display:inline-flex; align-items:center; font-size:12px; font-weight:600; color:var(--blue); border-color:rgba(122,162,247,.4); }
+  .aksi .pj:hover{ background:rgba(122,162,247,.14); color:var(--blue); border-color:var(--blue); }
+  .aksi .del:hover{ background:rgba(229,112,143,.14); color:var(--pink); border-color:var(--pink); } .aksi a:hover{ color:var(--teal); }
+  .empty{ padding:56px 20px; text-align:center; color:var(--muted); font-size:13.5px; }
+  .overlay{ position:fixed; inset:0; background:rgba(10,6,3,.72); backdrop-filter:blur(3px); display:none; align-items:flex-start; justify-content:center; padding:32px 16px; overflow-y:auto; z-index:50; }
+  .overlay.show{ display:flex; }
+  .modal{ background:var(--panel); border:1px solid var(--line); border-radius:16px; width:100%; max-width:780px; padding:26px 28px; box-shadow:0 24px 70px rgba(0,0,0,.55); }
+  .modal h2{ margin:0 0 4px; font-size:19px; font-weight:700; }
+  .form-grid{ display:grid; grid-template-columns:1fr 1fr; gap:16px 18px; margin-top:20px; }
+  @media(max-width:640px){ .form-grid{ grid-template-columns:1fr; } }
+  .full{ grid-column:1/-1; } label{ display:block; font-size:12px; color:var(--muted); font-weight:600; margin-bottom:6px; }
+  .sect{ grid-column:1/-1; display:flex; align-items:center; gap:12px; font-size:11.5px; font-weight:700; letter-spacing:.07em; text-transform:uppercase; color:var(--blue); margin-top:8px; }
+  .sect::after{ content:''; flex:1; height:1px; background:var(--line); }
+  .note{ grid-column:1/-1; background:rgba(122,162,247,.1); border:1px solid rgba(122,162,247,.4); border-radius:9px; padding:11px 14px; font-size:12.5px; }
+  .hidden{ display:none !important; }
+  .modal-foot{ display:flex; justify-content:flex-end; gap:10px; margin-top:26px; padding-top:18px; border-top:1px solid var(--line); }
+  .plats{ display:flex; flex-direction:column; align-items:flex-start; gap:6px; }
+  .plat{ display:inline-block; background:linear-gradient(180deg,#fbf6e6,#ece3c8); color:#15110c; font-family:'Consolas','Roboto Mono','Courier New',monospace; font-weight:800; font-size:15px;
+         letter-spacing:.09em; padding:4px 9px; border-radius:7px; border:2px solid #15110c; box-shadow:0 0 0 1px rgba(255,255,255,.18), 0 3px 8px rgba(0,0,0,.35); white-space:nowrap; text-transform:uppercase; }
+  .plat.sm{ font-size:12px; padding:2px 7px; border-width:1.5px; border-radius:5px; margin:2px 4px 0 0; box-shadow:none; }
+  .plat.kosong{ background:transparent; color:var(--dim); border:1.5px dashed var(--line); box-shadow:none; font-size:13px; font-weight:600; letter-spacing:0; }
+  .cur td{ background:rgba(122,162,247,.08); }
+  /* ===== Popup pengingat masa berlaku ===== */
+  #overlayWarn{ align-items:center; z-index:60; }
+  .warn{ max-width:640px; border-color:rgba(240,145,63,.55); }
+  .warn-h{ display:flex; align-items:center; gap:14px; }
+  .warn-ico{ width:46px; height:46px; border-radius:12px; display:grid; place-items:center; font-size:24px; background:rgba(240,145,63,.15); animation:warnPulse 1.8s ease-in-out infinite; }
+  @keyframes warnPulse{ 0%,100%{ box-shadow:0 0 0 0 rgba(240,145,63,.45);} 50%{ box-shadow:0 0 0 9px rgba(240,145,63,0);} }
+  .warn-list{ margin-top:18px; display:flex; flex-direction:column; gap:10px; max-height:52vh; overflow-y:auto; }
+  .warn-item{ display:flex; align-items:center; gap:12px; background:var(--panel-2); border:1px solid var(--line); border-left:3px solid var(--orange); border-radius:10px; padding:11px 14px; }
+  .warn-item.lewat{ border-left-color:var(--pink); }
+  .warn-item .inf{ flex:1; min-width:0; font-size:13px; } .warn-item .inf small{ display:block; color:var(--muted); font-size:11.5px; margin-top:2px; }
+  .warn-item .sisa{ font-weight:700; font-size:13px; color:var(--orange); white-space:nowrap; } .warn-item.lewat .sisa{ color:var(--pink); }
+  .warn-item button{ font-size:12px; font-weight:600; color:var(--blue); background:transparent; border:1px solid rgba(122,162,247,.4); border-radius:8px; padding:6px 11px; cursor:pointer; }
+  .warn-item button:hover{ background:rgba(122,162,247,.14); border-color:var(--blue); }
+
+  /* ===== Tab modul Kendaraan ===== */
+  .tabs{ display:flex; gap:6px; margin:-8px 0 24px; border-bottom:1px solid var(--line); overflow-x:auto; }
+  .tab{ display:inline-flex; align-items:center; gap:9px; background:transparent; border:none; border-bottom:2px solid transparent; color:var(--muted); padding:12px 18px; font-size:13.5px; font-weight:600; cursor:pointer; font-family:inherit; white-space:nowrap; margin-bottom:-1px; transition:color .15s, border-color .15s; }
+  .tab:hover{ color:var(--text); }
+  .tab.on{ color:var(--blue); border-bottom-color:var(--blue); }
+  .tab .pill{ background:var(--panel-2); border:1px solid var(--line); border-radius:20px; font-size:11px; padding:1px 8px; color:var(--muted); font-variant-numeric:tabular-nums; }
+  .tab.on .pill{ background:rgba(122,162,247,.14); border-color:rgba(122,162,247,.4); color:var(--blue); }
+  .dok{ display:flex; justify-content:space-between; gap:8px; font-size:12px; padding:2px 0; }
+  .dok span{ color:var(--muted); } .dok em{ font-style:normal; font-weight:600; font-size:11.5px; }
+  .dok em.b-aktif{ color:var(--teal); background:none; } .dok em.b-segera{ color:var(--orange); background:none; } .dok em.b-berakhir{ color:var(--pink); background:none; }
+  .b-perawatan{ background:rgba(240,145,63,.14); color:var(--orange); } .b-nonaktif{ background:rgba(168,150,125,.16); color:var(--muted); } .b-dijual{ background:rgba(212,162,76,.13); color:var(--gold); }
+  tr.r-k-segera td:first-child{ box-shadow:inset 3px 0 0 var(--orange); } tr.r-k-lewat td:first-child{ box-shadow:inset 3px 0 0 var(--pink); }
+  #panelMilik .card table{ min-width:1000px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="topbar">
+    <div>
+      <a class="back" href="pilih-modul.html">← Kembali ke pilih modul</a>
+      <div class="title"><div class="ico">🚗</div><div>
+        <h1>Kendaraan</h1>
+        <div class="muted">Kelola kendaraan sewa dari vendor dan kendaraan milik perusahaan, lengkap dengan pengingat masa berlaku.</div>
+      </div></div>
+    </div>
+    <button class="btn" id="btnTambah" onclick="bukaForm()"><span style="font-size:16px;line-height:1">＋</span> <span id="btnTambahTxt">Tambah Perjanjian</span></button>
+  </div>
+
+  <div class="tabs">
+    <button class="tab on" id="tab_sewa" onclick="gantiTab('sewa')">🤝 Sewa Kendaraan <span class="pill" id="pillSewa">-</span></button>
+    <button class="tab" id="tab_milik" onclick="gantiTab('milik')">🏢 Kendaraan Milik Perusahaan <span class="pill" id="pillMilik">-</span></button>
+  </div>
+
+  <section id="panelSewa">
+
+  <div class="stats">
+    <div class="stat"><div class="l">Total Perjanjian</div><div class="n" id="sTotal">-</div></div>
+    <div class="stat"><div class="l">Aktif</div><div class="n" id="sAktif">-</div></div>
+    <div class="stat"><div class="l">Segera Berakhir (≤ 60 hari)</div><div class="n" id="sSegera">-</div></div>
+    <div class="stat"><div class="l">Sudah Berakhir</div><div class="n" id="sBerakhir">-</div></div>
+    <div class="stat"><div class="l">Nilai Kontrak Aktif</div><div class="n sm" id="sNilai">-</div></div>
+  </div>
+
+  <div class="filters">
+    <input id="cari" placeholder="Cari vendor, no. perjanjian/lampiran, pengguna, atau no. polisi..." oninput="render()">
+    <select id="fStatus" onchange="render()"><option value="">Semua Status</option><option>Aktif</option><option>Segera Berakhir</option><option>Berakhir</option></select>
+    <span class="count" id="count"></span>
+  </div>
+
+  <div class="card">
+    <table>
+      <colgroup><col style="width:11%"><col style="width:14%"><col style="width:12%"><col style="width:12%"><col style="width:9%"><col style="width:12%"><col style="width:9%"><col style="width:10%"><col style="width:11%"></colgroup>
+      <thead><tr><th>No. Polisi</th><th>No. Perjanjian</th><th>Vendor</th><th>Pengguna</th><th>Kendaraan</th><th>Masa Berlaku</th><th>Nilai</th><th>Status</th><th>Aksi</th></tr></thead>
+      <tbody id="body"><tr><td colspan="9" class="empty">Memuat data...</td></tr></tbody>
+    </table>
+  </div>
+  </section>
+
+  <section id="panelMilik" class="hidden">
+    <div class="stats">
+      <div class="stat"><div class="l">Total Kendaraan</div><div class="n" id="kTotal">-</div></div>
+      <div class="stat"><div class="l">Aktif</div><div class="n" id="kAktif">-</div></div>
+      <div class="stat"><div class="l">Dokumen Segera Habis (≤ 60 hari)</div><div class="n" id="kSegera">-</div></div>
+      <div class="stat"><div class="l">Dokumen Sudah Lewat</div><div class="n" id="kLewat">-</div></div>
+      <div class="stat"><div class="l">Dalam Perawatan</div><div class="n" id="kRawat">-</div></div>
+    </div>
+    <div class="filters">
+      <input id="kCari" placeholder="Cari no. polisi, merk/tipe, pengguna, no. rangka, atau no. mesin..." oninput="renderK()">
+      <select id="kFJenis" onchange="renderK()"><option value="">Semua Jenis</option><option>Mobil</option><option>Motor</option><option>Truk</option><option>Bus</option><option>Lainnya</option></select>
+      <select id="kFStatus" onchange="renderK()"><option value="">Semua Status</option><option>Aktif</option><option>Perawatan</option><option>Non-Aktif</option><option>Dijual</option></select>
+      <select id="kFDok" onchange="renderK()"><option value="">Semua Dokumen</option><option value="segera">Segera Habis</option><option value="lewat">Sudah Lewat</option></select>
+      <span class="count" id="kCount"></span>
+    </div>
+    <div class="card">
+      <table>
+        <colgroup><col style="width:12%"><col style="width:18%"><col style="width:16%"><col style="width:22%"><col style="width:16%"><col style="width:16%"></colgroup>
+        <thead><tr><th>No. Polisi</th><th>Kendaraan</th><th>Pengguna</th><th>Masa Berlaku Dokumen</th><th>Status</th><th>Aksi</th></tr></thead>
+        <tbody id="kBody"><tr><td colspan="6" class="empty">Memuat data...</td></tr></tbody>
+      </table>
+    </div>
+  </section>
+</div>
+
+<div class="overlay" id="overlayK">
+  <div class="modal">
+    <h2 id="kTitle">Tambah Kendaraan</h2>
+    <div class="muted">Kolom bertanda * wajib diisi.</div>
+    <div class="form-grid">
+      <div><label>No. Polisi *</label><input id="k_no_polisi" placeholder="mis. L 1234 AB"></div>
+      <div><label>Jenis</label><select id="k_jenis"><option>Mobil</option><option>Motor</option><option>Truk</option><option>Bus</option><option>Lainnya</option></select></div>
+      <div><label>Merk / Tipe *</label><input id="k_merk_tipe" placeholder="mis. Toyota Avanza 1.3 G"></div>
+      <div><label>Tahun</label><input type="number" id="k_tahun" min="1980" max="2100"></div>
+      <div><label>Warna</label><input id="k_warna"></div>
+      <div><label>Status</label><select id="k_status"><option>Aktif</option><option>Perawatan</option><option>Non-Aktif</option><option>Dijual</option></select></div>
+      <div><label>No. Rangka</label><input id="k_no_rangka"></div>
+      <div><label>No. Mesin</label><input id="k_no_mesin"></div>
+      <div><label>No. BPKB</label><input id="k_no_bpkb"></div>
+      <div><label>KM Terakhir</label><input type="number" id="k_km_terakhir" min="0"></div>
+
+      <div class="sect">Pengguna</div>
+      <div><label>Area</label><select id="k_area" onchange="isiPenggunaK()"><option value="">Memuat...</option></select></div>
+      <div><label>Departemen</label><select id="k_departemen" onchange="isiPenggunaK()"><option value="">Memuat...</option></select></div>
+      <div class="full"><label>PIC / Pengguna Kendaraan</label><input id="k_pengguna" list="listKaryawanK" placeholder="Pilih dari karyawan atau ketik nama"><datalist id="listKaryawanK"></datalist></div>
+
+      <div class="sect">Dokumen &amp; Pengingat</div>
+      <div><label>Jatuh Tempo Pajak Tahunan</label><input type="date" id="k_tgl_pajak"></div>
+      <div><label>Masa Berlaku STNK (5 tahunan)</label><input type="date" id="k_tgl_stnk"></div>
+      <div><label>Perusahaan Asuransi</label><input id="k_asuransi_nama"></div>
+      <div><label>No. Polis</label><input id="k_no_polis"></div>
+      <div><label>Asuransi Berakhir</label><input type="date" id="k_tgl_asuransi"></div>
+
+      <div class="sect">Perolehan</div>
+      <div><label>Tanggal Perolehan</label><input type="date" id="k_tgl_perolehan"></div>
+      <div><label>Harga Perolehan (Rp)</label><input type="number" id="k_harga_perolehan" min="0"></div>
+      <div class="full"><label>Link Dokumen (Google Drive dll.)</label><input id="k_link_dokumen" placeholder="https://..."></div>
+      <div class="full"><label>Keterangan</label><textarea id="k_keterangan" rows="3"></textarea></div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn secondary" onclick="tutupFormK()">Batal</button>
+      <button class="btn" id="kBtnSimpan" onclick="simpanK()">Simpan</button>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="overlay">
+  <div class="modal">
+    <h2 id="mTitle">Tambah Perjanjian</h2>
+    <div class="muted">Kolom bertanda * wajib diisi.</div>
+    <div class="form-grid">
+      <div class="note hidden" id="mNote"></div>
+      <div><label>No. Perjanjian *</label><input id="no_perjanjian"></div>
+      <div><label>No. Lampiran Perjanjian</label><input id="no_lampiran" placeholder="mis. Lampiran 1 / No. addendum"></div>
+      <div><label>Nama Vendor *</label><input id="vendor_nama"></div>
+      <div><label>Area</label><select id="area" onchange="isiPengguna()"><option value="">Memuat...</option></select></div>
+      <div><label>Departemen Pengguna</label><select id="departemen" onchange="isiPengguna()"><option value="">Memuat...</option></select></div>
+      <div><label>PIC / Pengguna Kendaraan</label><input id="pengguna" list="listKaryawan" placeholder="Pilih dari karyawan atau ketik nama"><datalist id="listKaryawan"></datalist></div>
+      <div><label>PIC Vendor</label><input id="vendor_pic"></div>
+      <div><label>Kontak PIC (telp/email)</label><input id="vendor_kontak"></div>
+      <div><label>Tanggal Mulai *</label><input type="date" id="tgl_mulai"></div>
+      <div><label>Tanggal Berakhir *</label><input type="date" id="tgl_akhir"></div>
+      <div><label>Nilai Kontrak (Rp)</label><input type="number" id="nilai" min="0"></div>
+      <div><label>Periode Pembayaran</label>
+        <select id="periode_bayar"><option>Bulanan</option><option>Triwulan</option><option>Tahunan</option><option>Sekali Bayar</option></select></div>
+
+      <div class="sect">Detail Kendaraan</div>
+      <div><label>Tipe Kendaraan</label><input id="tipe_kendaraan" placeholder="mis. Toyota Avanza"></div>
+      <div><label>Jumlah Unit</label><input type="number" id="jumlah_unit" min="0"></div>
+      <div><label>No. Polisi</label><input id="no_polisi" placeholder="Pisahkan dengan koma bila lebih dari satu"></div>
+      <div><label>Dengan Driver?</label><select id="dengan_driver"><option>Ya</option><option>Tidak</option></select></div>
+
+      <div class="sect">Lainnya</div>
+      <div class="full"><label>Link Dokumen (Google Drive dll.)</label><input id="link_dokumen" placeholder="https://..."></div>
+      <div class="full"><label>Keterangan</label><textarea id="keterangan" rows="3"></textarea></div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn secondary" onclick="tutupForm()">Batal</button>
+      <button class="btn" id="btnSimpan" onclick="simpan()">Simpan</button>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="overlayWarn">
+  <div class="modal warn">
+    <div class="warn-h"><div class="warn-ico">⏰</div><div>
+      <h2 id="warnTitle">Perjanjian Segera Berakhir</h2>
+      <div class="muted" id="warnSub"></div>
+    </div></div>
+    <div class="warn-list" id="warnList"></div>
+    <div class="modal-foot"><button class="btn" onclick="tutupWarn()">Mengerti</button></div>
+  </div>
+</div>
+
+<div class="overlay" id="overlayRw">
+  <div class="modal" style="max-width:900px">
+    <h2 id="rwTitle">Riwayat Perjanjian</h2>
+    <div class="muted" id="rwSub"></div>
+    <div style="overflow-x:auto;margin-top:16px"><table style="min-width:640px">
+      <thead><tr><th>Versi</th><th>No. Perjanjian</th><th>Masa Berlaku</th><th>Nilai</th><th>Kendaraan</th><th>Status</th></tr></thead>
+      <tbody id="rwBody"></tbody>
+    </table></div>
+    <div class="modal-foot"><button class="btn secondary" onclick="tutupRw()">Tutup</button></div>
+  </div>
+</div>
+
+<script>
+const user = JSON.parse(sessionStorage.getItem('user') || 'null');
+if (!user) location.href = 'login.html';
+
+const FIELDS = ['no_perjanjian','no_lampiran','vendor_nama','area','departemen','pengguna','vendor_pic','vendor_kontak','tgl_mulai','tgl_akhir',
+  'nilai','periode_bayar','tipe_kendaraan','jumlah_unit','no_polisi','dengan_driver','link_dokumen','keterangan'];
+let data = [], karyawan = [], editId = null, indukSrc = null, milik = [], editIdK = null;
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const ic = p => `<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${p}</svg>`;
+const IC = {doc: ic('<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M8 13h8M8 17h5"/>'),
+  hist: ic('<path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l3 2"/>'),
+  edit: ic('<path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/>'),
+  del: ic('<path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6l-1 14H6L5 6"/>'),
+  ref: ic('<path d="M21 12a9 9 0 1 1-3-6.7L21 8"/><path d="M21 3v5h-5"/>')};
+const plat = (t, c = '') => {
+  const l = String(t || '').split(/[,;\n]/).map(x => x.trim()).filter(Boolean);
+  return l.length ? `<div class="plats">${l.map(x => `<span class="plat ${c}">${esc(x)}</span>`).join('')}</div>` : `<span class="plat kosong ${c}">Belum diisi</span>`;
+};
+const rp = n => 'Rp ' + Number(n || 0).toLocaleString('id-ID');
+const tgl = d => d ? new Date(d + 'T00:00:00').toLocaleDateString('id-ID', {day:'numeric', month:'short', year:'numeric'}) : '-';
+
+function statusOf(v) {
+  const sisa = Math.ceil((new Date(v.tgl_akhir + 'T00:00:00') - new Date().setHours(0,0,0,0)) / 86400000);
+  if (sisa < 0) return {label:'Berakhir', cls:'b-berakhir', sisa};
+  if (sisa <= 60) return {label:'Segera Berakhir', cls:'b-segera', sisa};
+  return {label:'Aktif', cls:'b-aktif', sisa};
+}
+
+// ===== Popup pengingat (sisa masa berlaku < BATAS_POPUP hari) =====
+const BATAS_POPUP = 40;
+let warnShown = false;
+function cekPengingat() {
+  if (warnShown) return;               // hanya sekali per kali halaman dibuka (tidak muncul lagi setelah simpan/hapus)
+  const diganti = new Set(data.map(x => x.induk_id).filter(Boolean));
+  const list = data.filter(v => !diganti.has(v.id)).map(v => ({tipe: 'sewa', id: v.id, judul: v.no_polisi || '-', sub: `${v.vendor_nama} · ${v.no_perjanjian}`,
+      info: 'Sewa berakhir ' + tgl(v.tgl_akhir), sisa: statusOf(v).sisa}));
+  milik.filter(k => !['Non-Aktif', 'Dijual'].includes(k.status)).forEach(k => dokumenK(k).forEach(d => list.push({tipe: 'milik', id: k.id,
+      judul: k.no_polisi, sub: k.merk_tipe, info: d.label + ' ' + tgl(d.tgl), sisa: d.sisa})));
+  const items = list.filter(x => x.sisa < BATAS_POPUP).sort((a, b) => a.sisa - b.sisa);
+  if (!items.length) return;
+  warnShown = true;
+  $('warnTitle').textContent = `${items.length} Pengingat Masa Berlaku`;
+  $('warnSub').textContent = `Masa berlaku kurang dari ${BATAS_POPUP} hari atau sudah lewat. Segera proses perpanjangan.`;
+  $('warnList').innerHTML = items.map(x => `<div class="warn-item ${x.sisa < 0 ? 'lewat' : ''}">
+    <div class="inf"><b>${esc(x.judul)}</b> · ${esc(x.sub)}<small>${x.tipe === 'sewa' ? 'Sewa Kendaraan' : 'Milik Perusahaan'} · ${esc(x.info)}</small></div>
+    <div class="sisa">${x.sisa < 0 ? `lewat ${-x.sisa} hari` : x.sisa === 0 ? 'hari ini' : `${x.sisa} hari lagi`}</div>
+    <button onclick="${x.tipe === 'sewa' ? `tutupWarn(); gantiTab('sewa'); perpanjang('${x.id}')` : `tutupWarn(); gantiTab('milik'); bukaFormK('${x.id}')`}">${x.tipe === 'sewa' ? 'Perpanjang' : 'Perbarui'}</button></div>`).join('');
+  $('overlayWarn').classList.add('show');
+}
+function tutupWarn() { $('overlayWarn').classList.remove('show'); }
+
+async function load() {
+  const { data: rows, error } = await supabaseClient.from('perjanjian_vendor').select('*').eq('jenis', 'Sewa Kendaraan').order('tgl_akhir', {ascending: true});
+  if (error) { console.error(error); $('body').innerHTML = '<tr><td colspan="9" class="empty">Gagal memuat data. Pastikan tabel perjanjian_vendor sudah dibuat (jalankan sql/vendor_schema.sql di Supabase).</td></tr>'; return; }
+  data = rows || []; render();
+}
+
+async function loadMaster() {
+  const [d, k, a] = await Promise.all([
+    supabaseClient.from('master_departemen').select('*').order('nama_departemen', {ascending: true}),
+    supabaseClient.from('master_karyawan').select('*').eq('status', 'Aktif').order('nama', {ascending: true}),
+    supabaseClient.from('master_area').select('*').order('nama_area', {ascending: true})
+  ]);
+  if (a.error) console.error(a.error);
+  const optArea = '<option value="">-- Pilih Area --</option>' + (a.data || []).map(x => `<option value="${esc(x.nama_area)}">${esc(x.nama_area)}</option>`).join('');
+  $('area').innerHTML = optArea; $('k_area').innerHTML = optArea;
+  if (d.error) console.error(d.error);
+  if (k.error) console.error(k.error);
+  const optDep = '<option value="">-- Pilih Departemen --</option>' + (d.data || []).map(x => `<option value="${esc(x.nama_departemen)}">${esc(x.nama_departemen)}</option>`).join('');
+  $('departemen').innerHTML = optDep; $('k_departemen').innerHTML = optDep;
+  karyawan = k.data || [];
+}
+
+function isiPengguna() {
+  const dep = $('departemen').value, ar = $('area').value;
+  let list = ar ? karyawan.filter(x => x.area === ar) : karyawan;   // Area: ketat
+  if (dep) { const byDep = list.filter(x => x.departemen === dep); if (byDep.length) list = byDep; }
+  $('listKaryawan').innerHTML = list.map(x => `<option value="${esc(x.nama)}">${esc(x.nik || '')} ${esc(x.departemen || '')}</option>`).join('');
+}
+
+// ===== Rantai perpanjangan =====
+function rootOf(v) {
+  const byId = Object.fromEntries(data.map(x => [x.id, x]));
+  let cur = v, guard = 0;
+  while (cur.induk_id && byId[cur.induk_id] && guard++ < 100) cur = byId[cur.induk_id];
+  return cur.id;
+}
+function chainOf(v) {
+  const r = rootOf(v);
+  return data.filter(x => rootOf(x) === r).sort((a, b) => a.tgl_mulai.localeCompare(b.tgl_mulai));
+}
+
+function render() {
+  const q = $('cari').value.toLowerCase(), fs = $('fStatus').value;
+  const diganti = new Set(data.map(x => x.induk_id).filter(Boolean));
+  const st = data.filter(v => !diganti.has(v.id)).map(v => ({...v, st: statusOf(v)}));
+  $('sTotal').textContent = st.length;
+  $('sAktif').textContent = st.filter(v => v.st.label === 'Aktif').length;
+  $('sSegera').textContent = st.filter(v => v.st.label === 'Segera Berakhir').length;
+  $('sBerakhir').textContent = st.filter(v => v.st.label === 'Berakhir').length;
+  $('sNilai').textContent = rp(st.filter(v => v.st.label !== 'Berakhir').reduce((a, v) => a + Number(v.nilai || 0), 0));
+
+  const rows = st.filter(v => (!fs || v.st.label === fs) &&
+    [v.vendor_nama, v.no_perjanjian, v.no_lampiran, v.area, v.departemen, v.pengguna, v.no_polisi].some(x => (x || '').toLowerCase().includes(q)));
+  $('count').textContent = rows.length + ' perjanjian'; $('pillSewa').textContent = st.length;
+  if (!rows.length) { $('body').innerHTML = '<tr><td colspan="9" class="empty">Belum ada data perjanjian.</td></tr>'; return; }
+
+  $('body').innerHTML = rows.map(v => {
+    const detail = `${esc(v.jumlah_unit ?? '-')} unit ${esc(v.tipe_kendaraan || '')}<small>${v.dengan_driver ? 'Driver: ' + esc(v.dengan_driver) : ''}</small>`;
+    const sisaTxt = v.st.sisa < 0 ? `lewat ${-v.st.sisa} hari` : `${v.st.sisa} hari lagi`;
+    const link = /^https?:\/\//.test(v.link_dokumen || '') ? `<a href="${esc(v.link_dokumen)}" target="_blank" rel="noopener" title="Buka dokumen">${IC.doc}</a>` : '';
+    const tot = new Date(v.tgl_akhir) - new Date(v.tgl_mulai), pct = tot > 0 ? Math.max(0, Math.min(100, (Date.now() - new Date(v.tgl_mulai)) / tot * 100)) : 100;
+    return `<tr class="r-${v.st.cls}">
+      <td>${plat(v.no_polisi)}</td>
+      <td><b>${esc(v.no_perjanjian)}</b>${v.no_lampiran ? `<small>Lampiran: ${esc(v.no_lampiran)}</small>` : ''}${v.perpanjangan_ke > 0 ? `<br><span class="badge b-ke">Perpanjangan ke-${v.perpanjangan_ke}</span>` : ''}</td>
+      <td>${esc(v.vendor_nama)}<small>${esc(v.vendor_pic || '')} ${esc(v.vendor_kontak || '')}</small></td>
+      <td>${esc(v.pengguna || '-')}<small>${esc([v.departemen, v.area].filter(Boolean).join(' · '))}</small></td>
+      <td>${detail}</td>
+      <td>${tgl(v.tgl_mulai)} – ${tgl(v.tgl_akhir)}<div class="bar ${v.st.cls}"><i style="width:${pct.toFixed(0)}%"></i></div><small>${sisaTxt}</small></td>
+      <td class="num">${rp(v.nilai)}<small>${esc(v.periode_bayar || '')}</small></td>
+      <td><span class="badge ${v.st.cls}">${v.st.label}</span></td>
+      <td><div class="aksi"><button class="pj" onclick="perpanjang('${v.id}')" title="Perpanjang perjanjian">${IC.ref} Perpanjang</button>${link}${v.induk_id ? `<button onclick="riwayat('${v.id}')" title="Riwayat">${IC.hist}</button>` : ''}<button onclick="bukaForm('${v.id}')" title="Edit">${IC.edit}</button><button class="del" onclick="hapus('${v.id}')" title="Hapus">${IC.del}</button></div></td>
+    </tr>`;
+  }).join('');
+}
+
+function isiForm(v) {
+  FIELDS.forEach(f => $(f).value = v[f] ?? (f === 'periode_bayar' ? 'Bulanan' : f === 'dengan_driver' ? 'Ya' : ''));
+  ['departemen', 'area'].forEach(f => {
+    if (v[f] && ![...$(f).options].some(o => o.value === v[f])) { $(f).add(new Option(v[f], v[f])); $(f).value = v[f]; }
+  });
+  isiPengguna();
+}
+function bukaForm(id) {
+  editId = id || null; indukSrc = null;
+  isiForm(data.find(x => x.id === id) || {});
+  $('mNote').classList.add('hidden');
+  $('mTitle').textContent = id ? 'Edit Perjanjian' : 'Tambah Perjanjian';
+  $('overlay').classList.add('show');
+}
+function perpanjang(id) {
+  const src = data.find(x => x.id === id);
+  editId = null; indukSrc = src;
+  const d = new Date(src.tgl_akhir + 'T00:00:00'); d.setDate(d.getDate() + 1);
+  isiForm({...src, no_perjanjian: '', no_lampiran: '', tgl_mulai: d.toLocaleDateString('sv-SE'), tgl_akhir: '', link_dokumen: '', keterangan: ''});
+  $('mNote').innerHTML = `Perpanjangan dari perjanjian <b>${esc(src.no_perjanjian)}</b> (berakhir ${tgl(src.tgl_akhir)}). Data dicopy dari perjanjian sebelumnya, silakan sesuaikan no. perjanjian, masa berlaku, dan nilai. Perjanjian lama tetap tersimpan di Riwayat.`;
+  $('mNote').classList.remove('hidden');
+  $('mTitle').textContent = 'Perpanjang Perjanjian';
+  $('overlay').classList.add('show');
+}
+function riwayat(id) {
+  const v = data.find(x => x.id === id), list = chainOf(v);
+  $('rwSub').textContent = `${v.vendor_nama} · ${list.length} versi perjanjian`;
+  $('rwBody').innerHTML = list.map(x => {
+    const s = statusOf(x);
+    return `<tr class="${x.id === id ? 'cur' : ''}">
+      <td>${x.perpanjangan_ke > 0 ? 'Perpanjangan ke-' + x.perpanjangan_ke : 'Perjanjian awal'}</td>
+      <td><b>${esc(x.no_perjanjian)}</b>${x.no_lampiran ? `<small>Lampiran: ${esc(x.no_lampiran)}</small>` : ''}${x.link_dokumen && /^https?:\/\//.test(x.link_dokumen) ? `<small><a href="${esc(x.link_dokumen)}" target="_blank" rel="noopener" style="color:var(--teal)">Dokumen</a></small>` : ''}</td>
+      <td>${tgl(x.tgl_mulai)} – ${tgl(x.tgl_akhir)}</td>
+      <td>${rp(x.nilai)}<small>${esc(x.periode_bayar || '')}</small></td>
+      <td>${esc(x.jumlah_unit ?? '-')} unit ${esc(x.tipe_kendaraan || '')}<small>${plat(x.no_polisi, 'sm')}</small></td>
+      <td><span class="badge ${s.cls}">${s.label}</span></td></tr>`;
+  }).join('');
+  $('overlayRw').classList.add('show');
+}
+function tutupRw() { $('overlayRw').classList.remove('show'); }
+function tutupForm() { $('overlay').classList.remove('show'); }
+
+async function simpan() {
+  const p = {};
+  FIELDS.forEach(f => { const val = $(f).value.trim(); p[f] = val === '' ? null : val; });
+  ['nilai','jumlah_unit'].forEach(f => { if (p[f] !== null) p[f] = Number(p[f]); });
+  p.jenis = 'Sewa Kendaraan';
+  if (!p.no_perjanjian || !p.vendor_nama || !p.tgl_mulai || !p.tgl_akhir) return alert('Lengkapi kolom yang wajib diisi (*).');
+  if (p.tgl_akhir < p.tgl_mulai) return alert('Tanggal berakhir tidak boleh sebelum tanggal mulai.');
+  $('btnSimpan').disabled = true;
+  const q = editId ? supabaseClient.from('perjanjian_vendor').update(p).eq('id', editId)
+                   : supabaseClient.from('perjanjian_vendor').insert({...p, created_by: user.username || user.nama || null,
+                       ...(indukSrc ? {induk_id: indukSrc.id, perpanjangan_ke: (indukSrc.perpanjangan_ke || 0) + 1} : {})});
+  const { error } = await q;
+  $('btnSimpan').disabled = false;
+  if (error) { console.error(error); return alert('Gagal menyimpan: ' + error.message); }
+  tutupForm(); load();
+}
+
+async function hapus(id) {
+  const v = data.find(x => x.id === id);
+  const ada = data.some(x => x.induk_id === id);
+  if (!confirm(`Hapus perjanjian ${v.no_perjanjian} (${v.vendor_nama})?` + (ada ? '\n\nPerjanjian ini punya perpanjangan; riwayatnya akan terputus.' : ''))) return;
+  const { error } = await supabaseClient.from('perjanjian_vendor').delete().eq('id', id);
+  if (error) return alert('Gagal menghapus: ' + error.message);
+  load();
+}
+
+// ===== Kendaraan Milik Perusahaan =====
+const FIELDS_K = ['no_polisi','jenis','merk_tipe','tahun','warna','status','no_rangka','no_mesin','no_bpkb','km_terakhir','area','departemen','pengguna',
+  'tgl_pajak','tgl_stnk','asuransi_nama','no_polis','tgl_asuransi','tgl_perolehan','harga_perolehan','link_dokumen','keterangan'];
+const sisaHari = d => d ? Math.ceil((new Date(d + 'T00:00:00') - new Date().setHours(0, 0, 0, 0)) / 86400000) : null;
+const clsSisa = s => s < 0 ? 'b-berakhir' : s <= 60 ? 'b-segera' : 'b-aktif';
+const sisaTxt = s => s < 0 ? `lewat ${-s} hari` : s === 0 ? 'hari ini' : `${s} hari lagi`;
+function dokumenK(k) {
+  return [['Pajak', k.tgl_pajak], ['STNK', k.tgl_stnk], ['Asuransi', k.tgl_asuransi]].filter(x => x[1]).map(x => ({label: x[0], tgl: x[1], sisa: sisaHari(x[1])}));
+}
+function minSisaK(k) { const d = dokumenK(k); return d.length ? Math.min(...d.map(x => x.sisa)) : null; }
+
+async function loadK() {
+  const { data: rows, error } = await supabaseClient.from('kendaraan_perusahaan').select('*').order('no_polisi', {ascending: true});
+  if (error) { console.error(error); $('kBody').innerHTML = '<tr><td colspan="6" class="empty">Gagal memuat data. Pastikan tabel kendaraan_perusahaan sudah dibuat (jalankan sql/kendaraan_schema.sql di Supabase).</td></tr>'; $('pillMilik').textContent = '!'; return; }
+  milik = rows || []; renderK();
+}
+
+function renderK() {
+  const q = $('kCari').value.toLowerCase(), fj = $('kFJenis').value, fs = $('kFStatus').value, fd = $('kFDok').value;
+  const aktifDok = k => !['Non-Aktif', 'Dijual'].includes(k.status);
+  const all = milik.map(k => ({...k, ms: aktifDok(k) ? minSisaK(k) : null}));
+  $('kTotal').textContent = all.length;
+  $('kAktif').textContent = all.filter(k => k.status === 'Aktif').length;
+  $('kSegera').textContent = all.filter(k => k.ms !== null && k.ms >= 0 && k.ms <= 60).length;
+  $('kLewat').textContent = all.filter(k => k.ms !== null && k.ms < 0).length;
+  $('kRawat').textContent = all.filter(k => k.status === 'Perawatan').length;
+  $('pillMilik').textContent = all.length;
+
+  const rows = all.filter(k => (!fj || k.jenis === fj) && (!fs || k.status === fs) &&
+    (!fd || (fd === 'lewat' ? k.ms !== null && k.ms < 0 : k.ms !== null && k.ms >= 0 && k.ms <= 60)) &&
+    [k.no_polisi, k.merk_tipe, k.pengguna, k.departemen, k.area, k.no_rangka, k.no_mesin].some(x => (x || '').toLowerCase().includes(q)));
+  $('kCount').textContent = rows.length + ' kendaraan';
+  if (!rows.length) { $('kBody').innerHTML = '<tr><td colspan="6" class="empty">Belum ada data kendaraan milik perusahaan.</td></tr>'; return; }
+
+  const stCls = {Aktif: 'b-aktif', Perawatan: 'b-perawatan', 'Non-Aktif': 'b-nonaktif', Dijual: 'b-dijual'};
+  $('kBody').innerHTML = rows.map(k => {
+    const rc = k.ms === null ? '' : k.ms < 0 ? 'r-k-lewat' : k.ms <= 60 ? 'r-k-segera' : '';
+    const dok = dokumenK(k).map(d => `<div class="dok"><span>${d.label} · ${tgl(d.tgl)}</span><em class="${clsSisa(d.sisa)}">${sisaTxt(d.sisa)}</em></div>`).join('');
+    const link = /^https?:\/\//.test(k.link_dokumen || '') ? `<a href="${esc(k.link_dokumen)}" target="_blank" rel="noopener" title="Buka dokumen">${IC.doc}</a>` : '';
+    return `<tr class="${rc}">
+      <td>${plat(k.no_polisi)}</td>
+      <td><b>${esc(k.merk_tipe)}</b><small>${esc([k.jenis, k.tahun, k.warna].filter(Boolean).join(' · '))}</small>${k.no_rangka ? `<small>Rangka: ${esc(k.no_rangka)}</small>` : ''}</td>
+      <td>${esc(k.pengguna || '-')}<small>${esc([k.departemen, k.area].filter(Boolean).join(' · '))}</small></td>
+      <td>${dok || '<small>Belum diisi</small>'}${k.asuransi_nama ? `<small>Asuransi: ${esc(k.asuransi_nama)}${k.no_polis ? ' · ' + esc(k.no_polis) : ''}</small>` : ''}</td>
+      <td><span class="badge ${stCls[k.status] || 'b-aktif'}">${esc(k.status || 'Aktif')}</span>${k.km_terakhir != null ? `<small>${Number(k.km_terakhir).toLocaleString('id-ID')} km</small>` : ''}</td>
+      <td><div class="aksi">${link}<button onclick="bukaFormK('${k.id}')" title="Edit">${IC.edit}</button><button class="del" onclick="hapusK('${k.id}')" title="Hapus">${IC.del}</button></div></td>
+    </tr>`;
+  }).join('');
+}
+
+function isiPenggunaK() {
+  const dep = $('k_departemen').value, ar = $('k_area').value;
+  let list = ar ? karyawan.filter(x => x.area === ar) : karyawan;
+  if (dep) { const byDep = list.filter(x => x.departemen === dep); if (byDep.length) list = byDep; }
+  $('listKaryawanK').innerHTML = list.map(x => `<option value="${esc(x.nama)}">${esc(x.nik || '')} ${esc(x.departemen || '')}</option>`).join('');
+}
+function bukaFormK(id) {
+  editIdK = id || null;
+  const v = milik.find(x => x.id === id) || {};
+  FIELDS_K.forEach(f => $('k_' + f).value = v[f] ?? (f === 'jenis' ? 'Mobil' : f === 'status' ? 'Aktif' : ''));
+  ['departemen', 'area'].forEach(f => {
+    if (v[f] && ![...$('k_' + f).options].some(o => o.value === v[f])) { $('k_' + f).add(new Option(v[f], v[f])); $('k_' + f).value = v[f]; }
+  });
+  isiPenggunaK();
+  $('kTitle').textContent = id ? 'Edit Kendaraan' : 'Tambah Kendaraan';
+  $('overlayK').classList.add('show');
+}
+function tutupFormK() { $('overlayK').classList.remove('show'); }
+
+async function simpanK() {
+  const p = {};
+  FIELDS_K.forEach(f => { const val = $('k_' + f).value.trim(); p[f] = val === '' ? null : val; });
+  ['tahun', 'km_terakhir', 'harga_perolehan'].forEach(f => { if (p[f] !== null) p[f] = Number(p[f]); });
+  if (!p.no_polisi || !p.merk_tipe) return alert('Lengkapi kolom yang wajib diisi (*).');
+  p.no_polisi = p.no_polisi.toUpperCase();
+  $('kBtnSimpan').disabled = true;
+  const q = editIdK ? supabaseClient.from('kendaraan_perusahaan').update(p).eq('id', editIdK)
+                    : supabaseClient.from('kendaraan_perusahaan').insert({...p, created_by: user.username || user.nama || null});
+  const { error } = await q;
+  $('kBtnSimpan').disabled = false;
+  if (error) { console.error(error); return alert(error.code === '23505' ? 'No. polisi ini sudah terdaftar.' : 'Gagal menyimpan: ' + error.message); }
+  tutupFormK(); loadK();
+}
+async function hapusK(id) {
+  const k = milik.find(x => x.id === id);
+  if (!confirm(`Hapus kendaraan ${k.no_polisi} (${k.merk_tipe})?`)) return;
+  const { error } = await supabaseClient.from('kendaraan_perusahaan').delete().eq('id', id);
+  if (error) return alert('Gagal menghapus: ' + error.message);
+  loadK();
+}
+
+// ===== Tab =====
+function gantiTab(t) {
+  $('panelSewa').classList.toggle('hidden', t !== 'sewa');
+  $('panelMilik').classList.toggle('hidden', t !== 'milik');
+  $('tab_sewa').classList.toggle('on', t === 'sewa');
+  $('tab_milik').classList.toggle('on', t === 'milik');
+  $('btnTambah').onclick = t === 'sewa' ? () => bukaForm() : () => bukaFormK();
+  $('btnTambahTxt').textContent = t === 'sewa' ? 'Tambah Perjanjian' : 'Tambah Kendaraan';
+  history.replaceState(null, '', '#' + t);
+}
+
+document.addEventListener('keydown', e => { if (e.key === 'Escape') { tutupForm(); tutupRw(); tutupWarn(); tutupFormK(); } });
+if (location.hash === '#milik') gantiTab('milik');
+loadMaster().then(() => Promise.all([load(), loadK()])).then(cekPengingat);
+</script>
+</body>
+</html>

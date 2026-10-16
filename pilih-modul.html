@@ -381,12 +381,12 @@
       <div class="go"><span>Buka modul</span><span class="arr">→</span></div>
     </a>
 
-    <a class="card" data-modul="sewa" href="sewa-kendaraan.html" style="--accent:#7aa2f7; --accent-soft: rgba(122,162,247,0.14);">
+    <a class="card" data-modul="sewa" href="kendaraan.html" style="--accent:#7aa2f7; --accent-soft: rgba(122,162,247,0.14);">
       <span class="tag">Operasional</span>
       <div class="icon-box">🚗<span class="notif-badge" hidden></span></div>
       <div>
-        <h2>Sewa Kendaraan</h2>
-        <p>Data perjanjian sewa kendaraan dengan vendor, lengkap dengan pengingat masa berlaku.</p>
+        <h2>Kendaraan</h2>
+        <p>Kendaraan sewa dari vendor dan kendaraan milik perusahaan, lengkap dengan pengingat masa berlaku.</p>
       </div>
       <div class="notif-line"></div>
       <div class="go"><span>Buka modul</span><span class="arr">→</span></div>
@@ -436,7 +436,7 @@
   // Untuk menambah modul: tambahkan satu fungsi di NOTIF yang mengembalikan {count, text}
   // dan beri kartunya atribut data-modul="<nama>" + .notif-badge + .notif-line
   // ===========================
-  const BATAS_HARI = 40; // harus sama dengan BATAS_POPUP di sewa-kendaraan.html
+  const BATAS_HARI = 40; // harus sama dengan BATAS_POPUP di kendaraan.html
 
   const NOTIF = {
     // ATK & ART: permintaan yang menunggu approval di gudang user yang login
@@ -463,7 +463,7 @@
       const total = transfer + retur + permanenkan + mutasi + atkArt;
       return { count: total, text: '⏳ Menunggu approval Anda: ' + parts.join(' · ') };
     },
-    // Sewa Kendaraan: perjanjian (yang belum diperpanjang) dengan sisa < 40 hari atau sudah lewat
+    // Kendaraan: perjanjian sewa (yang belum diperpanjang) + dokumen kendaraan milik (pajak/STNK/asuransi) dengan sisa < 40 hari atau sudah lewat
     sewa: async () => {
       const { data, error } = await supabaseClient.from('perjanjian_vendor')
         .select('id, induk_id, tgl_akhir').eq('jenis', 'Sewa Kendaraan');
@@ -475,10 +475,21 @@
         const sisa = Math.ceil((new Date(v.tgl_akhir + 'T00:00:00') - hari0) / 86400000);
         if (sisa < 0) lewat++; else if (sisa < BATAS_HARI) hampir++;
       });
+      // Kendaraan milik perusahaan (abaikan bila tabel belum dibuat)
+      let dokHampir = 0, dokLewat = 0;
+      const km = await supabaseClient.from('kendaraan_perusahaan').select('status, tgl_pajak, tgl_stnk, tgl_asuransi');
+      if (!km.error) (km.data || []).filter(k => !['Non-Aktif', 'Dijual'].includes(k.status)).forEach(k => {
+        [k.tgl_pajak, k.tgl_stnk, k.tgl_asuransi].filter(Boolean).forEach(d => {
+          const sisa = Math.ceil((new Date(d + 'T00:00:00') - hari0) / 86400000);
+          if (sisa < 0) dokLewat++; else if (sisa < BATAS_HARI) dokHampir++;
+        });
+      });
       const parts = [];
-      if (hampir) parts.push(hampir + ' perjanjian berakhir < ' + BATAS_HARI + ' hari');
-      if (lewat) parts.push(lewat + ' sudah berakhir');
-      return { count: hampir + lewat, text: '⏰ ' + parts.join(' · ') };
+      if (hampir) parts.push(hampir + ' sewa berakhir < ' + BATAS_HARI + ' hari');
+      if (lewat) parts.push(lewat + ' sewa sudah berakhir');
+      if (dokHampir) parts.push(dokHampir + ' dokumen kendaraan < ' + BATAS_HARI + ' hari');
+      if (dokLewat) parts.push(dokLewat + ' dokumen sudah lewat');
+      return { count: hampir + lewat + dokHampir + dokLewat, text: '⏰ ' + parts.join(' · ') };
     },
     // Seragam: per jenis yang sudah punya stok masuk, karyawan aktif yang belum pernah menerima
     seragam: async () => {
