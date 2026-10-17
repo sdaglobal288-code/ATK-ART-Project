@@ -124,6 +124,24 @@
   .ov-cell{ cursor:pointer; font-size:15px; font-weight:700; } .ov-cell:hover{ background:rgba(255,255,255,.05); }
   .mk-done{ color:var(--teal); } .mk-late{ color:var(--pink); } .mk-soon{ color:var(--orange); } .mk-plan{ color:var(--dim); }
   .legend{ display:flex; gap:18px; flex-wrap:wrap; margin-top:14px; font-size:12px; color:var(--muted); }
+  /* ===== Cetak / PDF ===== */
+  #printArea{ display:none; }
+  @media print{
+    @page{ size:A4 landscape; margin:12mm; }
+    body{ background:#fff !important; color:#000 !important; padding:0 !important; font-size:11pt; }
+    body > *:not(#printArea){ display:none !important; }
+    #printArea{ display:block; font-family:'Segoe UI',Arial,sans-serif; color:#000; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+    #printArea .ph{ display:flex; align-items:center; gap:14px; border-bottom:2px solid #000; padding-bottom:8px; margin-bottom:10px; }
+    #printArea .ph h1{ font-size:17pt; margin:0; } #printArea .ph div{ font-size:10pt; color:#333; }
+    #printArea table{ width:100%; min-width:0 !important; table-layout:auto; border-collapse:collapse; margin-bottom:10px; }
+    #printArea th, #printArea td{ border:1px solid #555; padding:5px 7px; font-size:10pt; color:#000; background:none; position:static; text-align:left; vertical-align:top; text-transform:none; letter-spacing:0; white-space:normal; }
+    #printArea th{ background:#e8e8e8; font-weight:700; text-align:center; }
+    #printArea td small{ display:block; color:#444; font-size:8.5pt; margin-top:2px; }
+    #printArea tr{ page-break-inside:avoid; } #printArea thead{ display:table-header-group; }
+    #printArea .meta td{ border:none; padding:2px 8px 2px 0; font-size:10.5pt; } #printArea .meta td:nth-child(odd){ color:#444; width:14%; }
+    #printArea .c{ text-align:center; } #printArea .r{ text-align:right; white-space:nowrap; }
+    #printArea .ft{ font-size:9pt; color:#444; margin-top:6px; }
+  }
 </style>
 </head>
 <body>
@@ -281,7 +299,7 @@
     </div>
     <div class="sv-tbl"><table class="ov-tbl" style="min-width:900px"><thead id="oHead"></thead><tbody id="oBody"></tbody></table></div>
     <div class="legend"><span><b class="mk-done">✓</b> Selesai</span><span><b class="mk-late">!</b> Terlambat</span><span><b class="mk-soon">●</b> Segera (&lt; 40 hari)</span><span><b class="mk-plan">○</b> Terjadwal</span></div>
-    <div class="modal-foot"><button class="btn secondary" onclick="tutupO()">Tutup</button></div>
+    <div class="modal-foot"><button class="btn secondary" onclick="cetakRingkasan()">🖨 Cetak / PDF</button><button class="btn secondary" onclick="tutupO()">Tutup</button></div>
   </div>
 </div>
 
@@ -308,7 +326,7 @@
       <thead><tr><th>No</th><th>Target Tanggal</th><th>Target KM</th><th>Realisasi</th><th>Odometer</th><th>Jenis Service</th><th>Komponen yang Diservis</th><th>Biaya</th><th>Status</th><th>Aksi</th></tr></thead>
       <tbody id="sBody"></tbody>
     </table></div>
-    <div class="modal-foot"><button class="btn secondary" onclick="tutupS()">Tutup</button></div>
+    <div class="modal-foot"><button class="btn secondary" onclick="cetakServis()">🖨 Cetak / PDF</button><button class="btn secondary" onclick="tutupS()">Tutup</button></div>
   </div>
 </div>
 
@@ -356,6 +374,8 @@
     <div class="modal-foot"><button class="btn secondary" onclick="tutupRw()">Tutup</button></div>
   </div>
 </div>
+
+<div id="printArea"></div>
 
 <script>
 const user = JSON.parse(sessionStorage.getItem('user') || 'null');
@@ -828,6 +848,54 @@ function renderO() {
     }).join('');
     return `<tr><td><b>${esc(k.no_polisi)}</b><small>${esc(k.merk_tipe)}</small></td>${cells}</tr>`;
   }).join('');
+}
+
+// ===== Cetak / PDF (pakai dialog cetak browser: pilih "Save as PDF" / "Simpan sebagai PDF") =====
+function cetakHTML(html, judul) {
+  $('printArea').innerHTML = html;
+  const lama = document.title; document.title = judul;
+  window.addEventListener('afterprint', () => { document.title = lama; $('printArea').innerHTML = ''; }, {once: true});
+  window.print();
+}
+const cetakHead = (judul, sub) => `<div class="ph"><img src="images/logo-sda-global.png" alt="" style="height:40px" onerror="this.remove()"><div><h1>${judul}</h1>${sub}</div></div>`;
+const cetakFoot = () => `<div class="ft">Dicetak pada ${tgl(iso(new Date()))} oleh ${esc(user.nama || user.username || '-')}</div>`;
+
+function cetakServis() {
+  const k = milik.find(x => x.id === svKid);
+  const rows = svOf(svKid).filter(s => svTahun(s) === svYear).sort((a, b) => svTglKey(a).localeCompare(svTglKey(b)));
+  const num = n => n != null ? Number(n).toLocaleString('id-ID') : '-';
+  const body = rows.length ? rows.map((s, i) => {
+    const x = svStatus(s);
+    const ket = x.label === 'Selesai' ? (x.tel > 0 ? `<small>telat ${x.tel} hari</small>` : x.tel < 0 ? `<small>lebih awal ${-x.tel} hari</small>` : '') : `<small>${sisaTxt(x.sisa)}</small>`;
+    return `<tr><td class="c">${i + 1}</td><td>${s.target_tgl ? tgl(s.target_tgl) : '-'}</td><td class="r">${num(s.target_km)}</td>
+      <td>${s.tgl_realisasi ? tgl(s.tgl_realisasi) : '-'}</td><td class="r">${num(s.odometer)}</td>
+      <td>${esc(s.jenis || '-')}${s.bengkel ? `<small>${esc(s.bengkel)}</small>` : ''}</td>
+      <td>${s.komponen ? esc(s.komponen).replace(/\n/g, '<br>') : '-'}</td>
+      <td class="r">${s.biaya != null ? rp(s.biaya) : '-'}</td><td><b>${x.label}</b>${ket}</td></tr>`;
+  }).join('') : '<tr><td colspan="9" class="c">Belum ada jadwal pada tahun ini.</td></tr>';
+  const biaya = rows.reduce((a, s) => a + Number(s.biaya || 0), 0);
+  cetakHTML(cetakHead(`Jadwal Servis Kendaraan Tahun ${svYear}`, `<div>Modul Kendaraan · Kendaraan Milik Perusahaan</div>`) +
+    `<table class="meta"><tr><td>No. Polisi</td><td><b>${esc(k.no_polisi)}</b></td><td>Interval KM Servis</td><td>${num(k.interval_km)} km</td></tr>
+     <tr><td>Kendaraan</td><td>${esc([k.merk_tipe, k.jenis, k.tahun].filter(Boolean).join(' · '))}</td><td>Interval Bulan Servis</td><td>${k.interval_bulan ?? '-'} bulan</td></tr>
+     <tr><td>Pengguna</td><td>${esc([k.pengguna, k.departemen, k.area].filter(Boolean).join(' · ') || '-')}</td><td>Odometer Terakhir</td><td>${num(k.km_terakhir)} km</td></tr></table>` +
+    `<table><thead><tr><th>No</th><th>Target Tanggal</th><th>Target KM</th><th>Realisasi Tanggal</th><th>Odometer</th><th>Jenis Service</th><th>Komponen yang Diservis</th><th>Biaya</th><th>Status</th></tr></thead><tbody>${body}</tbody>` +
+    `<tfoot><tr><td colspan="7" class="r"><b>Total Biaya ${svYear}</b></td><td class="r"><b>${rp(biaya)}</b></td><td></td></tr></tfoot></table>` + cetakFoot(),
+    `Jadwal Servis ${k.no_polisi} ${svYear}`);
+}
+
+function cetakRingkasan() {
+  const list = milik.filter(k => !['Non-Aktif', 'Dijual'].includes(k.status));
+  const MK = {done: '✓', late: '!', soon: '●', plan: '○'};
+  const body = list.length ? list.map((k, i) => {
+    const items = svOf(k.id).filter(s => svTahun(s) === ovYear);
+    const cells = BLN.map((_, mi) => `<td class="c">${items.filter(s => +svTglKey(s).slice(5, 7) === mi + 1)
+      .map(s => `${MK[svStatus(s).mk]} ${+svTglKey(s).slice(8, 10)}`).join('<br>')}</td>`).join('');
+    return `<tr><td class="c">${i + 1}</td><td><b>${esc(k.no_polisi)}</b><small>${esc(k.merk_tipe)}</small></td>${cells}</tr>`;
+  }).join('') : '<tr><td colspan="14" class="c">Belum ada kendaraan aktif.</td></tr>';
+  cetakHTML(cetakHead(`Jadwal Servis Tahunan Kendaraan ${ovYear}`, `<div>Seluruh kendaraan milik perusahaan · angka di samping tanda = tanggal</div>`) +
+    `<table><thead><tr><th>No</th><th>Kendaraan</th>${BLN.map(b => `<th>${b}</th>`).join('')}</tr></thead><tbody>${body}</tbody></table>` +
+    `<div class="ft">✓ Selesai &nbsp;&nbsp; ! Terlambat &nbsp;&nbsp; ● Segera (&lt; ${BATAS_POPUP} hari) &nbsp;&nbsp; ○ Terjadwal</div>` + cetakFoot(),
+    `Jadwal Servis Tahunan ${ovYear}`);
 }
 
 // ===== Tab =====
