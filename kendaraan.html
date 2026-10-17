@@ -235,6 +235,7 @@
       <div><label>No. Rangka</label><input id="k_no_rangka"></div>
       <div><label>No. Mesin</label><input id="k_no_mesin"></div>
       <div><label>No. BPKB</label><input id="k_no_bpkb"></div>
+      <div><label>STNK Atas Nama</label><input id="k_stnk_atas_nama" placeholder="mis. PT SDA Global"></div>
       <div><label>KM Terakhir</label><input type="number" id="k_km_terakhir" min="0"></div>
 
       <div class="sect">Pengguna</div>
@@ -628,7 +629,7 @@ async function hapus(id) {
 }
 
 // ===== Kendaraan Milik Perusahaan =====
-const FIELDS_K = ['no_polisi','jenis','merk_tipe','tahun','warna','status','no_rangka','no_mesin','no_bpkb','km_terakhir','area','departemen','pengguna',
+const FIELDS_K = ['no_polisi','jenis','merk_tipe','tahun','warna','status','no_rangka','no_mesin','no_bpkb','stnk_atas_nama','km_terakhir','area','departemen','pengguna',
   'tgl_pajak','tgl_stnk','no_kir','tgl_kir','no_rekom','tgl_rekom','biaya_pajak','biaya_stnk','biaya_kir','biaya_rekom','asuransi_nama','no_polis','tgl_asuransi','tgl_perolehan','harga_perolehan','link_dokumen','keterangan'];
 const sisaHari = d => d ? Math.ceil((new Date(d + 'T00:00:00') - new Date().setHours(0, 0, 0, 0)) / 86400000) : null;
 const clsSisa = s => s < 0 ? 'b-berakhir' : s <= 60 ? 'b-segera' : 'b-aktif';
@@ -671,7 +672,7 @@ function renderK() {
 
   const rows = all.filter(k => (!fj || k.jenis === fj) && (!fs || k.status === fs) &&
     (!fd || (fd === 'lewat' ? k.ms !== null && k.ms < 0 : k.ms !== null && k.ms >= 0 && k.ms <= 60)) &&
-    [k.no_polisi, k.merk_tipe, k.pengguna, k.departemen, k.area, k.no_rangka, k.no_mesin].some(x => (x || '').toLowerCase().includes(q)));
+    [k.no_polisi, k.merk_tipe, k.pengguna, k.departemen, k.area, k.no_rangka, k.no_mesin, k.stnk_atas_nama].some(x => (x || '').toLowerCase().includes(q)));
   $('kCount').textContent = rows.length + ' kendaraan';
   if (!rows.length) { $('kBody').innerHTML = '<tr><td colspan="6" class="empty">Belum ada data kendaraan milik perusahaan.</td></tr>'; return; }
 
@@ -682,7 +683,7 @@ function renderK() {
     const link = /^https?:\/\//.test(k.link_dokumen || '') ? `<a href="${esc(k.link_dokumen)}" target="_blank" rel="noopener" title="Buka dokumen">${IC.doc}</a>` : '';
     return `<tr class="${rc}">
       <td>${plat(k.no_polisi)}</td>
-      <td><b>${esc(k.merk_tipe)}</b><small>${esc([k.jenis, k.tahun, k.warna].filter(Boolean).join(' · '))}</small>${k.no_rangka ? `<small>Rangka: ${esc(k.no_rangka)}</small>` : ''}</td>
+      <td><b>${esc(k.merk_tipe)}</b><small>${esc([k.jenis, k.tahun, k.warna].filter(Boolean).join(' · '))}</small>${k.no_rangka ? `<small>Rangka: ${esc(k.no_rangka)}</small>` : ''}${k.stnk_atas_nama ? `<small>STNK a.n. ${esc(k.stnk_atas_nama)}</small>` : ''}</td>
       <td>${esc(k.pengguna || '-')}<small>${esc([k.departemen, k.area].filter(Boolean).join(' · '))}</small></td>
       <td>${dok || '<small>Belum diisi</small>'}${k.no_kir ? `<small>KIR: ${esc(k.no_kir)}</small>` : ''}${k.no_rekom ? `<small>Rekom: ${esc(k.no_rekom)}</small>` : ''}${k.asuransi_nama ? `<small>Asuransi: ${esc(k.asuransi_nama)}${k.no_polis ? ' · ' + esc(k.no_polis) : ''}</small>` : ''}</td>
       <td><span class="badge ${stCls[k.status] || 'b-aktif'}">${esc(k.status || 'Aktif')}</span>${k.km_terakhir != null ? `<small>${Number(k.km_terakhir).toLocaleString('id-ID')} km</small>` : ''}${(() => { const nx = nextServis(k.id); return nx ? `<small>🔧 Servis ${tgl(nx.target_tgl)} · <em class="svn ${clsSisa(sisaHari(nx.target_tgl))}">${sisaTxt(sisaHari(nx.target_tgl))}</em></small>` : ''; })()}</td>
