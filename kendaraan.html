@@ -243,6 +243,7 @@
       <div class="full"><label>PIC / Pengguna Kendaraan</label><input id="k_pengguna" list="listKaryawanK" placeholder="Pilih dari karyawan atau ketik nama"><datalist id="listKaryawanK"></datalist></div>
 
       <div class="sect">Dokumen &amp; Pengingat</div>
+      <div class="note">Untuk memperpanjang dokumen, gunakan tombol <b>Perpanjang Dokumen</b> di tabel agar tercatat di riwayat. Mengubah tanggal di sini hanya mengoreksi data tanpa riwayat.</div>
       <div><label>Jatuh Tempo Pajak Tahunan</label><input type="date" id="k_tgl_pajak"></div>
       <div><label>Masa Berlaku STNK (5 tahunan)</label><input type="date" id="k_tgl_stnk"></div>
       <div><label>No. KIR</label><input id="k_no_kir"></div>
@@ -370,6 +371,41 @@
   </div>
 </div>
 
+<div class="overlay" id="overlayH">
+  <div class="modal" style="max-width:1000px">
+    <div class="sv-bar" style="margin-top:0">
+      <div><h2 id="hTitle">Riwayat Perpanjangan Dokumen</h2><div class="muted" id="hSub"></div></div>
+      <select id="hFilter" onchange="renderH()" style="width:auto;min-width:170px"><option value="">Semua Dokumen</option><option value="Pajak">Pajak Tahunan</option><option value="STNK">Pajak 5 Tahunan / STNK</option><option value="KIR">KIR</option><option value="Rekom">Rekomendasi</option><option value="Asuransi">Asuransi</option></select>
+    </div>
+    <div class="sv-tbl"><table style="min-width:820px">
+      <thead><tr><th>Tgl Proses</th><th>Dokumen</th><th>Masa Berlaku</th><th>Nomor</th><th>Biaya</th><th>Keterangan</th><th></th></tr></thead>
+      <tbody id="hBody"></tbody>
+    </table></div>
+    <div class="modal-foot" style="justify-content:space-between;align-items:center">
+      <div id="hTotal" class="muted"></div>
+      <div style="display:flex;gap:10px"><button class="btn secondary" onclick="tutupH()">Tutup</button><button class="btn" onclick="bukaPerpanjang(rhKid)"><span style="font-size:16px;line-height:1">＋</span> Perpanjang Dokumen</button></div>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="overlayR">
+  <div class="modal" style="max-width:640px">
+    <h2 id="rTitle">Perpanjang Dokumen</h2>
+    <div class="muted">Masa berlaku kendaraan akan diperbarui dan perpanjangan dicatat di riwayat.</div>
+    <div class="form-grid">
+      <div class="full"><label>Dokumen</label><select id="r_dokumen" onchange="isiPerpanjang()"><option value="Pajak">Pajak Tahunan</option><option value="STNK">Pajak 5 Tahunan / STNK</option><option value="KIR">KIR</option><option value="Rekom">Rekomendasi Kendaraan</option><option value="Asuransi">Asuransi</option></select></div>
+      <div><label>Masa Berlaku Saat Ini</label><input id="r_lama" readonly></div>
+      <div><label>Masa Berlaku Baru *</label><input type="date" id="r_baru"></div>
+      <div id="r_no_wrap"><label id="r_no_label">Nomor</label><input id="r_nomor"></div>
+      <div><label>Biaya Realisasi (Rp)</label><input type="number" id="r_biaya" min="0"></div>
+      <div><label>Tanggal Proses</label><input type="date" id="r_proses"></div>
+      <div class="full"><label>Link Bukti (Google Drive dll.)</label><input id="r_link" placeholder="https://..."></div>
+      <div class="full"><label>Keterangan</label><textarea id="r_ket" rows="2"></textarea></div>
+    </div>
+    <div class="modal-foot"><button class="btn secondary" onclick="tutupR()">Batal</button><button class="btn" id="rSimpan" onclick="simpanR()">Simpan Perpanjangan</button></div>
+  </div>
+</div>
+
 <div class="overlay" id="overlayWarn">
   <div class="modal warn">
     <div class="warn-h"><div class="warn-ico">⏰</div><div>
@@ -433,7 +469,7 @@ function cekPengingat() {
   const list = data.filter(v => !diganti.has(v.id)).map(v => ({tipe: 'sewa', id: v.id, judul: v.no_polisi || '-', sub: `${v.vendor_nama} · ${v.no_perjanjian}`,
       info: 'Sewa berakhir ' + tgl(v.tgl_akhir), sisa: statusOf(v).sisa}));
   milik.filter(k => !['Non-Aktif', 'Dijual'].includes(k.status)).forEach(k => dokumenK(k).forEach(d => list.push({tipe: 'milik', id: k.id,
-      judul: k.no_polisi, sub: k.merk_tipe, info: d.label + ' ' + tgl(d.tgl), sisa: d.sisa})));
+      judul: k.no_polisi, sub: k.merk_tipe, info: d.label + ' ' + tgl(d.tgl), dok: d.label, sisa: d.sisa})));
   milik.filter(k => !['Non-Aktif', 'Dijual'].includes(k.status)).forEach(k => { const nx = nextServis(k.id); if (nx) list.push({tipe: 'servis', id: k.id, judul: k.no_polisi, sub: k.merk_tipe, info: 'Servis berkala ' + tgl(nx.target_tgl), sisa: sisaHari(nx.target_tgl)}); });
   const items = list.filter(x => x.sisa < BATAS_POPUP).sort((a, b) => a.sisa - b.sisa);
   if (!items.length) return;
@@ -443,7 +479,7 @@ function cekPengingat() {
   $('warnList').innerHTML = items.map(x => `<div class="warn-item ${x.sisa < 0 ? 'lewat' : ''}">
     <div class="inf"><b>${esc(x.judul)}</b> · ${esc(x.sub)}<small>${({sewa: 'Sewa Kendaraan', milik: 'Milik Perusahaan', servis: 'Servis Berkala'})[x.tipe]} · ${esc(x.info)}</small></div>
     <div class="sisa">${x.sisa < 0 ? `lewat ${-x.sisa} hari` : x.sisa === 0 ? 'hari ini' : `${x.sisa} hari lagi`}</div>
-    <button onclick="${x.tipe === 'sewa' ? `tutupWarn(); gantiTab('sewa'); perpanjang('${x.id}')` : x.tipe === 'servis' ? `tutupWarn(); gantiTab('milik'); bukaServis('${x.id}')` : `tutupWarn(); gantiTab('milik'); bukaFormK('${x.id}')`}">${x.tipe === 'sewa' ? 'Perpanjang' : x.tipe === 'servis' ? 'Jadwal' : 'Perbarui'}</button></div>`).join('');
+    <button onclick="${x.tipe === 'sewa' ? `tutupWarn(); gantiTab('sewa'); perpanjang('${x.id}')` : x.tipe === 'servis' ? `tutupWarn(); gantiTab('milik'); bukaServis('${x.id}')` : `tutupWarn(); gantiTab('milik'); bukaPerpanjang('${x.id}', '${x.dok}')`}">${x.tipe === 'sewa' ? 'Perpanjang' : x.tipe === 'servis' ? 'Jadwal' : 'Perpanjang'}</button></div>`).join('');
   $('overlayWarn').classList.add('show');
 }
 function tutupWarn() { $('overlayWarn').classList.remove('show'); }
@@ -605,7 +641,7 @@ function minSisaK(k) { const d = dokumenK(k); return d.length ? Math.min(...d.ma
 async function loadK() {
   const { data: rows, error } = await supabaseClient.from('kendaraan_perusahaan').select('*').order('no_polisi', {ascending: true});
   if (error) { console.error(error); $('kBody').innerHTML = '<tr><td colspan="6" class="empty">Gagal memuat data. Pastikan tabel kendaraan_perusahaan sudah dibuat (jalankan sql/kendaraan_schema.sql di Supabase).</td></tr>'; $('pillMilik').textContent = '!'; return; }
-  milik = rows || []; await loadServis(); renderK();
+  milik = rows || []; await Promise.all([loadServis(), loadRiwayat()]); renderK();
 }
 
 function renderEst() {
@@ -650,7 +686,7 @@ function renderK() {
       <td>${esc(k.pengguna || '-')}<small>${esc([k.departemen, k.area].filter(Boolean).join(' · '))}</small></td>
       <td>${dok || '<small>Belum diisi</small>'}${k.no_kir ? `<small>KIR: ${esc(k.no_kir)}</small>` : ''}${k.no_rekom ? `<small>Rekom: ${esc(k.no_rekom)}</small>` : ''}${k.asuransi_nama ? `<small>Asuransi: ${esc(k.asuransi_nama)}${k.no_polis ? ' · ' + esc(k.no_polis) : ''}</small>` : ''}</td>
       <td><span class="badge ${stCls[k.status] || 'b-aktif'}">${esc(k.status || 'Aktif')}</span>${k.km_terakhir != null ? `<small>${Number(k.km_terakhir).toLocaleString('id-ID')} km</small>` : ''}${(() => { const nx = nextServis(k.id); return nx ? `<small>🔧 Servis ${tgl(nx.target_tgl)} · <em class="svn ${clsSisa(sisaHari(nx.target_tgl))}">${sisaTxt(sisaHari(nx.target_tgl))}</em></small>` : ''; })()}</td>
-      <td><div class="aksi"><button class="pj" onclick="bukaServis('${k.id}')" title="Jadwal servis">${IC.wrench} Jadwal Servis</button>${link}<button onclick="bukaFormK('${k.id}')" title="Edit">${IC.edit}</button><button class="del" onclick="hapusK('${k.id}')" title="Hapus">${IC.del}</button></div></td>
+      <td><div class="aksi"><button class="pj" onclick="bukaServis('${k.id}')" title="Jadwal servis">${IC.wrench} Jadwal Servis</button><button class="pj" onclick="bukaPerpanjang('${k.id}')" title="Perpanjang dokumen">${IC.ref} Perpanjang Dokumen</button>${link}<button onclick="bukaRiwayat('${k.id}')" title="Riwayat perpanjangan dokumen">${IC.hist}</button><button onclick="bukaFormK('${k.id}')" title="Edit">${IC.edit}</button><button class="del" onclick="hapusK('${k.id}')" title="Hapus">${IC.del}</button></div></td>
     </tr>`;
   }).join('');
 }
@@ -930,6 +966,93 @@ function cetakRingkasan() {
     `Jadwal Servis Tahunan ${ovYear}`);
 }
 
+// ===== Perpanjangan Dokumen & Riwayat =====
+const DOK = {
+  Pajak:    {nama: 'Pajak Tahunan', f: 'tgl_pajak', b: 'biaya_pajak', bln: 12},
+  STNK:     {nama: 'Pajak 5 Tahunan / STNK', f: 'tgl_stnk', b: 'biaya_stnk', bln: 60},
+  KIR:      {nama: 'KIR', f: 'tgl_kir', no: 'no_kir', b: 'biaya_kir', bln: 12, noLabel: 'No. KIR Baru'},
+  Rekom:    {nama: 'Rekomendasi Kendaraan', f: 'tgl_rekom', no: 'no_rekom', b: 'biaya_rekom', bln: 12, noLabel: 'No. Rekomendasi Baru'},
+  Asuransi: {nama: 'Asuransi', f: 'tgl_asuransi', no: 'no_polis', bln: 12, noLabel: 'No. Polis Baru'}
+};
+let rwDok = [], riwayatOk = true, rnKid = null, rhKid = null;
+async function loadRiwayat() {
+  const r = await supabaseClient.from('kendaraan_dokumen_riwayat').select('*').order('tgl_proses', {ascending: false}).order('created_at', {ascending: false});
+  if (r.error) { console.warn('kendaraan_dokumen_riwayat:', r.error.message); riwayatOk = false; rwDok = []; }
+  else { riwayatOk = true; rwDok = r.data || []; }
+}
+const pesanRiwayat = 'Tabel kendaraan_dokumen_riwayat belum dibuat. Jalankan sql/kendaraan_riwayat_schema.sql di Supabase.';
+
+function bukaPerpanjang(kid, dok) {
+  if (!riwayatOk) return alert(pesanRiwayat);
+  rnKid = kid;
+  const k = milik.find(x => x.id === kid);
+  if (!dok || !DOK[dok]) { const d = dokumenK(k).sort((a, b) => a.sisa - b.sisa)[0]; dok = d ? d.label : 'Pajak'; }
+  $('r_dokumen').value = dok;
+  $('rTitle').textContent = 'Perpanjang Dokumen · ' + k.no_polisi;
+  $('r_proses').value = iso(new Date()); $('r_link').value = ''; $('r_ket').value = '';
+  isiPerpanjang();
+  $('overlayH').classList.remove('show'); $('overlayR').classList.add('show');
+}
+function isiPerpanjang() {
+  const k = milik.find(x => x.id === rnKid), c = DOK[$('r_dokumen').value], lama = k[c.f] || '', today = iso(new Date());
+  $('r_lama').value = lama ? tgl(lama) : '-';
+  let baru = addBulan(lama || today, c.bln); if (baru < today) baru = addBulan(today, c.bln);
+  $('r_baru').value = baru;                       // saran otomatis, silakan ubah sesuai masa berlaku yang tertera di dokumen
+  $('r_no_wrap').classList.toggle('hidden', !c.no);
+  if (c.no) { $('r_no_label').textContent = c.noLabel; $('r_nomor').value = k[c.no] || ''; }
+  $('r_biaya').value = k[c.b] ?? '';              // default = estimasi biaya, ganti dengan biaya sebenarnya
+}
+function tutupR() { $('overlayR').classList.remove('show'); }
+
+async function simpanR() {
+  const k = milik.find(x => x.id === rnKid), dok = $('r_dokumen').value, c = DOK[dok], baru = $('r_baru').value, lama = k[c.f] || null;
+  if (!baru) return alert('Isi masa berlaku baru.');
+  if (lama && baru <= lama && !confirm('Masa berlaku baru tidak lebih lama dari yang sekarang. Tetap simpan?')) return;
+  const nomor = c.no ? ($('r_nomor').value.trim() || null) : null;
+  const link = $('r_link').value.trim() || null;
+  const rec = {kendaraan_id: rnKid, dokumen: dok, berlaku_lama: lama, berlaku_baru: baru, nomor, biaya: $('r_biaya').value === '' ? null : Number($('r_biaya').value),
+    tgl_proses: $('r_proses').value || iso(new Date()), link_bukti: link, keterangan: $('r_ket').value.trim() || null, created_by: user.username || user.nama || null};
+  $('rSimpan').disabled = true;
+  const r1 = await supabaseClient.from('kendaraan_dokumen_riwayat').insert(rec);
+  if (r1.error) { $('rSimpan').disabled = false; return alert('Gagal menyimpan riwayat: ' + r1.error.message); }
+  const upd = {[c.f]: baru}; if (c.no && nomor) upd[c.no] = nomor;
+  const r2 = await supabaseClient.from('kendaraan_perusahaan').update(upd).eq('id', rnKid);
+  $('rSimpan').disabled = false;
+  if (r2.error) alert('Riwayat tersimpan, tetapi masa berlaku kendaraan gagal diperbarui: ' + r2.error.message);
+  else Object.assign(k, upd);
+  await loadRiwayat(); renderK(); tutupR();
+}
+
+function bukaRiwayat(kid) {
+  if (!riwayatOk) return alert(pesanRiwayat);
+  rhKid = kid; const k = milik.find(x => x.id === kid);
+  $('hTitle').textContent = 'Riwayat Perpanjangan · ' + k.no_polisi;
+  $('hSub').textContent = k.merk_tipe; $('hFilter').value = '';
+  renderH(); $('overlayH').classList.add('show');
+}
+function tutupH() { $('overlayH').classList.remove('show'); }
+function renderH() {
+  const f = $('hFilter').value;
+  const rows = rwDok.filter(r => r.kendaraan_id === rhKid && (!f || r.dokumen === f));
+  $('hBody').innerHTML = rows.length ? rows.map(r => `<tr>
+      <td class="nowrap">${tgl(r.tgl_proses)}</td>
+      <td><b>${esc(DOK[r.dokumen]?.nama || r.dokumen)}</b></td>
+      <td>${r.berlaku_lama ? tgl(r.berlaku_lama) : '-'} → <b>${tgl(r.berlaku_baru)}</b></td>
+      <td>${esc(r.nomor || '-')}</td>
+      <td class="num">${r.biaya != null ? rp(r.biaya) : '-'}</td>
+      <td>${esc(r.keterangan || '')}${/^https?:\/\//.test(r.link_bukti || '') ? `<small><a href="${esc(r.link_bukti)}" target="_blank" rel="noopener" style="color:var(--teal)">Bukti</a></small>` : ''}</td>
+      <td><div class="aksi"><button class="del" onclick="hapusR('${r.id}')" title="Hapus catatan">${IC.del}</button></div></td></tr>`).join('')
+    : '<tr><td colspan="7" class="empty">Belum ada riwayat perpanjangan.</td></tr>';
+  const tot = rows.reduce((a, r) => a + Number(r.biaya || 0), 0);
+  $('hTotal').innerHTML = `${rows.length} perpanjangan · Total biaya <b style="color:var(--text)">${rp(tot)}</b>`;
+}
+async function hapusR(id) {
+  if (!confirm('Hapus catatan riwayat ini?\n\nMasa berlaku dokumen di data kendaraan tidak ikut dikembalikan.')) return;
+  const { error } = await supabaseClient.from('kendaraan_dokumen_riwayat').delete().eq('id', id);
+  if (error) return alert('Gagal menghapus: ' + error.message);
+  await loadRiwayat(); renderH();
+}
+
 // ===== Tab =====
 function gantiTab(t) {
   $('panelSewa').classList.toggle('hidden', t !== 'sewa');
@@ -941,7 +1064,7 @@ function gantiTab(t) {
   history.replaceState(null, '', '#' + t);
 }
 
-document.addEventListener('keydown', e => { if (e.key === 'Escape') { tutupForm(); tutupRw(); tutupWarn(); tutupFormK(); tutupS2(); tutupS(); tutupO(); } });
+document.addEventListener('keydown', e => { if (e.key === 'Escape') { tutupForm(); tutupRw(); tutupWarn(); tutupFormK(); tutupS2(); tutupS(); tutupO(); tutupR(); tutupH(); } });
 if (location.hash === '#milik') gantiTab('milik');
 loadMaster().then(() => Promise.all([load(), loadK()])).then(cekPengingat);
 </script>
