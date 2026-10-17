@@ -109,6 +109,21 @@
   .b-perawatan{ background:rgba(240,145,63,.14); color:var(--orange); } .b-nonaktif{ background:rgba(168,150,125,.16); color:var(--muted); } .b-dijual{ background:rgba(212,162,76,.13); color:var(--gold); }
   tr.r-k-segera td:first-child{ box-shadow:inset 3px 0 0 var(--orange); } tr.r-k-lewat td:first-child{ box-shadow:inset 3px 0 0 var(--pink); }
   #panelMilik .card table{ min-width:1000px; }
+  .svn{ font-style:normal; font-weight:600; } .svn.b-aktif{ color:var(--teal); background:none; } .svn.b-segera{ color:var(--orange); background:none; } .svn.b-berakhir{ color:var(--pink); background:none; }
+  .set-grid{ display:grid; grid-template-columns:repeat(4,1fr) auto; gap:12px; align-items:end; background:var(--panel-2); border:1px solid var(--line); border-radius:10px; padding:14px; margin-top:16px; }
+  @media(max-width:760px){ .set-grid{ grid-template-columns:1fr 1fr; } }
+  .set-grid label{ margin-bottom:5px; }
+  .yr{ display:flex; align-items:center; gap:10px; }
+  .yr b{ font-size:18px; min-width:56px; text-align:center; font-variant-numeric:tabular-nums; }
+  .yr button{ width:32px; height:32px; border-radius:8px; border:1px solid var(--line); background:transparent; color:var(--text); cursor:pointer; font-size:16px; } .yr button:hover{ background:var(--panel-2); border-color:var(--dim); }
+  .sv-bar{ display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap; margin:18px 0 12px; }
+  .sv-stats{ display:grid; grid-template-columns:repeat(4,1fr); gap:10px; margin-bottom:14px; } @media(max-width:700px){ .sv-stats{ grid-template-columns:repeat(2,1fr); } }
+  .sv-stats div{ background:var(--panel-2); border:1px solid var(--line); border-radius:10px; padding:10px 14px; } .sv-stats span{ display:block; font-size:11px; color:var(--muted); font-weight:600; text-transform:uppercase; letter-spacing:.04em; } .sv-stats b{ font-size:18px; font-variant-numeric:tabular-nums; }
+  .sv-tbl{ overflow-x:auto; border:1px solid var(--line); border-radius:10px; } .sv-tbl table{ min-width:860px; }
+  .ov-tbl td,.ov-tbl th{ text-align:center; padding:10px 6px; } .ov-tbl td:first-child,.ov-tbl th:first-child{ text-align:left; padding-left:12px; }
+  .ov-cell{ cursor:pointer; font-size:15px; font-weight:700; } .ov-cell:hover{ background:rgba(255,255,255,.05); }
+  .mk-done{ color:var(--teal); } .mk-late{ color:var(--pink); } .mk-soon{ color:var(--orange); } .mk-plan{ color:var(--dim); }
+  .legend{ display:flex; gap:18px; flex-wrap:wrap; margin-top:14px; font-size:12px; color:var(--muted); }
 </style>
 </head>
 <body>
@@ -167,6 +182,7 @@
       <select id="kFJenis" onchange="renderK()"><option value="">Semua Jenis</option><option>Mobil</option><option>Motor</option><option>Truk</option><option>Bus</option><option>Lainnya</option></select>
       <select id="kFStatus" onchange="renderK()"><option value="">Semua Status</option><option>Aktif</option><option>Perawatan</option><option>Non-Aktif</option><option>Dijual</option></select>
       <select id="kFDok" onchange="renderK()"><option value="">Semua Dokumen</option><option value="segera">Segera Habis</option><option value="lewat">Sudah Lewat</option></select>
+      <button class="btn secondary" onclick="bukaRingkasan()">📅 Jadwal Servis Tahunan</button>
       <span class="count" id="kCount"></span>
     </div>
     <div class="card">
@@ -257,6 +273,67 @@
   </div>
 </div>
 
+<div class="overlay" id="overlayO">
+  <div class="modal" style="max-width:1100px">
+    <div class="sv-bar" style="margin-top:0">
+      <div><h2>Jadwal Servis Tahunan</h2><div class="muted">Seluruh kendaraan milik perusahaan. Klik sel untuk membuka jadwal kendaraan.</div></div>
+      <div class="yr"><button onclick="geserO(-1)">‹</button><b id="oYear"></b><button onclick="geserO(1)">›</button></div>
+    </div>
+    <div class="sv-tbl"><table class="ov-tbl" style="min-width:900px"><thead id="oHead"></thead><tbody id="oBody"></tbody></table></div>
+    <div class="legend"><span><b class="mk-done">✓</b> Selesai</span><span><b class="mk-late">!</b> Terlambat</span><span><b class="mk-soon">●</b> Segera (&lt; 40 hari)</span><span><b class="mk-plan">○</b> Terjadwal</span></div>
+    <div class="modal-foot"><button class="btn secondary" onclick="tutupO()">Tutup</button></div>
+  </div>
+</div>
+
+<div class="overlay" id="overlayS">
+  <div class="modal" style="max-width:1100px">
+    <h2 id="sTitle">Jadwal Servis</h2>
+    <div class="muted" id="sSub"></div>
+    <div class="set-grid">
+      <div><label>Interval KM Servis</label><input type="number" id="sv_interval_km" min="0"></div>
+      <div><label>Interval Bulan Servis</label><input type="number" id="sv_interval_bulan" min="1"></div>
+      <div><label>Servis Terakhir (titik awal)</label><input type="date" id="sv_awal_tgl"></div>
+      <div><label>Odometer Saat Itu</label><input type="number" id="sv_awal_km" min="0"></div>
+      <button class="btn secondary" onclick="simpanPengaturanS()">Simpan</button>
+    </div>
+    <div class="sv-bar">
+      <div class="yr"><button onclick="geserS(-1)">‹</button><b id="sYear"></b><button onclick="geserS(1)">›</button></div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="btn secondary" id="btnBuatJadwal" onclick="buatJadwal()">⚙ Buat Jadwal</button>
+        <button class="btn" onclick="bukaFormS()"><span style="font-size:16px;line-height:1">＋</span> Catat Servis</button>
+      </div>
+    </div>
+    <div class="sv-stats" id="sStats"></div>
+    <div class="sv-tbl"><table>
+      <thead><tr><th>No</th><th>Target Tanggal</th><th>Target KM</th><th>Realisasi</th><th>Odometer</th><th>Jenis Service</th><th>Komponen yang Diservis</th><th>Biaya</th><th>Status</th><th>Aksi</th></tr></thead>
+      <tbody id="sBody"></tbody>
+    </table></div>
+    <div class="modal-foot"><button class="btn secondary" onclick="tutupS()">Tutup</button></div>
+  </div>
+</div>
+
+<div class="overlay" id="overlayS2">
+  <div class="modal" style="max-width:700px">
+    <h2 id="s2Title">Catat Servis</h2>
+    <div class="muted">Isi target tanggal (jadwal) dan/atau tanggal realisasi.</div>
+    <div class="form-grid">
+      <div class="full"><label>Jenis Service</label><select id="s_jenis"><option>Service Rutin</option><option>Perbaikan Tambahan</option></select></div>
+      <div><label>Target Tanggal</label><input type="date" id="s_target_tgl"></div>
+      <div><label>Target KM</label><input type="number" id="s_target_km" min="0"></div>
+      <div><label>Realisasi Tanggal Service</label><input type="date" id="s_tgl_realisasi"></div>
+      <div><label>Odometer Saat Servis</label><input type="number" id="s_odometer" min="0"></div>
+      <div><label>Bengkel</label><input id="s_bengkel"></div>
+      <div><label>Biaya (Rp)</label><input type="number" id="s_biaya" min="0"></div>
+      <div class="full"><label>Komponen yang Diservis (satu per baris)</label><textarea id="s_komponen" rows="4" placeholder="Tune up&#10;Ganti oli mesin&#10;Kampas rem belakang"></textarea></div>
+      <div class="full"><label>Keterangan</label><textarea id="s_keterangan" rows="2"></textarea></div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn secondary" onclick="tutupS2()">Batal</button>
+      <button class="btn" id="s2Simpan" onclick="simpanS()">Simpan</button>
+    </div>
+  </div>
+</div>
+
 <div class="overlay" id="overlayWarn">
   <div class="modal warn">
     <div class="warn-h"><div class="warn-ico">⏰</div><div>
@@ -319,15 +396,16 @@ function cekPengingat() {
       info: 'Sewa berakhir ' + tgl(v.tgl_akhir), sisa: statusOf(v).sisa}));
   milik.filter(k => !['Non-Aktif', 'Dijual'].includes(k.status)).forEach(k => dokumenK(k).forEach(d => list.push({tipe: 'milik', id: k.id,
       judul: k.no_polisi, sub: k.merk_tipe, info: d.label + ' ' + tgl(d.tgl), sisa: d.sisa})));
+  milik.filter(k => !['Non-Aktif', 'Dijual'].includes(k.status)).forEach(k => { const nx = nextServis(k.id); if (nx) list.push({tipe: 'servis', id: k.id, judul: k.no_polisi, sub: k.merk_tipe, info: 'Servis berkala ' + tgl(nx.target_tgl), sisa: sisaHari(nx.target_tgl)}); });
   const items = list.filter(x => x.sisa < BATAS_POPUP).sort((a, b) => a.sisa - b.sisa);
   if (!items.length) return;
   warnShown = true;
   $('warnTitle').textContent = `${items.length} Pengingat Masa Berlaku`;
   $('warnSub').textContent = `Masa berlaku kurang dari ${BATAS_POPUP} hari atau sudah lewat. Segera proses perpanjangan.`;
   $('warnList').innerHTML = items.map(x => `<div class="warn-item ${x.sisa < 0 ? 'lewat' : ''}">
-    <div class="inf"><b>${esc(x.judul)}</b> · ${esc(x.sub)}<small>${x.tipe === 'sewa' ? 'Sewa Kendaraan' : 'Milik Perusahaan'} · ${esc(x.info)}</small></div>
+    <div class="inf"><b>${esc(x.judul)}</b> · ${esc(x.sub)}<small>${({sewa: 'Sewa Kendaraan', milik: 'Milik Perusahaan', servis: 'Servis Berkala'})[x.tipe]} · ${esc(x.info)}</small></div>
     <div class="sisa">${x.sisa < 0 ? `lewat ${-x.sisa} hari` : x.sisa === 0 ? 'hari ini' : `${x.sisa} hari lagi`}</div>
-    <button onclick="${x.tipe === 'sewa' ? `tutupWarn(); gantiTab('sewa'); perpanjang('${x.id}')` : `tutupWarn(); gantiTab('milik'); bukaFormK('${x.id}')`}">${x.tipe === 'sewa' ? 'Perpanjang' : 'Perbarui'}</button></div>`).join('');
+    <button onclick="${x.tipe === 'sewa' ? `tutupWarn(); gantiTab('sewa'); perpanjang('${x.id}')` : x.tipe === 'servis' ? `tutupWarn(); gantiTab('milik'); bukaServis('${x.id}')` : `tutupWarn(); gantiTab('milik'); bukaFormK('${x.id}')`}">${x.tipe === 'sewa' ? 'Perpanjang' : x.tipe === 'servis' ? 'Jadwal' : 'Perbarui'}</button></div>`).join('');
   $('overlayWarn').classList.add('show');
 }
 function tutupWarn() { $('overlayWarn').classList.remove('show'); }
@@ -489,7 +567,7 @@ function minSisaK(k) { const d = dokumenK(k); return d.length ? Math.min(...d.ma
 async function loadK() {
   const { data: rows, error } = await supabaseClient.from('kendaraan_perusahaan').select('*').order('no_polisi', {ascending: true});
   if (error) { console.error(error); $('kBody').innerHTML = '<tr><td colspan="6" class="empty">Gagal memuat data. Pastikan tabel kendaraan_perusahaan sudah dibuat (jalankan sql/kendaraan_schema.sql di Supabase).</td></tr>'; $('pillMilik').textContent = '!'; return; }
-  milik = rows || []; renderK();
+  milik = rows || []; await loadServis(); renderK();
 }
 
 function renderK() {
@@ -519,8 +597,8 @@ function renderK() {
       <td><b>${esc(k.merk_tipe)}</b><small>${esc([k.jenis, k.tahun, k.warna].filter(Boolean).join(' · '))}</small>${k.no_rangka ? `<small>Rangka: ${esc(k.no_rangka)}</small>` : ''}</td>
       <td>${esc(k.pengguna || '-')}<small>${esc([k.departemen, k.area].filter(Boolean).join(' · '))}</small></td>
       <td>${dok || '<small>Belum diisi</small>'}${k.asuransi_nama ? `<small>Asuransi: ${esc(k.asuransi_nama)}${k.no_polis ? ' · ' + esc(k.no_polis) : ''}</small>` : ''}</td>
-      <td><span class="badge ${stCls[k.status] || 'b-aktif'}">${esc(k.status || 'Aktif')}</span>${k.km_terakhir != null ? `<small>${Number(k.km_terakhir).toLocaleString('id-ID')} km</small>` : ''}</td>
-      <td><div class="aksi">${link}<button onclick="bukaFormK('${k.id}')" title="Edit">${IC.edit}</button><button class="del" onclick="hapusK('${k.id}')" title="Hapus">${IC.del}</button></div></td>
+      <td><span class="badge ${stCls[k.status] || 'b-aktif'}">${esc(k.status || 'Aktif')}</span>${k.km_terakhir != null ? `<small>${Number(k.km_terakhir).toLocaleString('id-ID')} km</small>` : ''}${(() => { const nx = nextServis(k.id); return nx ? `<small>🔧 Servis ${tgl(nx.target_tgl)} · <em class="svn ${clsSisa(sisaHari(nx.target_tgl))}">${sisaTxt(sisaHari(nx.target_tgl))}</em></small>` : ''; })()}</td>
+      <td><div class="aksi"><button class="pj" onclick="bukaServis('${k.id}')" title="Jadwal servis">${IC.wrench} Jadwal Servis</button>${link}<button onclick="bukaFormK('${k.id}')" title="Edit">${IC.edit}</button><button class="del" onclick="hapusK('${k.id}')" title="Hapus">${IC.del}</button></div></td>
     </tr>`;
   }).join('');
 }
@@ -566,6 +644,192 @@ async function hapusK(id) {
   loadK();
 }
 
+// ===== Jadwal Servis Berkala =====
+IC.wrench = ic('<path d="M14.7 6.3a4 4 0 0 0-5.4 5.4L3 18l3 3 6.3-6.3a4 4 0 0 0 5.4-5.4l-2.4 2.4-2.6-.6-.6-2.6z"/>');
+const BLN = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'];
+const FIELDS_S = ['jenis','target_tgl','target_km','tgl_realisasi','odometer','bengkel','biaya','komponen','keterangan'];
+let servis = [], servisOk = true, svKid = null, svYear = new Date().getFullYear(), ovYear = new Date().getFullYear(), editIdS = null;
+const iso = d => d.toLocaleDateString('sv-SE');
+function addBulan(s, n) {
+  const d = new Date(s + 'T00:00:00'), day = d.getDate();
+  d.setDate(1); d.setMonth(d.getMonth() + n);
+  d.setDate(Math.min(day, new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate()));
+  return iso(d);
+}
+const svOf = id => servis.filter(s => s.kendaraan_id === id);
+const svTglKey = s => s.target_tgl || s.tgl_realisasi || '';
+const svTahun = s => +svTglKey(s).slice(0, 4);
+function svStatus(s) {
+  if (s.tgl_realisasi) {
+    const tel = s.target_tgl ? Math.round((new Date(s.tgl_realisasi) - new Date(s.target_tgl)) / 86400000) : 0;
+    return {label: 'Selesai', cls: 'b-aktif', mk: 'done', tel};
+  }
+  const sisa = sisaHari(s.target_tgl);
+  if (sisa < 0) return {label: 'Terlambat', cls: 'b-berakhir', mk: 'late', sisa};
+  if (sisa < BATAS_POPUP) return {label: 'Segera', cls: 'b-segera', mk: 'soon', sisa};
+  return {label: 'Terjadwal', cls: 'b-nonaktif', mk: 'plan', sisa};
+}
+function nextServis(kid) {
+  return svOf(kid).filter(s => !s.tgl_realisasi && s.target_tgl).sort((a, b) => a.target_tgl.localeCompare(b.target_tgl))[0] || null;
+}
+async function loadServis() {
+  const r = await supabaseClient.from('kendaraan_servis').select('*').order('target_tgl', {ascending: true});
+  if (r.error) { console.warn('kendaraan_servis:', r.error.message); servisOk = false; servis = []; }
+  else { servisOk = true; servis = r.data || []; }
+}
+
+function bukaServis(kid, year) {
+  if (!servisOk) return alert('Tabel kendaraan_servis belum dibuat. Jalankan sql/kendaraan_servis_schema.sql di Supabase.');
+  svKid = kid; if (year) svYear = year;
+  const k = milik.find(x => x.id === kid);
+  $('sTitle').textContent = 'Jadwal Servis · ' + k.no_polisi;
+  $('sSub').textContent = [k.merk_tipe, k.jenis, k.pengguna].filter(Boolean).join(' · ');
+  $('sv_interval_km').value = k.interval_km ?? 10000;
+  $('sv_interval_bulan').value = k.interval_bulan ?? 3;
+  $('sv_awal_tgl').value = k.servis_awal_tgl || '';
+  $('sv_awal_km').value = k.servis_awal_km ?? '';
+  tutupO(); renderS(); $('overlayS').classList.add('show');
+}
+function tutupS() { $('overlayS').classList.remove('show'); }
+function geserS(n) { svYear += n; renderS(); }
+
+function renderS() {
+  $('sYear').textContent = svYear;
+  $('btnBuatJadwal').textContent = '⚙ Buat Jadwal ' + svYear;
+  const rows = svOf(svKid).filter(s => svTahun(s) === svYear).sort((a, b) => svTglKey(a).localeCompare(svTglKey(b)));
+  const st = rows.map(s => svStatus(s));
+  const biaya = rows.reduce((a, s) => a + Number(s.biaya || 0), 0);
+  $('sStats').innerHTML = `<div><span>Total Servis</span><b>${rows.length}</b></div><div><span>Selesai</span><b>${st.filter(x => x.label === 'Selesai').length}</b></div>
+    <div><span>Terlambat</span><b>${st.filter(x => x.label === 'Terlambat').length}</b></div><div><span>Biaya Tahun Ini</span><b>${rp(biaya)}</b></div>`;
+  if (!rows.length) { $('sBody').innerHTML = `<tr><td colspan="10" class="empty">Belum ada jadwal tahun ${svYear}. Isi interval &amp; servis terakhir di atas, lalu klik “Buat Jadwal ${svYear}”.</td></tr>`; return; }
+  $('sBody').innerHTML = rows.map((s, i) => {
+    const x = st[i];
+    const ket = x.label === 'Selesai' ? (x.tel > 0 ? `<small>telat ${x.tel} hari</small>` : x.tel < 0 ? `<small>lebih awal ${-x.tel} hari</small>` : '')
+              : `<small>${sisaTxt(x.sisa)}</small>`;
+    return `<tr>
+      <td>${i + 1}</td>
+      <td class="nowrap">${s.target_tgl ? tgl(s.target_tgl) : '-'}</td>
+      <td class="num">${s.target_km != null ? Number(s.target_km).toLocaleString('id-ID') : '-'}</td>
+      <td class="nowrap">${s.tgl_realisasi ? tgl(s.tgl_realisasi) : '-'}</td>
+      <td class="num">${s.odometer != null ? Number(s.odometer).toLocaleString('id-ID') : '-'}</td>
+      <td>${esc(s.jenis || '-')}${s.bengkel ? `<small>${esc(s.bengkel)}</small>` : ''}</td>
+      <td>${s.komponen ? esc(s.komponen).replace(/\n/g, '<br>') : '-'}</td>
+      <td class="num">${s.biaya != null ? rp(s.biaya) : '-'}</td>
+      <td><span class="badge ${x.cls}">${x.label}</span>${ket}</td>
+      <td><div class="aksi">${s.tgl_realisasi ? '' : `<button class="pj" onclick="bukaFormS('${s.id}', {tgl_realisasi: iso(new Date())})">✔ Realisasi</button>`}<button onclick="bukaFormS('${s.id}')" title="Edit">${IC.edit}</button><button class="del" onclick="hapusS('${s.id}')" title="Hapus">${IC.del}</button></div></td>
+    </tr>`;
+  }).join('');
+}
+
+async function simpanPengaturanS() {
+  const k = milik.find(x => x.id === svKid), v = id => $(id).value.trim();
+  const p = {interval_km: v('sv_interval_km') === '' ? null : Number(v('sv_interval_km')), interval_bulan: v('sv_interval_bulan') === '' ? null : Number(v('sv_interval_bulan')),
+    servis_awal_tgl: v('sv_awal_tgl') || null, servis_awal_km: v('sv_awal_km') === '' ? null : Number(v('sv_awal_km'))};
+  const { error } = await supabaseClient.from('kendaraan_perusahaan').update(p).eq('id', svKid);
+  if (error) return alert('Gagal menyimpan pengaturan: ' + error.message + '\n\nPastikan sql/kendaraan_servis_schema.sql sudah dijalankan.');
+  Object.assign(k, p); alert('Pengaturan servis disimpan.');
+}
+
+async function buatJadwal() {
+  const k = milik.find(x => x.id === svKid), m = Number(k.interval_bulan) || 0, km = Number(k.interval_km) || 0;
+  if (!m) return alert('Isi dan simpan Interval Bulan Servis terlebih dahulu.');
+  // titik awal: servis rutin terbaru (realisasi, atau target bila belum direalisasi); bila belum ada, pakai "servis terakhir" di pengaturan
+  let aTgl = null, aKm = null;
+  svOf(k.id).filter(s => s.jenis === 'Service Rutin').forEach(s => {
+    const d = s.tgl_realisasi || s.target_tgl;
+    if (d && (!aTgl || d > aTgl)) { aTgl = d; aKm = s.tgl_realisasi ? (s.odometer ?? s.target_km) : s.target_km; }
+  });
+  if (!aTgl) { aTgl = k.servis_awal_tgl; aKm = k.servis_awal_km; }
+  if (!aTgl) return alert('Isi dan simpan "Servis Terakhir" (tanggal & odometer) di pengaturan, atau catat servis sebelumnya.');
+  const rows = [];
+  for (let i = 1; i <= 240; i++) {
+    const d = addBulan(aTgl, m * i), y = +d.slice(0, 4);
+    if (y > svYear) break;
+    if (y === svYear) rows.push({kendaraan_id: k.id, jenis: 'Service Rutin', target_tgl: d,
+      target_km: aKm != null && aKm !== '' && km ? Number(aKm) + km * i : null, created_by: user.username || user.nama || null});
+  }
+  if (!rows.length) return alert(`Tidak ada slot baru untuk ${svYear}. Jadwal sampai ${tgl(aTgl)} sudah tersedia.`);
+  if (!confirm(`Buat ${rows.length} jadwal servis tahun ${svYear} (setiap ${m} bulan${km ? ' / ' + km.toLocaleString('id-ID') + ' km' : ''})?`)) return;
+  const { error } = await supabaseClient.from('kendaraan_servis').insert(rows);
+  if (error) return alert('Gagal membuat jadwal: ' + error.message);
+  await loadServis(); renderS(); renderK();
+}
+
+// Setelah servis rutin direalisasi, jadwal berikutnya yang belum dikerjakan dihitung ulang dari tanggal & odometer realisasi
+async function reanchor(kid) {
+  const k = milik.find(x => x.id === kid), m = Number(k.interval_bulan) || 0, km = Number(k.interval_km) || 0;
+  if (!m) return;
+  const rutin = svOf(kid).filter(s => s.jenis === 'Service Rutin');
+  const done = rutin.filter(s => s.tgl_realisasi).sort((a, b) => b.tgl_realisasi.localeCompare(a.tgl_realisasi))[0];
+  if (!done) return;
+  const odo = done.odometer ?? done.target_km, batas = done.target_tgl && done.target_tgl > done.tgl_realisasi ? done.target_tgl : done.tgl_realisasi;
+  const plan = rutin.filter(s => !s.tgl_realisasi && s.target_tgl && s.target_tgl > batas).sort((a, b) => a.target_tgl.localeCompare(b.target_tgl));
+  await Promise.all(plan.map((s, i) => {
+    const p = {target_tgl: addBulan(done.tgl_realisasi, m * (i + 1)), target_km: odo != null && km ? Number(odo) + km * (i + 1) : s.target_km};
+    return (p.target_tgl !== s.target_tgl || p.target_km !== s.target_km) ? supabaseClient.from('kendaraan_servis').update(p).eq('id', s.id) : null;
+  }));
+}
+
+function bukaFormS(id, preset) {
+  editIdS = id || null;
+  const v = {...(servis.find(x => x.id === id) || {}), ...(preset || {})};
+  FIELDS_S.forEach(f => $('s_' + f).value = v[f] ?? (f === 'jenis' ? 'Service Rutin' : ''));
+  $('s2Title').textContent = !id ? 'Catat Servis' : v.tgl_realisasi && !(servis.find(x => x.id === id) || {}).tgl_realisasi ? 'Catat Realisasi Servis' : 'Edit Servis';
+  $('overlayS2').classList.add('show');
+}
+function tutupS2() { $('overlayS2').classList.remove('show'); }
+
+async function simpanS() {
+  const p = {};
+  FIELDS_S.forEach(f => { const val = $('s_' + f).value.trim(); p[f] = val === '' ? null : val; });
+  ['target_km', 'odometer', 'biaya'].forEach(f => { if (p[f] !== null) p[f] = Number(p[f]); });
+  if (!p.target_tgl && !p.tgl_realisasi) return alert('Isi target tanggal atau tanggal realisasi.');
+  $('s2Simpan').disabled = true;
+  const q = editIdS ? supabaseClient.from('kendaraan_servis').update(p).eq('id', editIdS)
+                    : supabaseClient.from('kendaraan_servis').insert({...p, kendaraan_id: svKid, created_by: user.username || user.nama || null});
+  const { error } = await q;
+  $('s2Simpan').disabled = false;
+  if (error) { console.error(error); return alert('Gagal menyimpan: ' + error.message); }
+  await loadServis();
+  if (p.jenis === 'Service Rutin' && p.tgl_realisasi) { await reanchor(svKid); await loadServis(); }
+  const k = milik.find(x => x.id === svKid);
+  if (p.odometer != null && p.odometer > Number(k.km_terakhir || 0)) {
+    const r = await supabaseClient.from('kendaraan_perusahaan').update({km_terakhir: p.odometer}).eq('id', svKid);
+    if (!r.error) k.km_terakhir = p.odometer;
+  }
+  tutupS2(); renderS(); renderK();
+}
+async function hapusS(id) {
+  if (!confirm('Hapus catatan servis ini?')) return;
+  const { error } = await supabaseClient.from('kendaraan_servis').delete().eq('id', id);
+  if (error) return alert('Gagal menghapus: ' + error.message);
+  await loadServis(); renderS(); renderK();
+}
+
+// ===== Ringkasan tahunan semua kendaraan =====
+function bukaRingkasan() {
+  if (!servisOk) return alert('Tabel kendaraan_servis belum dibuat. Jalankan sql/kendaraan_servis_schema.sql di Supabase.');
+  renderO(); $('overlayO').classList.add('show');
+}
+function tutupO() { $('overlayO').classList.remove('show'); }
+function geserO(n) { ovYear += n; renderO(); }
+function renderO() {
+  $('oYear').textContent = ovYear;
+  $('oHead').innerHTML = '<tr><th>Kendaraan</th>' + BLN.map(b => `<th>${b}</th>`).join('') + '</tr>';
+  const list = milik.filter(k => !['Non-Aktif', 'Dijual'].includes(k.status));
+  if (!list.length) { $('oBody').innerHTML = '<tr><td colspan="13" class="empty">Belum ada kendaraan aktif.</td></tr>'; return; }
+  const MK = {done: '✓', late: '!', soon: '●', plan: '○'};
+  $('oBody').innerHTML = list.map(k => {
+    const items = svOf(k.id).filter(s => svTahun(s) === ovYear);
+    const cells = BLN.map((_, mi) => {
+      const here = items.filter(s => +svTglKey(s).slice(5, 7) === mi + 1);
+      const html = here.map(s => { const x = svStatus(s); return `<span class="mk-${x.mk}" title="${esc(s.jenis)} · ${x.label} · ${tgl(svTglKey(s))}">${MK[x.mk]}</span>`; }).join(' ');
+      return `<td class="ov-cell" onclick="bukaServis('${k.id}', ${ovYear})">${html}</td>`;
+    }).join('');
+    return `<tr><td><b>${esc(k.no_polisi)}</b><small>${esc(k.merk_tipe)}</small></td>${cells}</tr>`;
+  }).join('');
+}
+
 // ===== Tab =====
 function gantiTab(t) {
   $('panelSewa').classList.toggle('hidden', t !== 'sewa');
@@ -577,7 +841,7 @@ function gantiTab(t) {
   history.replaceState(null, '', '#' + t);
 }
 
-document.addEventListener('keydown', e => { if (e.key === 'Escape') { tutupForm(); tutupRw(); tutupWarn(); tutupFormK(); } });
+document.addEventListener('keydown', e => { if (e.key === 'Escape') { tutupForm(); tutupRw(); tutupWarn(); tutupFormK(); tutupS2(); tutupS(); tutupO(); } });
 if (location.hash === '#milik') gantiTab('milik');
 loadMaster().then(() => Promise.all([load(), loadK()])).then(cekPengingat);
 </script>

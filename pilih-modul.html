@@ -477,19 +477,31 @@
       });
       // Kendaraan milik perusahaan (abaikan bila tabel belum dibuat)
       let dokHampir = 0, dokLewat = 0;
-      const km = await supabaseClient.from('kendaraan_perusahaan').select('status, tgl_pajak, tgl_stnk, tgl_asuransi');
+      const km = await supabaseClient.from('kendaraan_perusahaan').select('id, status, tgl_pajak, tgl_stnk, tgl_asuransi');
       if (!km.error) (km.data || []).filter(k => !['Non-Aktif', 'Dijual'].includes(k.status)).forEach(k => {
         [k.tgl_pajak, k.tgl_stnk, k.tgl_asuransi].filter(Boolean).forEach(d => {
           const sisa = Math.ceil((new Date(d + 'T00:00:00') - hari0) / 86400000);
           if (sisa < 0) dokLewat++; else if (sisa < BATAS_HARI) dokHampir++;
         });
       });
+      // Servis berkala yang belum direalisasi
+      let svHampir = 0, svLewat = 0;
+      if (!km.error) {
+        const aktif = new Set((km.data || []).filter(k => !['Non-Aktif', 'Dijual'].includes(k.status)).map(k => k.id));
+        const sv = await supabaseClient.from('kendaraan_servis').select('kendaraan_id, target_tgl, tgl_realisasi');
+        if (!sv.error) (sv.data || []).filter(s => !s.tgl_realisasi && s.target_tgl && aktif.has(s.kendaraan_id)).forEach(s => {
+          const sisa = Math.ceil((new Date(s.target_tgl + 'T00:00:00') - hari0) / 86400000);
+          if (sisa < 0) svLewat++; else if (sisa < BATAS_HARI) svHampir++;
+        });
+      }
       const parts = [];
       if (hampir) parts.push(hampir + ' sewa berakhir < ' + BATAS_HARI + ' hari');
       if (lewat) parts.push(lewat + ' sewa sudah berakhir');
       if (dokHampir) parts.push(dokHampir + ' dokumen kendaraan < ' + BATAS_HARI + ' hari');
       if (dokLewat) parts.push(dokLewat + ' dokumen sudah lewat');
-      return { count: hampir + lewat + dokHampir + dokLewat, text: '⏰ ' + parts.join(' · ') };
+      if (svHampir) parts.push(svHampir + ' servis < ' + BATAS_HARI + ' hari');
+      if (svLewat) parts.push(svLewat + ' servis terlambat');
+      return { count: hampir + lewat + dokHampir + dokLewat + svHampir + svLewat, text: '⏰ ' + parts.join(' · ') };
     },
     // Seragam: per jenis yang sudah punya stok masuk, karyawan aktif yang belum pernah menerima
     seragam: async () => {
