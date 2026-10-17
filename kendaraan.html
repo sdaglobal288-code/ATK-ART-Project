@@ -142,6 +142,9 @@
     #printArea .c{ text-align:center; } #printArea .r{ text-align:right; white-space:nowrap; }
     #printArea .ft{ font-size:9pt; color:#444; margin-top:6px; }
   }
+  .sv-stats.est{ grid-template-columns:repeat(5,1fr); margin-bottom:22px; } @media(max-width:900px){ .sv-stats.est{ grid-template-columns:repeat(2,1fr); } }
+  .sv-stats small{ display:block; color:var(--muted); font-size:11px; margin-top:2px; }
+  .dok span small{ font-size:11px; color:var(--dim); margin-top:0; }
 </style>
 </head>
 <body>
@@ -195,6 +198,11 @@
       <div class="stat"><div class="l">Dokumen Sudah Lewat</div><div class="n" id="kLewat">-</div></div>
       <div class="stat"><div class="l">Dalam Perawatan</div><div class="n" id="kRawat">-</div></div>
     </div>
+    <div class="sv-bar" style="margin:0 0 10px">
+      <div><b>Estimasi Biaya Dokumen</b><div class="muted" style="margin:2px 0 0">Dokumen yang jatuh tempo (termasuk yang sudah lewat) dalam periode berikut. Isi estimasi biaya pada form tiap kendaraan.</div></div>
+      <select id="kPeriode" onchange="renderEst()" style="width:auto;min-width:190px"><option value="30">≤ 30 hari ke depan</option><option value="90" selected>≤ 90 hari ke depan</option><option value="180">≤ 6 bulan ke depan</option><option value="365">≤ 12 bulan ke depan</option></select>
+    </div>
+    <div class="sv-stats est" id="kEst"></div>
     <div class="filters">
       <input id="kCari" placeholder="Cari no. polisi, merk/tipe, pengguna, no. rangka, atau no. mesin..." oninput="renderK()">
       <select id="kFJenis" onchange="renderK()"><option value="">Semua Jenis</option><option>Mobil</option><option>Motor</option><option>Truk</option><option>Bus</option><option>Lainnya</option></select>
@@ -244,6 +252,12 @@
       <div><label>Perusahaan Asuransi</label><input id="k_asuransi_nama"></div>
       <div><label>No. Polis</label><input id="k_no_polis"></div>
       <div><label>Asuransi Berakhir</label><input type="date" id="k_tgl_asuransi"></div>
+
+      <div class="sect">Estimasi Biaya Perpanjangan</div>
+      <div><label>Pajak Tahunan (Rp)</label><input type="number" id="k_biaya_pajak" min="0"></div>
+      <div><label>Pajak 5 Tahunan / STNK (Rp)</label><input type="number" id="k_biaya_stnk" min="0" placeholder="termasuk ganti plat"></div>
+      <div><label>KIR (Rp)</label><input type="number" id="k_biaya_kir" min="0"></div>
+      <div><label>Rekomendasi Kendaraan (Rp)</label><input type="number" id="k_biaya_rekom" min="0"></div>
 
       <div class="sect">Perolehan</div>
       <div><label>Tanggal Perolehan</label><input type="date" id="k_tgl_perolehan"></div>
@@ -579,12 +593,12 @@ async function hapus(id) {
 
 // ===== Kendaraan Milik Perusahaan =====
 const FIELDS_K = ['no_polisi','jenis','merk_tipe','tahun','warna','status','no_rangka','no_mesin','no_bpkb','km_terakhir','area','departemen','pengguna',
-  'tgl_pajak','tgl_stnk','no_kir','tgl_kir','no_rekom','tgl_rekom','asuransi_nama','no_polis','tgl_asuransi','tgl_perolehan','harga_perolehan','link_dokumen','keterangan'];
+  'tgl_pajak','tgl_stnk','no_kir','tgl_kir','no_rekom','tgl_rekom','biaya_pajak','biaya_stnk','biaya_kir','biaya_rekom','asuransi_nama','no_polis','tgl_asuransi','tgl_perolehan','harga_perolehan','link_dokumen','keterangan'];
 const sisaHari = d => d ? Math.ceil((new Date(d + 'T00:00:00') - new Date().setHours(0, 0, 0, 0)) / 86400000) : null;
 const clsSisa = s => s < 0 ? 'b-berakhir' : s <= 60 ? 'b-segera' : 'b-aktif';
 const sisaTxt = s => s < 0 ? `lewat ${-s} hari` : s === 0 ? 'hari ini' : `${s} hari lagi`;
 function dokumenK(k) {
-  return [['Pajak', k.tgl_pajak], ['STNK', k.tgl_stnk], ['KIR', k.tgl_kir], ['Rekom', k.tgl_rekom], ['Asuransi', k.tgl_asuransi]].filter(x => x[1]).map(x => ({label: x[0], tgl: x[1], sisa: sisaHari(x[1])}));
+  return [['Pajak', k.tgl_pajak, k.biaya_pajak], ['STNK', k.tgl_stnk, k.biaya_stnk], ['KIR', k.tgl_kir, k.biaya_kir], ['Rekom', k.tgl_rekom, k.biaya_rekom], ['Asuransi', k.tgl_asuransi, null]].filter(x => x[1]).map(x => ({label: x[0], tgl: x[1], sisa: sisaHari(x[1]), biaya: x[2] == null || x[2] === '' ? null : Number(x[2])}));
 }
 function minSisaK(k) { const d = dokumenK(k); return d.length ? Math.min(...d.map(x => x.sisa)) : null; }
 
@@ -594,7 +608,21 @@ async function loadK() {
   milik = rows || []; await loadServis(); renderK();
 }
 
+function renderEst() {
+  const hz = Number($('kPeriode').value);
+  const T = [['Pajak', 'Pajak Tahunan'], ['STNK', 'Pajak 5 Tahunan'], ['KIR', 'KIR'], ['Rekom', 'Rekomendasi']].map(([k, n]) => ({k, n, sum: 0, jml: 0, kosong: 0}));
+  milik.filter(k => !['Non-Aktif', 'Dijual'].includes(k.status)).forEach(k => dokumenK(k).forEach(d => {
+    const t = T.find(x => x.k === d.label);
+    if (!t || d.sisa > hz) return;
+    t.jml++; if (d.biaya == null) t.kosong++; else t.sum += d.biaya;
+  }));
+  const sub = t => `${t.jml} dokumen${t.kosong ? ` · ${t.kosong} belum ada estimasi` : ''}`;
+  $('kEst').innerHTML = T.map(t => `<div><span>${t.n}</span><b>${rp(t.sum)}</b><small>${sub(t)}</small></div>`).join('') +
+    `<div style="border-color:rgba(122,162,247,.5)"><span>Total Estimasi</span><b>${rp(T.reduce((a, t) => a + t.sum, 0))}</b><small>${T.reduce((a, t) => a + t.jml, 0)} dokumen</small></div>`;
+}
+
 function renderK() {
+  renderEst();
   const q = $('kCari').value.toLowerCase(), fj = $('kFJenis').value, fs = $('kFStatus').value, fd = $('kFDok').value;
   const aktifDok = k => !['Non-Aktif', 'Dijual'].includes(k.status);
   const all = milik.map(k => ({...k, ms: aktifDok(k) ? minSisaK(k) : null}));
@@ -614,7 +642,7 @@ function renderK() {
   const stCls = {Aktif: 'b-aktif', Perawatan: 'b-perawatan', 'Non-Aktif': 'b-nonaktif', Dijual: 'b-dijual'};
   $('kBody').innerHTML = rows.map(k => {
     const rc = k.ms === null ? '' : k.ms < 0 ? 'r-k-lewat' : k.ms <= 60 ? 'r-k-segera' : '';
-    const dok = dokumenK(k).map(d => `<div class="dok"><span>${d.label} · ${tgl(d.tgl)}</span><em class="${clsSisa(d.sisa)}">${sisaTxt(d.sisa)}</em></div>`).join('');
+    const dok = dokumenK(k).map(d => `<div class="dok"><span>${d.label === 'STNK' ? 'STNK 5 th' : d.label} · ${tgl(d.tgl)}${d.biaya != null ? `<small>Est. ${rp(d.biaya)}</small>` : ''}</span><em class="${clsSisa(d.sisa)}">${sisaTxt(d.sisa)}</em></div>`).join('');
     const link = /^https?:\/\//.test(k.link_dokumen || '') ? `<a href="${esc(k.link_dokumen)}" target="_blank" rel="noopener" title="Buka dokumen">${IC.doc}</a>` : '';
     return `<tr class="${rc}">
       <td>${plat(k.no_polisi)}</td>
@@ -649,7 +677,7 @@ function tutupFormK() { $('overlayK').classList.remove('show'); }
 async function simpanK() {
   const p = {};
   FIELDS_K.forEach(f => { const val = $('k_' + f).value.trim(); p[f] = val === '' ? null : val; });
-  ['tahun', 'km_terakhir', 'harga_perolehan'].forEach(f => { if (p[f] !== null) p[f] = Number(p[f]); });
+  ['tahun', 'km_terakhir', 'harga_perolehan', 'biaya_pajak', 'biaya_stnk', 'biaya_kir', 'biaya_rekom'].forEach(f => { if (p[f] !== null) p[f] = Number(p[f]); });
   if (!p.no_polisi || !p.merk_tipe) return alert('Lengkapi kolom yang wajib diisi (*).');
   p.no_polisi = p.no_polisi.toUpperCase();
   $('kBtnSimpan').disabled = true;
