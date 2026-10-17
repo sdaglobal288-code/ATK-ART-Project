@@ -477,9 +477,9 @@
       });
       // Kendaraan milik perusahaan (abaikan bila tabel belum dibuat)
       let dokHampir = 0, dokLewat = 0;
-      const km = await supabaseClient.from('kendaraan_perusahaan').select('id, status, tgl_pajak, tgl_stnk, tgl_asuransi');
+      const km = await supabaseClient.from('kendaraan_perusahaan').select('id, status, tgl_pajak, tgl_stnk, tgl_kir, tgl_rekom, tgl_asuransi');
       if (!km.error) (km.data || []).filter(k => !['Non-Aktif', 'Dijual'].includes(k.status)).forEach(k => {
-        [k.tgl_pajak, k.tgl_stnk, k.tgl_asuransi].filter(Boolean).forEach(d => {
+        [k.tgl_pajak, k.tgl_stnk, k.tgl_kir, k.tgl_rekom, k.tgl_asuransi].filter(Boolean).forEach(d => {
           const sisa = Math.ceil((new Date(d + 'T00:00:00') - hari0) / 86400000);
           if (sisa < 0) dokLewat++; else if (sisa < BATAS_HARI) dokHampir++;
         });

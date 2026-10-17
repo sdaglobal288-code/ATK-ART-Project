@@ -237,6 +237,10 @@
       <div class="sect">Dokumen &amp; Pengingat</div>
       <div><label>Jatuh Tempo Pajak Tahunan</label><input type="date" id="k_tgl_pajak"></div>
       <div><label>Masa Berlaku STNK (5 tahunan)</label><input type="date" id="k_tgl_stnk"></div>
+      <div><label>No. KIR</label><input id="k_no_kir"></div>
+      <div><label>Masa Berlaku KIR</label><input type="date" id="k_tgl_kir"></div>
+      <div><label>No. Rekomendasi Kendaraan</label><input id="k_no_rekom"></div>
+      <div><label>Masa Berlaku Rekomendasi</label><input type="date" id="k_tgl_rekom"></div>
       <div><label>Perusahaan Asuransi</label><input id="k_asuransi_nama"></div>
       <div><label>No. Polis</label><input id="k_no_polis"></div>
       <div><label>Asuransi Berakhir</label><input type="date" id="k_tgl_asuransi"></div>
@@ -575,12 +579,12 @@ async function hapus(id) {
 
 // ===== Kendaraan Milik Perusahaan =====
 const FIELDS_K = ['no_polisi','jenis','merk_tipe','tahun','warna','status','no_rangka','no_mesin','no_bpkb','km_terakhir','area','departemen','pengguna',
-  'tgl_pajak','tgl_stnk','asuransi_nama','no_polis','tgl_asuransi','tgl_perolehan','harga_perolehan','link_dokumen','keterangan'];
+  'tgl_pajak','tgl_stnk','no_kir','tgl_kir','no_rekom','tgl_rekom','asuransi_nama','no_polis','tgl_asuransi','tgl_perolehan','harga_perolehan','link_dokumen','keterangan'];
 const sisaHari = d => d ? Math.ceil((new Date(d + 'T00:00:00') - new Date().setHours(0, 0, 0, 0)) / 86400000) : null;
 const clsSisa = s => s < 0 ? 'b-berakhir' : s <= 60 ? 'b-segera' : 'b-aktif';
 const sisaTxt = s => s < 0 ? `lewat ${-s} hari` : s === 0 ? 'hari ini' : `${s} hari lagi`;
 function dokumenK(k) {
-  return [['Pajak', k.tgl_pajak], ['STNK', k.tgl_stnk], ['Asuransi', k.tgl_asuransi]].filter(x => x[1]).map(x => ({label: x[0], tgl: x[1], sisa: sisaHari(x[1])}));
+  return [['Pajak', k.tgl_pajak], ['STNK', k.tgl_stnk], ['KIR', k.tgl_kir], ['Rekom', k.tgl_rekom], ['Asuransi', k.tgl_asuransi]].filter(x => x[1]).map(x => ({label: x[0], tgl: x[1], sisa: sisaHari(x[1])}));
 }
 function minSisaK(k) { const d = dokumenK(k); return d.length ? Math.min(...d.map(x => x.sisa)) : null; }
 
@@ -616,7 +620,7 @@ function renderK() {
       <td>${plat(k.no_polisi)}</td>
       <td><b>${esc(k.merk_tipe)}</b><small>${esc([k.jenis, k.tahun, k.warna].filter(Boolean).join(' · '))}</small>${k.no_rangka ? `<small>Rangka: ${esc(k.no_rangka)}</small>` : ''}</td>
       <td>${esc(k.pengguna || '-')}<small>${esc([k.departemen, k.area].filter(Boolean).join(' · '))}</small></td>
-      <td>${dok || '<small>Belum diisi</small>'}${k.asuransi_nama ? `<small>Asuransi: ${esc(k.asuransi_nama)}${k.no_polis ? ' · ' + esc(k.no_polis) : ''}</small>` : ''}</td>
+      <td>${dok || '<small>Belum diisi</small>'}${k.no_kir ? `<small>KIR: ${esc(k.no_kir)}</small>` : ''}${k.no_rekom ? `<small>Rekom: ${esc(k.no_rekom)}</small>` : ''}${k.asuransi_nama ? `<small>Asuransi: ${esc(k.asuransi_nama)}${k.no_polis ? ' · ' + esc(k.no_polis) : ''}</small>` : ''}</td>
       <td><span class="badge ${stCls[k.status] || 'b-aktif'}">${esc(k.status || 'Aktif')}</span>${k.km_terakhir != null ? `<small>${Number(k.km_terakhir).toLocaleString('id-ID')} km</small>` : ''}${(() => { const nx = nextServis(k.id); return nx ? `<small>🔧 Servis ${tgl(nx.target_tgl)} · <em class="svn ${clsSisa(sisaHari(nx.target_tgl))}">${sisaTxt(sisaHari(nx.target_tgl))}</em></small>` : ''; })()}</td>
       <td><div class="aksi"><button class="pj" onclick="bukaServis('${k.id}')" title="Jadwal servis">${IC.wrench} Jadwal Servis</button>${link}<button onclick="bukaFormK('${k.id}')" title="Edit">${IC.edit}</button><button class="del" onclick="hapusK('${k.id}')" title="Hapus">${IC.del}</button></div></td>
     </tr>`;
