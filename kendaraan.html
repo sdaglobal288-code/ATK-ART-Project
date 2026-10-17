@@ -1066,6 +1066,9 @@ function gantiTab(t) {
 }
 
 document.addEventListener('keydown', e => { if (e.key === 'Escape') { tutupForm(); tutupRw(); tutupWarn(); tutupFormK(); tutupS2(); tutupS(); tutupO(); tutupR(); tutupH(); } });
+// Setiap jendela (modal) yang dibuka selalu mulai dari atas
+document.querySelectorAll('.overlay').forEach(o => new MutationObserver(() => { if (o.classList.contains('show')) o.scrollTop = 0; })
+  .observe(o, {attributes: true, attributeFilter: ['class']}));
 if (location.hash === '#milik') gantiTab('milik');
 loadMaster().then(() => Promise.all([load(), loadK()])).then(cekPengingat);
 </script>
