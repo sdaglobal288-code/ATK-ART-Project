@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Kendaraan</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script src="supabase/config.js"></script>
 <style>
   :root{ --bg:#1c1410; --panel:#2b2018; --panel-2:#241a13; --line:#3d2f22; --text:#f3ebe0; --muted:#a8967d; --dim:#7d6d58;
@@ -178,6 +179,7 @@
   <div class="filters">
     <input id="cari" placeholder="Cari vendor, no. perjanjian/lampiran, pengguna, atau no. polisi..." oninput="render()">
     <select id="fStatus" onchange="render()"><option value="">Semua Status</option><option>Aktif</option><option>Segera Berakhir</option><option>Berakhir</option></select>
+    <button class="btn secondary" onclick="exportSewa()">⬇ Export Excel</button>
     <span class="count" id="count"></span>
   </div>
 
@@ -209,6 +211,7 @@
       <select id="kFStatus" onchange="renderK()"><option value="">Semua Status</option><option>Aktif</option><option>Perawatan</option><option>Non-Aktif</option><option>Dijual</option></select>
       <select id="kFDok" onchange="renderK()"><option value="">Semua Dokumen</option><option value="segera">Segera Habis</option><option value="lewat">Sudah Lewat</option></select>
       <button class="btn secondary" onclick="bukaRingkasan()">📅 Jadwal Servis Tahunan</button>
+      <button class="btn secondary" onclick="exportKendaraan()">⬇ Export Excel</button>
       <span class="count" id="kCount"></span>
     </div>
     <div class="card">
@@ -538,7 +541,7 @@ function render() {
 
   const rows = st.filter(v => (!fs || v.st.label === fs) &&
     [v.vendor_nama, v.no_perjanjian, v.no_lampiran, v.area, v.departemen, v.pengguna, v.no_polisi].some(x => (x || '').toLowerCase().includes(q)));
-  $('count').textContent = rows.length + ' perjanjian'; $('pillSewa').textContent = st.length;
+  sewaView = rows; $('count').textContent = rows.length + ' perjanjian'; $('pillSewa').textContent = st.length;
   if (!rows.length) { $('body').innerHTML = '<tr><td colspan="9" class="empty">Belum ada data perjanjian.</td></tr>'; return; }
 
   $('body').innerHTML = rows.map(v => {
@@ -673,7 +676,7 @@ function renderK() {
   const rows = all.filter(k => (!fj || k.jenis === fj) && (!fs || k.status === fs) &&
     (!fd || (fd === 'lewat' ? k.ms !== null && k.ms < 0 : k.ms !== null && k.ms >= 0 && k.ms <= 60)) &&
     [k.no_polisi, k.merk_tipe, k.pengguna, k.departemen, k.area, k.no_rangka, k.no_mesin, k.stnk_atas_nama].some(x => (x || '').toLowerCase().includes(q)));
-  $('kCount').textContent = rows.length + ' kendaraan';
+  kView = rows; $('kCount').textContent = rows.length + ' kendaraan';
   if (!rows.length) { $('kBody').innerHTML = '<tr><td colspan="6" class="empty">Belum ada data kendaraan milik perusahaan.</td></tr>'; return; }
 
   const stCls = {Aktif: 'b-aktif', Perawatan: 'b-perawatan', 'Non-Aktif': 'b-nonaktif', Dijual: 'b-dijual'};
@@ -1052,6 +1055,63 @@ async function hapusR(id) {
   const { error } = await supabaseClient.from('kendaraan_dokumen_riwayat').delete().eq('id', id);
   if (error) return alert('Gagal menghapus: ' + error.message);
   await loadRiwayat(); renderH();
+}
+
+// ===== Export Excel =====
+let kView = [], sewaView = [];
+const xd = s => s ? new Date(+s.slice(0, 4), +s.slice(5, 7) - 1, +s.slice(8, 10), 12) : '';
+const xn = v => v == null || v === '' ? '' : Number(v);
+function xlsxSheet(rows) {
+  const ws = XLSX.utils.json_to_sheet(rows, {dateNF: 'dd-mmm-yyyy'});
+  const keys = Object.keys(rows[0] || {});
+  ws['!cols'] = keys.map(h => ({wch: Math.min(42, Math.max(h.length + 2, ...rows.map(r => r[h] instanceof Date ? 13 : String(r[h] ?? '').length + 2)))}));
+  if (ws['!ref']) ws['!autofilter'] = {ref: ws['!ref']};
+  return ws;
+}
+function xlsxSimpan(sheets, nama) {
+  if (typeof XLSX === 'undefined') return alert('Library Excel gagal dimuat. Periksa koneksi internet lalu muat ulang halaman.');
+  const wb = XLSX.utils.book_new();
+  sheets.forEach(([n, rows], i) => { if (rows.length || i === 0) XLSX.utils.book_append_sheet(wb, xlsxSheet(rows), n); });
+  XLSX.writeFile(wb, `${nama}_${iso(new Date())}.xlsx`, {cellDates: true});
+}
+
+// Kendaraan milik perusahaan: mengikuti pencarian/filter yang sedang aktif. Sheet tambahan: Jadwal Servis & Riwayat Perpanjangan
+function exportKendaraan() {
+  if (!kView.length) return alert('Tidak ada data untuk diexport.');
+  const byId = Object.fromEntries(kView.map(k => [k.id, k])), plat = id => byId[id]?.no_polisi || '';
+  const kend = kView.map(k => { const nx = nextServis(k.id); return {
+    'No. Polisi': k.no_polisi, 'Jenis': k.jenis || '', 'Merk / Tipe': k.merk_tipe, 'Tahun': xn(k.tahun), 'Warna': k.warna || '', 'Status': k.status || '',
+    'No. Rangka': k.no_rangka || '', 'No. Mesin': k.no_mesin || '', 'No. BPKB': k.no_bpkb || '', 'STNK Atas Nama': k.stnk_atas_nama || '', 'KM Terakhir': xn(k.km_terakhir),
+    'Area': k.area || '', 'Departemen': k.departemen || '', 'PIC / Pengguna': k.pengguna || '',
+    'Pajak Tahunan Jatuh Tempo': xd(k.tgl_pajak), 'Est. Biaya Pajak Tahunan': xn(k.biaya_pajak),
+    'STNK 5 Tahunan Berlaku s/d': xd(k.tgl_stnk), 'Est. Biaya Pajak 5 Tahunan': xn(k.biaya_stnk),
+    'No. KIR': k.no_kir || '', 'KIR Berlaku s/d': xd(k.tgl_kir), 'Est. Biaya KIR': xn(k.biaya_kir),
+    'No. Rekomendasi': k.no_rekom || '', 'Rekomendasi Berlaku s/d': xd(k.tgl_rekom), 'Est. Biaya Rekomendasi': xn(k.biaya_rekom),
+    'Perusahaan Asuransi': k.asuransi_nama || '', 'No. Polis': k.no_polis || '', 'Asuransi Berakhir': xd(k.tgl_asuransi),
+    'Tanggal Perolehan': xd(k.tgl_perolehan), 'Harga Perolehan': xn(k.harga_perolehan),
+    'Interval KM Servis': xn(k.interval_km), 'Interval Bulan Servis': xn(k.interval_bulan),
+    'Servis Berikutnya (Target)': xd(nx?.target_tgl), 'Target KM Servis Berikutnya': xn(nx?.target_km),
+    'Link Dokumen': k.link_dokumen || '', 'Keterangan': k.keterangan || ''}; });
+  const sv = servis.filter(s => byId[s.kendaraan_id]).sort((a, b) => plat(a.kendaraan_id).localeCompare(plat(b.kendaraan_id)) || svTglKey(a).localeCompare(svTglKey(b)))
+    .map(s => ({'No. Polisi': plat(s.kendaraan_id), 'Kendaraan': byId[s.kendaraan_id].merk_tipe, 'Tahun Jadwal': svTahun(s), 'Jenis Service': s.jenis || '',
+      'Target Tanggal': xd(s.target_tgl), 'Target KM': xn(s.target_km), 'Realisasi Tanggal': xd(s.tgl_realisasi), 'Odometer': xn(s.odometer),
+      'Komponen yang Diservis': (s.komponen || '').split('\n').map(x => x.trim()).filter(Boolean).join('; '), 'Bengkel': s.bengkel || '', 'Biaya': xn(s.biaya),
+      'Status': svStatus(s).label, 'Keterangan': s.keterangan || ''}));
+  const rw = rwDok.filter(r => byId[r.kendaraan_id]).sort((a, b) => plat(a.kendaraan_id).localeCompare(plat(b.kendaraan_id)) || (b.tgl_proses || '').localeCompare(a.tgl_proses || ''))
+    .map(r => ({'No. Polisi': plat(r.kendaraan_id), 'Dokumen': DOK[r.dokumen]?.nama || r.dokumen, 'Tanggal Proses': xd(r.tgl_proses), 'Berlaku Lama': xd(r.berlaku_lama),
+      'Berlaku Baru': xd(r.berlaku_baru), 'Nomor': r.nomor || '', 'Biaya Realisasi': xn(r.biaya), 'Keterangan': r.keterangan || '', 'Link Bukti': r.link_bukti || ''}));
+  xlsxSimpan([['Kendaraan', kend], ['Jadwal Servis', sv], ['Riwayat Perpanjangan', rw]], 'Kendaraan_Milik_Perusahaan');
+}
+
+// Sewa kendaraan: perjanjian terbaru (sesuai filter yang aktif)
+function exportSewa() {
+  if (!sewaView.length) return alert('Tidak ada data untuk diexport.');
+  const rows = sewaView.map(v => ({'No. Polisi': v.no_polisi || '', 'No. Perjanjian': v.no_perjanjian, 'No. Lampiran': v.no_lampiran || '', 'Perpanjangan Ke': v.perpanjangan_ke || 0,
+    'Vendor': v.vendor_nama, 'PIC Vendor': v.vendor_pic || '', 'Kontak Vendor': v.vendor_kontak || '', 'Area': v.area || '', 'Departemen': v.departemen || '', 'Pengguna': v.pengguna || '',
+    'Tipe Kendaraan': v.tipe_kendaraan || '', 'Jumlah Unit': xn(v.jumlah_unit), 'Dengan Driver': v.dengan_driver || '',
+    'Tanggal Mulai': xd(v.tgl_mulai), 'Tanggal Berakhir': xd(v.tgl_akhir), 'Sisa Hari': v.st.sisa, 'Status': v.st.label,
+    'Nilai Kontrak': xn(v.nilai), 'Periode Pembayaran': v.periode_bayar || '', 'Link Dokumen': v.link_dokumen || '', 'Keterangan': v.keterangan || ''}));
+  xlsxSimpan([['Sewa Kendaraan', rows]], 'Sewa_Kendaraan');
 }
 
 // ===== Tab =====
