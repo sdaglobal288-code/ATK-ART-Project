@@ -260,14 +260,14 @@
       <div><label>Asuransi Berakhir</label><input type="date" id="k_tgl_asuransi"></div>
 
       <div class="sect">Estimasi Biaya Perpanjangan</div>
-      <div><label>Pajak Tahunan (Rp)</label><input type="number" id="k_biaya_pajak" min="0"></div>
-      <div><label>Pajak 5 Tahunan / STNK (Rp)</label><input type="number" id="k_biaya_stnk" min="0" placeholder="termasuk ganti plat"></div>
-      <div><label>KIR (Rp)</label><input type="number" id="k_biaya_kir" min="0"></div>
-      <div><label>Rekomendasi Kendaraan (Rp)</label><input type="number" id="k_biaya_rekom" min="0"></div>
+      <div><label>Pajak Tahunan (Rp)</label><input type="text" inputmode="numeric" class="rp" id="k_biaya_pajak"></div>
+      <div><label>Pajak 5 Tahunan / STNK (Rp)</label><input type="text" inputmode="numeric" class="rp" id="k_biaya_stnk" placeholder="termasuk ganti plat"></div>
+      <div><label>KIR (Rp)</label><input type="text" inputmode="numeric" class="rp" id="k_biaya_kir"></div>
+      <div><label>Rekomendasi Kendaraan (Rp)</label><input type="text" inputmode="numeric" class="rp" id="k_biaya_rekom"></div>
 
       <div class="sect">Perolehan</div>
       <div><label>Tanggal Perolehan</label><input type="date" id="k_tgl_perolehan"></div>
-      <div><label>Harga Perolehan (Rp)</label><input type="number" id="k_harga_perolehan" min="0"></div>
+      <div><label>Harga Perolehan (Rp)</label><input type="text" inputmode="numeric" class="rp" id="k_harga_perolehan"></div>
       <div class="full"><label>Link Dokumen (Google Drive dll.)</label><input id="k_link_dokumen" placeholder="https://..."></div>
       <div class="full"><label>Keterangan</label><textarea id="k_keterangan" rows="3"></textarea></div>
     </div>
@@ -294,7 +294,7 @@
       <div><label>Kontak PIC (telp/email)</label><input id="vendor_kontak"></div>
       <div><label>Tanggal Mulai *</label><input type="date" id="tgl_mulai"></div>
       <div><label>Tanggal Berakhir *</label><input type="date" id="tgl_akhir"></div>
-      <div><label>Nilai Kontrak (Rp)</label><input type="number" id="nilai" min="0"></div>
+      <div><label>Nilai Kontrak (Rp)</label><input type="text" inputmode="numeric" class="rp" id="nilai"></div>
       <div><label>Periode Pembayaran</label>
         <select id="periode_bayar"><option>Bulanan</option><option>Triwulan</option><option>Tahunan</option><option>Sekali Bayar</option></select></div>
 
@@ -367,7 +367,7 @@
       <div><label>Realisasi Tanggal Service</label><input type="date" id="s_tgl_realisasi"></div>
       <div id="s_w_odo"><label>KM Saat Servis</label><input type="number" id="s_odometer" min="0"></div>
       <div><label>Bengkel</label><input id="s_bengkel"></div>
-      <div><label>Biaya (Rp)</label><input type="number" id="s_biaya" min="0"></div>
+      <div><label>Biaya (Rp)</label><input type="text" inputmode="numeric" class="rp" id="s_biaya"></div>
       <div class="full"><label>Komponen yang Diservis (satu per baris)</label><textarea id="s_komponen" rows="4" placeholder="Tune up&#10;Ganti oli mesin&#10;Kampas rem belakang"></textarea></div>
       <div class="full"><label>Keterangan</label><textarea id="s_keterangan" rows="2"></textarea></div>
     </div>
@@ -398,13 +398,13 @@
 <div class="overlay" id="overlayR">
   <div class="modal" style="max-width:640px">
     <h2 id="rTitle">Perpanjang Dokumen</h2>
-    <div class="muted">Masa berlaku kendaraan akan diperbarui dan perpanjangan dicatat di riwayat.</div>
+    <div class="muted" id="rSub">Masa berlaku kendaraan akan diperbarui dan perpanjangan dicatat di riwayat.</div>
     <div class="form-grid">
       <div class="full"><label>Dokumen</label><select id="r_dokumen" onchange="isiPerpanjang()"><option value="Pajak">Pajak Tahunan</option><option value="STNK">Pajak 5 Tahunan / STNK</option><option value="KIR">KIR</option><option value="Rekom">Rekomendasi Kendaraan</option><option value="Asuransi">Asuransi</option></select></div>
       <div><label>Masa Berlaku Saat Ini</label><input id="r_lama" readonly></div>
       <div><label>Masa Berlaku Baru *</label><input type="date" id="r_baru"></div>
       <div id="r_no_wrap"><label id="r_no_label">Nomor</label><input id="r_nomor"></div>
-      <div><label>Biaya Realisasi (Rp)</label><input type="number" id="r_biaya" min="0"></div>
+      <div><label>Biaya Realisasi (Rp)</label><input type="text" inputmode="numeric" class="rp" id="r_biaya"></div>
       <div><label>Tanggal Proses</label><input type="date" id="r_proses"></div>
       <div class="full"><label>Link Bukti (Google Drive dll.)</label><input id="r_link" placeholder="https://..."></div>
       <div class="full"><label>Keterangan</label><textarea id="r_ket" rows="2"></textarea></div>
@@ -446,6 +446,21 @@ const FIELDS = ['no_perjanjian','no_lampiran','vendor_nama','area','departemen',
   'nilai','periode_bayar','tipe_kendaraan','jumlah_unit','no_polisi','dengan_driver','link_dokumen','keterangan'];
 let data = [], karyawan = [], editId = null, indukSrc = null, milik = [], editIdK = null;
 const $ = id => document.getElementById(id);
+// Input rupiah: tampil "3.440.000"; .value tetap mengembalikan angka murni ("3440000") sehingga kode simpan tidak berubah
+(function () {
+  const nat = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value');
+  const fmt = v => { const n = (typeof v === 'number' || /^\d+(\.\d+)?$/.test(String(v ?? ''))) ? String(Math.round(Number(v))) : String(v ?? '').replace(/\D/g, ''); return n && n !== 'NaN' ? Number(n).toLocaleString('id-ID') : ''; };
+  document.querySelectorAll('input.rp').forEach(el => {
+    Object.defineProperty(el, 'value', {get() { return nat.get.call(el).replace(/\D/g, ''); }, set(v) { nat.set.call(el, fmt(v)); }});
+    el.addEventListener('input', () => {
+      const raw = nat.get.call(el), pos = el.selectionStart, digitsBefore = raw.slice(0, pos).replace(/\D/g, '').length;
+      nat.set.call(el, fmt(raw.replace(/\D/g, '')));
+      let n = 0, i = 0; const t = nat.get.call(el);
+      while (i < t.length && n < digitsBefore) { if (/\d/.test(t[i])) n++; i++; }
+      el.setSelectionRange(i, i);
+    });
+  });
+})();
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const ic = p => `<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${p}</svg>`;
 const IC = {doc: ic('<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M8 13h8M8 17h5"/>'),
@@ -1014,7 +1029,7 @@ const pesanRiwayat = 'Tabel kendaraan_dokumen_riwayat belum dibuat. Jalankan sql
 
 function bukaPerpanjang(kid, dok) {
   if (!riwayatOk) return alert(pesanRiwayat);
-  rnKid = kid;
+  rnKid = kid; modeR(null);
   const k = milik.find(x => x.id === kid);
   if (!dok || !DOK[dok]) { const d = dokumenK(k).sort((a, b) => a.sisa - b.sisa)[0]; dok = d ? d.label : 'Pajak'; }
   $('r_dokumen').value = dok;
@@ -1032,11 +1047,45 @@ function isiPerpanjang() {
   if (c.no) { $('r_no_label').textContent = c.noLabel; $('r_nomor').value = k[c.no] || ''; }
   $('r_biaya').value = k[c.b] ?? '';              // default = estimasi biaya, ganti dengan biaya sebenarnya
 }
-function tutupR() { $('overlayR').classList.remove('show'); }
+function tutupR() { $('overlayR').classList.remove('show'); if (rEditId) { modeR(null); $('overlayH').classList.add('show'); } }
+let rEditId = null;
+function modeR(id) {
+  rEditId = id; $('r_dokumen').disabled = !!id;
+  $('rSimpan').textContent = id ? 'Simpan Perubahan' : 'Simpan Perpanjangan';
+  $('rSub').textContent = id ? 'Mengoreksi catatan riwayat ini.' : 'Masa berlaku kendaraan akan diperbarui dan perpanjangan dicatat di riwayat.';
+}
+function editR(id) {
+  const r = rwDok.find(x => x.id === id); if (!r) return;
+  const k = milik.find(x => x.id === r.kendaraan_id), c = DOK[r.dokumen];
+  rnKid = r.kendaraan_id; modeR(id);
+  $('r_dokumen').value = r.dokumen; $('rTitle').textContent = 'Edit Perpanjangan · ' + k.no_polisi;
+  $('r_lama').value = r.berlaku_lama ? tgl(r.berlaku_lama) : '-'; $('r_baru').value = r.berlaku_baru || '';
+  $('r_no_wrap').classList.toggle('hidden', !c.no);
+  if (c.no) { $('r_no_label').textContent = c.noLabel; $('r_nomor').value = r.nomor || ''; }
+  $('r_biaya').value = r.biaya ?? ''; $('r_proses').value = r.tgl_proses || ''; $('r_link').value = r.link_bukti || ''; $('r_ket').value = r.keterangan || '';
+  $('overlayH').classList.remove('show'); $('overlayR').classList.add('show');
+}
 
 async function simpanR() {
   const k = milik.find(x => x.id === rnKid), dok = $('r_dokumen').value, c = DOK[dok], baru = $('r_baru').value, lama = k[c.f] || null;
   if (!baru) return alert('Isi masa berlaku baru.');
+  if (rEditId) {
+    const r = rwDok.find(x => x.id === rEditId), nomorE = c.no ? ($('r_nomor').value.trim() || null) : null;
+    const upd = {berlaku_baru: baru, nomor: nomorE, biaya: $('r_biaya').value === '' ? null : Number($('r_biaya').value), tgl_proses: $('r_proses').value || r.tgl_proses,
+      link_bukti: $('r_link').value.trim() || null, keterangan: $('r_ket').value.trim() || null};
+    $('rSimpan').disabled = true;
+    const e1 = await supabaseClient.from('kendaraan_dokumen_riwayat').update(upd).eq('id', rEditId);
+    if (e1.error) { $('rSimpan').disabled = false; return alert('Gagal menyimpan perubahan: ' + e1.error.message); }
+    // bila ini perpanjangan terbaru untuk dokumen tsb, masa berlaku di data kendaraan ikut disesuaikan
+    const terbaru = rwDok.find(x => x.kendaraan_id === r.kendaraan_id && x.dokumen === r.dokumen);
+    if (terbaru && terbaru.id === r.id) {
+      const ku = {[c.f]: baru}; if (c.no && nomorE) ku[c.no] = nomorE;
+      const e2 = await supabaseClient.from('kendaraan_perusahaan').update(ku).eq('id', r.kendaraan_id);
+      if (e2.error) alert('Riwayat tersimpan, tetapi masa berlaku kendaraan gagal diperbarui: ' + e2.error.message); else Object.assign(k, ku);
+    }
+    $('rSimpan').disabled = false;
+    await loadRiwayat(); renderK(); tutupR(); renderH(); return;
+  }
   if (lama && baru <= lama && !confirm('Masa berlaku baru tidak lebih lama dari yang sekarang. Tetap simpan?')) return;
   const nomor = c.no ? ($('r_nomor').value.trim() || null) : null;
   const link = $('r_link').value.trim() || null;
@@ -1071,16 +1120,10 @@ function renderH() {
       <td>${esc(r.nomor || '-')}</td>
       <td class="num">${r.biaya != null ? rp(r.biaya) : '-'}</td>
       <td>${esc(r.keterangan || '')}${/^https?:\/\//.test(r.link_bukti || '') ? `<small><a href="${esc(r.link_bukti)}" target="_blank" rel="noopener" style="color:var(--teal)">Bukti</a></small>` : ''}</td>
-      <td><div class="aksi"><button class="del" onclick="hapusR('${r.id}')" title="Hapus catatan">${IC.del}</button></div></td></tr>`).join('')
+      <td><div class="aksi"><button onclick="editR('${r.id}')" title="Edit catatan">${IC.edit}</button></div></td></tr>`).join('')
     : '<tr><td colspan="7" class="empty">Belum ada riwayat perpanjangan.</td></tr>';
   const tot = rows.reduce((a, r) => a + Number(r.biaya || 0), 0);
   $('hTotal').innerHTML = `${rows.length} perpanjangan · Total biaya <b style="color:var(--text)">${rp(tot)}</b>`;
-}
-async function hapusR(id) {
-  if (!confirm('Hapus catatan riwayat ini?\n\nMasa berlaku dokumen di data kendaraan tidak ikut dikembalikan.')) return;
-  const { error } = await supabaseClient.from('kendaraan_dokumen_riwayat').delete().eq('id', id);
-  if (error) return alert('Gagal menghapus: ' + error.message);
-  await loadRiwayat(); renderH();
 }
 
 // ===== Export Excel =====
