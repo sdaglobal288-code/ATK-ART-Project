@@ -336,7 +336,7 @@
       <div id="sv_w_km"><label>Interval KM Servis</label><input type="number" id="sv_interval_km" min="0"></div>
       <div><label>Interval Bulan Servis</label><input type="number" id="sv_interval_bulan" min="1"></div>
       <div><label>Servis Terakhir (titik awal)</label><input type="date" id="sv_awal_tgl"></div>
-      <div id="sv_w_odo"><label>Odometer Saat Itu</label><input type="number" id="sv_awal_km" min="0"></div>
+      <div id="sv_w_odo"><label>KM Saat Itu</label><input type="number" id="sv_awal_km" min="0"></div>
       <button class="btn secondary" onclick="simpanPengaturanS()">Simpan</button>
     </div>
     <div class="muted" id="sv_note" style="margin-top:8px"></div>
@@ -349,7 +349,7 @@
     </div>
     <div class="sv-stats" id="sStats"></div>
     <div class="sv-tbl"><table>
-      <thead><tr><th>No</th><th>Target Tanggal</th><th class="kmcol">Target KM</th><th>Realisasi</th><th class="kmcol">Odometer</th><th>Jenis Service</th><th>Komponen yang Diservis</th><th>Biaya</th><th>Status</th><th>Aksi</th></tr></thead>
+      <thead><tr><th>No</th><th>Target Tanggal</th><th class="kmcol">Target KM</th><th>Realisasi</th><th class="kmcol">KM Realisasi</th><th>Jenis Service</th><th>Komponen yang Diservis</th><th>Biaya</th><th>Status</th><th>Aksi</th></tr></thead>
       <tbody id="sBody"></tbody>
     </table></div>
     <div class="modal-foot"><button class="btn secondary" onclick="cetakServis()">🖨 Cetak / PDF</button><button class="btn secondary" onclick="tutupS()">Tutup</button></div>
@@ -365,7 +365,7 @@
       <div><label>Target Tanggal</label><input type="date" id="s_target_tgl"></div>
       <div id="s_w_tkm"><label>Target KM</label><input type="number" id="s_target_km" min="0"></div>
       <div><label>Realisasi Tanggal Service</label><input type="date" id="s_tgl_realisasi"></div>
-      <div id="s_w_odo"><label>Odometer Saat Servis</label><input type="number" id="s_odometer" min="0"></div>
+      <div id="s_w_odo"><label>KM Saat Servis</label><input type="number" id="s_odometer" min="0"></div>
       <div><label>Bengkel</label><input id="s_bengkel"></div>
       <div><label>Biaya (Rp)</label><input type="number" id="s_biaya" min="0"></div>
       <div class="full"><label>Komponen yang Diservis (satu per baris)</label><textarea id="s_komponen" rows="4" placeholder="Tune up&#10;Ganti oli mesin&#10;Kampas rem belakang"></textarea></div>
@@ -790,7 +790,7 @@ function bukaServis(kid, year) {
 function aturDasar() {
   const b = $('sv_dasar').value === 'Bulan';
   $('sv_w_km').classList.toggle('hidden', b); $('sv_w_odo').classList.toggle('hidden', b);
-  $('sv_note').textContent = b ? 'Jadwal dihitung dari bulan saja. KM / odometer tidak dipakai (cocok untuk kendaraan dengan speedometer rusak).' : '';
+  $('sv_note').textContent = b ? 'Jadwal dihitung dari bulan saja. KM tidak dipakai (cocok untuk kendaraan dengan speedometer rusak).' : '';
   if (svKid) renderS();
 }
 function tutupS() { $('overlayS').classList.remove('show'); }
@@ -844,7 +844,7 @@ async function buatJadwal() {
     if (d && (!aTgl || d > aTgl)) { aTgl = d; aKm = s.tgl_realisasi ? (s.odometer ?? s.target_km) : s.target_km; }
   });
   if (!aTgl) { aTgl = k.servis_awal_tgl; aKm = k.servis_awal_km; }
-  if (!aTgl) return alert('Isi dan simpan "Servis Terakhir" (tanggal & odometer) di pengaturan, atau catat servis sebelumnya.');
+  if (!aTgl) return alert('Isi dan simpan "Servis Terakhir" (tanggal & KM) di pengaturan, atau catat servis sebelumnya.');
   const rows = [];
   for (let i = 1; i <= 240; i++) {
     const d = addBulan(aTgl, m * i), y = +d.slice(0, 4);
@@ -859,7 +859,7 @@ async function buatJadwal() {
   await loadServis(); renderS(); renderK();
 }
 
-// Setelah servis rutin direalisasi, jadwal berikutnya yang belum dikerjakan dihitung ulang dari tanggal & odometer realisasi
+// Setelah servis rutin direalisasi, jadwal berikutnya yang belum dikerjakan dihitung ulang dari tanggal & KM realisasi
 async function reanchor(kid) {
   const k = milik.find(x => x.id === kid), m = Number(k.interval_bulan) || 0, km = byBulan(k) ? 0 : Number(k.interval_km) || 0;
   if (!m) return;
@@ -964,8 +964,8 @@ function cetakServis() {
   cetakHTML(cetakHead(`Jadwal Servis Kendaraan Tahun ${svYear}`, `<div>Modul Kendaraan · Kendaraan Milik Perusahaan</div>`) +
     `<table class="meta"><tr><td>No. Polisi</td><td><b>${esc(k.no_polisi)}</b></td><td>${bulan ? 'Dasar Jadwal' : 'Interval KM Servis'}</td><td>${bulan ? 'Berdasarkan bulan' : num(k.interval_km) + ' km'}</td></tr>
      <tr><td>Kendaraan</td><td>${esc([k.merk_tipe, k.jenis, k.tahun].filter(Boolean).join(' · '))}</td><td>Interval Bulan Servis</td><td>${k.interval_bulan ?? '-'} bulan</td></tr>
-     <tr><td>Pengguna</td><td>${esc([k.pengguna, k.departemen, k.area].filter(Boolean).join(' · ') || '-')}</td><td>${bulan ? '' : 'Odometer Terakhir'}</td><td>${bulan ? '' : num(k.km_terakhir) + ' km'}</td></tr></table>` +
-    `<table><thead><tr><th>No</th><th>Target Tanggal</th>${bulan ? '' : '<th>Target KM</th>'}<th>Realisasi Tanggal</th>${bulan ? '' : '<th>Odometer</th>'}<th>Jenis Service</th><th>Komponen yang Diservis</th><th>Biaya</th><th>Status</th></tr></thead><tbody>${body}</tbody>` +
+     <tr><td>Pengguna</td><td>${esc([k.pengguna, k.departemen, k.area].filter(Boolean).join(' · ') || '-')}</td><td>${bulan ? '' : 'KM Terakhir'}</td><td>${bulan ? '' : num(k.km_terakhir) + ' km'}</td></tr></table>` +
+    `<table><thead><tr><th>No</th><th>Target Tanggal</th>${bulan ? '' : '<th>Target KM</th>'}<th>Realisasi Tanggal</th>${bulan ? '' : '<th>KM Realisasi</th>'}<th>Jenis Service</th><th>Komponen yang Diservis</th><th>Biaya</th><th>Status</th></tr></thead><tbody>${body}</tbody>` +
     `<tfoot><tr><td colspan="${bulan ? 5 : 7}" class="r"><b>Total Biaya ${svYear}</b></td><td class="r"><b>${rp(biaya)}</b></td><td></td></tr></tfoot></table>` + cetakFoot(),
     `Jadwal Servis ${k.no_polisi} ${svYear}`);
 }
@@ -1109,7 +1109,7 @@ function exportKendaraan() {
     'Link Dokumen': k.link_dokumen || '', 'Keterangan': k.keterangan || ''}; });
   const sv = servis.filter(s => byId[s.kendaraan_id]).sort((a, b) => plat(a.kendaraan_id).localeCompare(plat(b.kendaraan_id)) || svTglKey(a).localeCompare(svTglKey(b)))
     .map(s => ({'No. Polisi': plat(s.kendaraan_id), 'Kendaraan': byId[s.kendaraan_id].merk_tipe, 'Tahun Jadwal': svTahun(s), 'Jenis Service': s.jenis || '',
-      'Target Tanggal': xd(s.target_tgl), 'Target KM': xn(s.target_km), 'Realisasi Tanggal': xd(s.tgl_realisasi), 'Odometer': xn(s.odometer),
+      'Target Tanggal': xd(s.target_tgl), 'Target KM': xn(s.target_km), 'Realisasi Tanggal': xd(s.tgl_realisasi), 'KM Realisasi': xn(s.odometer),
       'Komponen yang Diservis': (s.komponen || '').split('\n').map(x => x.trim()).filter(Boolean).join('; '), 'Bengkel': s.bengkel || '', 'Biaya': xn(s.biaya),
       'Status': svStatus(s).label, 'Keterangan': s.keterangan || ''}));
   const rw = rwDok.filter(r => byId[r.kendaraan_id]).sort((a, b) => plat(a.kendaraan_id).localeCompare(plat(b.kendaraan_id)) || (b.tgl_proses || '').localeCompare(a.tgl_proses || ''))
