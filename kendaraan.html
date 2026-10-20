@@ -460,6 +460,17 @@ const plat = (t, c = '') => {
 const rp = n => 'Rp ' + Number(n || 0).toLocaleString('id-ID');
 const tgl = d => d ? new Date(d + 'T00:00:00').toLocaleDateString('id-ID', {day:'numeric', month:'short', year:'numeric'}) : '-';
 
+// Selisih hari -> "1 tahun 2 bulan 5 hari" (selisih kalender dari hari ini)
+function durTxt(days) {
+  const t0 = new Date(); t0.setHours(0,0,0,0);
+  const t1 = new Date(t0); t1.setDate(t1.getDate() + days);
+  const a = days < 0 ? t1 : t0, b = days < 0 ? t0 : t1;
+  let y = b.getFullYear() - a.getFullYear(), m = b.getMonth() - a.getMonth(), d = b.getDate() - a.getDate();
+  if (d < 0) { m--; d += new Date(b.getFullYear(), b.getMonth(), 0).getDate(); }
+  if (m < 0) { y--; m += 12; }
+  return [y && y + ' tahun', m && m + ' bulan', d && d + ' hari'].filter(Boolean).join(' ') || '0 hari';
+}
+
 function statusOf(v) {
   const sisa = Math.ceil((new Date(v.tgl_akhir + 'T00:00:00') - new Date().setHours(0,0,0,0)) / 86400000);
   if (sisa < 0) return {label:'Berakhir', cls:'b-berakhir', sisa};
@@ -485,7 +496,7 @@ function cekPengingat() {
   $('warnSub').textContent = `Masa berlaku kurang dari ${BATAS_POPUP} hari atau sudah lewat. Segera proses perpanjangan.`;
   $('warnList').innerHTML = items.map(x => `<div class="warn-item ${x.sisa < 0 ? 'lewat' : ''}">
     <div class="inf"><b>${esc(x.judul)}</b> · ${esc(x.sub)}<small>${({sewa: 'Sewa Kendaraan', milik: 'Milik Perusahaan', servis: 'Servis Berkala'})[x.tipe]} · ${esc(x.info)}</small></div>
-    <div class="sisa">${x.sisa < 0 ? `lewat ${-x.sisa} hari` : x.sisa === 0 ? 'hari ini' : `${x.sisa} hari lagi`}</div>
+    <div class="sisa">${x.sisa < 0 ? `lewat ${durTxt(x.sisa)}` : x.sisa === 0 ? 'hari ini' : `${durTxt(x.sisa)} lagi`}</div>
     <button onclick="${x.tipe === 'sewa' ? `tutupWarn(); gantiTab('sewa'); perpanjang('${x.id}')` : x.tipe === 'servis' ? `tutupWarn(); gantiTab('milik'); bukaServis('${x.id}')` : `tutupWarn(); gantiTab('milik'); bukaPerpanjang('${x.id}', '${x.dok}')`}">${x.tipe === 'sewa' ? 'Perpanjang' : x.tipe === 'servis' ? 'Jadwal' : 'Perpanjang'}</button></div>`).join('');
   $('overlayWarn').classList.add('show');
 }
@@ -549,9 +560,9 @@ function render() {
 
   $('body').innerHTML = rows.map(v => {
     const detail = `${esc(v.jumlah_unit ?? '-')} unit ${esc(v.tipe_kendaraan || '')}<small>${v.dengan_driver ? 'Driver: ' + esc(v.dengan_driver) : ''}</small>`;
-    const sisaTxt = v.st.sisa < 0 ? `lewat ${-v.st.sisa} hari` : `${v.st.sisa} hari lagi`;
+    const sisaTxt = v.st.sisa < 0 ? `lewat ${durTxt(v.st.sisa)}` : v.st.sisa === 0 ? 'hari ini' : `${durTxt(v.st.sisa)} lagi`;
     const link = /^https?:\/\//.test(v.link_dokumen || '') ? `<a href="${esc(v.link_dokumen)}" target="_blank" rel="noopener" title="Buka dokumen">${IC.doc}</a>` : '';
-    const tot = new Date(v.tgl_akhir) - new Date(v.tgl_mulai), pct = tot > 0 ? Math.max(0, Math.min(100, (Date.now() - new Date(v.tgl_mulai)) / tot * 100)) : 100;
+    const pct = Math.max(0, Math.min(100, v.st.sisa / 90 * 100)); // isi bar = sisa masa berlaku, skala tetap 90 hari (sama untuk semua kontrak)
     return `<tr class="r-${v.st.cls}">
       <td>${plat(v.no_polisi)}</td>
       <td><b>${esc(v.no_perjanjian)}</b>${v.no_lampiran ? `<small>Lampiran: ${esc(v.no_lampiran)}</small>` : ''}${v.perpanjangan_ke > 0 ? `<br><span class="badge b-ke">Perpanjangan ke-${v.perpanjangan_ke}</span>` : ''}</td>
@@ -639,7 +650,7 @@ const FIELDS_K = ['no_polisi','jenis','merk_tipe','tahun','warna','status','no_r
   'tgl_pajak','tgl_stnk','no_kir','tgl_kir','no_rekom','tgl_rekom','biaya_pajak','biaya_stnk','biaya_kir','biaya_rekom','asuransi_nama','no_polis','tgl_asuransi','tgl_perolehan','harga_perolehan','link_dokumen','keterangan'];
 const sisaHari = d => d ? Math.ceil((new Date(d + 'T00:00:00') - new Date().setHours(0, 0, 0, 0)) / 86400000) : null;
 const clsSisa = s => s < 0 ? 'b-berakhir' : s <= 60 ? 'b-segera' : 'b-aktif';
-const sisaTxt = s => s < 0 ? `lewat ${-s} hari` : s === 0 ? 'hari ini' : `${s} hari lagi`;
+const sisaTxt = s => s < 0 ? `lewat ${durTxt(s)}` : s === 0 ? 'hari ini' : `${durTxt(s)} lagi`;
 function dokumenK(k) {
   return [['Pajak', k.tgl_pajak, k.biaya_pajak], ['STNK', k.tgl_stnk, k.biaya_stnk], ['KIR', k.tgl_kir, k.biaya_kir], ['Rekom', k.tgl_rekom, k.biaya_rekom], ['Asuransi', k.tgl_asuransi, null]].filter(x => x[1]).map(x => ({label: x[0], tgl: x[1], sisa: sisaHari(x[1]), biaya: x[2] == null || x[2] === '' ? null : Number(x[2])}));
 }
