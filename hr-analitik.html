@@ -47,6 +47,10 @@
   .map{ display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-top:12px; } @media(max-width:1000px){ .map{ grid-template-columns:repeat(2,1fr);} } .map label{ font-size:11.5px; color:var(--muted); font-weight:600; display:flex; flex-direction:column; gap:4px; } .map select,.map input{ width:100%; }
   .row{ display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin-top:12px; } .tog{ display:flex; gap:6px; align-items:center; font-size:12.5px; color:var(--muted); } .tog input{ width:auto; }
   .toast{ position:fixed; right:24px; bottom:24px; background:var(--panel); border:1px solid var(--ac); border-radius:10px; padding:12px 16px; max-width:380px; z-index:99; box-shadow:0 12px 40px rgba(0,0,0,.5); } .toast.e{ border-color:var(--pink); }
+  .ins li.klik{ cursor:pointer; display:flex; justify-content:space-between; gap:12px; align-items:center; } .ins li.klik:hover{ background:rgba(95,211,166,.1); } .rinci{ color:var(--ac); font-size:11.5px; white-space:nowrap; opacity:.8; }
+  .md{ position:fixed; inset:0; background:rgba(0,0,0,.6); z-index:90; display:flex; align-items:center; justify-content:center; padding:20px; } .md.hid{ display:none; } .md .in{ background:var(--panel); border:1px solid var(--line); border-radius:14px; width:min(980px,100%); max-height:88vh; display:flex; flex-direction:column; box-shadow:0 20px 60px rgba(0,0,0,.6); }
+  .md .hd{ display:flex; justify-content:space-between; gap:14px; align-items:flex-start; padding:16px 20px; border-bottom:1px solid var(--line); font-size:14px; } .md .bd{ padding:14px 20px 20px; overflow:auto; } .md h4{ margin:14px 0 8px; font-size:13px; } .md h4:first-child{ margin-top:0; } .md .x{ background:transparent; border:1px solid var(--line); color:var(--text); border-radius:8px; cursor:pointer; padding:4px 10px; font-size:14px; }
+  .live{ font-size:11.5px; font-weight:700; } .live.on{ color:var(--ac); } .live.off{ color:var(--orange); }
 </style>
 </head>
 <body>
@@ -64,7 +68,7 @@
     <label>Departemen<select id="fDep" onchange="render()"><option value="">Semua</option></select></label>
     <label>Area<select id="fArea" onchange="render()"><option value="">Semua</option></select></label>
     <label class="tog" style="align-self:flex-end;padding-bottom:9px"><input type="checkbox" id="fNon" onchange="isiFilter();render()">Termasuk non aktif</label><button class="btn sm" style="align-self:flex-end" onclick="muat()">Terapkan</button>
-    <span class="muted" id="info" style="margin-left:auto;align-self:flex-end"></span>
+    <span class="muted" id="info" style="margin-left:auto;align-self:flex-end"></span><span class="live off" id="live" style="align-self:flex-end" title="Data diperbarui otomatis"></span>
   </div>
 
   <div id="warnDb" class="warn hid"></div>
@@ -137,6 +141,7 @@
   </div>
 </div>
 
+<div id="md" class="md hid" onclick="if(event.target===this)tutupDetail()"><div class="in"><div class="hd"><div id="mdTitle"></div><button class="x" onclick="tutupDetail()">✕</button></div><div class="bd" id="mdBody"></div></div></div>
 <script>
 const user = JSON.parse(sessionStorage.getItem('user') || 'null');
 if (!user) location.href = 'login.html';
@@ -161,8 +166,8 @@ function preset() {
   else if (p === '3bln') { a = new Date(y, m - 2, 1); b = new Date(y, m + 1, 0); } else { a = new Date(y, 0, 1); b = new Date(y, 11, 31); }
   $('fDari').value = iso(a); $('fSampai').value = iso(b);
 }
-async function muat() {
-  $('info').textContent = 'Memuat...';
+async function muat(diam) {
+  if (!diam) $('info').textContent = 'Memuat...';
   try {
     if (!kar.length) {
       kar = await fetchAll(() => supabaseClient.from('master_karyawan').select('nik, nama, departemen, area, jabatan, status, tanggal_masuk').order('nik'));
@@ -171,10 +176,30 @@ async function muat() {
     abs = await fetchAll(() => supabaseClient.from('hr_absensi').select('*').gte('tanggal', $('fDari').value).lte('tanggal', $('fSampai').value).order('tanggal').order('nik'));
     isiFilter(); $('warnDb').classList.add('hid');
   } catch (e) {
-    console.error(e); abs = [];
+    console.error(e); if (diam) return;   // refresh otomatis gagal: pertahankan data yang sudah tampil
+    abs = [];
     $('warnDb').textContent = 'Data absensi tidak dapat dimuat: ' + e.message + '. Jalankan sql/hr_analitik_schema.sql di Supabase terlebih dulu.'; $('warnDb').classList.remove('hid');
   }
-  $('info').textContent = ''; render(); muatRiwayat();
+  $('info').textContent = '';
+  const ae = document.activeElement, sibuk = diam && ae && /^(INPUT|SELECT|TEXTAREA)$/.test(ae.tagName) && ae.closest('#p-best, #p-imp, #p-kat');   // jangan ganggu yang sedang mengetik / memilih
+  if (!sibuk) render(); muatRiwayat(); stempel();
+}
+
+// ---------- Realtime: data otomatis diperbarui ----------
+let rtTimer = null, rtOn = false, rtTerakhir = null;
+const jam = () => new Date().toLocaleTimeString('id-ID', {hour:'2-digit', minute:'2-digit', second:'2-digit'});
+function stempel() { rtTerakhir = jam(); tampilLive(); }
+function tampilLive() { const e = $('live'); e.className = 'live ' + (rtOn ? 'on' : 'off'); e.textContent = (rtOn ? '● Live' : '● Auto-refresh 60 dtk') + (rtTerakhir ? ` · ${rtTerakhir}` : ''); }
+function jadwalRefresh(muatKar) { if (muatKar) kar = []; clearTimeout(rtTimer); rtTimer = setTimeout(() => muat(true), 1200); }   // digabung agar import ribuan baris tidak memicu ribuan refresh
+function mulaiRealtime() {
+  try {
+    supabaseClient.channel('hr-analitik-rt')
+      .on('postgres_changes', {event:'*', schema:'public', table:'hr_absensi'}, () => jadwalRefresh())
+      .on('postgres_changes', {event:'*', schema:'public', table:'master_karyawan'}, () => jadwalRefresh(true))
+      .subscribe(st => { rtOn = st === 'SUBSCRIBED'; tampilLive(); });
+  } catch (e) { console.error(e); }
+  setInterval(() => { if (!rtOn && !document.hidden) muat(true); }, 60000);          // cadangan bila realtime belum diaktifkan di Supabase
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) muat(true); });   // kembali ke tab ini -> langsung segarkan
 }
 
 // ---------- Hitung ----------
@@ -222,17 +247,36 @@ function renderRing() {
   // Dept
   const gd = agg(rows, r => infoKar(r).departemen || '-'), ds = Object.keys(gd).sort((a, b) => hitung(gd[b]).tPct - hitung(gd[a]).tPct).slice(0, 12);
   chart('cDep', {type:'bar', data:{labels:ds, datasets:[{label:'Kehadiran %', backgroundColor:'#4dd0c4', data:ds.map(d => +hitung(gd[d]).hPct.toFixed(1))}, {label:'Keterlambatan %', backgroundColor:'#f0913f', data:ds.map(d => +hitung(gd[d]).tPct.toFixed(1))}]}, options:{scales:{y:{max:100}}}});
-  // Temuan
-  const out = [], pk = Object.entries(agg(rows, r => r.nik)).map(([nik, l]) => ({nik, ...hitung(l)}));
+  // Temuan (tiap temuan bisa diklik untuk melihat rincian)
+  const out = [], pk = Object.entries(agg(rows, r => r.nik)).map(([nik, l]) => ({nik, rs:l, ...hitung(l)}));
   const dv = ds.filter(d => hitung(gd[d]).kerja >= 20), top = dv.length > 1 && hitung(gd[dv[0]]);
-  if (top && top.tPct > 0) out.push([`Keterlambatan tertinggi di <b>${esc(dv[0])}</b>: ${f1(top.tPct)}% (rata-rata ${Math.round(top.avgT)} menit).`]);
-  const dh = hs.slice().sort((a, b) => sh(b).aPct - sh(a).aPct)[0]; if (dh !== undefined && hs.length > 1) out.push([`Ketidakhadiran paling tinggi terjadi pada hari <b>${HARI[dh]}</b> (${f1(sh(dh).aPct)}%).`]);
-  const na = pk.filter(p => p.c.Alpha >= BATAS_ALPHA).length, nt = pk.filter(p => p.c.Terlambat >= BATAS_TELAT).length;
-  if (na) out.push([`<b>${na}</b> karyawan Alpha ≥ ${BATAS_ALPHA} hari.`, 1]); if (nt) out.push([`<b>${nt}</b> karyawan terlambat ≥ ${BATAS_TELAT} kali.`, 1]);
-  const nb = s.ct.b + s.jkk.b; if (nb) out.push([`<b>${nb}</b> data cuti / jam kurang belum dikategorikan (Cuti ${s.ct.b}, T1/T2 ${s.jkk.b}). <a href="#" style="color:var(--ac)" onclick="gantiTab('kat');return false">Kategorikan sekarang</a>`, 1]);
-  const ctt = s.ct.t + s.ct.k; if (s.c.Cuti) out.push([`Cuti: <b>${s.c.Cuti}</b> hari (Tahunan ${s.ct.t}, Khusus ${s.ct.k}, belum dikategorikan ${s.ct.b}). Jam kurang: Terlambat ${s.jkk.t}, Pulang cepat ${s.jkk.p}.`]);
-  const tdk = aktif.filter(k => !ada.has(String(k.nik).toUpperCase())).length; if (tdk) out.push([`<b>${tdk}</b> karyawan aktif tidak punya data absensi pada periode ini (cek apakah belum diimport atau NIK berbeda).`, 1]);
-  $('ins').innerHTML = out.map(([t, w]) => `<li class="${w ? 'w' : ''}">${t}</li>`).join('') || '<li>Tidak ada temuan khusus.</li>';
+  const nm = r => infoKar(r).nama || r.nama || '-', tg = l => l.map(r => tglID(r.tanggal).slice(0, 5)).join(', ');
+  const grupKar = (rs, kar_) => Object.entries(agg(rs, r => r.nik)).map(([nik, l]) => ({nik, l, nama:nm(l[0]), dep:infoKar(l[0]).departemen})).sort((a, b) => b.l.length - a.l.length || a.nama.localeCompare(b.nama));
+  const tabelKar = (rs, ket) => tbl(['Karyawan', 'Departemen', 'Jumlah', 'Tanggal', ...(ket ? [ket[0]] : [])], grupKar(rs).map(x => [`<b>${esc(x.nama)}</b><small>${esc(x.nik)}</small>`, esc(x.dep), x.l.length, esc(tg(x.l.slice().sort((p, q) => p.tanggal.localeCompare(q.tanggal)))), ...(ket ? [esc(ket[1](x.l))] : [])]));
+  if (top && top.tPct > 0) out.push([`Keterlambatan tertinggi di <b>${esc(dv[0])}</b>: ${f1(top.tPct)}%${top.avgT > 0 ? ` (rata-rata ${Math.round(top.avgT)} menit)` : ''}.`, 0, () =>
+    `<h4>Keterlambatan per departemen</h4>` + tbl(['Departemen', 'Hari kerja', 'Terlambat (kali)', '% Terlambat', 'Rata-rata menit'], Object.keys(gd).map(d => ({d, s:hitung(gd[d])})).sort((x, y) => y.s.tPct - x.s.tPct).map(({d, s}) => [esc(d), s.kerja, s.c.Terlambat, f1(s.tPct) + '%', s.avgT > 0 ? Math.round(s.avgT) : '-']))
+    + `<h4>Karyawan terlambat di ${esc(dv[0])}</h4>` + (tabelKar(gd[dv[0]].filter(r => r.status === 'Terlambat')) )]);
+  const dh = hs.slice().sort((a, b) => sh(b).aPct - sh(a).aPct)[0];
+  if (dh !== undefined && hs.length > 1) out.push([`Ketidakhadiran paling tinggi terjadi pada hari <b>${HARI[dh]}</b> (${f1(sh(dh).aPct)}%).`, 0, () =>
+    `<h4>Pola per hari</h4>` + tbl(['Hari', 'Hari kerja tercatat', 'Sakit', 'Izin', 'Alpha', 'Ketidakhadiran', 'Terlambat'], hs.map(h => { const x = sh(h); return [h === dh ? `<b>${HARI[h]}</b>` : HARI[h], x.kerja, x.c.Sakit, x.c.Izin, x.c.Alpha, f1(x.aPct) + '%', f1(x.tPct) + '%']; }))
+    + `<h4>Daftar ketidakhadiran hari ${HARI[dh]}</h4>` + tbl(['Tanggal', 'Karyawan', 'Departemen', 'Status'], gh[dh].filter(r => ['Sakit', 'Izin', 'Alpha'].includes(r.status)).sort((x, y) => x.tanggal.localeCompare(y.tanggal)).map(r => [tglID(r.tanggal), `<b>${esc(nm(r))}</b><small>${esc(r.nik)}</small>`, esc(infoKar(r).departemen), esc(r.status)]))]);
+  const pa = pk.filter(p => p.c.Alpha >= BATAS_ALPHA), pt = pk.filter(p => p.c.Terlambat >= BATAS_TELAT);
+  const rinciKar = (L, st) => tbl(['Karyawan', 'Departemen', 'Jumlah', 'Tanggal'], L.sort((x, y) => y.c[st] - x.c[st]).map(p => [`<b>${esc(nm(p.rs[0]))}</b><small>${esc(p.nik)}</small>`, esc(infoKar(p.rs[0]).departemen), p.c[st], esc(tg(p.rs.filter(r => r.status === st).sort((x, y) => x.tanggal.localeCompare(y.tanggal))))]));
+  if (pa.length) out.push([`<b>${pa.length}</b> karyawan Alpha ≥ ${BATAS_ALPHA} hari.`, 1, () => rinciKar(pa, 'Alpha')]);
+  if (pt.length) out.push([`<b>${pt.length}</b> karyawan terlambat ≥ ${BATAS_TELAT} kali.`, 1, () => rinciKar(pt, 'Terlambat')]);
+  const nb = s.ct.b + s.jkk.b, blm = rows.filter(r => jenisKat(r) && !katNilai(r));
+  if (nb) out.push([`<b>${nb}</b> data cuti / jam kurang belum dikategorikan (Cuti ${s.ct.b}, T1/T2 ${s.jkk.b}). <a href="#" style="color:var(--ac)" onclick="event.stopPropagation();gantiTab('kat');return false">Kategorikan sekarang</a>`, 1, () =>
+    tbl(['Tanggal', 'Karyawan', 'Departemen', 'Kode'], blm.sort((x, y) => nm(x).localeCompare(nm(y)) || x.tanggal.localeCompare(y.tanggal)).map(r => [tglID(r.tanggal), `<b>${esc(nm(r))}</b><small>${esc(r.nik)}</small>`, esc(infoKar(r).departemen), esc(r.kode || r.status)]))
+    + `<div class="row"><button class="btn sm" onclick="tutupDetail();gantiTab('kat')">Buka tab Kategorisasi</button></div>`]);
+  if (s.c.Cuti) out.push([`Cuti: <b>${s.c.Cuti}</b> hari (Tahunan ${s.ct.t}, Khusus ${s.ct.k}, belum dikategorikan ${s.ct.b}). Jam kurang: Terlambat ${s.jkk.t}, Pulang cepat ${s.jkk.p}.`, 0, () => {
+    const cu = rows.filter(r => r.status === 'Cuti'), jk = rows.filter(r => jenisKat(r) === 'jk');
+    return `<h4>Cuti (${cu.length} hari)</h4>` + tabelKar(cu, ['Kategori', l => [...new Set(l.map(r => katNilai(r) || 'Belum dikategorikan'))].join(', ')])
+      + (jk.length ? `<h4>Jam kurang T1/T2 (${jk.length} hari)</h4>` + tabelKar(jk, ['Kategori', l => [...new Set(l.map(r => katNilai(r) || 'Belum dikategorikan'))].join(', ')]) : ''); }]);
+  const tdkL = aktif.filter(k => !ada.has(String(k.nik).toUpperCase()));
+  if (tdkL.length) out.push([`<b>${tdkL.length}</b> karyawan aktif tidak punya data absensi pada periode ini (cek apakah belum diimport atau NIK berbeda).`, 1, () =>
+    tbl(['Karyawan', 'NIK', 'Departemen', 'Area', 'Tanggal masuk'], tdkL.sort((x, y) => String(x.nama).localeCompare(String(y.nama))).map(k => [`<b>${esc(k.nama)}</b>`, esc(k.nik), esc(k.departemen || '-'), esc(k.area || '-'), k.tanggal_masuk ? tglID(String(k.tanggal_masuk).slice(0, 10)) : '-']))]);
+  insDet = out.map(o => o[2]);
+  $('ins').innerHTML = out.map(([t, w], i) => `<li class="${w ? 'w' : ''} klik" onclick="bukaIns(${i})" title="Klik untuk melihat rincian">${t}<span class="rinci">Lihat rincian ›</span></li>`).join('') || '<li>Tidak ada temuan khusus.</li>';
 }
 function renderKar() {
   if (tab !== 'kar') return; $('tA').textContent = BATAS_ALPHA; $('tT').textContent = BATAS_TELAT;
@@ -252,6 +296,13 @@ function gantiTab(t) {
   ['ring', 'kar', 'kat', 'best', 'imp'].forEach(x => $('p-' + x).classList.toggle('hid', x !== t)); render();
 }
 document.querySelector('.tabs').addEventListener('click', e => { const b = e.target.closest('.tab'); if (b) gantiTab(b.dataset.t); });
+
+// ---------- Rincian temuan (modal) ----------
+let insDet = [];
+const tbl = (h, rows) => rows.length ? `<div class="tw" style="margin-bottom:8px"><table style="min-width:520px"><thead><tr>${h.map(x => `<th>${x}</th>`).join('')}</tr></thead><tbody>${rows.map(r => `<tr>${r.map(c => `<td class="n">${c}</td>`).join('')}</tr>`).join('')}</tbody></table></div>` : '<div class="muted" style="margin-bottom:8px">Tidak ada data.</div>';
+function bukaIns(i) { const f = insDet[i]; if (!f) return; $('mdBody').innerHTML = f(); $('mdTitle').innerHTML = $('ins').children[i].firstChild.parentElement.innerHTML.replace(/<span class="rinci">.*<\/span>/, '').replace(/<a [^>]*>.*?<\/a>/, ''); $('md').classList.remove('hid'); $('mdBody').scrollTop = 0; }
+function tutupDetail() { $('md').classList.add('hid'); }
+document.addEventListener('keydown', e => { if (e.key === 'Escape') tutupDetail(); });
 
 // ---------- Export absensi per departemen ----------
 // Mengikuti filter di atas (periode, departemen, area, non aktif). Departemen = "Semua" -> sheet "Semua" + satu sheet per departemen.
@@ -475,7 +526,7 @@ async function batalImport(id) {
   { const n = new Date(), a = n.getDate() > 20 ? new Date(n.getFullYear(), n.getMonth(), 21) : new Date(n.getFullYear(), n.getMonth() - 1, 21), b = new Date(a.getFullYear(), a.getMonth() + 1, 20); $('tDari').value = iso(a); $('tSampai').value = iso(b); }   // cut-off gaji 21 - 20
   try { const { data } = await supabaseClient.from('hr_absensi').select('tanggal').order('tanggal', {ascending:false}).limit(1);   // langsung ke bulan data terakhir
     if (data?.length) { const t = data[0].tanggal; $('fPreset').value = 'x'; $('fDari').value = t.slice(0, 7) + '-01'; $('fSampai').value = iso(new Date(+t.slice(0, 4), +t.slice(5, 7), 0)); } } catch (e) {}
-  muat();
+  muat(); mulaiRealtime();
 })();
 </script>
 </body>
