@@ -84,7 +84,7 @@
 
   <!-- PER KARYAWAN -->
   <div id="p-kar" class="hid">
-    <div class="row" style="margin:0 0 12px"><input id="q" placeholder="Cari nama / NIK..." style="flex:1;min-width:220px" oninput="renderKar()"><span class="muted" id="cKar"></span></div>
+    <div class="row" style="margin:0 0 12px"><input id="q" placeholder="Cari nama / NIK..." style="flex:1;min-width:220px" oninput="renderKar()"><span class="muted" id="cKar"></span><button class="btn sec sm" onclick="exportDept('rekap')" title="Rekap per karyawan, satu sheet per departemen">⬇ Export Rekap</button><button class="btn sec sm" onclick="exportDept('harian')" title="Absensi harian (tanggal menyamping), satu sheet per departemen">⬇ Export Harian</button></div>
     <div class="tw"><table><thead id="hKar"></thead><tbody id="bKar"></tbody></table></div>
     <div class="muted" style="margin-top:8px">Perlu perhatian: Alpha ≥ <b id="tA"></b> hari atau Terlambat ≥ <b id="tT"></b> kali pada periode terpilih.</div>
   </div>
@@ -252,6 +252,39 @@ function gantiTab(t) {
   ['ring', 'kar', 'kat', 'best', 'imp'].forEach(x => $('p-' + x).classList.toggle('hid', x !== t)); render();
 }
 document.querySelector('.tabs').addEventListener('click', e => { const b = e.target.closest('.tab'); if (b) gantiTab(b.dataset.t); });
+
+// ---------- Export absensi per departemen ----------
+// Mengikuti filter di atas (periode, departemen, area, non aktif). Departemen = "Semua" -> sheet "Semua" + satu sheet per departemen.
+const KODE_BALIK = {Hadir:'V', Terlambat:'T', Sakit:'S', Izin:'I', Cuti:'C', Alpha:'A', Dinas:'D', Libur:'0'};
+function namaSheet(n, dipakai) { let b = String(n || '-').replace(/[\[\]:*?\/\\]/g, '-').slice(0, 28) || '-', x = b, i = 2; while (dipakai.has(x.toLowerCase())) x = b.slice(0, 26) + ' ' + i++; dipakai.add(x.toLowerCase()); return x; }
+function exportDept(mode) {
+  const rows = saring(); if (!rows.length) return toast('Tidak ada data absensi untuk diexport pada filter ini.', 1);
+  const dari = $('fDari').value, sampai = $('fSampai').value, dpt = $('fDep').value, dipakai = new Set();
+  const byDep = agg(rows, r => infoKar(r).departemen || '-'), deps = Object.keys(byDep).sort((a, b) => a.localeCompare(b));
+  const grup = dpt ? [[dpt, rows]] : [['Semua', rows], ...deps.map(d => [d, byDep[d]])];
+  const wb = XLSX.utils.book_new();
+  grup.forEach(([nama, rs]) => {
+    let aoa, cols;
+    if (mode === 'rekap') {
+      const L = Object.entries(agg(rs, r => r.nik)).map(([nik, x]) => { const s = hitung(x), k = infoKar(x[0]); return {nik, nama:k.nama || x[0].nama || '-', dep:k.departemen || '-', area:k.area || '', s}; })
+        .sort((a, b) => a.dep.localeCompare(b.dep) || a.nama.localeCompare(b.nama));
+      aoa = [['Karyawan', 'NIK', 'Departemen', 'Area', 'Hari Hadir', 'Terlambat', 'Sakit', 'Izin', 'Cuti Tahunan', 'Cuti Khusus', 'Cuti Belum Dikategorikan', 'Dinas', 'Alpha', 'Jam Kurang (T1/T2)', 'Pulang Cepat', 'Lembur (jam)', 'Hari Kerja', '% Hadir'],
+        ...L.map(({nik, nama, dep, area, s}) => [nama, nik, dep, area, s.hadir, s.c.Terlambat, s.c.Sakit, s.c.Izin, s.ct.t, s.ct.k, s.ct.b, s.c.Dinas, s.c.Alpha, s.jkk.t + s.jkk.b, s.jkk.p, Math.round(s.lem * 100) / 100, s.kerja, Math.round(s.hPct * 10) / 10])];
+      cols = [28, 20, 24, 16, 11, 11, 8, 8, 13, 12, 14, 8, 8, 14, 12, 12, 11, 9];
+    } else {
+      const tgl = [...new Set(rs.map(r => r.tanggal))].sort(), L = Object.entries(agg(rs, r => r.nik)).map(([nik, x]) => ({nik, x, k:infoKar(x[0])}))
+        .sort((a, b) => String(a.k.departemen).localeCompare(String(b.k.departemen)) || String(a.k.nama).localeCompare(String(b.k.nama)));
+      aoa = [['Karyawan', 'NIK', 'Departemen', ...tgl.map(t => t.slice(8) + '/' + t.slice(5, 7)), 'Hadir', 'Terlambat', 'Sakit', 'Izin', 'Cuti', 'Alpha'],
+        ...L.map(({nik, x, k}) => { const m = Object.fromEntries(x.map(r => [r.tanggal, r])), s = hitung(x); return [k.nama || x[0].nama || '-', nik, k.departemen || '-', ...tgl.map(t => m[t] ? (m[t].kode || KODE_BALIK[m[t].status] || m[t].status) : ''), s.hadir, s.c.Terlambat, s.c.Sakit, s.c.Izin, s.c.Cuti, s.c.Alpha]; })];
+      cols = [28, 20, 24, ...tgl.map(() => 5), 8, 10, 7, 7, 7, 7];
+    }
+    const ws = XLSX.utils.aoa_to_sheet(aoa); ws['!cols'] = cols.map(w => ({wch:w})); ws['!views'] = [{state:'frozen', xSplit:mode === 'harian' ? 3 : 1, ySplit:1}];
+    XLSX.utils.book_append_sheet(wb, ws, namaSheet(nama, dipakai));
+  });
+  if (mode === 'harian') XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([['Kode', 'Arti'], ['V', 'Hadir'], ['T', 'Terlambat'], ['T1/T2', 'Hadir, jam kerja kurang'], ['S', 'Sakit'], ['I', 'Izin'], ['C', 'Cuti'], ['A', 'Alpha'], ['D', 'Dinas'], ['0', 'Bukan hari kerja / libur'], ['(kosong)', 'Tidak ada data']]), namaSheet('Kode', dipakai));
+  XLSX.writeFile(wb, `absensi-${mode}-${dpt ? dpt.replace(/[^\w]+/g, '-') : 'semua-departemen'}-${dari}-sd-${sampai}.xlsx`);
+  toast(`Export ${mode === 'rekap' ? 'rekap' : 'harian'} berhasil: ${grup.length} sheet.`);
+}
 
 // ---------- Kategorisasi cuti & jam kurang ----------
 let katSel = new Set(), katShown = [];
