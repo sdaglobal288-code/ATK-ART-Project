@@ -156,7 +156,10 @@ const $ = id => document.getElementById(id);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const BLN = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'], HARI = ['Minggu','Senin','Selasa','Rabu','Kamis','Jumat','Sabtu'];
 const ST = ['Hadir','Terlambat','Dinas','Sakit','Izin','Cuti','Alpha'], WARNA = {Hadir:'#4dd0c4', Terlambat:'#f0913f', Dinas:'#7aa2f7', Sakit:'#b693f5', Izin:'#e5c35a', Cuti:'#8fa3b8', Alpha:'#e5708f'};
-const HADIR = ['Hadir','Terlambat','Dinas'], BATAS_ALPHA = 3, BATAS_TELAT = 5;
+// Kehadiran dihitung dari KODE absensi: V (hadir), T (terlambat), T1 (hadir, jam kurang). H = alias V.
+// Kode lain (T2, D/Dinas, S, I, C, A, 0) tidak dihitung hadir. Data lama tanpa kode: status Hadir/Terlambat dianggap V/T.
+const KODE_HADIR = ['V', 'H', 'T', 'T1'], BATAS_ALPHA = 3, BATAS_TELAT = 5;
+const isHadir = r => r.kode ? KODE_HADIR.includes(String(r.kode).trim().toUpperCase()) : (r.status === 'Hadir' || r.status === 'Terlambat');
 const iso = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
 const pct = (a, b) => b ? a / b * 100 : 0, f1 = n => (Math.round(n * 10) / 10).toLocaleString('id-ID');
 const toast = (m, e) => { const t = document.createElement('div'); t.className = 'toast' + (e ? ' e' : ''); t.textContent = m; document.body.appendChild(t); setTimeout(() => t.remove(), 5000); };
@@ -195,8 +198,12 @@ async function muat(diam) {
 // ---------- Realtime: data otomatis diperbarui ----------
 let rtTimer = null, rtOn = false, rtTerakhir = null;
 const jam = () => new Date().toLocaleTimeString('id-ID', {hour:'2-digit', minute:'2-digit', second:'2-digit'});
-function stempel() { rtTerakhir = jam(); tampilLive(); }
-function tampilLive() { const e = $('live'); e.className = 'live ' + (rtOn ? 'on' : 'off'); e.textContent = (rtOn ? '● Live' : '● Auto-refresh 60 dtk') + (rtTerakhir ? ` · ${rtTerakhir}` : ''); }
+let rtWaktu = null;
+function stempel() { rtWaktu = new Date(); rtTerakhir = jam(); tampilLive(); }
+function lalu() { if (!rtWaktu) return ''; const d = Math.floor((Date.now() - rtWaktu) / 1000); return d < 10 ? 'baru saja' : d < 60 ? `${d} detik lalu` : d < 3600 ? `${Math.floor(d / 60)} menit lalu` : `${Math.floor(d / 3600)} jam lalu`; }
+function tampilLive() { const e = $('live'); e.className = 'live ' + (rtOn ? 'on' : 'off'); e.style.cursor = 'pointer'; e.title = (rtOn ? 'Terhubung realtime: data masuk otomatis.' : 'Realtime belum aktif: data dimuat ulang tiap 60 detik.') + ' Klik untuk memuat ulang sekarang.'; e.onclick = () => muat(true);
+  e.innerHTML = (rtOn ? '● Live' : '● Auto-refresh 60 dtk') + (rtTerakhir ? `<span class="muted" style="font-weight:400"> · data diperbarui ${rtTerakhir} (${lalu()})</span>` : ''); }
+setInterval(tampilLive, 15000);   // teks "x menit lalu" ikut berjalan
 function jadwalRefresh(muatKar) { if (muatKar) kar = []; clearTimeout(rtTimer); rtTimer = setTimeout(() => muat(true), 1200); }   // digabung agar import ribuan baris tidak memicu ribuan refresh
 function mulaiRealtime() {
   try {
@@ -221,7 +228,7 @@ const katNilai = r => { const j = jenisKat(r); return j && KAT[j].includes(r.kat
 function hitung(rows) {
   const c = Object.fromEntries([...ST, 'Libur'].map(s => [s, 0])); let mt = 0, nt = 0, jk = 0, nj = 0, t12 = 0, lem = 0; const ct = {t:0, k:0, b:0}, jkk = {t:0, p:0, b:0};
   rows.forEach(r => { c[r.status]++; const jn = jenisKat(r), kv = katNilai(r); if (jn === 'cuti') ct[kv === 'Cuti Tahunan' ? 't' : kv === 'Cuti Khusus' ? 'k' : 'b']++; else if (jn === 'jk') jkk[kv === 'Terlambat' ? 't' : kv === 'Pulang Cepat' ? 'p' : 'b']++; if (r.kode === 'T1' || r.kode === 'T2') t12++; lem += Number(r.lembur_jam) || 0; if (r.status === 'Terlambat') { mt += r.terlambat_menit || 0; nt++; } if (Number(r.jam_kerja) > 0) { jk += Number(r.jam_kerja); nj++; } });
-  const kerja = ST.reduce((a, s) => a + c[s], 0), hadir = HADIR.reduce((a, s) => a + c[s], 0);
+  const kerja = ST.reduce((a, s) => a + c[s], 0), hadir = rows.filter(isHadir).length;
   return {c, kerja, hadir, hPct:pct(hadir, kerja), tPct:pct(c.Terlambat, c.Hadir + c.Terlambat), aPct:pct(c.Sakit + c.Izin + c.Alpha, kerja), avgT:nt ? mt / nt : 0, avgJ:nj ? jk / nj : 0, t12, lem, ct, jkk};
 }
 const agg = (rows, kf) => { const m = {}; rows.forEach(r => (m[kf(r)] ??= []).push(r)); return m; };
@@ -239,7 +246,7 @@ function renderRing() {
   const aktif = kar.filter(k => k.status === 'Aktif' && ((!dpt && !ar) || scope.has(String(k.nik).toUpperCase())));
   const ada = new Set(rows.map(r => r.nik));
   const card = (l, n, sub, c) => `<div class="stat" style="--c:${c}"><div class="l">${l}</div><div class="n">${n}</div><div class="s">${sub}</div></div>`;
-  $('stats').innerHTML = card('Tingkat kehadiran', f1(s.hPct) + '%', `${s.hadir} dari ${s.kerja} hari kerja tercatat`, '#4dd0c4') + card('Tingkat keterlambatan', f1(s.tPct) + '%', `${s.c.Terlambat} kali` + (s.avgT > 0 ? `, rata-rata ${Math.round(s.avgT)} menit` : ''), '#f0913f')
+  $('stats').innerHTML = card('Tingkat kehadiran', f1(s.hPct) + '%', `${s.hadir} dari ${s.kerja} hari kerja tercatat (kode V, T, T1)`, '#4dd0c4') + card('Tingkat keterlambatan', f1(s.tPct) + '%', `${s.c.Terlambat} kali` + (s.avgT > 0 ? `, rata-rata ${Math.round(s.avgT)} menit` : ''), '#f0913f')
     + card('Ketidakhadiran', f1(s.aPct) + '%', `Sakit ${s.c.Sakit} · Izin ${s.c.Izin} · Alpha ${s.c.Alpha}`, '#e5708f') + card('Jam kerja kurang', (s.jkk.t + s.jkk.b) + ' hari', `Pulang cepat ${s.jkk.p} · Cuti khusus ${s.ct.k}${s.jkk.b ? ` · ${s.jkk.b} belum dikategorikan` : ''} · Lembur ${f1(s.lem)} jam`, '#7aa2f7')
     + card('Karyawan terpantau', ada.size, `dari ${aktif.length} karyawan aktif`, '#b693f5');
   // Tren
